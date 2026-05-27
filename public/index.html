@@ -372,6 +372,7 @@
             box-shadow: 0 0 25px rgba(212, 175, 55, 0.08);
             transition: 0.3s;
             flex-shrink: 0;
+            position: relative;
         }
 
         .input-container:focus-within {
@@ -433,6 +434,7 @@
             gap: 2px;
             align-items: center;
             flex-shrink: 0;
+            position: relative;
         }
 
         .input-btn {
@@ -507,6 +509,41 @@
             cursor: not-allowed;
         }
 
+        /* PLUS MENU POPUP */
+        .plus-menu {
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            background: var(--black-lighter);
+            border: 1px solid var(--gold-dark);
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            min-width: 120px;
+        }
+
+        .plus-menu.show {
+            display: flex;
+        }
+
+        .plus-menu-item {
+            padding: 12px 15px;
+            color: var(--gold);
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .plus-menu-item:active {
+            background: var(--black-light);
+        }
+
         /* TYPING INDICATOR */
         .typing-dot {
             width: 7px;
@@ -546,7 +583,7 @@
             display: block;
         }
 
-        /* SCROLLBAR - Hide on mobile */
+        /* SCROLLBAR */
         ::-webkit-scrollbar {
             width: 3px;
         }
@@ -560,7 +597,7 @@
             border-radius: 3px;
         }
 
-        /* DESKTOP - Show chats panel by default */
+        /* DESKTOP */
         @media (min-width: 769px) {
             .chats-panel {
                 position: relative;
@@ -686,9 +723,18 @@
                     </div>
                     
                     <div class="input-actions">
-                        <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
-                        <button class="input-btn" onclick="document.getElementById('imageInput').click()" aria-label="Upload image">📎</button>
+                        <!-- Hidden file inputs for photos and camera -->
+                        <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+                        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
+                        
+                        <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Add image">➕</button>
                         <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice input">🎤</button>
+                        
+                        <!-- Plus menu popup -->
+                        <div class="plus-menu" id="plusMenu">
+                            <div class="plus-menu-item" onclick="openPhotos()">🖼️ Photos</div>
+                            <div class="plus-menu-item" onclick="openCamera()">📷 Camera</div>
+                        </div>
                     </div>
                     
                     <input type="text" class="message-input" id="messageInput" 
@@ -707,7 +753,7 @@
     </div>
 
     <script>
-        // ==================== GOLDENSPACEAI2 - MOBILE FRIENDLY ====================
+        // ==================== GOLDENSPACEAI2 - COMPLETE ====================
         const API_URL = '/api/chat';
         let smartMode = false;
         let currentChatId = null;
@@ -716,7 +762,7 @@
         let recognition = null;
         const speechSynthesis = window.speechSynthesis;
         let speaking = false;
-        let selectedImage = null;
+        let selectedImage = null; // Compressed base64 for sending
         let micPermissionGranted = false;
 
         // -------------------- INIT --------------------
@@ -730,9 +776,9 @@
             renderChatsList();
             initSpeechRecognition();
             
-            // Request mic permission on first tap
-            document.body.addEventListener('touchstart', requestMic, { once: true });
-            document.body.addEventListener('click', requestMic, { once: true });
+            // Request mic permission on first user gesture
+            document.body.addEventListener('touchstart', requestMicPermission, { once: true });
+            document.body.addEventListener('click', requestMicPermission, { once: true });
             
             // Prevent double-tap zoom
             document.addEventListener('dblclick', function(e) {
@@ -740,9 +786,18 @@
                     e.preventDefault();
                 }
             }, { passive: false });
+            
+            // Close plus menu when clicking outside
+            document.addEventListener('click', function(e) {
+                const menu = document.getElementById('plusMenu');
+                const plusBtn = document.getElementById('plusBtn');
+                if (menu && plusBtn && !plusBtn.contains(e.target) && !menu.contains(e.target)) {
+                    menu.classList.remove('show');
+                }
+            });
         }
 
-        function requestMic() {
+        function requestMicPermission() {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
                     .then(() => { micPermissionGranted = true; })
@@ -829,6 +884,75 @@
             }
         }
 
+        // -------------------- IMAGE HANDLING --------------------
+        function togglePlusMenu() {
+            const menu = document.getElementById('plusMenu');
+            menu.classList.toggle('show');
+        }
+
+        function openPhotos() {
+            document.getElementById('plusMenu').classList.remove('show');
+            document.getElementById('photosInput').click();
+        }
+
+        function openCamera() {
+            document.getElementById('plusMenu').classList.remove('show');
+            document.getElementById('cameraInput').click();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            if(!file.type.startsWith('image/')) { 
+                alert('Please select an image file.'); 
+                return; 
+            }
+            
+            compressImage(file, (compressedBase64) => {
+                selectedImage = compressedBase64;
+                console.log('📎 Image ready');
+                // Optional: show a small indicator that image is attached
+            });
+            
+            // Reset input so same file can be selected again
+            event.target.value = '';
+        }
+
+        function compressImage(file, callback) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_WIDTH = 1920;
+                    const MAX_HEIGHT = 1920;
+                    
+                    if (width > MAX_WIDTH) {
+                        height = (height * MAX_WIDTH) / width;
+                        width = MAX_WIDTH;
+                    }
+                    if (height > MAX_HEIGHT) {
+                        width = (width * MAX_HEIGHT) / height;
+                        height = MAX_HEIGHT;
+                    }
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Compress to JPEG at 0.7 quality (good balance)
+                    const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                    console.log(`📸 Original: ${(file.size/1024/1024).toFixed(1)}MB → Compressed: ${(compressed.length/1024/1024).toFixed(1)}MB`);
+                    callback(compressed);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
         // -------------------- MESSAGING --------------------
         async function sendMessage() {
             const input = document.getElementById('messageInput');
@@ -836,17 +960,29 @@
             if(!text && !selectedImage) return;
             if(!currentChatId) return;
 
-            // Blur keyboard
             input.blur();
 
-            const userMsg = { role: 'user', content: text, image: selectedImage, timestamp: new Date().toISOString() };
-            chats[currentChatId].messages.push(userMsg);
+            const userMsg = { 
+                role: 'user', 
+                content: text, 
+                image: selectedImage, 
+                timestamp: new Date().toISOString() 
+            };
+            
+            // Save message to localStorage (but skip huge images to avoid quota)
+            const msgToStore = { ...userMsg };
+            if (selectedImage && selectedImage.length > 5 * 1024 * 1024) { // >5MB
+                msgToStore.image = null;
+                msgToStore.imageTooBig = true;
+            }
+            
+            chats[currentChatId].messages.push(msgToStore);
             saveChats();
-            renderMessage(userMsg);
+            renderMessage(userMsg); // Render with actual image for current view
+            
             input.value = '';
             const imgToSend = selectedImage;
             selectedImage = null;
-            document.getElementById('imageInput').value = '';
             const typingId = showTypingIndicator();
 
             try {
@@ -854,7 +990,10 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        messages: chats[currentChatId].messages.slice(-5),
+                        messages: chats[currentChatId].messages.slice(-5).map(m => ({
+                            ...m,
+                            image: m.imageTooBig ? null : m.image // don't send placeholder
+                        })),
                         customInstructions: chats[currentChatId].customInstructions,
                         smartMode,
                         image: imgToSend
@@ -881,14 +1020,23 @@
             const div = document.createElement('div');
             div.className = 'message ' + msg.role;
             let html = '';
-            if(msg.image) html += `<img src="${msg.image}" class="message-image" alt="Uploaded" loading="lazy">`;
+            
+            // Show image if present
+            if(msg.image) {
+                html += `<img src="${msg.image}" class="message-image" alt="Uploaded" loading="lazy">`;
+            } else if(msg.imageTooBig) {
+                html += `<div style="color:#888; font-style:italic; padding:5px;">📷 Image (too large to display)</div>`;
+            }
+            
             if(msg.content) html += `<div>${escapeHtml(msg.content)}</div>`;
+            
             if(msg.role === 'ai') {
                 html += `<div class="message-actions">
                     <button class="speak-btn" onclick="speakMessage(this)" aria-label="Read aloud">🔊</button>
                     <button class="stop-btn" onclick="stopSpeaking()" aria-label="Stop">⏹</button>
                 </div>`;
             }
+            
             div.innerHTML = `<div class="message-bubble">${html}</div>`;
             if(msg.content) div.querySelector('.message-bubble').setAttribute('data-text', msg.content);
             container.appendChild(div);
@@ -966,7 +1114,7 @@
             
             recognition.onerror = (e) => {
                 if(e.error === 'not-allowed') {
-                    alert('Please allow microphone access in your browser settings.');
+                    alert('Microphone access denied. Please allow it in your browser settings.');
                     micPermissionGranted = false;
                 }
                 stopRecording();
@@ -984,7 +1132,8 @@
                 stopRecording();
             } else {
                 if(!micPermissionGranted) {
-                    requestMic();
+                    // Request permission again
+                    requestMicPermission();
                     setTimeout(() => {
                         if(micPermissionGranted) startRecording();
                         else alert('Please allow microphone access first.');
@@ -1009,7 +1158,7 @@
             if(recognition) try { recognition.stop(); } catch(e) {}
         }
 
-        // -------------------- VOICE OUTPUT --------------------
+        // -------------------- VOICE OUTPUT (TTS) --------------------
         function speakMessage(btn) {
             const bubble = btn.closest('.message-bubble');
             if(!bubble) return;
@@ -1019,15 +1168,16 @@
             if(!window.speechSynthesis) return;
             
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1;
-            utterance.pitch = 1;
-            utterance.volume = 1;
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0; // Max volume
             
+            // Use a good voice (prefer Google voices for clarity)
             const voices = speechSynthesis.getVoices();
             if(voices.length) {
-                const preferred = voices.find(v => v.lang.startsWith('en') && v.name.includes('Samantha')) ||
-                                  voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
-                                  voices.find(v => v.lang.startsWith('en'));
+                const preferred = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
+                                  voices.find(v => v.lang.startsWith('en') && v.name.includes('Samantha')) ||
+                                  voices.find(v => v.lang.startsWith('en-US') && v.localService);
                 if(preferred) utterance.voice = preferred;
             }
             
@@ -1044,24 +1194,6 @@
             }
         }
 
-        // -------------------- IMAGE UPLOAD --------------------
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if(!file) return;
-            if(!file.type.startsWith('image/')) { 
-                alert('Please select an image file.'); 
-                return; 
-            }
-            if(file.size > 10 * 1024 * 1024) { 
-                alert('Image too large (max 10MB).'); 
-                return; 
-            }
-            const reader = new FileReader();
-            reader.onload = (e) => { selectedImage = e.target.result; };
-            reader.onerror = () => { alert('Failed to load image.'); };
-            reader.readAsDataURL(file);
-        }
-
         // -------------------- UI HELPERS --------------------
         function toggleChatsPanel() {
             const panel = document.getElementById('chatsPanel');
@@ -1072,6 +1204,8 @@
             } else {
                 panel.classList.add('open');
                 overlay.classList.add('show');
+                // Push state so back button closes panel
+                history.pushState({ panelOpen: true }, '');
             }
         }
 
@@ -1081,6 +1215,12 @@
             panel.classList.remove('open');
             overlay.classList.remove('show');
         }
+
+        window.addEventListener('popstate', (e) => {
+            if(e.state && e.state.panelOpen) {
+                closeChatsPanel();
+            }
+        });
 
         function scrollToBottom() {
             const mc = document.getElementById('messagesContainer');
@@ -1096,31 +1236,7 @@
             return d.innerHTML.replace(/\n/g, '<br>');
         }
 
-        // Handle back button on mobile to close panel
-        window.addEventListener('popstate', (e) => {
-            if(e.state && e.state.panelOpen) {
-                closeChatsPanel();
-            }
-        });
-
-        // Push state when opening panel
-        const originalToggle = toggleChatsPanel;
-        toggleChatsPanel = function() {
-            const panel = document.getElementById('chatsPanel');
-            if(!panel.classList.contains('open')) {
-                history.pushState({ panelOpen: true }, '');
-            }
-            originalToggle();
-        };
-
-        // Handle resize
-        window.addEventListener('resize', () => {
-            if(window.innerWidth > 768) {
-                closeChatsPanel();
-            }
-        });
-
-        // Handle keyboard visibility on mobile
+        // Adjust viewport when keyboard appears
         if('visualViewport' in window) {
             window.visualViewport.addEventListener('resize', () => {
                 scrollToBottom();
@@ -1129,7 +1245,7 @@
 
         // Start
         init();
-        console.log('🚀 GoldenSpaceAI2 ready - Mobile Optimized');
+        console.log('🚀 GoldenSpaceAI2 ready');
     </script>
 </body>
 </html>

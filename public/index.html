@@ -24,6 +24,7 @@
             --white: #ffffff;
             --gray: #888888;
             --red: #e74c3c;
+            --green: #4ade80;
             --safe-bottom: env(safe-area-inset-bottom, 0px);
             --safe-top: env(safe-area-inset-top, 0px);
         }
@@ -258,6 +259,7 @@
             box-shadow: 0 0 25px rgba(212,175,55,0.08);
             transition: 0.3s;
             flex-shrink: 0;
+            flex-wrap: wrap;
         }
         .input-container:focus-within { border-color: var(--gold); box-shadow: 0 0 30px rgba(212,175,55,0.15); }
 
@@ -315,6 +317,23 @@
         .model-menu-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: var(--gold); color: var(--black); margin-left: auto; }
         .model-menu-desc { font-size: 10px; color: var(--gray); display: block; }
 
+        .web-search-btn {
+            font-family: inherit;
+            background: var(--black);
+            border: 1px solid var(--gold-dark);
+            color: var(--gold);
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: 0.3s;
+        }
+        .web-search-btn.on {
+            border-color: var(--green) !important;
+            color: var(--green) !important;
+        }
+
         .input-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; position: relative; }
         .input-btn {
             background: none;
@@ -331,7 +350,7 @@
         }
         .input-btn:active { color: var(--gold-light); transform: scale(0.9); }
         .input-btn.recording { color: var(--red); animation: pulse 1s infinite; }
-        .input-btn.image-attached { color: #4ade80; }
+        .input-btn.image-attached { color: var(--green); }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
         .message-input {
@@ -342,7 +361,7 @@
             font-size: 14px;
             outline: none;
             padding: 6px 4px;
-            min-width: 0;
+            min-width: 120px;
             -webkit-user-select: text;
             user-select: text;
             font-family: inherit;
@@ -429,8 +448,7 @@
             .chats-panel.closed { transform: translateX(-100%); min-width: 0; width: 0; }
             .message-bubble { max-width: 70%; font-size: 15px; }
             .message-image { max-width: 300px; max-height: 300px; }
-            .input-container { margin: 0 15px 15px 15px; border-radius: 25px; padding: 10px 15px; gap: 10px; }
-            .smart-mode-label { display: inline; font-size: 10px; }
+            .input-container { margin: 0 15px 15px 15px; border-radius: 25px; padding: 10px 15px; gap: 10px; flex-wrap: nowrap; }
         }
     </style>
 </head>
@@ -475,6 +493,11 @@
                         </div>
                     </div>
 
+                    <!-- Web Search Toggle (only visible in Expert mode) -->
+                    <div class="web-search-toggle" id="webSearchToggle" style="display:none;align-items:center;flex-shrink:0;">
+                        <button class="web-search-btn" id="webSearchBtn" onclick="toggleWebSearch()">🌐 OFF</button>
+                    </div>
+
                     <div class="input-actions">
                         <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
                         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
@@ -508,6 +531,7 @@
         let speaking = false;
         let selectedImage = null;
         let micPermissionGranted = false;
+        let webSearchEnabled = false;
 
         const MODELS = {
             'normal': { label: '⚡ Grok 4.3', apiMode: 'normal', badge: 'badge-normal', desc: 'Grok 4.3' },
@@ -527,7 +551,6 @@
             
             document.body.addEventListener('click', requestMicPermission, { once: true });
             
-            // Close menus when clicking outside
             document.addEventListener('click', function(e) {
                 const modelMenu = document.getElementById('modelMenu');
                 const modelBtn = document.getElementById('modelBtn');
@@ -548,15 +571,34 @@
         function requestMicPermission() {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(function() { micPermissionGranted = true; console.log('Mic ready'); })
+                    .then(function() { micPermissionGranted = true; })
                     .catch(function() { micPermissionGranted = false; });
+            }
+        }
+
+        // ==================== WEB SEARCH TOGGLE ====================
+        function toggleWebSearch() {
+            webSearchEnabled = !webSearchEnabled;
+            updateWebSearchUI();
+        }
+
+        function updateWebSearchUI() {
+            const btn = document.getElementById('webSearchBtn');
+            if (btn) {
+                if (webSearchEnabled) {
+                    btn.textContent = '🌐 ON';
+                    btn.classList.add('on');
+                } else {
+                    btn.textContent = '🌐 OFF';
+                    btn.classList.remove('on');
+                }
             }
         }
 
         // ==================== MODEL SELECTION ====================
         function toggleModelMenu() {
-            var modelMenu = document.getElementById('modelMenu');
-            var plusMenu = document.getElementById('plusMenu');
+            const modelMenu = document.getElementById('modelMenu');
+            const plusMenu = document.getElementById('plusMenu');
             if (plusMenu) plusMenu.classList.remove('show');
             if (modelMenu) modelMenu.classList.toggle('show');
         }
@@ -566,13 +608,19 @@
             updateModelUI();
             document.getElementById('modelMenu').classList.remove('show');
             document.getElementById('plusMenu').classList.remove('show');
+            
+            // Show/hide web search toggle
+            const webToggle = document.getElementById('webSearchToggle');
+            if (webToggle) {
+                webToggle.style.display = model.startsWith('expert') ? 'flex' : 'none';
+            }
         }
 
         function updateModelUI() {
-            var config = MODELS[currentModel];
+            const config = MODELS[currentModel];
             if (!config) return;
             document.getElementById('modelLabel').textContent = config.label;
-            var btn = document.getElementById('modelBtn');
+            const btn = document.getElementById('modelBtn');
             if (currentModel.startsWith('expert')) {
                 btn.classList.add('expert-active');
             } else {
@@ -590,7 +638,7 @@
         }
 
         function createNewChat() {
-            var id = 'chat_' + Date.now();
+            const id = 'chat_' + Date.now();
             chats[id] = { name: 'New Chat', messages: [], customInstructions: '', createdAt: new Date().toISOString() };
             currentChatId = id;
             saveChats();
@@ -604,7 +652,7 @@
             delete chats[id];
             saveChats();
             if(currentChatId === id) {
-                var ids = Object.keys(chats);
+                const ids = Object.keys(chats);
                 currentChatId = ids.length ? ids[0] : null;
                 loadChat();
             }
@@ -613,7 +661,7 @@
         }
 
         function renameChat(id) {
-            var name = prompt('Name:', chats[id].name);
+            const name = prompt('Name:', chats[id].name);
             if(name && name.trim()) { chats[id].name = name.trim(); saveChats(); renderChatsList(); }
         }
 
@@ -625,29 +673,29 @@
         }
 
         function loadChat() {
-            var container = document.getElementById('messagesContainer');
+            const container = document.getElementById('messagesContainer');
             container.innerHTML = '';
             if(!currentChatId || !chats[currentChatId]) return;
             document.getElementById('customInstructions').value = chats[currentChatId].customInstructions || '';
-            var messages = chats[currentChatId].messages;
-            for (var i = 0; i < messages.length; i++) {
+            const messages = chats[currentChatId].messages;
+            for (let i = 0; i < messages.length; i++) {
                 renderMessage(messages[i]);
             }
             scrollToBottom();
         }
 
         function renderChatsList() {
-            var list = document.getElementById('chatsList');
+            const list = document.getElementById('chatsList');
             list.innerHTML = '';
-            var chatIds = Object.keys(chats);
+            const chatIds = Object.keys(chats);
             if(!chatIds.length) {
                 list.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:13px;">No chats yet</div>';
                 return;
             }
-            for (var i = 0; i < chatIds.length; i++) {
-                var id = chatIds[i];
-                var chat = chats[id];
-                var div = document.createElement('div');
+            for (let i = 0; i < chatIds.length; i++) {
+                const id = chatIds[i];
+                const chat = chats[id];
+                const div = document.createElement('div');
                 div.className = 'chat-item' + (id === currentChatId ? ' active' : '');
                 div.innerHTML = '<span class="chat-item-name" onclick="switchChat(\'' + id + '\')">💭 ' + escapeHtml(chat.name) + '</span>' +
                     '<div class="chat-item-actions">' +
@@ -667,8 +715,8 @@
 
         // ==================== IMAGE HANDLING ====================
         function togglePlusMenu() {
-            var plusMenu = document.getElementById('plusMenu');
-            var modelMenu = document.getElementById('modelMenu');
+            const plusMenu = document.getElementById('plusMenu');
+            const modelMenu = document.getElementById('modelMenu');
             if (modelMenu) modelMenu.classList.remove('show');
             if (plusMenu) plusMenu.classList.toggle('show');
         }
@@ -684,7 +732,7 @@
         }
 
         function handleImageUpload(event) {
-            var file = event.target.files[0];
+            const file = event.target.files[0];
             if(!file) return;
             if(!file.type.startsWith('image/')) { alert('Please select an image.'); return; }
             compressImage(file, function(compressedBase64) {
@@ -695,15 +743,15 @@
         }
 
         function compressImage(file, callback) {
-            var reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = function(e) {
-                var img = new Image();
+                const img = new Image();
                 img.onload = function() {
-                    var w = img.width, h = img.height;
-                    var MAX = 1920;
+                    let w = img.width, h = img.height;
+                    const MAX = 1920;
                     if (w > MAX) { h = (h * MAX) / w; w = MAX; }
                     if (h > MAX) { w = (w * MAX) / h; h = MAX; }
-                    var canvas = document.createElement('canvas');
+                    const canvas = document.createElement('canvas');
                     canvas.width = w; canvas.height = h;
                     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                     callback(canvas.toDataURL('image/jpeg', 0.7));
@@ -715,23 +763,21 @@
 
         // ==================== MESSAGING ====================
         async function sendMessage() {
-            var input = document.getElementById('messageInput');
-            var text = input.value.trim();
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
             if(!text && !selectedImage) return;
             if(!currentChatId) { createNewChat(); }
             
             input.blur();
 
-            var userMsg = { 
+            const userMsg = { 
                 role: 'user', content: text, image: selectedImage,
                 model: currentModel, timestamp: new Date().toISOString() 
             };
             
-            // SHOW USER MESSAGE IMMEDIATELY
             renderMessage(userMsg);
             
-            // Store in localStorage
-            var msgToStore = { role: userMsg.role, content: userMsg.content, image: null, model: userMsg.model, timestamp: userMsg.timestamp };
+            const msgToStore = { role: userMsg.role, content: userMsg.content, image: null, model: userMsg.model, timestamp: userMsg.timestamp };
             if (selectedImage && selectedImage.length <= 5 * 1024 * 1024) {
                 msgToStore.image = selectedImage;
             }
@@ -743,14 +789,14 @@
             saveChats();
             
             input.value = '';
-            var imgToSend = selectedImage;
+            const imgToSend = selectedImage;
             selectedImage = null;
             document.getElementById('plusBtn').classList.remove('image-attached');
             
-            var typingId = showTypingIndicator();
+            const typingId = showTypingIndicator();
 
             try {
-                var res = await fetch(API_URL, {
+                const res = await fetch(API_URL, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -758,18 +804,19 @@
                         customInstructions: chats[currentChatId].customInstructions || '',
                         mode: MODELS[currentModel].apiMode,
                         agents: MODELS[currentModel].agents || 4,
+                        webSearch: webSearchEnabled,
                         image: imgToSend
                     })
                 });
                 
-                var data = await res.json();
+                const data = await res.json();
                 removeTypingIndicator(typingId);
                 
                 if (!res.ok) {
                     throw new Error(data.reply || 'Server error');
                 }
                 
-                var aiMsg = { 
+                const aiMsg = { 
                     role: 'ai', 
                     content: data.reply || 'No response',
                     model: currentModel, 
@@ -783,7 +830,7 @@
                 removeTypingIndicator(typingId);
                 console.error('Error:', err);
                 
-                var errMsg = { 
+                const errMsg = { 
                     role: 'ai', 
                     content: '⚠️ ' + (err.message || 'Could not reach Grok.'),
                     model: currentModel, 
@@ -797,29 +844,25 @@
         }
 
         function renderMessage(msg) {
-            var container = document.getElementById('messagesContainer');
-            var div = document.createElement('div');
+            const container = document.getElementById('messagesContainer');
+            const div = document.createElement('div');
             div.className = 'message ' + msg.role;
             
-            var html = '';
+            let html = '';
             
-            // Model badge
             if (msg.role === 'ai' && msg.model) {
-                var config = MODELS[msg.model] || MODELS['normal'];
+                const config = MODELS[msg.model] || MODELS['normal'];
                 html += '<div class="message-meta"><span class="message-mode-badge ' + config.badge + '">' + config.desc + '</span></div>';
             }
             
-            // Image
             if (msg.image) {
                 html += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
             }
             
-            // Text content
             if (msg.content) {
                 html += '<div>' + escapeHtml(msg.content) + '</div>';
             }
             
-            // Action buttons for AI messages
             if (msg.role === 'ai') {
                 html += '<div class="message-actions">' +
                     '<button class="msg-btn" onclick="speakMessage(this)">🔊 Listen</button>' +
@@ -830,9 +873,8 @@
             
             div.innerHTML = '<div class="message-bubble">' + html + '</div>';
             
-            // Store text for speech
             if (msg.content) {
-                var bubble = div.querySelector('.message-bubble');
+                const bubble = div.querySelector('.message-bubble');
                 if (bubble) bubble.setAttribute('data-text', msg.content);
             }
             
@@ -841,9 +883,9 @@
         }
 
         function showTypingIndicator() {
-            var container = document.getElementById('messagesContainer');
-            var id = 'typing_' + Date.now();
-            var div = document.createElement('div');
+            const container = document.getElementById('messagesContainer');
+            const id = 'typing_' + Date.now();
+            const div = document.createElement('div');
             div.id = id;
             div.className = 'message ai';
             div.innerHTML = '<div class="message-bubble"><div style="display:flex;gap:4px;padding:4px 8px;">' +
@@ -855,7 +897,7 @@
         }
 
         function removeTypingIndicator(id) {
-            var el = document.getElementById(id);
+            const el = document.getElementById(id);
             if (el) el.remove();
         }
 
@@ -864,8 +906,8 @@
         }
 
         function copyMessage(btn) {
-            var bubble = btn.closest('.message-bubble');
-            var text = bubble ? bubble.getAttribute('data-text') : null;
+            const bubble = btn.closest('.message-bubble');
+            const text = bubble ? bubble.getAttribute('data-text') : null;
             if (text) {
                 navigator.clipboard.writeText(text).then(function() {
                     btn.textContent = '✅ Copied!';
@@ -876,10 +918,9 @@
 
         // ==================== VOICE INPUT ====================
         function initSpeechRecognition() {
-            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 document.getElementById('micBtn').style.display = 'none';
-                console.log('Speech recognition not supported');
                 return;
             }
             recognition = new SpeechRecognition();
@@ -890,12 +931,11 @@
             recognition.onstart = function() { 
                 isRecording = true; 
                 document.getElementById('micBtn').classList.add('recording'); 
-                console.log('Recording started');
             };
             
             recognition.onresult = function(event) {
-                var transcript = '';
-                for (var i = event.resultIndex; i < event.results.length; i++) {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
                     transcript += event.results[i][0].transcript;
                 }
                 document.getElementById('messageInput').value = transcript;
@@ -912,13 +952,11 @@
             };
             
             recognition.onend = function() { stopRecording(); };
-            
-            console.log('Speech recognition initialized');
         }
 
         function toggleVoiceInput() {
             if (!recognition) { 
-                alert('Voice input not supported in this browser. Please use Chrome or Safari.'); 
+                alert('Voice input not supported in this browser.'); 
                 return; 
             }
             if (isRecording) {
@@ -937,43 +975,37 @@
         }
 
         function startRecording() { 
-            try { 
-                recognition.start(); 
-            } catch(e) { 
-                stopRecording(); 
-            }
+            try { recognition.start(); } catch(e) { stopRecording(); }
         }
 
         function stopRecording() {
             isRecording = false;
-            var micBtn = document.getElementById('micBtn');
+            const micBtn = document.getElementById('micBtn');
             if (micBtn) micBtn.classList.remove('recording');
-            if (recognition) {
-                try { recognition.stop(); } catch(e) {}
-            }
+            if (recognition) try { recognition.stop(); } catch(e) {}
         }
 
         // ==================== VOICE OUTPUT ====================
         function speakMessage(btn) {
-            var bubble = btn.closest('.message-bubble');
+            const bubble = btn.closest('.message-bubble');
             if (!bubble) return;
-            var text = bubble.getAttribute('data-text');
+            const text = bubble.getAttribute('data-text');
             if (!text) return;
             
             stopSpeaking();
             
             if (!window.speechSynthesis) return;
             
-            var utterance = new SpeechSynthesisUtterance(text);
+            const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1;
             utterance.pitch = 1;
             utterance.volume = 1;
             
-            var voices = speechSynthesis.getVoices();
+            const voices = speechSynthesis.getVoices();
             if (voices.length) {
-                var preferred = voices.find(function(v) { return v.lang.startsWith('en') && v.name.includes('Google'); }) ||
-                                voices.find(function(v) { return v.lang.startsWith('en') && v.name.includes('Samantha'); }) ||
-                                voices.find(function(v) { return v.lang.startsWith('en-US'); });
+                const preferred = voices.find(function(v) { return v.lang.startsWith('en') && v.name.includes('Google'); }) ||
+                                  voices.find(function(v) { return v.lang.startsWith('en') && v.name.includes('Samantha'); }) ||
+                                  voices.find(function(v) { return v.lang.startsWith('en-US'); });
                 if (preferred) utterance.voice = preferred;
             }
             
@@ -998,16 +1030,16 @@
                 speechSynthesis.cancel(); 
                 speaking = false; 
             }
-            var activeBtns = document.querySelectorAll('.active-speaking');
-            for (var i = 0; i < activeBtns.length; i++) {
+            const activeBtns = document.querySelectorAll('.active-speaking');
+            for (let i = 0; i < activeBtns.length; i++) {
                 activeBtns[i].classList.remove('active-speaking');
             }
         }
 
         // ==================== UI HELPERS ====================
         function toggleChatsPanel() {
-            var panel = document.getElementById('chatsPanel');
-            var overlay = document.getElementById('overlay');
+            const panel = document.getElementById('chatsPanel');
+            const overlay = document.getElementById('overlay');
             if (panel.classList.contains('open')) {
                 closeChatsPanel();
             } else {
@@ -1027,7 +1059,7 @@
         });
 
         function scrollToBottom() {
-            var mc = document.getElementById('messagesContainer');
+            const mc = document.getElementById('messagesContainer');
             requestAnimationFrame(function() { 
                 mc.scrollTop = mc.scrollHeight; 
             });
@@ -1035,17 +1067,15 @@
 
         function escapeHtml(text) {
             if (!text) return '';
-            var d = document.createElement('div');
+            const d = document.createElement('div');
             d.textContent = text;
             return d.innerHTML.replace(/\n/g, '<br>');
         }
 
-        // Handle keyboard
         if ('visualViewport' in window) {
             window.visualViewport.addEventListener('resize', function() { scrollToBottom(); });
         }
 
-        // Start
         init();
     </script>
 </body>

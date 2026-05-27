@@ -6,17 +6,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Grok (xAI) setup
 let grok;
 try {
-    if (!process.env.GROK_API_KEY) {
-        console.error('❌ GROK_API_KEY not set in environment!');
-    }
     grok = new OpenAI({
         apiKey: process.env.GROK_API_KEY || 'missing-key',
         baseURL: 'https://api.x.ai/v1'
@@ -25,30 +20,25 @@ try {
     console.error('Failed to initialize Grok client:', e.message);
 }
 
-// Model configurations
 const MODELS = {
     normal: { model: 'grok-4.3', maxTokens: 2048, temperature: 0.7 },
     smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3 },
     expert: { model: 'grok-4.20-multi-agent', maxTokens: 4096, temperature: 0.5 }
 };
 
-// ==================== MAIN CHAT ENDPOINT ====================
 app.post('/api/chat', async (req, res) => {
     try {
         const { messages, customInstructions, mode, agents, image } = req.body;
         
-        // Validate API key
         if (!process.env.GROK_API_KEY) {
             return res.status(500).json({ 
-                reply: '⚠️ Grok API key not configured. Please add it in Render environment variables.',
+                reply: '⚠️ Grok API key not configured.',
                 model: 'Error'
             });
         }
         
-        // Build conversation messages
         const conversationMessages = [];
         
-        // Add custom instructions as system message
         if (customInstructions && customInstructions.trim()) {
             conversationMessages.push({
                 role: 'system',
@@ -56,25 +46,21 @@ app.post('/api/chat', async (req, res) => {
             });
         }
         
-        // Add conversation history
         if (messages && Array.isArray(messages)) {
             messages.forEach(msg => {
                 if (!msg || !msg.role) return;
                 
                 if (msg.role === 'user') {
                     const content = [];
-                    
                     if (msg.content && msg.content.trim()) {
                         content.push({ type: 'text', text: msg.content.trim() });
                     }
-                    
                     if (msg.image && !msg.imageTooBig) {
                         content.push({
                             type: 'image_url',
                             image_url: { url: msg.image, detail: 'auto' }
                         });
                     }
-                    
                     if (content.length > 0) {
                         conversationMessages.push({
                             role: 'user',
@@ -94,7 +80,6 @@ app.post('/api/chat', async (req, res) => {
             });
         }
         
-        // Add current image if not in history
         if (image && !messages?.some(m => m.image === image)) {
             const lastMsg = conversationMessages[conversationMessages.length - 1];
             if (lastMsg && lastMsg.role === 'user') {
@@ -114,12 +99,10 @@ app.post('/api/chat', async (req, res) => {
             }
         }
         
-        // Ensure at least one message
         if (conversationMessages.length === 0) {
             conversationMessages.push({ role: 'user', content: 'Hello' });
         }
         
-        // Remove duplicate system messages
         const systemMessages = conversationMessages.filter(m => m.role === 'system');
         if (systemMessages.length > 1) {
             const firstSystem = conversationMessages.findIndex(m => m.role === 'system');
@@ -130,7 +113,6 @@ app.post('/api/chat', async (req, res) => {
             }
         }
         
-        // Select model configuration
         const safeMode = mode || 'normal';
         const config = MODELS[safeMode] || MODELS.normal;
         
@@ -139,15 +121,46 @@ app.post('/api/chat', async (req, res) => {
         let completion;
         
         if (safeMode === 'expert') {
-            // ==================== EXPERT MODE ====================
             console.log(`🌐 Expert mode with ${agents || 4} agents`);
             
             completion = await grok.chat.completions.create({
                 model: config.model,
                 messages: conversationMessages,
                 tools: [
-                    { type: 'function', function: { name: 'web_search', description: 'Search the web for current information and recent data' } },
-                    { type: 'function', function: { name: 'x_search', description: 'Search X (Twitter) for posts, trends, and discussions' } }
+                    {
+                        type: 'function',
+                        function: {
+                            name: 'web_search',
+                            description: 'Search the web for current information',
+                            parameters: {
+                                type: 'object',
+                                properties: {
+                                    query: {
+                                        type: 'string',
+                                        description: 'The search query'
+                                    }
+                                },
+                                required: ['query']
+                            }
+                        }
+                    },
+                    {
+                        type: 'function',
+                        function: {
+                            name: 'x_search',
+                            description: 'Search X (Twitter) for posts',
+                            parameters: {
+                                type: 'object',
+                                properties: {
+                                    query: {
+                                        type: 'string',
+                                        description: 'The search query'
+                                    }
+                                },
+                                required: ['query']
+                            }
+                        }
+                    }
                 ],
                 tool_choice: 'auto',
                 max_tokens: config.maxTokens,
@@ -155,7 +168,6 @@ app.post('/api/chat', async (req, res) => {
             });
             
         } else if (safeMode === 'smart') {
-            // ==================== SMART MODE ====================
             completion = await grok.chat.completions.create({
                 model: config.model,
                 messages: conversationMessages,
@@ -165,7 +177,6 @@ app.post('/api/chat', async (req, res) => {
             });
             
         } else {
-            // ==================== NORMAL MODE ====================
             completion = await grok.chat.completions.create({
                 model: config.model,
                 messages: conversationMessages,
@@ -178,10 +189,7 @@ app.post('/api/chat', async (req, res) => {
         
         console.log(`✅ Response: ${reply.length} chars`);
         
-        res.json({ 
-            reply, 
-            model: safeMode 
-        });
+        res.json({ reply, model: safeMode });
         
     } catch (error) {
         console.error('❌ Grok API Error:', error.message, error.status);
@@ -190,86 +198,51 @@ app.post('/api/chat', async (req, res) => {
         let statusCode = 500;
         
         if (error.status === 401) {
-            errorMessage = '🔑 Invalid API key. Check your Grok API key in Render environment.';
+            errorMessage = '🔑 Invalid API key.';
         } else if (error.status === 429) {
-            errorMessage = '⏳ Rate limited. Wait a moment or add credits at console.x.ai.';
+            errorMessage = '⏳ Rate limited or out of credits.';
         } else if (error.status === 402) {
-            errorMessage = '💰 Out of credits. Add funds at console.x.ai.';
+            errorMessage = '💰 Out of credits.';
         } else if (error.status === 422) {
-            errorMessage = '⚠️ Invalid request format. Please try again.';
+            errorMessage = '⚠️ Invalid request. Try a different mode.';
         } else if (error.status === 503) {
-            errorMessage = '🔧 Grok service temporarily unavailable. Try again soon.';
-        } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-            errorMessage = '🔌 Cannot connect to Grok servers. Check your internet.';
+            errorMessage = '🔧 Grok service unavailable.';
         } else if (error.message?.includes('timeout')) {
-            errorMessage = '⏰ Request timed out. Expert mode may take longer.';
+            errorMessage = '⏰ Request timed out.';
         } else if (error.message) {
             errorMessage = '⚠️ ' + error.message.substring(0, 100);
         }
         
-        res.status(statusCode).json({ 
-            reply: errorMessage,
-            model: 'Error'
-        });
+        res.status(statusCode).json({ reply: errorMessage, model: 'Error' });
     }
 });
 
-// ==================== HEALTH CHECK ====================
 app.get('/health', (req, res) => {
     res.json({
         status: 'online',
         app: 'GoldenSpaceAI2',
-        version: '2.0.0',
         provider: 'Grok (xAI)',
-        models: {
-            normal: 'grok-4.3',
-            smart: 'grok-4.3 (reasoning)',
-            expert: 'grok-4.20-multi-agent (4-16 agents)'
-        },
-        tools: ['web_search (function)', 'x_search (function)'],
-        apiKeyConfigured: !!process.env.GROK_API_KEY,
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
+        apiKeyConfigured: !!process.env.GROK_API_KEY
     });
 });
 
-// ==================== CATCH-ALL ROUTE ====================
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
-        return res.status(404).json({ error: 'API endpoint not found' });
+        return res.status(404).json({ error: 'Not found' });
     }
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ==================== ERROR HANDLING ====================
 app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err.message);
-    res.status(500).json({ 
-        reply: '⚠️ Internal server error. Please try again.',
-        model: 'Error'
-    });
+    console.error('Error:', err.message);
+    res.status(500).json({ reply: '⚠️ Server error.' });
 });
 
-// ==================== START SERVER ====================
 app.listen(PORT, () => {
-    console.log('═══════════════════════════════════════');
+    console.log('═══════════════════════════════');
     console.log('🚀 GoldenSpaceAI2 Server');
-    console.log('═══════════════════════════════════════');
     console.log(`📡 Port: ${PORT}`);
-    console.log(`🤖 Provider: Grok (xAI)`);
-    console.log(`⚡ Normal: grok-4.3`);
-    console.log(`🧠 Smart: grok-4.3 (reasoning)`);
-    console.log(`🌐 Expert: grok-4.20-multi-agent`);
-    console.log(`🔧 Tools: web_search (function), x_search (function)`);
-    console.log(`🔑 API Key: ${process.env.GROK_API_KEY ? '✅ Configured' : '❌ MISSING - Add GROK_API_KEY in Render'}`);
-    console.log('═══════════════════════════════════════');
-});
-
-// Handle uncaught errors
-process.on('uncaughtException', (err) => {
-    console.error('UNCAUGHT EXCEPTION:', err.message);
-});
-
-process.on('unhandledRejection', (reason) => {
-    console.error('UNHANDLED REJECTION:', reason?.message || reason);
+    console.log(`🤖 Grok (xAI)`);
+    console.log(`🔑 Key: ${process.env.GROK_API_KEY ? '✅' : '❌'}`);
+    console.log('═══════════════════════════════');
 });

@@ -1,7 +1,7 @@
 {
   "name": "goldenspaceai2",
-  "version": "1.0.0",
-  "description": "GoldenSpaceAI2 - AI Chat Assistant by Faris",
+  "version": "2.0.0",
+  "description": "GoldenSpaceAI2 - Professional AI Assistant powered by Grok",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

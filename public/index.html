@@ -56,6 +56,7 @@
             align-items: center;
             gap: 15px;
             z-index: 100;
+            min-height: 60px;
         }
 
         .hamburger {
@@ -92,6 +93,7 @@
             font-size: 13px;
             outline: none;
             transition: 0.3s;
+            min-width: 0;
         }
 
         .custom-instructions:focus {
@@ -114,6 +116,7 @@
         /* LEFT CHATS PANEL */
         .chats-panel {
             width: 300px;
+            min-width: 300px;
             background: var(--black-light);
             border-right: 2px solid var(--gold-dark);
             display: flex;
@@ -125,9 +128,9 @@
 
         .chats-panel.closed {
             transform: translateX(-100%);
-            position: absolute;
-            left: 0;
-            height: 100%;
+            min-width: 0;
+            width: 0;
+            border: none;
         }
 
         .chats-panel-header {
@@ -197,6 +200,7 @@
         .chat-item-name {
             flex: 1;
             font-size: 14px;
+            cursor: pointer;
         }
 
         .chat-item-actions {
@@ -229,6 +233,7 @@
             flex-direction: column;
             background: var(--black);
             position: relative;
+            min-width: 0;
         }
 
         .messages-container {
@@ -269,6 +274,8 @@
             border-radius: 18px;
             position: relative;
             word-wrap: break-word;
+            font-size: 15px;
+            line-height: 1.4;
         }
 
         .message.user .message-bubble {
@@ -293,21 +300,21 @@
         .message-actions {
             display: flex;
             gap: 5px;
-            margin-top: 5px;
+            margin-top: 8px;
         }
 
         .speak-btn, .stop-btn {
-            background: none;
+            background: rgba(212, 175, 55, 0.1);
             border: 1px solid var(--gold-dark);
             color: var(--gold);
-            padding: 5px 10px;
+            padding: 5px 12px;
             border-radius: 15px;
             font-size: 12px;
             cursor: pointer;
             transition: 0.3s;
         }
 
-        .speak-btn:hover, .stop-btn:hover {
+        .speak-btn:hover {
             background: var(--gold-dark);
             color: var(--black);
         }
@@ -315,6 +322,7 @@
         .stop-btn {
             border-color: var(--red);
             color: var(--red);
+            background: rgba(231, 76, 60, 0.1);
         }
 
         .stop-btn:hover {
@@ -328,7 +336,7 @@
             background: var(--black-light);
             border: 2px solid var(--gold-dark);
             border-radius: 25px;
-            padding: 10px;
+            padding: 10px 15px;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -346,6 +354,7 @@
             align-items: center;
             gap: 8px;
             cursor: pointer;
+            user-select: none;
         }
 
         .toggle-switch {
@@ -356,6 +365,7 @@
             border-radius: 13px;
             position: relative;
             transition: 0.3s;
+            flex-shrink: 0;
         }
 
         .toggle-switch.active {
@@ -392,7 +402,7 @@
 
         .input-actions {
             display: flex;
-            gap: 8px;
+            gap: 5px;
             align-items: center;
         }
 
@@ -405,6 +415,9 @@
             padding: 5px;
             transition: 0.3s;
             min-width: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .input-btn:hover {
@@ -430,6 +443,7 @@
             font-size: 15px;
             outline: none;
             padding: 5px;
+            min-width: 0;
         }
 
         .message-input::placeholder {
@@ -449,6 +463,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
 
         .send-btn:hover {
@@ -459,6 +474,28 @@
         .send-btn:disabled {
             background: var(--gray);
             cursor: not-allowed;
+        }
+
+        /* TYPING INDICATOR */
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--gold);
+            border-radius: 50%;
+            animation: typingPulse 1s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingPulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
         }
 
         /* OVERLAY */
@@ -495,14 +532,23 @@
         @media (max-width: 768px) {
             .chats-panel {
                 width: 280px;
+                min-width: 280px;
                 position: absolute;
                 left: 0;
                 height: 100%;
                 transform: translateX(-100%);
+                z-index: 50;
             }
 
             .chats-panel.open {
                 transform: translateX(0);
+            }
+
+            .chats-panel.closed {
+                transform: translateX(-100%);
+                width: 280px;
+                min-width: 280px;
+                border-right: 2px solid var(--gold-dark);
             }
 
             .custom-instructions {
@@ -511,6 +557,20 @@
 
             .message-bubble {
                 max-width: 85%;
+            }
+
+            .top-bar-title {
+                font-size: 16px;
+            }
+
+            .input-container {
+                margin: 0 10px 10px 10px;
+                padding: 8px 10px;
+                gap: 5px;
+            }
+
+            .smart-mode-label {
+                display: none;
             }
         }
     </style>
@@ -545,7 +605,7 @@
 
                 <!-- FLOATING INPUT BOX -->
                 <div class="input-container">
-                    <div class="smart-mode-toggle" onclick="toggleSmartMode()" title="Toggle Smart Mode">
+                    <div class="smart-mode-toggle" onclick="toggleSmartMode()" title="Toggle Smart Mode (Gemini 2.5 Pro)">
                         <div class="toggle-switch" id="toggleSwitch">
                             <div class="toggle-knob"></div>
                         </div>
@@ -560,7 +620,8 @@
                     
                     <input type="text" class="message-input" id="messageInput" 
                            placeholder="Type a message..." 
-                           onkeypress="handleKeyPress(event)">
+                           onkeypress="handleKeyPress(event)"
+                           autocomplete="off">
                     
                     <button class="send-btn" onclick="sendMessage()" id="sendBtn" title="Send">➤</button>
                 </div>
@@ -575,17 +636,16 @@
         // ==================== GOLDENSPACEAI2 JAVASCRIPT ====================
 
         // CONFIGURATION
-        const API_URL = '/api/chat';  // Your backend URL
-        let smartMode = false;  // false = Gemini 2.0 Flash, true = Gemini 2.5 Pro
-
-        // STATE
-        let chats = {};
+        const API_URL = '/api/chat';
+        let smartMode = false;
         let currentChatId = null;
+        let chats = {};
         let isRecording = false;
         let recognition = null;
         let speechSynthesis = window.speechSynthesis;
         let speaking = false;
         let selectedImage = null;
+        let micPermissionGranted = false;
 
         // ==================== INITIALIZATION ====================
 
@@ -599,6 +659,25 @@
             }
             renderChatsList();
             initSpeechRecognition();
+            requestMicrophonePermission();
+        }
+
+        // Request mic permission on first interaction
+        function requestMicrophonePermission() {
+            document.addEventListener('click', function requestMic() {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(() => {
+                            micPermissionGranted = true;
+                            console.log('✅ Microphone permission granted');
+                        })
+                        .catch((err) => {
+                            console.log('❌ Microphone permission denied:', err);
+                            micPermissionGranted = false;
+                        });
+                }
+                document.removeEventListener('click', requestMic);
+            }, { once: true });
         }
 
         // ==================== CHAT MANAGEMENT ====================
@@ -606,7 +685,11 @@
         function loadChats() {
             const saved = localStorage.getItem('goldenspaceai2_chats');
             if (saved) {
-                chats = JSON.parse(saved);
+                try {
+                    chats = JSON.parse(saved);
+                } catch (e) {
+                    chats = {};
+                }
             }
         }
 
@@ -626,10 +709,15 @@
             saveChats();
             loadChat();
             renderChatsList();
+            
+            // Close panel on mobile
+            if (window.innerWidth <= 768) {
+                toggleChatsPanel();
+            }
         }
 
         function deleteChat(chatId) {
-            if (confirm('Delete this chat?')) {
+            if (confirm('Delete this chat? All messages will be lost.')) {
                 delete chats[chatId];
                 saveChats();
                 if (currentChatId === chatId) {
@@ -657,6 +745,11 @@
             currentChatId = chatId;
             loadChat();
             renderChatsList();
+            
+            // Close panel on mobile
+            if (window.innerWidth <= 768) {
+                toggleChatsPanel();
+            }
         }
 
         function loadChat() {
@@ -666,13 +759,10 @@
             if (!currentChatId || !chats[currentChatId]) return;
             
             const chat = chats[currentChatId];
-            
-            // Update custom instructions
             document.getElementById('customInstructions').value = chat.customInstructions || '';
             
-            // Render messages
-            chat.messages.forEach((msg, index) => {
-                renderMessage(msg, index);
+            chat.messages.forEach((msg) => {
+                renderMessage(msg);
             });
             
             scrollToBottom();
@@ -682,15 +772,20 @@
             const chatsList = document.getElementById('chatsList');
             chatsList.innerHTML = '';
             
+            if (Object.keys(chats).length === 0) {
+                chatsList.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No chats yet. Click + to create one!</div>';
+                return;
+            }
+            
             Object.keys(chats).forEach(chatId => {
                 const chat = chats[chatId];
                 const chatItem = document.createElement('div');
                 chatItem.className = 'chat-item' + (chatId === currentChatId ? ' active' : '');
                 chatItem.innerHTML = `
-                    <span class="chat-item-name" onclick="switchChat('${chatId}')">💭 ${chat.name}</span>
+                    <span class="chat-item-name" onclick="switchChat('${chatId}')">💭 ${escapeHtml(chat.name)}</span>
                     <div class="chat-item-actions">
-                        <button class="chat-item-btn" onclick="renameChat('${chatId}')" title="Rename">✏️</button>
-                        <button class="chat-item-btn delete" onclick="deleteChat('${chatId}')" title="Delete">🗑️</button>
+                        <button class="chat-item-btn" onclick="event.stopPropagation(); renameChat('${chatId}')" title="Rename">✏️</button>
+                        <button class="chat-item-btn delete" onclick="event.stopPropagation(); deleteChat('${chatId}')" title="Delete">🗑️</button>
                     </div>
                 `;
                 chatsList.appendChild(chatItem);
@@ -713,7 +808,6 @@
             if (!message && !selectedImage) return;
             if (!currentChatId) return;
             
-            // Add user message
             const userMessage = {
                 role: 'user',
                 content: message,
@@ -723,18 +817,15 @@
             
             chats[currentChatId].messages.push(userMessage);
             saveChats();
-            renderMessage(userMessage, chats[currentChatId].messages.length - 1);
+            renderMessage(userMessage);
             
-            // Clear input
             input.value = '';
             const imageToSend = selectedImage;
             selectedImage = null;
             document.getElementById('imageInput').value = '';
             
-            // Show typing indicator
             const typingId = showTypingIndicator();
             
-            // Get last 5 messages + custom instructions
             const recentMessages = chats[currentChatId].messages.slice(-5);
             const customInstructions = chats[currentChatId].customInstructions;
             
@@ -752,12 +843,14 @@
                     })
                 });
                 
+                if (!response.ok) {
+                    throw new Error('Server error: ' + response.status);
+                }
+                
                 const data = await response.json();
                 
-                // Remove typing indicator
                 removeTypingIndicator(typingId);
                 
-                // Add AI message
                 const aiMessage = {
                     role: 'ai',
                     content: data.reply,
@@ -766,7 +859,7 @@
                 
                 chats[currentChatId].messages.push(aiMessage);
                 saveChats();
-                renderMessage(aiMessage, chats[currentChatId].messages.length - 1);
+                renderMessage(aiMessage);
                 
             } catch (error) {
                 removeTypingIndicator(typingId);
@@ -780,13 +873,13 @@
                 
                 chats[currentChatId].messages.push(errorMessage);
                 saveChats();
-                renderMessage(errorMessage, chats[currentChatId].messages.length - 1);
+                renderMessage(errorMessage);
             }
             
             scrollToBottom();
         }
 
-        function renderMessage(msg, index) {
+        function renderMessage(msg) {
             const messagesContainer = document.getElementById('messagesContainer');
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message ' + msg.role;
@@ -794,7 +887,7 @@
             let content = '';
             
             if (msg.image) {
-                content += `<img src="${msg.image}" class="message-image" alt="Uploaded image">`;
+                content += `<img src="${msg.image}" class="message-image" alt="Uploaded image" loading="lazy">`;
             }
             
             if (msg.content) {
@@ -802,15 +895,27 @@
             }
             
             if (msg.role === 'ai') {
+                const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
                 content += `
                     <div class="message-actions">
-                        <button class="speak-btn" onclick="speakMessage('${escapeHtml(msg.content)}', this)" title="Read aloud">🔊 Speak</button>
-                        <button class="stop-btn" onclick="stopSpeaking()" title="Stop">⏹️ Stop</button>
+                        <button class="speak-btn" onclick="speakMessage('${msgId}', this)" data-msg-id="${msgId}" title="Read aloud">🔊 Speak</button>
+                        <button class="stop-btn" onclick="stopSpeaking()" title="Stop speaking">⏹️ Stop</button>
                     </div>
                 `;
+                messageDiv.querySelector = msgId;
             }
             
             messageDiv.innerHTML = `<div class="message-bubble">${content}</div>`;
+            
+            // Store the message text for TTS
+            if (msg.role === 'ai' && msg.content) {
+                const msgId = messageDiv.querySelector('.speak-btn')?.getAttribute('data-msg-id');
+                if (msgId) {
+                    messageDiv.setAttribute('data-msg-text', msg.content);
+                    messageDiv.setAttribute('data-msg-id', msgId);
+                }
+            }
+            
             messagesContainer.appendChild(messageDiv);
             scrollToBottom();
         }
@@ -823,10 +928,10 @@
             typingDiv.className = 'message ai';
             typingDiv.innerHTML = `
                 <div class="message-bubble">
-                    <div style="display:flex; gap:5px; padding:5px;">
-                        <div style="width:8px; height:8px; background: var(--gold); border-radius:50%; animation: pulse 1s infinite;"></div>
-                        <div style="width:8px; height:8px; background: var(--gold); border-radius:50%; animation: pulse 1s infinite 0.2s;"></div>
-                        <div style="width:8px; height:8px; background: var(--gold); border-radius:50%; animation: pulse 1s infinite 0.4s;"></div>
+                    <div style="display:flex; gap:5px; padding:5px 10px;">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
                     </div>
                 </div>
             `;
@@ -867,7 +972,7 @@
             }
         }
 
-        // ==================== VOICE INPUT ====================
+        // ==================== VOICE INPUT (SPEECH-TO-TEXT) ====================
 
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -876,12 +981,19 @@
                 recognition.continuous = false;
                 recognition.interimResults = true;
                 recognition.lang = 'en-US';
+                recognition.maxAlternatives = 1;
+                
+                recognition.onstart = () => {
+                    console.log('🎤 Recording started');
+                    isRecording = true;
+                    document.getElementById('micBtn').classList.add('recording');
+                };
                 
                 recognition.onresult = (event) => {
-                    const transcript = Array.from(event.results)
-                        .map(result => result[0].transcript)
-                        .join('');
-                    
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
                     document.getElementById('messageInput').value = transcript;
                     
                     if (event.results[0].isFinal) {
@@ -890,7 +1002,15 @@
                 };
                 
                 recognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error);
+                    console.error('Speech error:', event.error);
+                    
+                    if (event.error === 'not-allowed') {
+                        alert('⚠️ Please allow microphone access in your browser settings to use voice input!');
+                        micPermissionGranted = false;
+                    } else if (event.error === 'no-speech') {
+                        console.log('No speech detected');
+                    }
+                    
                     stopRecording();
                 };
                 
@@ -898,7 +1018,12 @@
                     stopRecording();
                 };
             } else {
-                document.getElementById('micBtn').style.display = 'none';
+                const micBtn = document.getElementById('micBtn');
+                if (micBtn) {
+                    micBtn.style.display = 'none';
+                    micBtn.title = 'Voice input not supported in this browser';
+                }
+                console.log('❌ Speech recognition not supported');
             }
         }
 
@@ -911,26 +1036,58 @@
         }
 
         function startRecording() {
-            if (recognition) {
-                isRecording = true;
-                document.getElementById('micBtn').classList.add('recording');
+            if (!recognition) {
+                alert('⚠️ Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
+                return;
+            }
+            
+            if (!micPermissionGranted) {
+                alert('⚠️ Please allow microphone access. Click anywhere on the page first, then try again.');
+                requestMicrophonePermission();
+                return;
+            }
+            
+            try {
                 recognition.start();
+                console.log('🎤 Starting recording...');
+            } catch (e) {
+                console.error('Failed to start recording:', e);
+                stopRecording();
             }
         }
 
         function stopRecording() {
             isRecording = false;
-            document.getElementById('micBtn').classList.remove('recording');
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) {
+                micBtn.classList.remove('recording');
+            }
             if (recognition) {
-                recognition.stop();
+                try {
+                    recognition.stop();
+                } catch (e) {
+                    // Already stopped
+                }
             }
         }
 
-        // ==================== VOICE OUTPUT (TTS) ====================
+        // ==================== VOICE OUTPUT (TEXT-TO-SPEECH) ====================
 
-        function speakMessage(text, button) {
-            if (speaking) {
-                stopSpeaking();
+        function speakMessage(msgId, button) {
+            // Find the message bubble and get text
+            const messageDiv = button.closest('.message');
+            if (!messageDiv) return;
+            
+            const text = messageDiv.getAttribute('data-msg-text');
+            if (!text) return;
+            
+            // Stop any current speech
+            stopSpeaking();
+            
+            // Check if speech synthesis is supported
+            if (!window.speechSynthesis) {
+                alert('⚠️ Text-to-speech is not supported in your browser.');
+                return;
             }
             
             const utterance = new SpeechSynthesisUtterance(text);
@@ -939,36 +1096,69 @@
             utterance.volume = 1;
             utterance.lang = 'en-US';
             
+            // Try to use a good voice
+            const voices = speechSynthesis.getVoices();
+            const englishVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
+                                 voices.find(v => v.lang.startsWith('en') && v.name.includes('Samantha')) ||
+                                 voices.find(v => v.lang.startsWith('en'));
+            if (englishVoice) {
+                utterance.voice = englishVoice;
+            }
+            
             speaking = true;
+            
+            utterance.onstart = () => {
+                console.log('🔊 Speaking:', text.substring(0, 50) + '...');
+            };
             
             utterance.onend = () => {
                 speaking = false;
+                console.log('🔊 Finished speaking');
             };
             
-            utterance.onerror = () => {
+            utterance.onerror = (event) => {
                 speaking = false;
+                console.error('Speech error:', event);
             };
             
             speechSynthesis.speak(utterance);
         }
 
         function stopSpeaking() {
-            speechSynthesis.cancel();
-            speaking = false;
+            if (speechSynthesis) {
+                speechSynthesis.cancel();
+                speaking = false;
+                console.log('⏹️ Stopped speaking');
+            }
         }
 
         // ==================== IMAGE UPLOAD ====================
 
         function handleImageUpload(event) {
             const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    selectedImage = e.target.result;
-                    // Optional: Show preview
-                };
-                reader.readAsDataURL(file);
+            if (!file) return;
+            
+            // Check file type
+            if (!file.type.startsWith('image/')) {
+                alert('⚠️ Please select an image file.');
+                return;
             }
+            
+            // Check file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('⚠️ Image is too large. Please select an image under 10MB.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                selectedImage = e.target.result;
+                console.log('📎 Image loaded:', file.name);
+            };
+            reader.onerror = () => {
+                alert('⚠️ Failed to load image. Please try again.');
+            };
+            reader.readAsDataURL(file);
         }
 
         // ==================== UI HELPERS ====================
@@ -978,28 +1168,50 @@
             const overlay = document.getElementById('overlay');
             
             if (window.innerWidth <= 768) {
-                chatsPanel.classList.toggle('open');
-                overlay.classList.toggle('show');
+                // Mobile: toggle open/closed
+                if (chatsPanel.classList.contains('open')) {
+                    chatsPanel.classList.remove('open');
+                    overlay.classList.remove('show');
+                } else {
+                    chatsPanel.classList.add('open');
+                    overlay.classList.add('show');
+                }
             } else {
+                // Desktop: toggle closed class
                 chatsPanel.classList.toggle('closed');
             }
         }
 
         function scrollToBottom() {
             const messagesContainer = document.getElementById('messagesContainer');
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }, 100);
+            });
         }
 
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
-            return div.innerHTML;
+            return div.innerHTML.replace(/\n/g, '<br>');
         }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const chatsPanel = document.getElementById('chatsPanel');
+            const overlay = document.getElementById('overlay');
+            if (window.innerWidth > 768) {
+                overlay.classList.remove('show');
+                chatsPanel.classList.remove('open');
+            }
+        });
 
         // ==================== START APP ====================
         init();
+        console.log('🚀 GoldenSpaceAI2 initialized!');
+        console.log('💬 Chats:', Object.keys(chats).length);
+        console.log('🎤 Voice input:', recognition ? 'Supported ✅' : 'Not supported ❌');
+        console.log('🔊 Voice output:', speechSynthesis ? 'Supported ✅' : 'Not supported ❌');
     </script>
 </body>
 </html>

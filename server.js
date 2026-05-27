@@ -14,6 +14,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Grok (xAI) setup
 let grok;
 try {
+    if (!process.env.GROK_API_KEY) {
+        console.error('❌ GROK_API_KEY not set in environment!');
+    }
     grok = new OpenAI({
         apiKey: process.env.GROK_API_KEY || 'missing-key',
         baseURL: 'https://api.x.ai/v1'
@@ -28,14 +31,6 @@ const MODELS = {
     smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3 },
     expert: { model: 'grok-4.20-multi-agent', maxTokens: 4096, temperature: 0.5 }
 };
-
-// Agent names for expert mode
-const AGENT_NAMES = [
-    'Grok (Captain)', 'Harper (Research)', 'Benjamin (Logic)', 'Lucas (Critic)',
-    'Atlas (Web)', 'Nova (X)', 'Sage (Analysis)', 'Rex (Verify)',
-    'Orion (Data)', 'Vega (Context)', 'Lyra (Summary)', 'Zen (Facts)',
-    'Kai (Sources)', 'Nexus (Synthesis)', 'Aria (Review)', 'Sigma (Output)'
-];
 
 // ==================== MAIN CHAT ENDPOINT ====================
 app.post('/api/chat', async (req, res) => {
@@ -124,7 +119,7 @@ app.post('/api/chat', async (req, res) => {
             conversationMessages.push({ role: 'user', content: 'Hello' });
         }
         
-        // Remove any system messages that aren't the first message
+        // Remove duplicate system messages
         const systemMessages = conversationMessages.filter(m => m.role === 'system');
         if (systemMessages.length > 1) {
             const firstSystem = conversationMessages.findIndex(m => m.role === 'system');
@@ -142,38 +137,22 @@ app.post('/api/chat', async (req, res) => {
         console.log(`🤖 Mode: ${safeMode} | Model: ${config.model}`);
         
         let completion;
-        let agentLog = null;
         
         if (safeMode === 'expert') {
             // ==================== EXPERT MODE ====================
-            const numAgents = agents || 4;
-            const agentList = AGENT_NAMES.slice(0, Math.min(numAgents, 16));
-            
-            // Build agent log
-            agentLog = [];
-            agentLog.push({ agent: 'Grok (Captain)', type: 'action', action: 'Orchestrating research team...' });
-            
-            agentList.slice(1).forEach((name, i) => {
-                agentLog.push({ 
-                    agent: name, 
-                    type: 'search', 
-                    action: `Searching and analyzing...` 
-                });
-            });
+            console.log(`🌐 Expert mode with ${agents || 4} agents`);
             
             completion = await grok.chat.completions.create({
                 model: config.model,
                 messages: conversationMessages,
                 tools: [
-                    { type: 'web_search' },
-                    { type: 'x_search' }
+                    { type: 'function', function: { name: 'web_search', description: 'Search the web for current information and recent data' } },
+                    { type: 'function', function: { name: 'x_search', description: 'Search X (Twitter) for posts, trends, and discussions' } }
                 ],
                 tool_choice: 'auto',
                 max_tokens: config.maxTokens,
                 temperature: config.temperature,
             });
-            
-            agentLog.push({ agent: 'Grok (Captain)', type: 'action', action: '✅ Research complete. Compiling answer...' });
             
         } else if (safeMode === 'smart') {
             // ==================== SMART MODE ====================
@@ -201,7 +180,6 @@ app.post('/api/chat', async (req, res) => {
         
         res.json({ 
             reply, 
-            agentLog,
             model: safeMode 
         });
         
@@ -217,6 +195,8 @@ app.post('/api/chat', async (req, res) => {
             errorMessage = '⏳ Rate limited. Wait a moment or add credits at console.x.ai.';
         } else if (error.status === 402) {
             errorMessage = '💰 Out of credits. Add funds at console.x.ai.';
+        } else if (error.status === 422) {
+            errorMessage = '⚠️ Invalid request format. Please try again.';
         } else if (error.status === 503) {
             errorMessage = '🔧 Grok service temporarily unavailable. Try again soon.';
         } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
@@ -246,7 +226,7 @@ app.get('/health', (req, res) => {
             smart: 'grok-4.3 (reasoning)',
             expert: 'grok-4.20-multi-agent (4-16 agents)'
         },
-        tools: ['web_search', 'x_search'],
+        tools: ['web_search (function)', 'x_search (function)'],
         apiKeyConfigured: !!process.env.GROK_API_KEY,
         uptime: process.uptime(),
         timestamp: new Date().toISOString()
@@ -280,7 +260,7 @@ app.listen(PORT, () => {
     console.log(`⚡ Normal: grok-4.3`);
     console.log(`🧠 Smart: grok-4.3 (reasoning)`);
     console.log(`🌐 Expert: grok-4.20-multi-agent`);
-    console.log(`🔧 Tools: Web Search, X Search`);
+    console.log(`🔧 Tools: web_search (function), x_search (function)`);
     console.log(`🔑 API Key: ${process.env.GROK_API_KEY ? '✅ Configured' : '❌ MISSING - Add GROK_API_KEY in Render'}`);
     console.log('═══════════════════════════════════════');
 });

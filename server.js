@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
 const path = require('path');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,195 +31,110 @@ const MODELS = {
 // ==================== COMPLETE MATH CLEANER ====================
 function cleanLatex(text) {
     if (!text) return text;
-    
-    // First handle fractions, sqrt, and other multi-arg commands before generic replacements
     return text
-        // Remove \boxed{...} wrapper
         .replace(/\\boxed\{([^}]+)\}/g, '$1')
-        
-        // Greek letters (lowercase)
-        .replace(/\\alpha\b/g, 'α')
-        .replace(/\\beta\b/g, 'β')
-        .replace(/\\gamma\b/g, 'γ')
-        .replace(/\\delta\b/g, 'δ')
-        .replace(/\\epsilon\b/g, 'ε')
-        .replace(/\\zeta\b/g, 'ζ')
-        .replace(/\\eta\b/g, 'η')
-        .replace(/\\theta\b/g, 'θ')
-        .replace(/\\iota\b/g, 'ι')
-        .replace(/\\kappa\b/g, 'κ')
-        .replace(/\\lambda\b/g, 'λ')
-        .replace(/\\mu\b/g, 'μ')
-        .replace(/\\nu\b/g, 'ν')
-        .replace(/\\xi\b/g, 'ξ')
-        .replace(/\\omicron\b/g, 'ο')
-        .replace(/\\pi\b/g, 'π')
-        .replace(/\\rho\b/g, 'ρ')
-        .replace(/\\sigma\b/g, 'σ')
-        .replace(/\\tau\b/g, 'τ')
-        .replace(/\\upsilon\b/g, 'υ')
-        .replace(/\\phi\b/g, 'φ')
-        .replace(/\\chi\b/g, 'χ')
-        .replace(/\\psi\b/g, 'ψ')
-        .replace(/\\omega\b/g, 'ω')
-        
-        // Greek letters (uppercase)
-        .replace(/\\Gamma\b/g, 'Γ')
-        .replace(/\\Delta\b/g, 'Δ')
-        .replace(/\\Theta\b/g, 'Θ')
-        .replace(/\\Lambda\b/g, 'Λ')
-        .replace(/\\Xi\b/g, 'Ξ')
-        .replace(/\\Pi\b/g, 'Π')
-        .replace(/\\Sigma\b/g, 'Σ')
-        .replace(/\\Phi\b/g, 'Φ')
-        .replace(/\\Psi\b/g, 'Ψ')
-        .replace(/\\Omega\b/g, 'Ω')
-        
-        // Math symbols
-        .replace(/\\pm\b/g, '±')
-        .replace(/\\mp\b/g, '∓')
-        .replace(/\\times\b/g, '×')
-        .replace(/\\div\b/g, '÷')
-        .replace(/\\cdot\b/g, '·')
-        .replace(/\\ast\b/g, '*')
-        .replace(/\\star\b/g, '★')
-        .replace(/\\circ\b/g, '°')
-        .replace(/\\bullet\b/g, '•')
-        .replace(/\\oplus\b/g, '⊕')
-        .replace(/\\ominus\b/g, '⊖')
-        .replace(/\\otimes\b/g, '⊗')
-        .replace(/\\oslash\b/g, '⊘')
-        .replace(/\\odot\b/g, '⊙')
-        
-        // Relations
-        .replace(/\\leq\b/g, '≤')
-        .replace(/\\geq\b/g, '≥')
-        .replace(/\\neq\b/g, '≠')
-        .replace(/\\approx\b/g, '≈')
-        .replace(/\\equiv\b/g, '≡')
-        .replace(/\\sim\b/g, '∼')
-        .replace(/\\simeq\b/g, '≃')
-        .replace(/\\cong\b/g, '≅')
-        .replace(/\\propto\b/g, '∝')
-        .replace(/\\parallel\b/g, '∥')
-        .replace(/\\perp\b/g, '⊥')
-        .replace(/\\ll\b/g, '≪')
-        .replace(/\\gg\b/g, '≫')
-        
-        // Arrows
-        .replace(/\\rightarrow\b/g, '→')
-        .replace(/\\to\b/g, '→')
-        .replace(/\\leftarrow\b/g, '←')
-        .replace(/\\Rightarrow\b/g, '⇒')
-        .replace(/\\Leftarrow\b/g, '⇐')
-        .replace(/\\leftrightarrow\b/g, '↔')
-        .replace(/\\uparrow\b/g, '↑')
-        .replace(/\\downarrow\b/g, '↓')
-        
-        // Sets & logic
-        .replace(/\\in\b/g, '∈')
-        .replace(/\\notin\b/g, '∉')
-        .replace(/\\subset\b/g, '⊂')
-        .replace(/\\supset\b/g, '⊃')
-        .replace(/\\subseteq\b/g, '⊆')
-        .replace(/\\supseteq\b/g, '⊇')
-        .replace(/\\cup\b/g, '∪')
-        .replace(/\\cap\b/g, '∩')
-        .replace(/\\emptyset\b/g, '∅')
-        .replace(/\\forall\b/g, '∀')
-        .replace(/\\exists\b/g, '∃')
-        .replace(/\\neg\b/g, '¬')
-        .replace(/\\land\b/g, '∧')
-        .replace(/\\lor\b/g, '∨')
-        .replace(/\\implies\b/g, '⇒')
-        .replace(/\\iff\b/g, '⇔')
-        
-        // Calculus
-        .replace(/\\int\b/g, '∫')
-        .replace(/\\iint\b/g, '∬')
-        .replace(/\\iiint\b/g, '∭')
-        .replace(/\\oint\b/g, '∮')
-        .replace(/\\sum\b/g, 'Σ')
-        .replace(/\\prod\b/g, '∏')
-        .replace(/\\partial\b/g, '∂')
-        .replace(/\\nabla\b/g, '∇')
-        .replace(/\\infty\b/g, '∞')
-        .replace(/\\lim\b/g, 'lim')
-        
-        // Other symbols
-        .replace(/\\angle\b/g, '∠')
-        .replace(/\\triangle\b/g, '△')
-        .replace(/\\square\b/g, '□')
-        .replace(/\\checkmark\b/g, '✓')
-        .replace(/\\cdot\b/g, '·')
-        .replace(/\\ldots\b/g, '…')
-        .replace(/\\cdots\b/g, '⋯')
-        .replace(/\\vdots\b/g, '⋮')
-        .replace(/\\ddots\b/g, '⋱')
-        
-        // Functions
-        .replace(/\\sin\b/g, 'sin')
-        .replace(/\\cos\b/g, 'cos')
-        .replace(/\\tan\b/g, 'tan')
-        .replace(/\\log\b/g, 'log')
-        .replace(/\\ln\b/g, 'ln')
-        .replace(/\\det\b/g, 'det')
-        .replace(/\\gcd\b/g, 'gcd')
-        .replace(/\\max\b/g, 'max')
-        .replace(/\\min\b/g, 'min')
-        
-        // Fractions: \frac{a}{b} → (a)/(b)
+        .replace(/\\alpha\b/g, 'α').replace(/\\beta\b/g, 'β').replace(/\\gamma\b/g, 'γ')
+        .replace(/\\delta\b/g, 'δ').replace(/\\epsilon\b/g, 'ε').replace(/\\zeta\b/g, 'ζ')
+        .replace(/\\eta\b/g, 'η').replace(/\\theta\b/g, 'θ').replace(/\\iota\b/g, 'ι')
+        .replace(/\\kappa\b/g, 'κ').replace(/\\lambda\b/g, 'λ').replace(/\\mu\b/g, 'μ')
+        .replace(/\\nu\b/g, 'ν').replace(/\\xi\b/g, 'ξ').replace(/\\pi\b/g, 'π')
+        .replace(/\\rho\b/g, 'ρ').replace(/\\sigma\b/g, 'σ').replace(/\\tau\b/g, 'τ')
+        .replace(/\\upsilon\b/g, 'υ').replace(/\\phi\b/g, 'φ').replace(/\\chi\b/g, 'χ')
+        .replace(/\\psi\b/g, 'ψ').replace(/\\omega\b/g, 'ω')
+        .replace(/\\Gamma\b/g, 'Γ').replace(/\\Delta\b/g, 'Δ').replace(/\\Theta\b/g, 'Θ')
+        .replace(/\\Lambda\b/g, 'Λ').replace(/\\Pi\b/g, 'Π').replace(/\\Sigma\b/g, 'Σ')
+        .replace(/\\Phi\b/g, 'Φ').replace(/\\Psi\b/g, 'Ψ').replace(/\\Omega\b/g, 'Ω')
+        .replace(/\\pm\b/g, '±').replace(/\\mp\b/g, '∓').replace(/\\times\b/g, '×')
+        .replace(/\\div\b/g, '÷').replace(/\\cdot\b/g, '·').replace(/\\circ\b/g, '°')
+        .replace(/\\leq\b/g, '≤').replace(/\\geq\b/g, '≥').replace(/\\neq\b/g, '≠')
+        .replace(/\\approx\b/g, '≈').replace(/\\equiv\b/g, '≡').replace(/\\sim\b/g, '∼')
+        .replace(/\\propto\b/g, '∝').replace(/\\infty\b/g, '∞')
+        .replace(/\\rightarrow\b/g, '→').replace(/\\leftarrow\b/g, '←')
+        .replace(/\\Rightarrow\b/g, '⇒').replace(/\\Leftarrow\b/g, '⇐')
+        .replace(/\\to\b/g, '→').replace(/\\in\b/g, '∈').replace(/\\notin\b/g, '∉')
+        .replace(/\\subset\b/g, '⊂').replace(/\\subseteq\b/g, '⊆')
+        .replace(/\\cup\b/g, '∪').replace(/\\cap\b/g, '∩').replace(/\\emptyset\b/g, '∅')
+        .replace(/\\forall\b/g, '∀').replace(/\\exists\b/g, '∃')
+        .replace(/\\int\b/g, '∫').replace(/\\sum\b/g, 'Σ').replace(/\\prod\b/g, '∏')
+        .replace(/\\partial\b/g, '∂').replace(/\\nabla\b/g, '∇')
+        .replace(/\\angle\b/g, '∠').replace(/\\triangle\b/g, '△')
+        .replace(/\\sin\b/g, 'sin').replace(/\\cos\b/g, 'cos').replace(/\\tan\b/g, 'tan')
+        .replace(/\\log\b/g, 'log').replace(/\\ln\b/g, 'ln')
         .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)')
-        
-        // Square root: \sqrt{x} → √(x)
         .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
-        .replace(/\\sqrt\b/g, '√')
-        
-        // Nth root: \sqrt[n]{x} → ⁿ√(x) - but keep simple
-        .replace(/\\sqrt\[([^\]]+)\]\{([^}]+)\}/g, '√($2)')
-        
-        // Superscripts: ^{...} → ^(...)
-        .replace(/\^\{([^}]+)\}/g, '^($1)')
-        // Subscripts: _{...} → _(...)
-        .replace(/\_\{([^}]+)\}/g, '_($1)')
-        
-        // Text formatting
-        .replace(/\\text\{([^}]+)\}/g, '$1')
-        .replace(/\\textbf\{([^}]+)\}/g, '**$1**')
+        .replace(/\^\{([^}]+)\}/g, '^($1)').replace(/\_\{([^}]+)\}/g, '_($1)')
+        .replace(/\\text\{([^}]+)\}/g, '$1').replace(/\\textbf\{([^}]+)\}/g, '**$1**')
         .replace(/\\textit\{([^}]+)\}/g, '*$1*')
-        .replace(/\\underline\{([^}]+)\}/g, '_$1_')
-        .replace(/\\texttt\{([^}]+)\}/g, '`$1`')
+        .replace(/\\displaystyle\b/g, '').replace(/\\left\b/g, '').replace(/\\right\b/g, '')
+        .replace(/\$\$/g, '').replace(/\$/g, '').replace(/\\[a-zA-Z]+\b/g, '')
+        .replace(/\s+/g, ' ').trim();
+}
+
+// ==================== DIRECT RESPONSES API CALL ====================
+function callResponsesAPI(conversationMessages, config) {
+    return new Promise((resolve, reject) => {
+        const apiKey = process.env.GROK_API_KEY;
         
-        // Remove \displaystyle, \scriptstyle, etc.
-        .replace(/\\displaystyle\b/g, '')
-        .replace(/\\scriptstyle\b/g, '')
-        .replace(/\\textstyle\b/g, '')
+        // Convert chat format to responses format
+        const input = conversationMessages
+            .filter(m => m.role !== 'system')
+            .map(m => ({
+                role: m.role === 'assistant' ? 'assistant' : 'user',
+                content: typeof m.content === 'string' ? m.content : 
+                    (Array.isArray(m.content) ? m.content.map(c => 
+                        c.type === 'text' ? c.text : ''
+                    ).join(' ') : '')
+            }));
         
-        // Remove \left, \right, \big, \Big etc. (size commands)
-        .replace(/\\left\b/g, '')
-        .replace(/\\right\b/g, '')
-        .replace(/\\big\b/g, '')
-        .replace(/\\Big\b/g, '')
-        .replace(/\\bigg\b/g, '')
-        .replace(/\\Bigg\b/g, '')
+        // Add system message as first user message if present
+        const systemMsg = conversationMessages.find(m => m.role === 'system');
+        if (systemMsg && input.length > 0) {
+            input[0].content = systemMsg.content + '\n\n' + input[0].content;
+        }
         
-        // Remove math mode delimiters
-        .replace(/\$\$/g, '')
-        .replace(/\$/g, '')
-        .replace(/\\\(\s*/g, '')
-        .replace(/\s*\\\)/g, '')
-        .replace(/\\\[\s*/g, '')
-        .replace(/\s*\\\]/g, '')
+        const payload = JSON.stringify({
+            model: config.model,
+            input: input,
+            tools: [
+                { type: 'web_search' },
+                { type: 'x_search' }
+            ],
+            max_output_tokens: config.maxTokens,
+            temperature: config.temperature
+        });
         
-        // Remove any remaining backslash commands (lone \command)
-        .replace(/\\[a-zA-Z]+\b/g, '')
+        const options = {
+            hostname: 'api.x.ai',
+            path: '/v1/responses',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Length': Buffer.byteLength(payload)
+            }
+        };
         
-        // Clean up spacing
-        .replace(/\s+/g, ' ')
-        .replace(/\s+([.,!?;:)])/g, '$1')
-        .replace(/\(\s+/g, '(')
-        .replace(/\s+\)/g, ')')
-        .trim();
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (res.statusCode >= 400) {
+                        reject({ status: res.statusCode, message: json.error?.message || json.detail || 'Unknown error' });
+                    } else {
+                        resolve(json);
+                    }
+                } catch(e) {
+                    reject({ status: res.statusCode, message: 'Failed to parse response' });
+                }
+            });
+        });
+        
+        req.on('error', (e) => reject({ message: e.message }));
+        req.write(payload);
+        req.end();
+    });
 }
 
 // ==================== MAIN CHAT ENDPOINT ====================
@@ -304,64 +220,47 @@ app.post('/api/chat', async (req, res) => {
         
         console.log(`🤖 Mode: ${safeMode} | Model: ${config.model}`);
         
-        let completion;
+        let reply;
         
         if (safeMode === 'expert') {
-            completion = await grok.chat.completions.create({
-                model: config.model,
-                messages: conversationMessages,
-                tools: [
-                    {
-                        type: 'function',
-                        function: {
-                            name: 'web_search',
-                            description: 'Search the web for current information',
-                            parameters: {
-                                type: 'object',
-                                properties: {
-                                    query: { type: 'string', description: 'The search query' }
-                                },
-                                required: ['query']
-                            }
-                        }
-                    },
-                    {
-                        type: 'function',
-                        function: {
-                            name: 'x_search',
-                            description: 'Search X (Twitter) for posts',
-                            parameters: {
-                                type: 'object',
-                                properties: {
-                                    query: { type: 'string', description: 'The search query' }
-                                },
-                                required: ['query']
-                            }
-                        }
-                    }
-                ],
-                tool_choice: 'auto',
-                max_tokens: config.maxTokens,
-                temperature: config.temperature,
-            });
+            // ==================== EXPERT MODE - Uses Responses API ====================
+            console.log(`🌐 Expert mode - using /v1/responses endpoint`);
+            
+            try {
+                const responseData = await callResponsesAPI(conversationMessages, config);
+                
+                // Extract text from responses API response
+                reply = responseData.output_text || 
+                        responseData.output?.find(o => o.type === 'message')?.content?.[0]?.text ||
+                        'No response generated.';
+                        
+            } catch(respErr) {
+                console.error('Responses API failed:', respErr.message);
+                throw respErr;
+            }
+            
         } else if (safeMode === 'smart') {
-            completion = await grok.chat.completions.create({
+            // ==================== SMART MODE - Uses Chat Completions ====================
+            const completion = await grok.chat.completions.create({
                 model: config.model,
                 messages: conversationMessages,
                 max_tokens: config.maxTokens,
                 temperature: config.temperature,
                 reasoning_effort: 'high',
             });
+            reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
+            
         } else {
-            completion = await grok.chat.completions.create({
+            // ==================== NORMAL MODE - Uses Chat Completions ====================
+            const completion = await grok.chat.completions.create({
                 model: config.model,
                 messages: conversationMessages,
                 max_tokens: config.maxTokens,
                 temperature: config.temperature,
             });
+            reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
         }
         
-        let reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
         reply = cleanLatex(reply);
         
         console.log(`✅ Response: ${reply.length} chars`);

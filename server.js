@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const OpenAI = require('openai');
 const path = require('path');
 
 const app = express();
@@ -11,97 +11,106 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Gemini API setup
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// OpenAI setup
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
 // Models
-const FLASH_MODEL = 'gemini-2.0-flash';
-const PRO_MODEL = 'gemini-2.5-pro';
+const NORMAL_MODEL = 'gpt-4o-mini';  // Cheap, fast, vision ✅
+const SMART_MODEL = 'gpt-4o';        // Smart, deep reasoning, vision ✅
 
 app.post('/api/chat', async (req, res) => {
     try {
         const { messages, customInstructions, smartMode, image } = req.body;
         
         // Choose model based on smart mode
-        const modelName = smartMode ? PRO_MODEL : FLASH_MODEL;
-        const model = genAI.getGenerativeModel({ model: modelName });
+        const modelName = smartMode ? SMART_MODEL : NORMAL_MODEL;
+        console.log(`🤖 Using model: ${modelName} | Smart Mode: ${smartMode}`);
         
-        // Build conversation history
-        const conversationParts = [];
+        // Build messages array for OpenAI
+        const conversationMessages = [];
         
-        // Add custom instructions as system context
+        // Add system message with custom instructions
         if (customInstructions) {
-            conversationParts.push({
-                role: 'user',
-                parts: [{ text: `System instructions: ${customInstructions}\n\nPlease follow these instructions for all responses.` }]
-            });
-            conversationParts.push({
-                role: 'model',
-                parts: [{ text: 'I understand and will follow these instructions.' }]
+            conversationMessages.push({
+                role: 'system',
+                content: customInstructions
             });
         }
         
         // Add last 5 messages
         messages.forEach(msg => {
             if (msg.role === 'user') {
-                const parts = [];
+                const content = [];
+                
+                // Add text if present
+                if (msg.content) {
+                    content.push({
+                        type: 'text',
+                        text: msg.content
+                    });
+                }
                 
                 // Add image if present
                 if (msg.image) {
-                    const base64Data = msg.image.split(',')[1];
-                    parts.push({
-                        inlineData: {
-                            mimeType: 'image/jpeg',
-                            data: base64Data
+                    content.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: msg.image,
+                            detail: 'auto'
                         }
                     });
                 }
                 
-                // Add text if present
-                if (msg.content) {
-                    parts.push({ text: msg.content });
-                }
-                
-                conversationParts.push({
+                conversationMessages.push({
                     role: 'user',
-                    parts: parts
+                    content: content.length === 1 && content[0].type === 'text' 
+                        ? content[0].text 
+                        : content
                 });
+                
             } else if (msg.role === 'ai') {
-                conversationParts.push({
-                    role: 'model',
-                    parts: [{ text: msg.content }]
+                conversationMessages.push({
+                    role: 'assistant',
+                    content: msg.content
                 });
             }
         });
         
-        // Generate response
-        const result = await model.generateContent({
-            contents: conversationParts,
-            generationConfig: {
-                temperature: smartMode ? 0.7 : 0.9,
-                topP: 0.95,
-                topK: 40,
-                maxOutputTokens: smartMode ? 2048 : 1024,
-            }
+        // If no messages, add a default
+        if (conversationMessages.length === 0) {
+            conversationMessages.push({
+                role: 'user',
+                content: 'Hello'
+            });
+        }
+        
+        // Call OpenAI
+        const completion = await openai.chat.completions.create({
+            model: modelName,
+            messages: conversationMessages,
+            max_tokens: smartMode ? 2048 : 1024,
+            temperature: smartMode ? 0.7 : 0.9,
         });
         
-        const response = result.response;
-        const text = response.text();
+        const reply = completion.choices[0].message.content;
         
-        res.json({ reply: text });
+        console.log(`✅ Response received (${reply.length} chars)`);
+        
+        res.json({ reply: reply });
         
     } catch (error) {
-        console.error('Gemini API Error:', error);
+        console.error('OpenAI API Error:', error.message);
         
-        // Better error handling
         let errorMessage = 'Sorry, I encountered an error. Please try again.';
         
-        if (error.message?.includes('API key')) {
-            errorMessage = 'API key error. Please check the server configuration.';
-        } else if (error.message?.includes('quota')) {
-            errorMessage = 'API quota exceeded. Please try again later.';
-        } else if (error.message?.includes('blocked')) {
-            errorMessage = 'Content blocked by safety filters. Please rephrase your message.';
+        if (error.status === 401) {
+            errorMessage = 'Invalid API key. Please check your OpenAI API key.';
+        } else if (error.status === 429) {
+            errorMessage = 'Rate limit exceeded or insufficient credits. Please check your OpenAI account.';
+        } else if (error.status === 403) {
+            errorMessage = 'API key does not have access to this model. Check your OpenAI account permissions.';
         }
         
         res.status(500).json({ reply: errorMessage });
@@ -110,13 +119,21 @@ app.post('/api/chat', async (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', model: 'GoldenSpaceAI2' });
+    res.json({ 
+        status: 'ok', 
+        model: 'GoldenSpaceAI2',
+        provider: 'OpenAI',
+        normalModel: NORMAL_MODEL,
+        smartModel: SMART_MODEL,
+        apiKeyConfigured: !!process.env.OPENAI_API_KEY
+    });
 });
 
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 GoldenSpaceAI2 server running on port ${PORT}`);
-    console.log(`📱 Smart Mode OFF: ${FLASH_MODEL}`);
-    console.log(`🧠 Smart Mode ON: ${PRO_MODEL}`);
-    console.log(`🔑 API Key configured: ${process.env.GEMINI_API_KEY ? '✅ Yes' : '❌ No'}`);
+    console.log(`🤖 Provider: OpenAI`);
+    console.log(`⚡ Normal Mode: ${NORMAL_MODEL} (Fast & Cheap)`);
+    console.log(`🧠 Smart Mode: ${SMART_MODEL} (Deep Reasoning)`);
+    console.log(`🔑 API Key configured: ${process.env.OPENAI_API_KEY ? '✅ Yes' : '❌ No'}`);
 });

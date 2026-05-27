@@ -3,6 +3,7 @@ const cors = require('cors');
 const OpenAI = require('openai');
 const path = require('path');
 const https = require('https');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -269,32 +270,58 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+// ==================== STATIC FILE ROUTES (for PWA) ====================
+
+// Serve manifest.json with correct MIME type
+app.get('/manifest.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.sendFile(path.join(__dirname, 'public', 'manifest.json'));
+});
+
+// Serve service worker
+app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
+
+// Serve offline page
+app.get('/offline.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'offline.html'));
+});
+
+// ==================== HEALTH CHECK ====================
 app.get('/health', (req, res) => {
     res.json({
         status: 'online',
         app: 'GoldenSpaceAI2',
         provider: 'Grok (xAI)',
         mathCleaner: true,
+        pwaReady: true,
         apiKeyConfigured: !!process.env.GROK_API_KEY
     });
 });
 
+// ==================== CATCH-ALL ROUTE ====================
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// ==================== ERROR HANDLING ====================
 app.use((err, req, res, next) => {
     console.error('Error:', err.message);
     res.status(500).json({ reply: '⚠️ Server error.' });
 });
 
+// ==================== START SERVER ====================
 app.listen(PORT, () => {
     console.log('═══════════════════════════════');
     console.log('🚀 GoldenSpaceAI2 Server');
     console.log(`📡 Port: ${PORT}`);
     console.log(`🤖 Grok (xAI)`);
     console.log(`📐 Math Cleaner: ✅ Complete`);
+    console.log(`📱 PWA Support: ✅ Ready`);
     console.log(`🔑 Key: ${process.env.GROK_API_KEY ? '✅' : '❌'}`);
     console.log('═══════════════════════════════');
 });

@@ -1170,12 +1170,14 @@
             reader.readAsDataURL(file);
         }
 
-        // ==================== MESSAGING ====================
+        // -------------------- MESSAGING --------------------
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
             if(!text && !selectedImage) return;
-            if(!currentChatId) return;
+            if(!currentChatId) {
+                createNewChat();
+            }
             
             document.getElementById('welcomeScreen').style.display = 'none';
             input.blur();
@@ -1185,6 +1187,9 @@
                 model: currentModel, timestamp: new Date().toISOString() 
             };
             
+            // ALWAYS show user message immediately
+            renderMessage(userMsg);
+            
             const msgToStore = { ...userMsg };
             if (selectedImage && selectedImage.length > 5 * 1024 * 1024) {
                 msgToStore.image = null; msgToStore.imageTooBig = true;
@@ -1192,7 +1197,6 @@
             
             chats[currentChatId].messages.push(msgToStore);
             saveChats();
-            renderMessage(userMsg);
             
             input.value = '';
             const imgToSend = selectedImage;
@@ -1212,28 +1216,40 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         messages: chats[currentChatId].messages.slice(-5),
-                        customInstructions: chats[currentChatId].customInstructions,
+                        customInstructions: chats[currentChatId].customInstructions || '',
                         mode: MODELS[currentModel].apiMode,
-                        agents: MODELS[currentModel].agents,
+                        agents: MODELS[currentModel].agents || 4,
                         image: imgToSend
                     })
                 });
+                
                 const data = await res.json();
                 removeTypingIndicator(typingId);
                 if (currentAgentThinking) removeAgentThinking();
                 
+                if (!res.ok) {
+                    throw new Error(data.reply || 'Server error');
+                }
+                
                 const aiMsg = { 
                     role: 'ai', content: data.reply || 'No response',
-                    model: currentModel, agentLog: data.agentLog,
+                    model: currentModel, agentLog: data.agentLog || null,
                     timestamp: new Date().toISOString() 
                 };
                 chats[currentChatId].messages.push(aiMsg);
                 saveChats();
                 renderMessage(aiMsg);
+                
             } catch(err) {
                 removeTypingIndicator(typingId);
                 if (currentAgentThinking) removeAgentThinking();
-                const errMsg = { role: 'ai', content: 'Error: Could not reach Grok.', model: currentModel, timestamp: new Date().toISOString() };
+                
+                const errMsg = { 
+                    role: 'ai', 
+                    content: '⚠️ ' + (err.message || 'Could not reach Grok. Check API key and credits.'),
+                    model: currentModel, 
+                    timestamp: new Date().toISOString() 
+                };
                 chats[currentChatId].messages.push(errMsg);
                 saveChats();
                 renderMessage(errMsg);

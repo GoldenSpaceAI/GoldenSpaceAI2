@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#000000">
+    <title>Install GoldenSpaceAI2</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a, #1a1a0a, #0a0a0a);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            padding: 20px;
+        }
+
+        .install-container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .app-icon {
+            font-size: 100px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .app-name {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #D4AF37, #F4D03F, #D4AF37);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .app-tagline {
+            color: #888;
+            font-size: 18px;
+            margin-bottom: 40px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 40px;
+            text-align: left;
+        }
+
+        .feature-card {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 30px;
+            margin-bottom: 10px;
+        }
+
+        .feature-text {
+            color: #ccc;
+            font-size: 13px;
+        }
+
+        .install-btn {
+            background: linear-gradient(135deg, #D4AF37, #B8860B);
+            color: #0a0a0a;
+            border: none;
+            padding: 18px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 10px 40px rgba(212, 175, 55, 0.3);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .install-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 50px rgba(212, 175, 55, 0.5);
+        }
+
+        .install-steps {
+            text-align: left;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .install-steps h3 {
+            color: #D4AF37;
+            margin-bottom: 15px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 12px;
+            color: #ccc;
+        }
+
+        .step-number {
+            background: #D4AF37;
+            color: #0a0a0a;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .open-app-btn {
+            background: transparent;
+            border: 2px solid #D4AF37;
+            color: #D4AF37;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .open-app-btn:hover {
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        .browser-info {
+            margin-top: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .app-name { font-size: 36px; }
+            .features { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="install-container">
+        <div class="app-icon">🪐</div>
+        <h1 class="app-name">GoldenSpaceAI2</h1>
+        <p class="app-tagline">AI Chat Assistant by Faris</p>
+
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">💬</div>
+                <div class="feature-text">Smart Chat</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎤</div>
+                <div class="feature-text">Voice Input</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔊</div>
+                <div class="feature-text">Voice Output</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📎</div>
+                <div class="feature-text">Image Upload</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <div class="feature-text">Smart Mode</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💾</div>
+                <div class="feature-text">Memory</div>
+            </div>
+        </div>
+
+        <button class="install-btn" id="installBtn" onclick="installApp()">
+            📲 Install GoldenSpaceAI2
+        </button>
+
+        <div class="install-steps">
+            <h3>📱 How to Install:</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <span>Click the <strong>"Install"</strong> button above</span>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <span>Tap <strong>"Add to Home Screen"</strong> in the popup</span>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <span>Open GoldenSpaceAI2 from your home screen!</span>
+            </div>
+        </div>
+
+        <a href="/" class="open-app-btn">🚀 Open Web App</a>
+        <p class="browser-info">Works best on Chrome, Safari, and Edge</p>
+    </div>
+
+    <script>
+        let deferredPrompt;
+
+        // Listen for install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installBtn').style.display = 'block';
+        });
+
+        async function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const result = await deferredPrompt.userChoice;
+                console.log('Install result:', result.outcome);
+                deferredPrompt = null;
+            } else {
+                // Fallback: show manual instructions
+                alert('To install:\n\n📱 iPhone: Tap Share → Add to Home Screen\n📱 Android: Tap Menu → Add to Home Screen\n💻 Desktop: Click the install icon in the address bar');
+            }
+        }
+
+        // Check if already installed
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            window.location.href = '/';
+        }
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => console.log('✅ Service Worker registered'))
+                .catch(err => console.log('Service Worker error:', err));
+        }
+    </script>
+</body>
+</html>

@@ -11,7 +11,6 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Grok (xAI) setup
 let grok;
 try {
     grok = new OpenAI({
@@ -28,7 +27,7 @@ const MODELS = {
     expert: { model: 'grok-4.20-multi-agent', maxTokens: 4096, temperature: 0.5 }
 };
 
-// ==================== COMPLETE MATH CLEANER ====================
+// ==================== MATH CLEANER ====================
 function cleanLatex(text) {
     if (!text) return text;
     return text
@@ -70,12 +69,11 @@ function cleanLatex(text) {
         .replace(/\s+/g, ' ').trim();
 }
 
-// ==================== DIRECT RESPONSES API CALL ====================
-function callResponsesAPI(conversationMessages, config) {
+// ==================== RESPONSES API CALL ====================
+function callResponsesAPI(conversationMessages, config, useWebSearch) {
     return new Promise((resolve, reject) => {
         const apiKey = process.env.GROK_API_KEY;
         
-        // Convert chat format to responses format
         const input = conversationMessages
             .filter(m => m.role !== 'system')
             .map(m => ({
@@ -86,19 +84,17 @@ function callResponsesAPI(conversationMessages, config) {
                     ).join(' ') : '')
             }));
         
-        // Add system message as first user message if present
         const systemMsg = conversationMessages.find(m => m.role === 'system');
         if (systemMsg && input.length > 0) {
             input[0].content = systemMsg.content + '\n\n' + input[0].content;
         }
         
+        const tools = useWebSearch ? [{ type: 'web_search' }] : [];
+        
         const payload = JSON.stringify({
             model: config.model,
             input: input,
-            tools: [
-                { type: 'web_search' },
-                { type: 'x_search' }
-            ],
+            tools: tools,
             max_output_tokens: config.maxTokens,
             temperature: config.temperature
         });
@@ -140,7 +136,7 @@ function callResponsesAPI(conversationMessages, config) {
 // ==================== MAIN CHAT ENDPOINT ====================
 app.post('/api/chat', async (req, res) => {
     try {
-        const { messages, customInstructions, mode, agents, image } = req.body;
+        const { messages, customInstructions, mode, agents, webSearch, image } = req.body;
         
         if (!process.env.GROK_API_KEY) {
             return res.status(500).json({ 
@@ -218,29 +214,22 @@ app.post('/api/chat', async (req, res) => {
         const safeMode = mode || 'normal';
         const config = MODELS[safeMode] || MODELS.normal;
         
-        console.log(`🤖 Mode: ${safeMode} | Model: ${config.model}`);
+        const useWebSearch = webSearch === true;
+        console.log(`🤖 Mode: ${safeMode} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'}`);
         
         let reply;
         
         if (safeMode === 'expert') {
-            // ==================== EXPERT MODE - Uses Responses API ====================
-            console.log(`🌐 Expert mode - using /v1/responses endpoint`);
-            
             try {
-                const responseData = await callResponsesAPI(conversationMessages, config);
-                
-                // Extract text from responses API response
+                const responseData = await callResponsesAPI(conversationMessages, config, useWebSearch);
                 reply = responseData.output_text || 
                         responseData.output?.find(o => o.type === 'message')?.content?.[0]?.text ||
                         'No response generated.';
-                        
             } catch(respErr) {
                 console.error('Responses API failed:', respErr.message);
                 throw respErr;
             }
-            
         } else if (safeMode === 'smart') {
-            // ==================== SMART MODE - Uses Chat Completions ====================
             const completion = await grok.chat.completions.create({
                 model: config.model,
                 messages: conversationMessages,
@@ -249,9 +238,7 @@ app.post('/api/chat', async (req, res) => {
                 reasoning_effort: 'high',
             });
             reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
-            
         } else {
-            // ==================== NORMAL MODE - Uses Chat Completions ====================
             const completion = await grok.chat.completions.create({
                 model: config.model,
                 messages: conversationMessages,

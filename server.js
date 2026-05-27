@@ -15,8 +15,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Models
-const FLASH_MODEL = 'gemini-2.0-flash-exp';
-const PRO_MODEL = 'gemini-2.5-pro-exp-03-25';
+const FLASH_MODEL = 'gemini-2.0-flash';
+const PRO_MODEL = 'gemini-2.5-pro';
 
 app.post('/api/chat', async (req, res) => {
     try {

@@ -6,205 +6,290 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Grok (xAI) - OpenAI-compatible API
-const grok = new OpenAI({
-    apiKey: process.env.GROK_API_KEY,
-    baseURL: 'https://api.x.ai/v1'
-});
+// Grok (xAI) setup
+let grok;
+try {
+    grok = new OpenAI({
+        apiKey: process.env.GROK_API_KEY || 'missing-key',
+        baseURL: 'https://api.x.ai/v1'
+    });
+} catch(e) {
+    console.error('Failed to initialize Grok client:', e.message);
+}
 
-const MODEL_SINGLE = 'grok-4.3';
-const MODEL_MULTI = 'grok-4.20-multi-agent';
+// Model configurations
+const MODELS = {
+    normal: { model: 'grok-4.3', maxTokens: 2048, temperature: 0.7 },
+    smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3 },
+    expert: { model: 'grok-4.20-multi-agent', maxTokens: 4096, temperature: 0.5 }
+};
 
-// Agent names for logging
-const AGENT_NAMES = ['Grok (Captain)', 'Harper (Research)', 'Benjamin (Logic)', 'Lucas (Critic)',
-                     'Atlas (Web)', 'Nova (X Search)', 'Sage (Analysis)', 'Rex (Verify)',
-                     'Orion (Data)', 'Vega (Context)', 'Lyra (Summary)', 'Zen (Fact-check)',
-                     'Kai (Sources)', 'Nexus (Synthesis)', 'Aria (Review)', 'Sigma (Output)'];
+// Agent names for expert mode
+const AGENT_NAMES = [
+    'Grok (Captain)', 'Harper (Research)', 'Benjamin (Logic)', 'Lucas (Critic)',
+    'Atlas (Web)', 'Nova (X)', 'Sage (Analysis)', 'Rex (Verify)',
+    'Orion (Data)', 'Vega (Context)', 'Lyra (Summary)', 'Zen (Facts)',
+    'Kai (Sources)', 'Nexus (Synthesis)', 'Aria (Review)', 'Sigma (Output)'
+];
 
+// ==================== MAIN CHAT ENDPOINT ====================
 app.post('/api/chat', async (req, res) => {
     try {
         const { messages, customInstructions, mode, agents, image } = req.body;
-        // mode: 'normal' | 'smart' | 'expert'
-        // agents: 4 | 16 (for expert mode)
         
-        let modelName, requestParams, agentLog = [];
-        
-        // Build conversation
-        const conversationMessages = [];
-        
-        if (customInstructions) {
-            conversationMessages.push({
-                role: 'system',
-                content: customInstructions
+        // Validate API key
+        if (!process.env.GROK_API_KEY) {
+            return res.status(500).json({ 
+                reply: '⚠️ Grok API key not configured. Please add it in Render environment variables.',
+                model: 'Error'
             });
         }
         
-        messages.forEach(msg => {
-            if (msg.role === 'user') {
-                const content = [];
-                if (msg.content) content.push({ type: 'text', text: msg.content });
-                if (msg.image) {
-                    content.push({
-                        type: 'image_url',
-                        image_url: { url: msg.image, detail: 'auto' }
-                    });
+        // Build conversation messages
+        const conversationMessages = [];
+        
+        // Add custom instructions as system message
+        if (customInstructions && customInstructions.trim()) {
+            conversationMessages.push({
+                role: 'system',
+                content: customInstructions.trim()
+            });
+        }
+        
+        // Add conversation history
+        if (messages && Array.isArray(messages)) {
+            messages.forEach(msg => {
+                if (!msg || !msg.role) return;
+                
+                if (msg.role === 'user') {
+                    const content = [];
+                    
+                    if (msg.content && msg.content.trim()) {
+                        content.push({ type: 'text', text: msg.content.trim() });
+                    }
+                    
+                    if (msg.image && !msg.imageTooBig) {
+                        content.push({
+                            type: 'image_url',
+                            image_url: { url: msg.image, detail: 'auto' }
+                        });
+                    }
+                    
+                    if (content.length > 0) {
+                        conversationMessages.push({
+                            role: 'user',
+                            content: content.length === 1 && content[0].type === 'text' 
+                                ? content[0].text 
+                                : content
+                        });
+                    }
+                } else if (msg.role === 'ai' || msg.role === 'assistant') {
+                    if (msg.content && msg.content.trim()) {
+                        conversationMessages.push({
+                            role: 'assistant',
+                            content: msg.content.trim()
+                        });
+                    }
                 }
+            });
+        }
+        
+        // Add current image if not in history
+        if (image && !messages?.some(m => m.image === image)) {
+            const lastMsg = conversationMessages[conversationMessages.length - 1];
+            if (lastMsg && lastMsg.role === 'user') {
+                if (typeof lastMsg.content === 'string') {
+                    lastMsg.content = [
+                        { type: 'text', text: lastMsg.content },
+                        { type: 'image_url', image_url: { url: image, detail: 'auto' } }
+                    ];
+                } else if (Array.isArray(lastMsg.content)) {
+                    lastMsg.content.push({ type: 'image_url', image_url: { url: image, detail: 'auto' } });
+                }
+            } else {
                 conversationMessages.push({
                     role: 'user',
-                    content: content.length === 1 && content[0].type === 'text' 
-                        ? content[0].text : content
-                });
-            } else if (msg.role === 'ai') {
-                conversationMessages.push({
-                    role: 'assistant',
-                    content: msg.content
+                    content: [{ type: 'image_url', image_url: { url: image, detail: 'auto' } }]
                 });
             }
-        });
-
-        if (mode === 'expert') {
-            // ==================== EXPERT MODE (Multi-Agent) ====================
-            modelName = MODEL_MULTI;
+        }
+        
+        // Ensure at least one message
+        if (conversationMessages.length === 0) {
+            conversationMessages.push({ role: 'user', content: 'Hello' });
+        }
+        
+        // Remove any system messages that aren't the first message
+        const systemMessages = conversationMessages.filter(m => m.role === 'system');
+        if (systemMessages.length > 1) {
+            const firstSystem = conversationMessages.findIndex(m => m.role === 'system');
+            for (let i = conversationMessages.length - 1; i >= 0; i--) {
+                if (conversationMessages[i].role === 'system' && i !== firstSystem) {
+                    conversationMessages.splice(i, 1);
+                }
+            }
+        }
+        
+        // Select model configuration
+        const safeMode = mode || 'normal';
+        const config = MODELS[safeMode] || MODELS.normal;
+        
+        console.log(`🤖 Mode: ${safeMode} | Model: ${config.model}`);
+        
+        let completion;
+        let agentLog = null;
+        
+        if (safeMode === 'expert') {
+            // ==================== EXPERT MODE ====================
             const numAgents = agents || 4;
+            const agentList = AGENT_NAMES.slice(0, Math.min(numAgents, 16));
             
-            console.log(`🌐 Expert Mode: ${numAgents} agents researching...`);
+            // Build agent log
+            agentLog = [];
+            agentLog.push({ agent: 'Grok (Captain)', type: 'action', action: 'Orchestrating research team...' });
             
-            // Generate agent thinking log
-            const agentList = AGENT_NAMES.slice(0, numAgents);
-            agentLog.push({ agent: 'Grok (Captain)', type: 'action', action: 'Orchestrating team...' });
-            
-            agentList.forEach((name, i) => {
-                setTimeout(() => {
-                    const actions = [
-                        'Searching web...', 'Analyzing X posts...', 'Verifying sources...',
-                        'Cross-referencing data...', 'Evaluating credibility...', 'Synthesizing findings...',
-                        'Checking facts...', 'Running analysis...', 'Compiling research...',
-                        'Validating logic...', 'Scanning references...', 'Processing information...',
-                        'Reviewing context...', 'Generating insights...', 'Quality checking...',
-                        'Preparing summary...'
-                    ];
-                    agentLog.push({ agent: name, type: 'search', action: actions[i % actions.length] });
-                }, i * 500);
+            agentList.slice(1).forEach((name, i) => {
+                agentLog.push({ 
+                    agent: name, 
+                    type: 'search', 
+                    action: `Searching and analyzing...` 
+                });
             });
             
-            // Call Grok multi-agent with web search tools
-            const completion = await grok.chat.completions.create({
-                model: modelName,
+            completion = await grok.chat.completions.create({
+                model: config.model,
                 messages: conversationMessages,
                 tools: [
                     { type: 'web_search' },
                     { type: 'x_search' }
                 ],
                 tool_choice: 'auto',
-                max_tokens: 4096,
-                temperature: 0.5,
+                max_tokens: config.maxTokens,
+                temperature: config.temperature,
             });
             
-            const reply = completion.choices[0].message.content;
+            agentLog.push({ agent: 'Grok (Captain)', type: 'action', action: '✅ Research complete. Compiling answer...' });
             
-            agentLog.push({ agent: 'Grok (Captain)', type: 'action', action: '✅ Research complete. Synthesizing answer...' });
-            
-            console.log(`✅ Expert response (${reply.length} chars)`);
-            
-            res.json({ 
-                reply, 
-                agentLog,
-                model: `Expert · ${numAgents} Agents`
-            });
-            
-        } else if (mode === 'smart') {
-            // ==================== SMART MODE (Reasoning) ====================
-            modelName = MODEL_SINGLE;
-            
-            console.log('🧠 Smart Mode: Deep reasoning...');
-            
-            const completion = await grok.chat.completions.create({
-                model: modelName,
+        } else if (safeMode === 'smart') {
+            // ==================== SMART MODE ====================
+            completion = await grok.chat.completions.create({
+                model: config.model,
                 messages: conversationMessages,
-                max_tokens: 4096,
-                temperature: 0.3,
+                max_tokens: config.maxTokens,
+                temperature: config.temperature,
                 reasoning_effort: 'high',
             });
             
-            const reply = completion.choices[0].message.content;
-            console.log(`✅ Smart response (${reply.length} chars)`);
-            
-            res.json({ reply, model: 'Grok 4.3 · Reasoning' });
-            
         } else {
-            // ==================== NORMAL MODE (Fast) ====================
-            modelName = MODEL_SINGLE;
-            
-            console.log('⚡ Normal Mode: Fast response...');
-            
-            const completion = await grok.chat.completions.create({
-                model: modelName,
+            // ==================== NORMAL MODE ====================
+            completion = await grok.chat.completions.create({
+                model: config.model,
                 messages: conversationMessages,
-                max_tokens: 2048,
-                temperature: 0.7,
+                max_tokens: config.maxTokens,
+                temperature: config.temperature,
             });
-            
-            const reply = completion.choices[0].message.content;
-            console.log(`✅ Normal response (${reply.length} chars)`);
-            
-            res.json({ reply, model: 'Grok 4.3' });
         }
+        
+        const reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
+        
+        console.log(`✅ Response: ${reply.length} chars`);
+        
+        res.json({ 
+            reply, 
+            agentLog,
+            model: safeMode 
+        });
         
     } catch (error) {
         console.error('❌ Grok API Error:', error.message, error.status);
         
         let errorMessage = 'An error occurred. Please try again.';
+        let statusCode = 500;
         
         if (error.status === 401) {
-            errorMessage = '🔑 Invalid API key. Please check your Grok API key in Render environment.';
+            errorMessage = '🔑 Invalid API key. Check your Grok API key in Render environment.';
         } else if (error.status === 429) {
-            errorMessage = '⏳ Rate limit reached or out of credits. Add more at console.x.ai';
+            errorMessage = '⏳ Rate limited. Wait a moment or add credits at console.x.ai.';
         } else if (error.status === 402) {
-            errorMessage = '💰 Insufficient credits. Please add funds at console.x.ai';
+            errorMessage = '💰 Out of credits. Add funds at console.x.ai.';
         } else if (error.status === 503) {
-            errorMessage = '🔧 Grok service is temporarily unavailable. Please try again.';
+            errorMessage = '🔧 Grok service temporarily unavailable. Try again soon.';
+        } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+            errorMessage = '🔌 Cannot connect to Grok servers. Check your internet.';
         } else if (error.message?.includes('timeout')) {
-            errorMessage = '⏰ Request timed out. Expert mode may take longer. Try again.';
+            errorMessage = '⏰ Request timed out. Expert mode may take longer.';
+        } else if (error.message) {
+            errorMessage = '⚠️ ' + error.message.substring(0, 100);
         }
         
-        res.status(500).json({ 
+        res.status(statusCode).json({ 
             reply: errorMessage,
             model: 'Error'
         });
     }
 });
 
-// Health check
+// ==================== HEALTH CHECK ====================
 app.get('/health', (req, res) => {
     res.json({
         status: 'online',
         app: 'GoldenSpaceAI2',
+        version: '2.0.0',
         provider: 'Grok (xAI)',
         models: {
             normal: 'grok-4.3',
             smart: 'grok-4.3 (reasoning)',
             expert: 'grok-4.20-multi-agent (4-16 agents)'
         },
-        tools: ['web_search', 'x_search', 'code_execution'],
+        tools: ['web_search', 'x_search'],
         apiKeyConfigured: !!process.env.GROK_API_KEY,
+        uptime: process.uptime(),
         timestamp: new Date().toISOString()
     });
 });
 
+// ==================== CATCH-ALL ROUTE ====================
+app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ==================== ERROR HANDLING ====================
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err.message);
+    res.status(500).json({ 
+        reply: '⚠️ Internal server error. Please try again.',
+        model: 'Error'
+    });
+});
+
+// ==================== START SERVER ====================
 app.listen(PORT, () => {
     console.log('═══════════════════════════════════════');
-    console.log('🚀 GoldenSpaceAI2 Server Running');
+    console.log('🚀 GoldenSpaceAI2 Server');
     console.log('═══════════════════════════════════════');
     console.log(`📡 Port: ${PORT}`);
     console.log(`🤖 Provider: Grok (xAI)`);
-    console.log(`⚡ Normal: ${MODEL_SINGLE}`);
-    console.log(`🧠 Smart: ${MODEL_SINGLE} (reasoning)`);
-    console.log(`🌐 Expert: ${MODEL_MULTI} (4-16 agents)`);
-    console.log(`🔧 Tools: Web Search, X Search, Code Execution`);
-    console.log(`🔑 API Key: ${process.env.GROK_API_KEY ? '✅ Configured' : '❌ Missing'}`);
+    console.log(`⚡ Normal: grok-4.3`);
+    console.log(`🧠 Smart: grok-4.3 (reasoning)`);
+    console.log(`🌐 Expert: grok-4.20-multi-agent`);
+    console.log(`🔧 Tools: Web Search, X Search`);
+    console.log(`🔑 API Key: ${process.env.GROK_API_KEY ? '✅ Configured' : '❌ MISSING - Add GROK_API_KEY in Render'}`);
     console.log('═══════════════════════════════════════');
+});
+
+// Handle uncaught errors
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('UNHANDLED REJECTION:', reason?.message || reason);
 });

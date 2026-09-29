@@ -193,10 +193,10 @@
         .chat-area { flex: 1; display: flex; flex-direction: column; background: var(--black); position: relative; min-width: 0; }
         .messages-container { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
 
-        .message { margin: 6px 0; display: flex; animation: slideIn 0.25s ease; }
+        .message { margin: 8px 0; display: flex; animation: slideIn 0.25s ease; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .message.user { justify-content: flex-end; }
-        .message.ai { justify-content: flex-start; }
+        .message.ai { justify-content: flex-start; width: 100%; }
 
         .message-bubble {
             max-width: 85%;
@@ -204,22 +204,32 @@
             border-radius: 16px;
             position: relative;
             word-wrap: break-word;
+            overflow-wrap: anywhere;
             font-size: 14px;
-            line-height: 1.4;
+            line-height: 1.45;
         }
         .message.user .message-bubble {
             background: linear-gradient(135deg, var(--gold-dark), var(--gold));
             color: var(--black);
             border-bottom-right-radius: 4px;
         }
-        .message.ai .message-bubble {
-            background: var(--black-lighter);
+
+        .ai-block {
+            width: 100%;
+            max-width: 100%;
             color: var(--white);
-            border: 1px solid var(--gold-dark);
-            border-bottom-left-radius: 4px;
+            font-size: 14px;
+            line-height: 1.55;
         }
-        .message-image { max-width: 250px; max-height: 250px; border-radius: 10px; margin-bottom: 5px; object-fit: contain; }
-        .message-meta { margin-bottom: 4px; }
+        .ai-content {
+            word-wrap: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        .message-image { max-width: 250px; max-height: 250px; border-radius: 10px; margin-bottom: 8px; object-fit: contain; display: block; }
+        .message.user .message-image { margin-bottom: 6px; }
+
+        .message-meta { margin-bottom: 8px; }
         .message-mode-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -233,19 +243,65 @@
         .badge-smart { background: rgba(212,175,55,0.3); color: var(--gold-light); }
         .badge-expert { background: rgba(212,175,55,0.4); color: #fff; }
 
-        .message-actions { display: flex; gap: 5px; margin-top: 8px; }
+        .message-actions {
+            display: flex;
+            gap: 14px;
+            margin-top: 10px;
+            align-items: center;
+        }
         .msg-btn {
-            background: rgba(212,175,55,0.1);
-            border: 1px solid var(--gold-dark);
-            color: var(--gold);
-            padding: 5px 12px;
-            border-radius: 15px;
+            background: none;
+            border: none;
+            color: var(--gray);
+            padding: 4px 0;
             font-size: 12px;
             cursor: pointer;
-            transition: 0.3s;
+            transition: 0.2s;
+            font-family: inherit;
         }
-        .msg-btn:active { background: var(--gold-dark); color: var(--black); }
-        .msg-btn.active-speaking { background: var(--gold); color: var(--black); }
+        .msg-btn:active { color: var(--gold); }
+        .msg-btn.active-speaking { color: var(--gold); }
+
+        .md-title {
+            color: var(--gold);
+            font-size: 16px;
+            font-weight: 700;
+            margin: 16px 0 8px;
+            letter-spacing: 0.2px;
+        }
+        .md-h {
+            color: var(--gold-light);
+            font-size: 14px;
+            font-weight: 650;
+            margin: 14px 0 6px;
+        }
+        .md-title:first-child,
+        .md-h:first-child { margin-top: 0; }
+        .md-p { margin: 0 0 10px; }
+        .md-list { margin: 0 0 12px; padding-left: 1.25em; }
+        .md-list li { margin: 5px 0; }
+        .md-pre {
+            background: #141414;
+            border: 1px solid rgba(184,134,11,0.45);
+            padding: 10px 12px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 0 0 12px;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .md-code {
+            background: #222;
+            color: var(--gold-light);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        .md-pre .md-code { background: none; padding: 0; color: #eee; }
+        .ai-content a { color: var(--gold-light); text-decoration: underline; }
+        .ai-content strong { color: #fff; font-weight: 700; }
+        .ai-content em { font-style: italic; }
 
         .input-container {
             margin: 0 10px calc(10px + var(--safe-bottom)) 10px;
@@ -446,9 +502,11 @@
         @media (min-width: 769px) {
             .chats-panel { position: relative; transform: translateX(0); width: 260px; min-width: 260px; }
             .chats-panel.closed { transform: translateX(-100%); min-width: 0; width: 0; }
-            .message-bubble { max-width: 70%; font-size: 15px; }
+            .message.user .message-bubble { max-width: 70%; font-size: 15px; }
+            .ai-block { max-width: 760px; font-size: 15px; }
             .message-image { max-width: 300px; max-height: 300px; }
             .input-container { margin: 0 15px 15px 15px; border-radius: 25px; padding: 10px 15px; gap: 10px; flex-wrap: nowrap; }
+            .messages-container { padding: 18px 22px; }
         }
     </style>
 </head>
@@ -478,22 +536,21 @@
                             <span id="modelLabel">⚡ Grok 4.3</span> ▾
                         </button>
                         <div class="model-menu" id="modelMenu">
-                            <div class="model-menu-item" onclick="setModel('normal')">
+                            <div class="model-menu-item" data-model="normal" onclick="setModel('normal')">
                                 ⚡ Grok 4.3 <span class="model-menu-desc">Fast</span>
                             </div>
-                            <div class="model-menu-item" onclick="setModel('smart')">
+                            <div class="model-menu-item" data-model="smart" onclick="setModel('smart')">
                                 🧠 Reasoning <span class="model-menu-desc">Deep thinking</span>
                             </div>
-                            <div class="model-menu-item expert" onclick="setModel('expert-4')">
+                            <div class="model-menu-item expert" data-model="expert-4" onclick="setModel('expert-4')">
                                 🔍 Expert 4 <span class="model-menu-desc">Web & X</span><span class="model-menu-badge">NEW</span>
                             </div>
-                            <div class="model-menu-item expert" onclick="setModel('expert-16')">
+                            <div class="model-menu-item expert" data-model="expert-16" onclick="setModel('expert-16')">
                                 🌐 Expert 16 <span class="model-menu-desc">Deep research</span><span class="model-menu-badge">BEST</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Web Search Toggle (only visible in Expert mode) -->
                     <div class="web-search-toggle" id="webSearchToggle" style="display:none;align-items:center;flex-shrink:0;">
                         <button class="web-search-btn" id="webSearchBtn" onclick="toggleWebSearch()">🌐 OFF</button>
                     </div>
@@ -521,7 +578,6 @@
     </div>
 
     <script>
-        // ==================== GOLDENSPACEAI2 ====================
         const API_URL = '/api/chat';
         let currentModel = 'normal';
         let currentChatId = null;
@@ -540,7 +596,6 @@
             'expert-16': { label: '🌐 Expert 16', apiMode: 'expert', agents: 16, badge: 'badge-expert', desc: 'Expert · 16 Agents' }
         };
 
-        // ==================== INIT ====================
         function init() {
             loadChats();
             if (Object.keys(chats).length === 0) createNewChat();
@@ -564,8 +619,6 @@
                     plusMenu.classList.remove('show');
                 }
             });
-            
-            console.log('🚀 GoldenSpaceAI2 ready');
         }
 
         function requestMicPermission() {
@@ -576,7 +629,6 @@
             }
         }
 
-        // ==================== WEB SEARCH TOGGLE ====================
         function toggleWebSearch() {
             webSearchEnabled = !webSearchEnabled;
             updateWebSearchUI();
@@ -595,7 +647,6 @@
             }
         }
 
-        // ==================== MODEL SELECTION ====================
         function toggleModelMenu() {
             const modelMenu = document.getElementById('modelMenu');
             const plusMenu = document.getElementById('plusMenu');
@@ -609,7 +660,6 @@
             document.getElementById('modelMenu').classList.remove('show');
             document.getElementById('plusMenu').classList.remove('show');
             
-            // Show/hide web search toggle
             const webToggle = document.getElementById('webSearchToggle');
             if (webToggle) {
                 webToggle.style.display = model.startsWith('expert') ? 'flex' : 'none';
@@ -626,9 +676,12 @@
             } else {
                 btn.classList.remove('expert-active');
             }
+            const items = document.querySelectorAll('.model-menu-item');
+            for (let i = 0; i < items.length; i++) {
+                items[i].classList.toggle('selected', items[i].getAttribute('data-model') === currentModel);
+            }
         }
 
-        // ==================== CHAT STORAGE ====================
         function loadChats() {
             try { chats = JSON.parse(localStorage.getItem('goldenspaceai2_chats')) || {}; }
             catch(e) { chats = {}; }
@@ -697,7 +750,7 @@
                 const chat = chats[id];
                 const div = document.createElement('div');
                 div.className = 'chat-item' + (id === currentChatId ? ' active' : '');
-                div.innerHTML = '<span class="chat-item-name" onclick="switchChat(\'' + id + '\')">💭 ' + escapeHtml(chat.name) + '</span>' +
+                div.innerHTML = '<span class="chat-item-name" onclick="switchChat(\'' + id + '\')">💭 ' + escapeHtmlRaw(chat.name) + '</span>' +
                     '<div class="chat-item-actions">' +
                     '<button class="chat-item-btn" onclick="event.stopPropagation();renameChat(\'' + id + '\')">✏️</button>' +
                     '<button class="chat-item-btn delete" onclick="event.stopPropagation();deleteChat(\'' + id + '\')">🗑️</button>' +
@@ -713,7 +766,6 @@
             }
         }
 
-        // ==================== IMAGE HANDLING ====================
         function togglePlusMenu() {
             const plusMenu = document.getElementById('plusMenu');
             const modelMenu = document.getElementById('modelMenu');
@@ -761,7 +813,6 @@
             reader.readAsDataURL(file);
         }
 
-        // ==================== MESSAGING ====================
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
@@ -847,37 +898,38 @@
             const container = document.getElementById('messagesContainer');
             const div = document.createElement('div');
             div.className = 'message ' + msg.role;
-            
-            let html = '';
-            
-            if (msg.role === 'ai' && msg.model) {
-                const config = MODELS[msg.model] || MODELS['normal'];
-                html += '<div class="message-meta"><span class="message-mode-badge ' + config.badge + '">' + config.desc + '</span></div>';
-            }
-            
-            if (msg.image) {
-                html += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
-            }
-            
-            if (msg.content) {
-                html += '<div>' + escapeHtml(msg.content) + '</div>';
-            }
-            
+
+            const rawText = msg.content || '';
+            let inner = '';
+
             if (msg.role === 'ai') {
-                html += '<div class="message-actions">' +
-                    '<button class="msg-btn" onclick="speakMessage(this)">🔊 Listen</button>' +
-                    '<button class="msg-btn" onclick="stopSpeaking()">⏹ Stop</button>' +
-                    '<button class="msg-btn" onclick="copyMessage(this)">📋 Copy</button>' +
-                    '</div>';
+                const config = MODELS[msg.model] || MODELS['normal'];
+                inner += '<div class="ai-block">';
+                if (msg.model) {
+                    inner += '<div class="message-meta"><span class="message-mode-badge ' + config.badge + '">' + escapeHtmlRaw(config.desc) + '</span></div>';
+                }
+                if (msg.image) {
+                    inner += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
+                }
+                inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>';
+                inner += '<div class="message-actions">' +
+                    '<button class="msg-btn" onclick="speakMessage(this)">Listen</button>' +
+                    '<button class="msg-btn" onclick="stopSpeaking()">Stop</button>' +
+                    '<button class="msg-btn" onclick="copyMessage(this)">Copy</button>' +
+                    '</div></div>';
+                div.innerHTML = inner;
+            } else {
+                inner += '<div class="message-bubble">';
+                if (msg.image) {
+                    inner += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
+                }
+                if (rawText) {
+                    inner += '<div data-text="' + escapeAttr(rawText) + '">' + escapeHtml(rawText) + '</div>';
+                }
+                inner += '</div>';
+                div.innerHTML = inner;
             }
-            
-            div.innerHTML = '<div class="message-bubble">' + html + '</div>';
-            
-            if (msg.content) {
-                const bubble = div.querySelector('.message-bubble');
-                if (bubble) bubble.setAttribute('data-text', msg.content);
-            }
-            
+
             container.appendChild(div);
             scrollToBottom();
         }
@@ -888,7 +940,7 @@
             const div = document.createElement('div');
             div.id = id;
             div.className = 'message ai';
-            div.innerHTML = '<div class="message-bubble"><div style="display:flex;gap:4px;padding:4px 8px;">' +
+            div.innerHTML = '<div class="ai-block"><div style="display:flex;gap:4px;padding:8px 2px;">' +
                 '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>' +
                 '</div></div>';
             container.appendChild(div);
@@ -906,17 +958,17 @@
         }
 
         function copyMessage(btn) {
-            const bubble = btn.closest('.message-bubble');
-            const text = bubble ? bubble.getAttribute('data-text') : null;
+            const root = btn.closest('.ai-block') || btn.closest('.message-bubble');
+            const holder = root ? root.querySelector('[data-text]') : null;
+            const text = holder ? holder.getAttribute('data-text') : null;
             if (text) {
                 navigator.clipboard.writeText(text).then(function() {
-                    btn.textContent = '✅ Copied!';
-                    setTimeout(function() { btn.textContent = '📋 Copy'; }, 2000);
+                    btn.textContent = 'Copied';
+                    setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
                 });
             }
         }
 
-        // ==================== VOICE INPUT ====================
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
@@ -985,15 +1037,13 @@
             if (recognition) try { recognition.stop(); } catch(e) {}
         }
 
-        // ==================== VOICE OUTPUT ====================
         function speakMessage(btn) {
-            const bubble = btn.closest('.message-bubble');
-            if (!bubble) return;
-            const text = bubble.getAttribute('data-text');
+            const root = btn.closest('.ai-block') || btn.closest('.message-bubble');
+            const holder = root ? root.querySelector('[data-text]') : null;
+            const text = holder ? holder.getAttribute('data-text') : null;
             if (!text) return;
             
             stopSpeaking();
-            
             if (!window.speechSynthesis) return;
             
             const utterance = new SpeechSynthesisUtterance(text);
@@ -1036,7 +1086,6 @@
             }
         }
 
-        // ==================== UI HELPERS ====================
         function toggleChatsPanel() {
             const panel = document.getElementById('chatsPanel');
             const overlay = document.getElementById('overlay');
@@ -1065,11 +1114,108 @@
             });
         }
 
-        function escapeHtml(text) {
+        function escapeHtmlRaw(text) {
             if (!text) return '';
-            const d = document.createElement('div');
-            d.textContent = text;
-            return d.innerHTML.replace(/\n/g, '<br>');
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function escapeHtml(text) {
+            return escapeHtmlRaw(text).replace(/\n/g, '<br>');
+        }
+
+        function escapeAttr(text) {
+            return escapeHtmlRaw(text).replace(/'/g, '&#39;');
+        }
+
+        function formatMarkdown(text) {
+            if (!text) return '';
+            let s = String(text).replace(/\r\n/g, '\n');
+            const slots = [];
+
+            function stash(html) {
+                slots.push(html);
+                return '\u0000S' + (slots.length - 1) + '\u0000';
+            }
+
+            s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code) {
+                return stash('<pre class="md-pre"><code class="md-code">' + escapeHtmlRaw(code.replace(/\n$/, '')) + '</code></pre>');
+            });
+            s = s.replace(/`([^`\n]+)`/g, function(_, code) {
+                return stash('<code class="md-code">' + escapeHtmlRaw(code) + '</code>');
+            });
+
+            s = s.replace(/[ \t]*#{1,6}[ \t]+/g, '\n### ');
+            s = s.replace(/([^\n])\s+(\d+)\.\s+/g, '$1\n$2. ');
+            s = s.replace(/([^\n])\s+[-*]\s+/g, '$1\n- ');
+            s = s.replace(/\n{3,}/g, '\n\n');
+            s = s.replace(/^\n+/, '');
+
+            const lines = s.split('\n');
+            let html = '';
+            let listType = null;
+
+            function closeList() {
+                if (listType === 'ol') html += '</ol>';
+                if (listType === 'ul') html += '</ul>';
+                listType = null;
+            }
+
+            function inlineFormat(str) {
+                str = escapeHtmlRaw(str);
+                str = str.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+                str = str.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                str = str.replace(/__(.+?)__/g, '<strong>$1</strong>');
+                str = str.replace(/(^|[^\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1<em>$2</em>');
+                str = str.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+                    if (url.indexOf('href=') !== -1) return url;
+                    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+                });
+                return str;
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (/^\u0000S\d+\u0000$/.test(line.trim())) {
+                    closeList();
+                    html += line.trim();
+                    continue;
+                }
+                const heading = line.match(/^\s*#{1,6}\s+(.*)$/);
+                if (heading) {
+                    closeList();
+                    const title = heading[1].trim();
+                    if (title) html += '<div class="md-h">' + inlineFormat(title) + '</div>';
+                    continue;
+                }
+                const ol = line.match(/^\s*(\d+)\.\s+(.*)$/);
+                if (ol) {
+                    if (listType !== 'ol') { closeList(); html += '<ol class="md-list">'; listType = 'ol'; }
+                    html += '<li>' + inlineFormat(ol[2]) + '</li>';
+                    continue;
+                }
+                const ul = line.match(/^\s*[-*]\s+(.*)$/);
+                if (ul) {
+                    if (listType !== 'ul') { closeList(); html += '<ul class="md-list">'; listType = 'ul'; }
+                    html += '<li>' + inlineFormat(ul[1]) + '</li>';
+                    continue;
+                }
+                if (!line.trim()) {
+                    closeList();
+                    continue;
+                }
+                closeList();
+                html += '<p class="md-p">' + inlineFormat(line.trim()) + '</p>';
+            }
+            closeList();
+
+            html = html.replace(/\u0000S(\d+)\u0000/g, function(_, n) {
+                return slots[Number(n)] || '';
+            });
+            return html;
         }
 
         if ('visualViewport' in window) {

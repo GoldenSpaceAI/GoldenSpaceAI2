@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+(function(){try{var t=localStorage.getItem('goldenspaceai2_theme');if(t!=='light'&&t!=='dark'&&window.matchMedia)t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';if(t==='light')document.documentElement.classList.add('light');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f3eb':'#0a0a0a');}catch(e){}})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>My Plan — GoldenSpaceAI</title>
 <meta name="theme-color" content="#0a0a0a">
@@ -171,6 +174,8 @@
   .err { color: var(--bad); font-size: 14px; }
   .loading { color: var(--muted); font-size: 14px; }
 </style>
+<link rel="stylesheet" href="/theme.css">
+<script src="/theme.js" defer></script>
 </head>
 <body>
 <header class="topnav">
@@ -179,6 +184,7 @@
     <span>GoldenSpaceAI</span>
   </a>
   <nav>
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">Light</button>
     <a href="/">Chat</a>
     <a class="active" href="/my-plan">My Plan</a>
     <a href="/upgrade">Upgrade</a>
@@ -232,16 +238,22 @@
 
 <script>
 (function() {
+  var ephemeralClientId = null;
+  function newClientId() {
+    var id = ('c_' + Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
+    return id || ('c_' + Date.now().toString(36));
+  }
   function ensureClientId() {
     try {
       var id = localStorage.getItem('goldenspaceai2_client_id');
-      if (!id) {
-        id = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      if (!id || !/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+        id = newClientId();
         localStorage.setItem('goldenspaceai2_client_id', id);
       }
       return id;
     } catch (e) {
-      return 'c_anon_' + Date.now();
+      if (!ephemeralClientId) ephemeralClientId = newClientId();
+      return ephemeralClientId;
     }
   }
 
@@ -313,6 +325,7 @@
     var content = document.getElementById('content');
     try {
       var res = await fetch('/api/my-plan', {
+        cache: 'no-store',
         headers: { 'X-Client-Id': ensureClientId() }
       });
       var data = await res.json();
@@ -345,6 +358,9 @@
   }
 
   load();
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') load();
+  });
 })();
 </script>
 </body>

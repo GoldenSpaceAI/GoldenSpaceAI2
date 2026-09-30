@@ -1176,7 +1176,7 @@
             const noteEl = document.getElementById('planStatusNote');
             if (!quotasEl || !nameEl) return;
             try {
-                const res = await fetch('/api/plan-status', { headers: { 'X-Client-Id': ensureClientId() } });
+                const res = await fetch('/api/plan-status', { cache: 'no-store', headers: { 'X-Client-Id': ensureClientId() } });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed');
                 nameEl.textContent = data.label || 'Free';
@@ -1210,14 +1210,23 @@
             }
         }
 
+        function newClientId() {
+            let id = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+            id = id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
+            return id || ('c_' + Date.now().toString(36));
+        }
+        let ephemeralClientId = null;
         function ensureClientId() {
             try {
                 clientId = localStorage.getItem('goldenspaceai2_client_id');
-                if (!clientId) {
-                    clientId = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+                if (!clientId || !/^[a-zA-Z0-9_-]{1,128}$/.test(clientId)) {
+                    clientId = newClientId();
                     localStorage.setItem('goldenspaceai2_client_id', clientId);
                 }
-            } catch (e) { clientId = 'c_anon_' + Date.now(); }
+            } catch (e) {
+                if (!ephemeralClientId) ephemeralClientId = newClientId();
+                clientId = ephemeralClientId;
+            }
             return clientId;
         }
         function clientHeaders(extra) {
@@ -1258,6 +1267,9 @@
             initSpeechRecognition();
             updateModelUI();
             loadPlanStatus();
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') loadPlanStatus();
+            });
             document.body.addEventListener('click', requestMicPermission, { once: true });
             const messageInput = document.getElementById('messageInput');
             if (messageInput) messageInput.addEventListener('paste', handleComposerPaste);
@@ -2039,6 +2051,7 @@
             scrollToBottom();
             setSending(false);
             markLastAiActions();
+            loadPlanStatus();
         }
 
         function markLastAiActions() {

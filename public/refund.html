@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+(function(){try{var t=localStorage.getItem('goldenspaceai2_theme');if(t!=='light'&&t!=='dark'&&window.matchMedia)t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';if(t==='light')document.documentElement.classList.add('light');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f3eb':'#0a0a0a');}catch(e){}})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Refund Policy — GoldenSpaceAI</title>
 <meta name="theme-color" content="#0a0a0a">
@@ -154,6 +157,8 @@
   }
 
 </style>
+<link rel="stylesheet" href="/theme.css">
+<script src="/theme.js" defer></script>
 </head>
 <body>
 <header class="topnav">
@@ -162,6 +167,7 @@
     <span>GoldenSpaceAI</span>
   </a>
   <nav>
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">Light</button>
     <a href="/">Chat</a>
     <a href="/upgrade">Upgrade</a>
     <a href="/my-plan">My Plan</a>

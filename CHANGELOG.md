@@ -1,3 +1,13 @@
+# GoldenSpaceAI — live plan usage + themes (2026-09-30)
+
+- **Root cause (usage stuck at 0):** the chats footer called `GET /api/plan-status` only once at startup and never again after a send, and those GETs were cacheable (`ETag`, no `Cache-Control`). Counters in `data/plans.json` were also written on a 50ms debounce and incremented when the request *started*, including failed model calls, so the footer and `/my-plan` did not show a successful Fast / Thinking / Expert question.
+- **Fix:** reserve one unit for the cap, keep it only after a non-empty successful reply (roll back on error, empty reply, or disconnect), flush `plans.json` immediately, send `Cache-Control: no-store` on `/api/plan`, `/api/plan-status`, and `/api/my-plan`, and reload the footer (and `/my-plan`) after each reply. Same `X-Client-Id` as chat history. Auto chat-title calls are not metered.
+- **Upgrade:** confirm OMT number is a password field (masked). The first number stays visible.
+- **Theme:** `/upgrade`, `/my-plan`, `/terms`, `/privacy`, `/refund`, and `/admin-page` share the chat `html.light` theme via `goldenspaceai2_theme` in localStorage, with a Light/Dark toggle.
+- Service worker cache `goldenspaceai2-v18`.
+
+---
+
 # GoldenSpaceAI — polish plan UI, upgrade & legal + my-plan status (2026-09-30)
 
 - **In-app plan status** (chats footer): current plan name, used/limit + % progress bars (Free: Fast daily; Paid: Fast + Thinking + Expert4 + Expert16 if included). Links to `/my-plan` and `/upgrade`.

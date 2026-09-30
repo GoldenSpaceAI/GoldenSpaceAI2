@@ -915,7 +915,7 @@
                 </div>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
-                    <button type="button" class="install-app-footer-btn" id="installAppBtn" onclick="installApp()" aria-label="Install app">Install App</button>
+                    <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app">Install App</button>
                 </div>
             </div>
 
@@ -2662,20 +2662,29 @@
         });
 
         async function installApp() {
-            if (deferredInstallPrompt) {
-                deferredInstallPrompt.prompt();
-                try {
-                    const choice = await deferredInstallPrompt.userChoice;
-                    if (choice && choice.outcome === 'accepted') {
-                        deferredInstallPrompt = null;
-                        refreshInstallButton();
-                        return;
-                    }
-                } catch (err) {}
-                deferredInstallPrompt = null;
+            // Prefer native beforeinstallprompt when the browser deferred it.
+            // Only open the how-to page when no deferred event is available.
+            if (!deferredInstallPrompt) {
+                window.location.href = '/app-install.html';
+                return;
             }
-            // Fallback: dedicated install / how-to page (APK + iOS tips)
-            window.location.href = '/app-install.html';
+            const promptEvent = deferredInstallPrompt;
+            deferredInstallPrompt = null;
+            try {
+                await promptEvent.prompt();
+                await promptEvent.userChoice;
+            } catch (err) {
+                // Native prompt failed; keep user on chat (do not bounce to fallback).
+            }
+            refreshInstallButton();
+        }
+        window.installApp = installApp;
+
+        if (installBtn) {
+            installBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                installApp();
+            });
         }
 
         refreshInstallButton();

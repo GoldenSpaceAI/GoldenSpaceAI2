@@ -124,6 +124,11 @@
         <h1>GoldenSpaceAI2</h1>
         <p class="version">Version 1.0 · Android App</p>
 
+        <button type="button" class="download-btn" id="pwaInstallBtn" style="display:none;">
+            📲 Install App
+        </button>
+        <p id="pwaHint" style="color:#aaa;font-size:13px;margin-bottom:18px;display:none;">One-tap install to your home screen</p>
+
         <!-- DIRECT DOWNLOAD BUTTON -->
         <a href="YOUR_GOOGLE_DRIVE_LINK_HERE" class="download-btn" id="downloadBtn">
             📱 Download APK
@@ -155,13 +160,36 @@
     </div>
 
     <script>
+        let deferredPrompt = null;
+        const pwaBtn = document.getElementById('pwaInstallBtn');
+        const pwaHint = document.getElementById('pwaHint');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            pwaBtn.style.display = 'inline-block';
+            pwaHint.style.display = 'block';
+        });
+
+        pwaBtn.addEventListener('click', async function() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            try {
+                await deferredPrompt.userChoice;
+            } catch (err) {}
+            deferredPrompt = null;
+            pwaBtn.style.display = 'none';
+            pwaHint.style.display = 'none';
+        });
+
         // Auto-detect device and suggest best option
         if (/Android/i.test(navigator.userAgent)) {
-            document.getElementById('downloadBtn').style.display = 'inline-block';
+            downloadBtn.style.display = 'inline-block';
         } else if (/iPhone|iPad/i.test(navigator.userAgent)) {
-            document.getElementById('downloadBtn').textContent = '📱 Add to Home Screen';
-            document.getElementById('downloadBtn').href = '#';
-            document.getElementById('downloadBtn').onclick = function() {
+            downloadBtn.textContent = '📱 Add to Home Screen';
+            downloadBtn.href = '#';
+            downloadBtn.onclick = function() {
                 alert('On iPhone/iPad:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down → "Add to Home Screen"\n3. Tap Add');
                 return false;
             };

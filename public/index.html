@@ -494,6 +494,16 @@
         }
         .input-btn:active { color: var(--gold-light); transform: scale(0.9); }
         .input-btn.recording { color: var(--red); animation: pulse 1s infinite; }
+        .input-btn.install-btn {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            padding: 0 6px;
+            white-space: nowrap;
+            max-width: 72px;
+        }
+        .input-btn.install-btn.installed,
+        .input-btn.install-btn[hidden] { display: none !important; }
         .input-btn.image-attached { color: var(--green); }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
@@ -716,6 +726,7 @@
                         </div>
 
                         <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice">Mic</button>
+                        <button class="input-btn install-btn" id="installAppBtn" onclick="installApp()" aria-label="Install app" title="Install app">Install</button>
                     </div>
                     
                     <textarea class="message-input" id="messageInput" placeholder="Ask anything" rows="1" onkeydown="handleKeyPress(event)" oninput="autoGrow(this)"></textarea>
@@ -2022,6 +2033,57 @@
             window.visualViewport.addEventListener('resize', function() { scrollToBottom(); });
         }
 
+
+        // ===== PWA install (one-click) =====
+        let deferredInstallPrompt = null;
+        const installBtn = document.getElementById('installAppBtn');
+
+        function isStandaloneApp() {
+            return window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true
+                || document.referrer.indexOf('android-app://') === 0;
+        }
+
+        function refreshInstallButton() {
+            if (!installBtn) return;
+            if (isStandaloneApp()) {
+                installBtn.hidden = true;
+                installBtn.classList.add('installed');
+                return;
+            }
+            installBtn.hidden = false;
+            installBtn.classList.remove('installed');
+        }
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            refreshInstallButton();
+        });
+
+        window.addEventListener('appinstalled', function() {
+            deferredInstallPrompt = null;
+            refreshInstallButton();
+        });
+
+        async function installApp() {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                try {
+                    const choice = await deferredInstallPrompt.userChoice;
+                    if (choice && choice.outcome === 'accepted') {
+                        deferredInstallPrompt = null;
+                        refreshInstallButton();
+                        return;
+                    }
+                } catch (err) {}
+                deferredInstallPrompt = null;
+            }
+            // Fallback: dedicated install / how-to page (APK + iOS tips)
+            window.location.href = '/app-install.html';
+        }
+
+        refreshInstallButton();
 
         if ('serviceWorker' in navigator) {
             var refreshing = false;

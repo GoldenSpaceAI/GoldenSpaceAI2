@@ -4,131 +4,387 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Upgrade — GoldenSpaceAI</title>
+<meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="/logo.png">
 <style>
-  :root { --gold:#d4af37; --gold-dark:#b8962e; --bg:#0a0a0a; --panel:#141414; --text:#eee; --muted:#999; --border:#333; --ok:#3d9; --warn:#e8a838; }
+  :root {
+    --gold: #d4af37;
+    --gold-light: #f4d03f;
+    --gold-dark: #b8962e;
+    --bg: #0a0a0a;
+    --panel: #121212;
+    --panel-elev: #171717;
+    --text: #f0f0f0;
+    --muted: #9a9a9a;
+    --border: #2a2a2a;
+    --ok: #3dcc9a;
+    --warn: #e8a838;
+    --danger: #f88;
+    --radius: 16px;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.45; }
-  header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  header a { color:var(--gold); text-decoration:none; font-weight:600; }
-  main { max-width:720px; margin:0 auto; padding:24px 20px 80px; }
-  h1 { color:var(--gold); font-size:1.5rem; margin:0 0 6px; }
-  .sub { color:var(--muted); margin-bottom:20px; font-size:14px; }
-  .step { display:none; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:18px; }
-  .step.active { display:block; }
-  .plans { display:grid; gap:12px; }
-  @media (min-width:640px) { .plans { grid-template-columns: repeat(3, 1fr); } }
-  .plan {
-    border:1px solid var(--border); border-radius:12px; padding:14px; cursor:pointer; background:#0f0f0f;
-    text-align:left; color:inherit; width:100%;
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(212,175,55,0.12), transparent 60%),
+      radial-gradient(800px 400px at 100% 20%, rgba(184,150,46,0.06), transparent 50%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
   }
-  .plan:hover { border-color:var(--gold-dark); }
-  .plan.selected { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold); }
-  .plan h3 { margin:0 0 4px; color:var(--gold); }
-  .plan .price { font-size:1.35rem; font-weight:800; margin:6px 0; }
-  .plan ul { margin:8px 0 0; padding-left:1.1rem; font-size:13px; color:#ccc; }
-  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 6px; }
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { color: var(--gold-light); }
+
+  .topnav {
+    position: sticky; top: 0; z-index: 40;
+    backdrop-filter: blur(12px);
+    background: rgba(10,10,10,0.85);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--gold); letter-spacing: 0.02em;
+  }
+  .brand img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
+  .topnav nav { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+  .topnav nav a { color: var(--muted); }
+  .topnav nav a:hover, .topnav nav a.active { color: var(--gold); }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 36px 20px 96px; }
+
+  .hero { text-align: center; margin-bottom: 36px; }
+  .hero h1 {
+    margin: 0 0 10px;
+    font-size: clamp(1.75rem, 4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero .sub { color: var(--muted); max-width: 560px; margin: 0 auto 14px; font-size: 15px; }
+  .current-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px;
+    border: 1px solid rgba(212,175,55,0.35);
+    background: rgba(212,175,55,0.08);
+    color: var(--gold); font-size: 13px; font-weight: 600;
+  }
+
+  .step-rail {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+  .step-dot {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--muted);
+    font-size: 12px; font-weight: 600; background: var(--panel);
+  }
+  .step-dot.on { border-color: var(--gold); color: var(--gold); background: rgba(212,175,55,0.1); }
+  .step-dot .n {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--border); color: var(--text); font-size: 11px;
+  }
+  .step-dot.on .n { background: var(--gold); color: #0a0a0a; }
+
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .plans {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  @media (min-width: 860px) {
+    .plans { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .plan-card {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, var(--panel-elev), var(--panel));
+    padding: 22px 20px 20px;
+    text-align: left;
+    color: inherit;
+    width: 100%;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  }
+  .plan-card:hover {
+    border-color: rgba(212,175,55,0.55);
+    transform: translateY(-2px);
+  }
+  .plan-card.selected {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold), 0 12px 40px rgba(212,175,55,0.12);
+  }
+  .plan-card.featured {
+    border-color: rgba(212,175,55,0.55);
+    background:
+      linear-gradient(180deg, rgba(212,175,55,0.1), transparent 40%),
+      linear-gradient(180deg, #1a160c, #121212);
+  }
+  .plan-card.featured::before {
+    content: 'Most popular';
+    position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: #0a0a0a; font-size: 11px; font-weight: 800;
+    padding: 4px 12px; border-radius: 999px; letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .plan-card h3 {
+    margin: 0 0 4px; color: var(--gold); font-size: 1.15rem; font-weight: 800;
+  }
+  .plan-card .tagline { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .plan-card .price {
+    display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px;
+  }
+  .plan-card .price .amt {
+    font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--text);
+  }
+  .plan-card .price .per { color: var(--muted); font-size: 13px; font-weight: 500; }
+  .plan-card .billing { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+  .plan-card ul {
+    list-style: none; margin: 0; padding: 0; display: grid; gap: 10px;
+  }
+  .plan-card li {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13.5px; color: #ddd; line-height: 1.35;
+  }
+  .plan-card li::before {
+    content: '✓';
+    flex-shrink: 0;
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(212,175,55,0.15); color: var(--gold);
+    font-size: 11px; font-weight: 800; margin-top: 1px;
+  }
+  .plan-card li.muted { color: var(--muted); }
+  .plan-card li.muted::before { content: '–'; background: rgba(255,255,255,0.06); color: #666; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 22px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .panel h2 {
+    margin: 0 0 8px; color: var(--gold); font-size: 1.2rem; font-weight: 800;
+  }
+  .panel .lead { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+
+  label.field { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
   input[type=text], input[type=tel] {
-    width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border);
-    background:#0a0a0a; color:var(--text); font-size:16px;
+    width: 100%; padding: 13px 14px; border-radius: 12px;
+    border: 1px solid var(--border); background: #0c0c0c; color: var(--text); font-size: 16px;
+    transition: border-color 0.15s;
   }
-  .check { display:flex; gap:10px; align-items:flex-start; margin:14px 0; font-size:14px; color:#ddd; }
-  .check input { margin-top:3px; }
-  .check a { color:var(--gold); }
-  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  input[type=text]:focus, input[type=tel]:focus {
+    outline: none; border-color: var(--gold);
+  }
+
+  .check {
+    display: flex; gap: 12px; align-items: flex-start;
+    margin: 8px 0 4px; font-size: 14px; color: #ddd;
+    padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: #0e0e0e;
+  }
+  .check input { margin-top: 3px; accent-color: var(--gold); width: 16px; height: 16px; flex-shrink: 0; }
+  .check a { font-weight: 600; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
   button.btn {
-    border:none; border-radius:10px; padding:12px 16px; font-weight:700; cursor:pointer; font-size:14px;
+    border: none; border-radius: 12px; padding: 13px 18px;
+    font-weight: 800; cursor: pointer; font-size: 14px;
+    transition: transform 0.15s, opacity 0.15s;
   }
-  button.btn.primary { background:linear-gradient(135deg,var(--gold),var(--gold-dark)); color:#0a0a0a; }
-  button.btn.ghost { background:transparent; color:var(--gold); border:1px solid var(--border); }
-  button.btn:disabled { opacity:0.45; cursor:not-allowed; }
+  button.btn:active { transform: scale(0.98); }
+  button.btn.primary {
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    color: #0a0a0a;
+    box-shadow: 0 8px 24px rgba(212,175,55,0.2);
+  }
+  button.btn.ghost {
+    background: transparent; color: var(--gold); border: 1px solid var(--border);
+  }
+  button.btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
   .pay-box {
-    margin-top:12px; padding:14px; border-radius:12px; border:1px dashed var(--gold-dark); background:#12100a;
+    margin-top: 4px; padding: 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(212,175,55,0.4);
+    background:
+      linear-gradient(135deg, rgba(212,175,55,0.08), transparent 50%),
+      #12100a;
   }
-  .pay-box strong.amt { font-size:1.4rem; color:var(--gold); }
+  .pay-row {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 14px;
+  }
+  .pay-row:last-of-type { border-bottom: none; }
+  .pay-row .k { color: var(--muted); }
+  .pay-row .v { font-weight: 700; color: var(--text); }
+  .pay-row .v.amt { font-size: 1.5rem; color: var(--gold); }
+  .pay-steps {
+    margin: 16px 0 0; padding: 0 0 0 1.15rem; color: #ccc; font-size: 13.5px;
+  }
+  .pay-steps li { margin: 6px 0; }
+
   .status {
-    margin-top:14px; padding:12px 14px; border-radius:10px; background:#0f1a12; border:1px solid #2a5;
-    color:var(--ok); font-weight:600;
+    margin-top: 16px; padding: 14px 16px; border-radius: 12px;
+    background: rgba(61,204,154,0.08); border: 1px solid rgba(61,204,154,0.35);
+    color: var(--ok); font-weight: 600; font-size: 14px;
   }
-  .err { color:#f88; font-size:14px; margin-top:10px; }
-  .hint { font-size:13px; color:var(--muted); margin-top:8px; }
-  .nav { display:flex; gap:14px; flex-wrap:wrap; font-size:14px; }
-  .pill { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); margin-bottom:10px; }
+  .err { color: var(--danger); font-size: 14px; margin-top: 10px; }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 10px; line-height: 1.45; }
+
+  .footnote {
+    text-align: center; margin-top: 28px; color: var(--muted); font-size: 12px;
+  }
+  .footnote a { font-weight: 600; }
 </style>
 </head>
 <body>
-<header>
-  <a href="/">← Chat</a>
-  <nav class="nav">
+<header class="topnav">
+  <a class="brand" href="/">
+    <img src="/logo.png" alt="" width="28" height="28">
+    <span>GoldenSpaceAI</span>
+  </a>
+  <nav>
+    <a href="/">Chat</a>
+    <a class="active" href="/upgrade">Upgrade</a>
+    <a href="/my-plan">My Plan</a>
     <a href="/terms">Terms</a>
     <a href="/privacy">Privacy</a>
     <a href="/refund">Refund</a>
   </nav>
 </header>
+
 <main>
-  <h1>Upgrade your plan</h1>
-  <p class="sub" id="currentPlan">Loading your plan…</p>
+  <section class="hero">
+    <h1>Simple plans. Clear limits.</h1>
+    <p class="sub">Pay once for 30 days via OMT Pay. No auto-renew. Confirmation usually within 1–2 working days.</p>
+    <div class="current-pill" id="currentPlan">Loading your plan…</div>
+    <p style="margin:12px 0 0;font-size:13px;"><a href="/my-plan">Check payment / plan request status →</a></p>
+  </section>
+
+  <div class="step-rail" id="stepRail" aria-hidden="false">
+    <span class="step-dot on" data-step="1"><span class="n">1</span> Choose</span>
+    <span class="step-dot" data-step="2"><span class="n">2</span> Accept</span>
+    <span class="step-dot" data-step="3"><span class="n">3</span> Verify</span>
+    <span class="step-dot" data-step="4"><span class="n">4</span> Pay</span>
+  </div>
 
   <section class="step active" id="step1">
-    <span class="pill">Step 1 of 4</span>
-    <h2 style="margin-top:0;color:var(--gold);font-size:1.1rem;">Choose a plan</h2>
     <div class="plans" id="plans"></div>
-    <div class="actions">
-      <button class="btn primary" id="toStep2" disabled>Continue</button>
+    <div class="actions" style="justify-content:center;margin-top:24px;">
+      <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
     </div>
+    <p class="footnote">Free includes Fast chat only. Thinking &amp; Expert modes require a paid plan. See <a href="/terms">Terms</a> for exact caps.</p>
   </section>
 
   <section class="step" id="step2">
-    <span class="pill">Step 2 of 4</span>
-    <h2 style="margin-top:0;color:var(--gold);font-size:1.1rem;">Accept policies</h2>
-    <label class="check">
-      <input type="checkbox" id="acceptPolicies">
-      <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>, <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and <a href="/refund" target="_blank" rel="noopener">Refund Policy</a>. I will send the <strong>exact</strong> plan amount from my OMT Pay number to <strong>81056987</strong>. Wrong amounts are refunded minus fees. My plan starts 1–2 working days after confirmation. Plans do not auto-renew.</span>
-    </label>
-    <div class="actions">
-      <button class="btn ghost" type="button" onclick="showStep(1)">Back</button>
-      <button class="btn primary" id="toStep3" disabled>Continue</button>
+    <div class="panel">
+      <h2>Accept policies</h2>
+      <p class="lead">Please review and accept before we show payment instructions.</p>
+      <label class="check">
+        <input type="checkbox" id="acceptPolicies">
+        <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>, <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and <a href="/refund" target="_blank" rel="noopener">Refund Policy</a>. I will send the <strong>exact</strong> plan amount from my OMT Pay number to <strong>81056987</strong>. Wrong amounts are refunded minus fees. My plan starts 1–2 working days after confirmation. Plans do not auto-renew.</span>
+      </label>
+      <div class="actions">
+        <button class="btn ghost" type="button" onclick="showStep(1)">Back</button>
+        <button class="btn primary" id="toStep3" disabled>Continue</button>
+      </div>
     </div>
   </section>
 
   <section class="step" id="step3">
-    <span class="pill">Step 3 of 4</span>
-    <h2 style="margin-top:0;color:var(--gold);font-size:1.1rem;">Your OMT Pay number</h2>
-    <label for="phone1">OMT Pay wallet number</label>
-    <input type="tel" id="phone1" inputmode="numeric" autocomplete="tel" placeholder="e.g. 81xxxxxx">
-    <label for="phone2">Confirm OMT Pay number</label>
-    <input type="tel" id="phone2" inputmode="numeric" autocomplete="tel" placeholder="Re-enter the same number">
-    <p class="hint">Must match. Payment must be sent from this same number.</p>
-    <p class="err" id="phoneErr" hidden></p>
-    <div class="actions">
-      <button class="btn ghost" type="button" onclick="showStep(2)">Back</button>
-      <button class="btn primary" id="toStep4">Continue</button>
+    <div class="panel">
+      <h2>Verify your OMT Pay number</h2>
+      <p class="lead">Payment must be sent from this same wallet number so we can match your transfer.</p>
+      <label class="field" for="phone1">OMT Pay wallet number</label>
+      <input type="tel" id="phone1" inputmode="numeric" autocomplete="tel" placeholder="e.g. 81xxxxxx">
+      <label class="field" for="phone2">Confirm OMT Pay number</label>
+      <input type="tel" id="phone2" inputmode="numeric" autocomplete="tel" placeholder="Re-enter the same number">
+      <p class="hint">Must match exactly. Digits only; spaces are ignored.</p>
+      <p class="err" id="phoneErr" hidden></p>
+      <div class="actions">
+        <button class="btn ghost" type="button" onclick="showStep(2)">Back</button>
+        <button class="btn primary" id="toStep4">Continue</button>
+      </div>
     </div>
   </section>
 
   <section class="step" id="step4">
-    <span class="pill">Step 4 of 4</span>
-    <h2 style="margin-top:0;color:var(--gold);font-size:1.1rem;">Send payment</h2>
-    <div class="pay-box">
-      <div>Send <strong class="amt" id="payAmount">$0</strong> wallet-to-wallet via <strong>OMT Pay</strong></div>
-      <div style="margin-top:8px;">To: <strong id="dest">81056987</strong></div>
-      <div style="margin-top:8px;">From: <strong id="fromPhone">—</strong></div>
-      <p class="hint">Send the <strong>exact</strong> amount only. No screenshots required. After you transfer, tap “Amount sent”.</p>
+    <div class="panel">
+      <h2>Send payment via OMT Pay</h2>
+      <p class="lead">Wallet-to-wallet transfer. No screenshots required.</p>
+      <div class="pay-box">
+        <div class="pay-row"><span class="k">Amount</span><span class="v amt" id="payAmount">$0</span></div>
+        <div class="pay-row"><span class="k">Send to</span><span class="v" id="dest">81056987</span></div>
+        <div class="pay-row"><span class="k">From (your OMT)</span><span class="v" id="fromPhone">—</span></div>
+        <div class="pay-row"><span class="k">Plan</span><span class="v" id="payPlan">—</span></div>
+        <ol class="pay-steps">
+          <li>Open OMT Pay and start a wallet-to-wallet transfer.</li>
+          <li>Send the <strong>exact</strong> amount shown above to <strong>81056987</strong>.</li>
+          <li>Use the same number you verified in the previous step.</li>
+          <li>When the transfer is done, tap <strong>Amount sent</strong> below.</li>
+        </ol>
+      </div>
+      <p class="hint">We confirm matching transfers within 1–2 working days. You can keep using Free until then.</p>
+      <div class="actions">
+        <button class="btn ghost" type="button" onclick="showStep(3)">Back</button>
+        <button class="btn primary" id="amountSent">Amount sent</button>
+      </div>
+      <p class="err" id="submitErr" hidden></p>
+      <div class="status" id="waitingStatus" hidden>Status: <strong>Waiting</strong> — we will confirm within 1–2 working days. Track it anytime on <a href="/my-plan" style="color:var(--gold)">My Plan</a>. You can close this page and keep chatting on Free until then.</div>
     </div>
-    <div class="actions">
-      <button class="btn ghost" type="button" onclick="showStep(3)">Back</button>
-      <button class="btn primary" id="amountSent">Amount sent</button>
-    </div>
-    <p class="err" id="submitErr" hidden></p>
-    <div class="status" id="waitingStatus" hidden>Status: <strong>Waiting</strong> — we will confirm within 1–2 working days. You can close this page and keep chatting on Free until then.</div>
   </section>
 </main>
+
 <script>
 (function() {
   const PLANS = [
-    { id:'plus', label:'Plus', price:5, bullets:['Fast 120/day','Thinking 40/mo','Expert 4: 15/mo','No Expert 16'] },
-    { id:'pro', label:'Pro', price:10, bullets:['Fast 200/day','Thinking 80/mo','Expert 4: 40/mo','Expert 16: 8/mo'] },
-    { id:'max', label:'Max', price:15, bullets:['Fast 300/day','Thinking 120/mo','Expert 4: 60/mo','Expert 16: 15/mo'] }
+    {
+      id: 'plus', label: 'Plus', price: 5, tagline: 'More Fast + Thinking',
+      featured: false,
+      bullets: [
+        { text: 'Fast 120 messages / day', ok: true },
+        { text: 'Thinking 40 / 30 days', ok: true },
+        { text: 'Expert 4: 15 / 30 days', ok: true },
+        { text: 'Expert 16 not included', ok: false }
+      ]
+    },
+    {
+      id: 'pro', label: 'Pro', price: 10, tagline: 'Best balance for power users',
+      featured: true,
+      bullets: [
+        { text: 'Fast 200 messages / day', ok: true },
+        { text: 'Thinking 80 / 30 days', ok: true },
+        { text: 'Expert 4: 40 / 30 days', ok: true },
+        { text: 'Expert 16: 8 / 30 days', ok: true }
+      ]
+    },
+    {
+      id: 'max', label: 'Max', price: 15, tagline: 'Highest caps',
+      featured: false,
+      bullets: [
+        { text: 'Fast 300 messages / day', ok: true },
+        { text: 'Thinking 120 / 30 days', ok: true },
+        { text: 'Expert 4: 60 / 30 days', ok: true },
+        { text: 'Expert 16: 15 / 30 days', ok: true }
+      ]
+    }
   ];
   let selected = null;
   let clientId = null;
@@ -146,26 +402,48 @@
     return clientId;
   }
 
+  function updateRail(n) {
+    document.querySelectorAll('.step-dot').forEach(el => {
+      const s = Number(el.getAttribute('data-step'));
+      el.classList.toggle('on', s <= n);
+    });
+  }
+
   function showStep(n) {
     for (let i = 1; i <= 4; i++) {
       document.getElementById('step' + i).classList.toggle('active', i === n);
     }
+    updateRail(n);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   window.showStep = showStep;
 
   function renderPlans() {
     const root = document.getElementById('plans');
     root.innerHTML = PLANS.map(p => {
-      const lis = p.bullets.map(b => '<li>' + b + '</li>').join('');
-      return '<button type="button" class="plan" data-id="' + p.id + '"><h3>' + p.label + '</h3><div class="price">$' + p.price + '<span style="font-size:12px;font-weight:500;color:#999"> / 30 days</span></div><ul>' + lis + '</ul></button>';
+      const lis = p.bullets.map(b =>
+        '<li class="' + (b.ok ? '' : 'muted') + '">' + b.text + '</li>'
+      ).join('');
+      return (
+        '<button type="button" class="plan-card' + (p.featured ? ' featured' : '') + '" data-id="' + p.id + '">' +
+          '<h3>' + p.label + '</h3>' +
+          '<div class="tagline">' + p.tagline + '</div>' +
+          '<div class="price"><span class="amt">$' + p.price + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">per 30 days · no auto-renew</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
     }).join('');
-    root.querySelectorAll('.plan').forEach(btn => {
+    root.querySelectorAll('.plan-card').forEach(btn => {
       btn.addEventListener('click', () => {
         selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
-        root.querySelectorAll('.plan').forEach(b => b.classList.toggle('selected', b === btn));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
         document.getElementById('toStep2').disabled = !selected;
       });
     });
+    // Pre-select featured Pro for polish
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
   }
 
   document.getElementById('toStep2').addEventListener('click', () => {
@@ -198,6 +476,7 @@
     err.hidden = true;
     document.getElementById('payAmount').textContent = '$' + selected.price;
     document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
     showStep(4);
   });
 
@@ -239,7 +518,7 @@
       const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
       document.getElementById('currentPlan').textContent = data.label
         ? ('Current plan: ' + data.label + (end ? (' · until ' + end) : '') + ' · Daily Fast resets UTC midnight')
-        : 'Current plan: Free';
+        : 'Current plan: Free · Daily Fast resets UTC midnight';
     } catch (e) {
       document.getElementById('currentPlan').textContent = 'Current plan: Free · Daily Fast resets UTC midnight';
     }

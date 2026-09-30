@@ -4,58 +4,223 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Refund Policy — GoldenSpaceAI</title>
+<meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="/logo.png">
 <style>
-  :root { --gold:#d4af37; --bg:#0a0a0a; --text:#eee; --muted:#aaa; --border:#333; }
+
+  :root {
+    --gold: #d4af37;
+    --gold-light: #f4d03f;
+    --gold-dark: #b8962e;
+    --bg: #0a0a0a;
+    --panel: #121212;
+    --text: #ececec;
+    --muted: #9a9a9a;
+    --border: #2a2a2a;
+    --link: #d4af37;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.55; }
-  header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  header a { color:var(--gold); text-decoration:none; font-weight:600; }
-  main { max-width:820px; margin:0 auto; padding:24px 20px 64px; }
-  h1 { color:var(--gold); font-size:1.6rem; margin:0 0 8px; }
-  h2 { color:var(--gold); font-size:1.1rem; margin:28px 0 8px; }
-  p, li { color:#ddd; }
-  .meta { color:var(--muted); margin-bottom:20px; }
-  ul { padding-left:1.2rem; }
-  .nav { display:flex; gap:14px; flex-wrap:wrap; font-size:14px; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(900px 420px at 50% -8%, rgba(212,175,55,0.08), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { color: var(--gold-light); text-decoration: underline; }
+
+  .topnav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(10,10,10,0.88);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+  }
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 800; color: var(--gold); letter-spacing: 0.02em;
+    text-decoration: none;
+  }
+  .brand:hover { text-decoration: none; color: var(--gold-light); }
+  .brand img { width: 26px; height: 26px; border-radius: 7px; object-fit: cover; }
+  .topnav nav { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+  .topnav nav a { color: var(--muted); text-decoration: none; }
+  .topnav nav a:hover, .topnav nav a.active { color: var(--gold); text-decoration: none; }
+  .back-app {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 999px;
+    border: 1px solid rgba(212,175,55,0.35);
+    background: rgba(212,175,55,0.08);
+    color: var(--gold); font-size: 13px; font-weight: 700;
+    text-decoration: none;
+  }
+  .back-app:hover { background: rgba(212,175,55,0.16); text-decoration: none; color: var(--gold-light); }
+
+  main.legal {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 22px 96px;
+  }
+  .doc-header {
+    margin-bottom: 28px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-kicker {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--gold);
+    margin-bottom: 10px;
+  }
+  h1 {
+    margin: 0 0 12px;
+    font-size: clamp(1.7rem, 3.5vw, 2.15rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: #fff;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .meta strong { color: var(--text); }
+
+  h2 {
+    margin: 36px 0 10px;
+    padding-top: 8px;
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--gold);
+    scroll-margin-top: 72px;
+  }
+  p { margin: 0 0 14px; color: #d8d8d8; }
+  ul {
+    margin: 0 0 16px;
+    padding-left: 1.25rem;
+    color: #d8d8d8;
+  }
+  li { margin: 6px 0; }
+  li::marker { color: var(--gold); }
+  strong { color: #f2f2f2; }
+
+  .plan-block {
+    margin: 14px 0 18px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .plan-block > strong {
+    display: block;
+    color: var(--gold);
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+  .plan-block ul { margin-bottom: 0; }
+
+  .toc {
+    margin: 0 0 8px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 13.5px;
+  }
+  .toc strong { display: block; color: var(--gold); margin-bottom: 8px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .toc ol { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+  .toc a { color: #ccc; }
+  .toc a:hover { color: var(--gold); }
+
+  footer.doc-foot {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+    display: flex; flex-wrap: wrap; gap: 10px 18px;
+    justify-content: space-between;
+  }
+
 </style>
 </head>
 <body>
-<header>
-  <a href="/">← GoldenSpaceAI</a>
-  <nav class="nav">
+<header class="topnav">
+  <a class="brand" href="/">
+    <img src="/logo.png" alt="" width="26" height="26">
+    <span>GoldenSpaceAI</span>
+  </a>
+  <nav>
+    <a href="/">Chat</a>
+    <a href="/upgrade">Upgrade</a>
+    <a href="/my-plan">My Plan</a>
     <a href="/terms">Terms</a>
     <a href="/privacy">Privacy</a>
-    <a href="/refund">Refund</a>
-    <a href="/upgrade">Upgrade</a>
+    <a href="/refund" class="active">Refund</a>
   </nav>
+  <a class="back-app" href="/">← Back to app</a>
 </header>
-<main>
-<h1>Refund Policy</h1>
-<p class="meta"><strong>GoldenSpaceAI</strong><br>https://goldenspaceai.space<br>Effective date: 30 September 2026</p>
 
-<p>This Refund Policy applies to paid plans purchased via OMT Pay wallet-to-wallet transfer on GoldenSpaceAI. It forms part of the agreement described in the <a href="/terms" style="color:var(--gold)">Terms of Service</a>.</p>
 
-<h2>1. Exact amount required</h2>
+<main class="legal">
+<div class="doc-header">
+  <span class="doc-kicker">Legal</span>
+  <h1>Refund Policy</h1>
+  <p class="meta"><strong>GoldenSpaceAI</strong><br>https://goldenspaceai.space<br>Effective date: 30 September 2026</p>
+</div>
+
+<nav class="toc" aria-label="On this page">
+  <strong>On this page</strong>
+  <ol>
+    <li><a href="#exact">Exact amount required</a></li>
+    <li><a href="#wrong">Wrong amount</a></li>
+    <li><a href="#mismatch">Non-matching transfers</a></li>
+    <li><a href="#start">When the plan starts</a></li>
+    <li><a href="#renewal">No automatic renewal</a></li>
+    <li><a href="#unused">Change of mind / unused time</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ol>
+</nav>
+
+<p>This Refund Policy applies to paid plans purchased via OMT Pay wallet-to-wallet transfer on GoldenSpaceAI. It forms part of the agreement described in the <a href="/terms">Terms of Service</a>.</p>
+
+<h2 id="exact">1. Exact amount required</h2>
 <p>You must send the <strong>exact</strong> plan price (USD 5 / 10 / 15 as shown on the Upgrade page) from the OMT Pay number you submitted to the destination wallet shown after you accept the Terms, Privacy Policy, and this Refund Policy.</p>
 
-<h2>2. Wrong amount</h2>
+<h2 id="wrong">2. Wrong amount</h2>
 <p>If we receive a transfer in the <strong>wrong amount</strong> for the selected plan, we will refund that transfer <strong>minus applicable fees</strong> (for example network or wallet fees). We are not obliged to activate a plan for a non-matching amount.</p>
 
-<h2>3. Non-matching transfers</h2>
+<h2 id="mismatch">3. Non-matching transfers</h2>
 <p>We may <strong>decline</strong> payment requests when the sending number or amount does not match the request. Declined requests do not start a paid period. Where funds were received but do not match, treatment follows section 2 where a refund is appropriate.</p>
 
-<h2>4. When the plan starts</h2>
+<h2 id="start">4. When the plan starts</h2>
 <p>A paid plan starts on the date we <strong>confirm</strong> (approve) a matching payment — not on the date you submit a request or tap “Amount sent”. Confirmation may take one (1) to two (2) working days after the transfer is identified.</p>
 
-<h2>5. No automatic renewal</h2>
+<h2 id="renewal">5. No automatic renewal</h2>
 <p>Paid plans <strong>do not renew automatically</strong>. When the thirty-day period ends, access returns to Free until a new exact payment is submitted and confirmed.</p>
 
-<h2>6. Change of mind / unused time</h2>
+<h2 id="unused">6. Change of mind / unused time</h2>
 <p>Because access is provisioned after manual confirmation of an exact wallet transfer, refunds are generally limited to wrong-amount cases described above. Unused days in a confirmed period are not prorated unless required by law.</p>
 
-<h2>7. Contact</h2>
+<h2 id="contact">7. Contact</h2>
 <p>Refund enquiries may be submitted through the contact method published on https://goldenspaceai.space. Include the OMT number used and the approximate transfer time.</p>
+
+<footer class="doc-foot">
+  <span>© GoldenSpaceAI · Refund Policy</span>
+  <span><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/upgrade">Upgrade</a></span>
+</footer>
 </main>
+
 </body>
 </html>

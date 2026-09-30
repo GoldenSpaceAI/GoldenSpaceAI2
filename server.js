@@ -1018,6 +1018,18 @@ app.get('/api/plan', (req, res) => {
     res.json(plansStore.getStatus(deviceId));
 });
 
+app.get('/api/plan-status', (req, res) => {
+    const deviceId = getClientId(req);
+    res.json(plansStore.getPlanStatusUi(deviceId));
+});
+
+app.get('/api/my-plan', (req, res) => {
+    const deviceId = getClientId(req);
+    res.json(plansStore.getMyPlan(deviceId));
+});
+
+
+
 app.post('/api/upgrade/request', (req, res) => {
     const deviceId = getClientId(req);
     if (!deviceId) {
@@ -1123,6 +1135,20 @@ app.get('/upgrade', (req, res) => {
 app.get('/upgrade.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'upgrade.html'));
 });
+
+app.get('/my-plan', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'my-plan.html'));
+});
+app.get('/my-plan.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'my-plan.html'));
+});
+app.get('/plan-status', (req, res) => {
+    res.redirect(302, '/my-plan');
+});
+app.get('/plan-status.html', (req, res) => {
+    res.redirect(302, '/my-plan');
+});
+
 app.get('/admin-page', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin-page.html'));
 });

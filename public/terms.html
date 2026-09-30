@@ -4,110 +4,288 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Terms of Service — GoldenSpaceAI</title>
+<meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="/logo.png">
 <style>
-  :root { --gold:#d4af37; --bg:#0a0a0a; --text:#eee; --muted:#aaa; --border:#333; }
+
+  :root {
+    --gold: #d4af37;
+    --gold-light: #f4d03f;
+    --gold-dark: #b8962e;
+    --bg: #0a0a0a;
+    --panel: #121212;
+    --text: #ececec;
+    --muted: #9a9a9a;
+    --border: #2a2a2a;
+    --link: #d4af37;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.55; }
-  header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  header a { color:var(--gold); text-decoration:none; font-weight:600; }
-  main { max-width:820px; margin:0 auto; padding:24px 20px 64px; }
-  h1 { color:var(--gold); font-size:1.6rem; margin:0 0 8px; }
-  h2 { color:var(--gold); font-size:1.1rem; margin:28px 0 8px; }
-  p, li { color:#ddd; }
-  .meta { color:var(--muted); margin-bottom:20px; }
-  ul { padding-left:1.2rem; }
-  .nav { display:flex; gap:14px; flex-wrap:wrap; font-size:14px; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(900px 420px at 50% -8%, rgba(212,175,55,0.08), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { color: var(--gold-light); text-decoration: underline; }
+
+  .topnav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(10,10,10,0.88);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+  }
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 800; color: var(--gold); letter-spacing: 0.02em;
+    text-decoration: none;
+  }
+  .brand:hover { text-decoration: none; color: var(--gold-light); }
+  .brand img { width: 26px; height: 26px; border-radius: 7px; object-fit: cover; }
+  .topnav nav { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+  .topnav nav a { color: var(--muted); text-decoration: none; }
+  .topnav nav a:hover, .topnav nav a.active { color: var(--gold); text-decoration: none; }
+  .back-app {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 999px;
+    border: 1px solid rgba(212,175,55,0.35);
+    background: rgba(212,175,55,0.08);
+    color: var(--gold); font-size: 13px; font-weight: 700;
+    text-decoration: none;
+  }
+  .back-app:hover { background: rgba(212,175,55,0.16); text-decoration: none; color: var(--gold-light); }
+
+  main.legal {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 22px 96px;
+  }
+  .doc-header {
+    margin-bottom: 28px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-kicker {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--gold);
+    margin-bottom: 10px;
+  }
+  h1 {
+    margin: 0 0 12px;
+    font-size: clamp(1.7rem, 3.5vw, 2.15rem);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: #fff;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .meta strong { color: var(--text); }
+
+  h2 {
+    margin: 36px 0 10px;
+    padding-top: 8px;
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--gold);
+    scroll-margin-top: 72px;
+  }
+  p { margin: 0 0 14px; color: #d8d8d8; }
+  ul {
+    margin: 0 0 16px;
+    padding-left: 1.25rem;
+    color: #d8d8d8;
+  }
+  li { margin: 6px 0; }
+  li::marker { color: var(--gold); }
+  strong { color: #f2f2f2; }
+
+  .plan-block {
+    margin: 14px 0 18px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .plan-block > strong {
+    display: block;
+    color: var(--gold);
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+  .plan-block ul { margin-bottom: 0; }
+
+  .toc {
+    margin: 0 0 8px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 13.5px;
+  }
+  .toc strong { display: block; color: var(--gold); margin-bottom: 8px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .toc ol { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+  .toc a { color: #ccc; }
+  .toc a:hover { color: var(--gold); }
+
+  footer.doc-foot {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+    display: flex; flex-wrap: wrap; gap: 10px 18px;
+    justify-content: space-between;
+  }
+
 </style>
 </head>
 <body>
-<header>
-  <a href="/">← GoldenSpaceAI</a>
-  <nav class="nav">
-    <a href="/terms">Terms</a>
+<header class="topnav">
+  <a class="brand" href="/">
+    <img src="/logo.png" alt="" width="26" height="26">
+    <span>GoldenSpaceAI</span>
+  </a>
+  <nav>
+    <a href="/">Chat</a>
+    <a href="/upgrade">Upgrade</a>
+    <a href="/my-plan">My Plan</a>
+    <a href="/terms" class="active">Terms</a>
     <a href="/privacy">Privacy</a>
     <a href="/refund">Refund</a>
-    <a href="/upgrade">Upgrade</a>
   </nav>
+  <a class="back-app" href="/">← Back to app</a>
 </header>
-<main>
-<h1>Terms of Service</h1>
-<p class="meta"><strong>GoldenSpaceAI</strong><br>https://goldenspaceai.space<br>Effective date: 30 September 2026</p>
+
+
+<main class="legal">
+<div class="doc-header">
+  <span class="doc-kicker">Legal</span>
+  <h1>Terms of Service</h1>
+  <p class="meta"><strong>GoldenSpaceAI</strong><br>https://goldenspaceai.space<br>Effective date: 30 September 2026</p>
+</div>
+
+<nav class="toc" aria-label="On this page">
+  <strong>On this page</strong>
+  <ol>
+    <li><a href="#eligibility">Eligibility</a></li>
+    <li><a href="#service">The Service</a></li>
+    <li><a href="#plans">Plans and usage limits</a></li>
+    <li><a href="#fees">Fees and payment</a></li>
+    <li><a href="#renewal">Renewal and expiry</a></li>
+    <li><a href="#use">Acceptable use</a></li>
+    <li><a href="#ip">Intellectual property</a></li>
+    <li><a href="#disclaimers">Disclaimers</a></li>
+    <li><a href="#liability">Limitation of liability</a></li>
+    <li><a href="#changes">Changes</a></li>
+    <li><a href="#entire">Entire agreement</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ol>
+</nav>
 
 <p>These Terms of Service (“Terms”) govern access to and use of the GoldenSpaceAI website, application, and related services (the “Service”). By accessing or using the Service, you agree to these Terms, the Privacy Policy, and the Refund Policy. If you do not agree, do not use the Service.</p>
 
-<h2>1. Eligibility</h2>
+<h2 id="eligibility">1. Eligibility</h2>
 <p>You represent that you have legal capacity to accept these Terms and, if you purchase a paid plan, that you are authorised to use the wallet number you submit.</p>
 
-<h2>2. The Service</h2>
+<h2 id="service">2. The Service</h2>
 <p>GoldenSpaceAI provides AI-assisted chat. Output is generated automatically and may be inaccurate or incomplete. The Service is not professional legal, medical, or financial advice. You are responsible for your use of any output.</p>
 
-<h2>3. Plans and usage limits</h2>
+<h2 id="plans">3. Plans and usage limits</h2>
 <p>Access is provided under the following plans. Limits are hard limits. When a limit is reached, the relevant mode is stopped until the next period. The Service will display a notice to upgrade or to wait until the limit resets.</p>
 
-<p><strong>Free</strong></p>
-<ul>
-  <li>Basic chat: fifty (50) messages per day</li>
-  <li>Thinking and multi-agent modes are not included</li>
-</ul>
+<div class="plan-block">
+  <strong>Free</strong>
+  <ul>
+    <li>Basic chat: fifty (50) messages per day</li>
+    <li>Thinking and multi-agent modes are not included</li>
+  </ul>
+</div>
 
-<p><strong>Plus — USD 5 per thirty (30) days</strong></p>
-<ul>
-  <li>Basic chat: one hundred twenty (120) messages per day</li>
-  <li>Thinking: forty (40) messages per thirty-day period</li>
-  <li>Four-agent mode: fifteen (15) messages per thirty-day period</li>
-  <li>Sixteen-agent mode is not included</li>
-</ul>
+<div class="plan-block">
+  <strong>Plus — USD 5 per thirty (30) days</strong>
+  <ul>
+    <li>Basic chat: one hundred twenty (120) messages per day</li>
+    <li>Thinking: forty (40) messages per thirty-day period</li>
+    <li>Four-agent mode: fifteen (15) messages per thirty-day period</li>
+    <li>Sixteen-agent mode is not included</li>
+  </ul>
+</div>
 
-<p><strong>Pro — USD 10 per thirty (30) days</strong></p>
-<ul>
-  <li>Basic chat: two hundred (200) messages per day</li>
-  <li>Thinking: eighty (80) messages per thirty-day period</li>
-  <li>Four-agent mode: forty (40) messages per thirty-day period</li>
-  <li>Sixteen-agent mode: eight (8) messages per thirty-day period</li>
-</ul>
+<div class="plan-block">
+  <strong>Pro — USD 10 per thirty (30) days</strong>
+  <ul>
+    <li>Basic chat: two hundred (200) messages per day</li>
+    <li>Thinking: eighty (80) messages per thirty-day period</li>
+    <li>Four-agent mode: forty (40) messages per thirty-day period</li>
+    <li>Sixteen-agent mode: eight (8) messages per thirty-day period</li>
+  </ul>
+</div>
 
-<p><strong>Max — USD 15 per thirty (30) days</strong></p>
-<ul>
-  <li>Basic chat: three hundred (300) messages per day</li>
-  <li>Thinking: one hundred twenty (120) messages per thirty-day period</li>
-  <li>Four-agent mode: sixty (60) messages per thirty-day period</li>
-  <li>Sixteen-agent mode: fifteen (15) messages per thirty-day period</li>
-</ul>
+<div class="plan-block">
+  <strong>Max — USD 15 per thirty (30) days</strong>
+  <ul>
+    <li>Basic chat: three hundred (300) messages per day</li>
+    <li>Thinking: one hundred twenty (120) messages per thirty-day period</li>
+    <li>Four-agent mode: sixty (60) messages per thirty-day period</li>
+    <li>Sixteen-agent mode: fifteen (15) messages per thirty-day period</li>
+  </ul>
+</div>
 
 <p>Daily limits reset at the start of each calendar day as determined by the Service. Period limits reset when a new paid period is confirmed, or when a Free day limit resets, as applicable.</p>
 <p>The thirty-day paid period begins on the date we <strong>confirm</strong> payment, not on the date a request is submitted.</p>
 
-<h2>4. Fees and payment</h2>
+<h2 id="fees">4. Fees and payment</h2>
 <p>Paid plans are payable only by OMT Pay wallet-to-wallet transfer in the exact amount of the selected plan. The destination wallet is shown on the Upgrade page only after you accept these Terms, the Privacy Policy, and the Refund Policy.</p>
 <p>You must submit the wallet number from which payment will be sent and remit the exact plan price from that same number. We do not process cards on the Service and we do not require payment screenshots.</p>
 <p>Payment from a third-party wallet is permitted only if that number is the number submitted with the request. One wallet number may hold one active paid plan at a time.</p>
 <p>We verify transfers against the submitted number and the exact amount. A matching transfer may be approved. A non-matching transfer may be declined. Confirmation of a valid payment may take one (1) to two (2) working days after the transfer is identified.</p>
 
-<h2>5. Renewal and expiry</h2>
+<h2 id="renewal">5. Renewal and expiry</h2>
 <p>Paid access does not renew automatically. When the thirty-day period ends, the account returns to the Free plan until a further exact payment is confirmed.</p>
 
-<h2>6. Acceptable use</h2>
+<h2 id="use">6. Acceptable use</h2>
 <p>You shall not interfere with the Service, attempt unauthorised access, use the Service for unlawful purposes, circumvent usage limits, or impose an unreasonable load on the Service. We may suspend or terminate access where we reasonably believe these Terms have been breached or continued use would harm the Service or third parties.</p>
 <p>If a basic-chat provider is unavailable and traffic is routed to a higher-cost mode, we may temporarily reduce or pause basic-chat limits to protect the Service.</p>
 
-<h2>7. Intellectual property</h2>
+<h2 id="ip">7. Intellectual property</h2>
 <p>The Service, including software, design, and branding, is owned by GoldenSpaceAI or its licensors. You retain rights in content you submit and grant us a limited licence to process that content solely to operate the Service.</p>
 
-<h2>8. Disclaimers</h2>
+<h2 id="disclaimers">8. Disclaimers</h2>
 <p>THE SERVICE IS PROVIDED “AS IS” AND “AS AVAILABLE”. TO THE MAXIMUM EXTENT PERMITTED BY LAW, GOLDENSPACEAI DISCLAIMS ALL WARRANTIES, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. We do not warrant uninterrupted or error-free operation.</p>
 
-<h2>9. Limitation of liability</h2>
+<h2 id="liability">9. Limitation of liability</h2>
 <p>To the maximum extent permitted by law, GoldenSpaceAI shall not be liable for indirect, incidental, special, consequential, or punitive damages, or for loss of data, profits, or goodwill. Our aggregate liability arising out of the Service shall not exceed the amount you paid for the then-current paid period, or USD 15, whichever is lower.</p>
 
-<h2>10. Changes</h2>
+<h2 id="changes">10. Changes</h2>
 <p>We may amend these Terms, plans, or limits. Continued use after notice constitutes acceptance. A paid period already confirmed remains subject to the Terms in force on the confirmation date, except where a change is required by law.</p>
 
-<h2>11. Entire agreement</h2>
+<h2 id="entire">11. Entire agreement</h2>
 <p>These Terms, together with the Privacy Policy and Refund Policy, constitute the entire agreement between you and GoldenSpaceAI concerning the Service.</p>
 
-<h2>12. Contact</h2>
+<h2 id="contact">12. Contact</h2>
 <p>Enquiries may be submitted through the contact method published on https://goldenspaceai.space.</p>
+
+<footer class="doc-foot">
+  <span>© GoldenSpaceAI · Terms of Service</span>
+  <span><a href="/privacy">Privacy</a> · <a href="/refund">Refund</a> · <a href="/upgrade">Upgrade</a></span>
+</footer>
 </main>
+
 </body>
 </html>

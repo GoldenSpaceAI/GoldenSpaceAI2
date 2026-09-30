@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a0a">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="GoldenAI2">
@@ -894,7 +895,7 @@
                             </button>
                             <div class="model-menu" id="modelMenu">
                                 <div class="model-menu-item" data-model="normal" onclick="setModel('normal')">
-                                    Fast <span class="model-menu-desc">gpt-4o-mini · vision</span>
+                                    Fast <span class="model-menu-desc">Grok · vision</span>
                                 </div>
                                 <div class="model-menu-item" data-model="smart" onclick="setModel('smart')">
                                     Thinking <span class="model-menu-desc">Grok 4.3</span>
@@ -979,7 +980,7 @@
 
         const HISTORY_WINDOW = 40;
         const MODELS = {
-            'normal': { label: 'Fast', apiMode: 'normal', badge: 'badge-normal', desc: 'Fast · gpt-4o-mini' },
+            'normal': { label: 'Fast', apiMode: 'normal', badge: 'badge-normal', desc: 'Fast' },
             'smart': { label: 'Thinking', apiMode: 'smart', badge: 'badge-smart', desc: 'Grok 4.3 Thinking' },
             'expert-4': { label: 'Expert 4', apiMode: 'expert', agents: 4, badge: 'badge-expert', desc: 'Expert - 4 Agents' },
             'expert-16': { label: 'Expert 16', apiMode: 'expert', agents: 16, badge: 'badge-expert', desc: 'Expert - 16 Agents' }
@@ -1781,8 +1782,15 @@
         function friendlyError(err) {
             const msg = String((err && err.message) || err || '');
             const first = msg.split('\n')[0].replace(/\s+at\s+.*/g, '').trim();
-            if (!navigator.onLine || /Failed to fetch|NetworkError|network error|Load failed/i.test(msg)) {
+            // Prefer already-friendly server messages (emoji-prefixed) before generic network remap
+            if (/^[⚠️🔑⏳💰⏰🔧]/.test(first)) {
+                return first.length > 220 ? first.slice(0, 220) + '…' : first;
+            }
+            if (!navigator.onLine || /Failed to fetch|NetworkError|Load failed/i.test(msg)) {
                 return '⚠️ Network error. Check your connection and try again.';
+            }
+            if (/Connection error|Could not reach/i.test(msg)) {
+                return '⚠️ Could not reach the AI provider. Tap Retry or switch mode.';
             }
             if (/OPENAI_API_KEY|Fast mode needs/i.test(msg)) {
                 return '🔑 Fast mode needs OPENAI_API_KEY. Set it in Render environment variables, then redeploy.';

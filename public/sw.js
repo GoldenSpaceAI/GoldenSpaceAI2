@@ -1,47 +1,39 @@
-// This is the "Offline page" service worker
+const CACHE = 'goldenspaceai2-v2';
+const OFFLINE = '/offline.html';
 
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
-
-const CACHE = "goldenspaceai2-v1";
-
-// Fixed: Points to your actual offline page
-const offlineFallbackPage = "/offline.html";
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-});
-
-self.addEventListener('install', async (event) => {
+self.addEventListener('install', function(event) {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.add(offlineFallbackPage))
+    caches.open(CACHE).then(function(cache) {
+      return cache.add(OFFLINE);
+    })
   );
 });
 
-if (workbox.navigationPreload.isSupported()) {
-  workbox.navigationPreload.enable();
-}
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.map(function(key) {
+        if (key !== CACHE) return caches.delete(key);
+      }));
+    }).then(function() {
+      return self.clients.claim();
+    })
+  );
+});
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', function(event) {
+  if (event.request.method !== 'GET') return;
   if (event.request.mode === 'navigate') {
-    event.respondWith((async () => {
-      try {
-        const preloadResp = await event.preloadResponse;
-
-        if (preloadResp) {
-          return preloadResp;
-        }
-
-        const networkResp = await fetch(event.request);
-        return networkResp;
-      } catch (error) {
-
-        const cache = await caches.open(CACHE);
-        const cachedResp = await cache.match(offlineFallbackPage);
-        return cachedResp;
-      }
-    })());
+    event.respondWith(
+      fetch(event.request).catch(function() {
+        return caches.match(OFFLINE);
+      })
+    );
   }
+});
+
+
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });

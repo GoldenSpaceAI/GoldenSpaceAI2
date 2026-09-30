@@ -655,87 +655,7 @@
         .install-app-footer-btn:active { transform: scale(0.98); opacity: 0.9; }
         .install-app-footer-btn.installed,
         .install-app-footer-btn[hidden] { display: none !important; }
-        .install-app-footer-btn.ready-native::after {
-            content: '';
-            display: inline-block;
-            width: 7px;
-            height: 7px;
-            margin-left: 8px;
-            border-radius: 50%;
-            background: #1a7a3a;
-            vertical-align: middle;
-            box-shadow: 0 0 0 2px rgba(26,122,58,0.25);
-        }
-        .install-help-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 5100;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-        }
-        .install-help-overlay.show { display: flex; }
-        .install-help-card {
-            width: min(380px, 100%);
-            background: var(--black-light);
-            border: 1px solid rgba(212,175,55,0.45);
-            border-radius: 20px;
-            padding: 22px 20px 18px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.55);
-            color: var(--text);
-        }
-        .install-help-card h3 {
-            margin: 0 0 8px;
-            color: var(--gold);
-            font-size: 18px;
-            font-weight: 800;
-        }
-        .install-help-card .install-help-reason {
-            margin: 0 0 14px;
-            color: #aaa;
-            font-size: 13px;
-            line-height: 1.4;
-        }
-        .install-help-card ol {
-            margin: 0 0 16px;
-            padding-left: 20px;
-            color: #ddd;
-            font-size: 14px;
-            line-height: 1.55;
-        }
-        .install-help-card ol li { margin-bottom: 8px; }
-        .install-help-card ol strong { color: var(--gold); }
-        .install-help-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-        }
-        .install-help-actions button,
-        .install-help-actions a {
-            flex: 1 1 auto;
-            min-width: 120px;
-            text-align: center;
-            padding: 11px 14px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 13px;
-            cursor: pointer;
-            text-decoration: none;
-            border: 1px solid var(--gold-dark);
-        }
-        .install-help-actions .install-help-close {
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            color: #0a0a0a;
-        }
-        .install-help-actions .install-help-more {
-            background: transparent;
-            color: var(--gold);
-        }
+        .chats-panel-footer:has(#installAppBtn[hidden]) { display: none; }
         .chats-panel { display: flex; flex-direction: column; }
         .chats-list { flex: 1; min-height: 0; overflow-y: auto; }
         .input-btn.image-attached { color: var(--green); }
@@ -996,7 +916,7 @@
                 </div>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
-                    <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app">Install App</button>
+                    <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
                 </div>
             </div>
 
@@ -1058,17 +978,6 @@
                         
                         <button class="send-btn" onclick="onSendOrStop()" id="sendBtn" aria-label="Send">&#10148;</button>
                     </div>
-                </div>
-            </div>
-        </div>
-        <div class="install-help-overlay" id="installHelpOverlay" role="dialog" aria-modal="true" aria-labelledby="installHelpTitle" hidden>
-            <div class="install-help-card" role="document">
-                <h3 id="installHelpTitle">Add GoldenSpaceAI</h3>
-                <p class="install-help-reason" id="installHelpReason"></p>
-                <ol id="installHelpSteps"></ol>
-                <div class="install-help-actions">
-                    <button type="button" class="install-help-close" id="installHelpClose">Got it</button>
-                    <a class="install-help-more" id="installHelpMore" href="/app-install.html">More install help</a>
                 </div>
             </div>
         </div>
@@ -2721,13 +2630,9 @@
         }
 
 
-        // ===== PWA install (one-click + in-app help) =====
+        // ===== PWA install (one-press native prompt only) =====
         let deferredInstallPrompt = null;
         const installBtn = document.getElementById('installAppBtn');
-        const installHelpOverlay = document.getElementById('installHelpOverlay');
-        const installHelpReason = document.getElementById('installHelpReason');
-        const installHelpSteps = document.getElementById('installHelpSteps');
-        const installHelpClose = document.getElementById('installHelpClose');
 
         function isStandaloneApp() {
             return window.matchMedia('(display-mode: standalone)').matches
@@ -2735,85 +2640,20 @@
                 || document.referrer.indexOf('android-app://') === 0;
         }
 
-        function detectInstallPlatform() {
-            const ua = navigator.userAgent || '';
-            const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            const isAndroid = /Android/i.test(ua);
-            const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Edg|OPR|Firefox/i.test(ua);
-            const isFirefox = /Firefox|FxiOS/i.test(ua);
-            return { isIOS: isIOS, isAndroid: isAndroid, isSafari: isSafari, isFirefox: isFirefox };
-        }
-
         function refreshInstallButton() {
             if (!installBtn) return;
-            if (isStandaloneApp()) {
+            // Show Install only when a deferred beforeinstallprompt exists.
+            // No teaching modal / how-to / navigate when unavailable.
+            if (isStandaloneApp() || !deferredInstallPrompt) {
                 installBtn.hidden = true;
-                installBtn.classList.add('installed');
-                installBtn.classList.remove('ready-native');
-                installBtn.setAttribute('aria-label', 'App already installed');
+                installBtn.classList.toggle('installed', isStandaloneApp());
+                installBtn.setAttribute('aria-label', isStandaloneApp() ? 'App already installed' : 'Install not available');
                 return;
             }
             installBtn.hidden = false;
             installBtn.classList.remove('installed');
-            if (deferredInstallPrompt) {
-                installBtn.classList.add('ready-native');
-                installBtn.setAttribute('aria-label', 'Install app (one tap)');
-                installBtn.textContent = 'Install App';
-            } else {
-                installBtn.classList.remove('ready-native');
-                installBtn.setAttribute('aria-label', 'Install app — show instructions');
-                installBtn.textContent = 'Install App';
-            }
-        }
-
-        function hideInstallHelp() {
-            if (!installHelpOverlay) return;
-            installHelpOverlay.classList.remove('show');
-            installHelpOverlay.hidden = true;
-        }
-
-        function showInstallHelp() {
-            if (!installHelpOverlay || !installHelpReason || !installHelpSteps) {
-                // Last resort: same-tab help page with reason (never silent bounce).
-                window.location.href = '/app-install.html?reason=no-beforeinstallprompt';
-                return;
-            }
-            const p = detectInstallPlatform();
-            let reason = '';
-            let steps = [];
-            if (p.isIOS) {
-                reason = 'iPhone/iPad Safari does not support one-tap install. Add GoldenSpaceAI to your Home Screen:';
-                steps = [
-                    'Tap the <strong>Share</strong> button (square with an arrow)',
-                    'Scroll and tap <strong>Add to Home Screen</strong>',
-                    'Tap <strong>Add</strong>'
-                ];
-            } else if (p.isAndroid) {
-                reason = 'Chrome has not offered a one-tap install yet (or it was dismissed earlier). You can still install from the browser menu:';
-                steps = [
-                    'Tap the <strong>⋮</strong> menu (top right)',
-                    'Tap <strong>Install app</strong> or <strong>Add to Home screen</strong>',
-                    'Confirm <strong>Install</strong>'
-                ];
-            } else if (p.isSafari || p.isFirefox) {
-                reason = 'This browser does not support the native install prompt. Use Chrome or Edge for one-tap install, or:';
-                steps = [
-                    'Open this site in <strong>Chrome</strong> or <strong>Edge</strong>',
-                    'Look for the install icon in the address bar, or open the menu → <strong>Install GoldenSpaceAI</strong>',
-                    'Or keep browsing here — the Install button will turn one-tap when the browser is ready'
-                ];
-            } else {
-                reason = 'A one-tap install prompt is not available yet in this session. Try:';
-                steps = [
-                    'Look for an install icon in the address bar',
-                    'Or open the browser menu → <strong>Install app</strong> / <strong>Install GoldenSpaceAI</strong>',
-                    'Stay on this page a moment, then tap Install App again — when ready it installs in one tap'
-                ];
-            }
-            installHelpReason.innerHTML = reason;
-            installHelpSteps.innerHTML = steps.map(function(s) { return '<li>' + s + '</li>'; }).join('');
-            installHelpOverlay.hidden = false;
-            installHelpOverlay.classList.add('show');
+            installBtn.setAttribute('aria-label', 'Install app');
+            installBtn.textContent = 'Install App';
         }
 
         // Capture early so a later click can call prompt() without navigating away.
@@ -2825,7 +2665,6 @@
 
         window.addEventListener('appinstalled', function() {
             deferredInstallPrompt = null;
-            hideInstallHelp();
             refreshInstallButton();
         });
 
@@ -2834,24 +2673,21 @@
                 refreshInstallButton();
                 return;
             }
-            // Native path when beforeinstallprompt was deferred.
-            if (deferredInstallPrompt) {
-                const promptEvent = deferredInstallPrompt;
-                deferredInstallPrompt = null;
-                refreshInstallButton();
-                try {
-                    await promptEvent.prompt();
-                    await promptEvent.userChoice;
-                } catch (err) {
-                    // Prompt failed; stay on chat and show in-app steps.
-                    showInstallHelp();
-                }
+            if (!deferredInstallPrompt) {
+                // Silent: no modal, no how-to, no navigate.
                 refreshInstallButton();
                 return;
             }
-            // No deferred prompt (iOS, Firefox, engagement not met, previously dismissed).
-            // Show platform-specific Add to Home Screen steps — do NOT hard-navigate.
-            showInstallHelp();
+            const promptEvent = deferredInstallPrompt;
+            deferredInstallPrompt = null;
+            refreshInstallButton();
+            try {
+                await promptEvent.prompt();
+                await promptEvent.userChoice;
+            } catch (err) {
+                // Stay silent on prompt failure — no teaching UI.
+            }
+            refreshInstallButton();
         }
         window.installApp = installApp;
 
@@ -2859,17 +2695,6 @@
             installBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 installApp();
-            });
-        }
-        if (installHelpClose) {
-            installHelpClose.addEventListener('click', function(e) {
-                e.preventDefault();
-                hideInstallHelp();
-            });
-        }
-        if (installHelpOverlay) {
-            installHelpOverlay.addEventListener('click', function(e) {
-                if (e.target === installHelpOverlay) hideInstallHelp();
             });
         }
 

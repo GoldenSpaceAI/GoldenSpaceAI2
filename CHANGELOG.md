@@ -1,3 +1,14 @@
+# GoldenSpaceAI — fix: Install App one-press only (2026-09-30)
+
+- **Change:** Install App is **one press → native `beforeinstallprompt.prompt()`** only. No teaching modal, no how-to steps, no navigate to `/app-install.html` from the Install button.
+- Capture `beforeinstallprompt` early; **show the Install button only while a deferred prompt exists** (hidden when standalone or prompt unavailable).
+- If the user somehow clicks with no deferred event: silent no-op (no toast/modal).
+- Service worker cache bumped to `goldenspaceai2-v15`.
+- **Note (PR only):** iOS Safari cannot one-press install via JS; the Install button stays hidden there until/unless a browser fires `beforeinstallprompt` (it does not on iOS Safari).
+- Target HTTPS host: `www.goldenspaceai.space`.
+
+---
+
 # GoldenSpaceAI — fix: Install App stays in-app (2026-09-30)
 
 - **Root cause:** After PR #11, Install App still hard-navigated to `/app-install.html` whenever `beforeinstallprompt` had not fired yet (common on iOS Safari, Firefox, early clicks before Chrome engagement heuristics, or after a dismissed prompt). Users experienced a bounce away from chat even though the live SW was already `v13` and the manifest was installable.

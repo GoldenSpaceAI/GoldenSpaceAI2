@@ -1,3 +1,21 @@
+# GoldenSpaceAI2 — improvement round
+
+## Voice · errors · Fast(OpenAI) · context · image preview
+
+- Professional **Listening…** overlay (waveform pulse; Done / Cancel / Esc / tap backdrop)
+- Human-readable API/network errors + **Retry** on failed assistant turns
+- **Fast** mode → OpenAI `gpt-4o-mini` (vision) via `OPENAI_API_KEY` / optional `OPENAI_FAST_MODEL`
+- Thinking (Grok 4.3) and Expert (multi-agent) unchanged — no silent Fast→Grok fallback
+- Recent history window **~40** messages (client + server)
+- ChatGPT-style image/file preview **above** composer with remove (X); paste image supported
+- Service worker cache `goldenspaceai2-v9`
+
+**Render env (required for Fast):** `OPENAI_API_KEY`  
+**Optional:** `OPENAI_FAST_MODEL` (default `gpt-4o-mini`)  
+Thinking/Expert still need `GROK_API_KEY`.
+
+---
+
 # GoldenSpaceAI2 v2.1.0
 
 Professional chat upgrades (no rewrite of core branding/modes).

@@ -337,17 +337,155 @@
         .empty-state .empty-title { color: var(--gold); font-size: 20px; font-weight: 650; }
         .empty-state .empty-hint { font-size: 13px; max-width: 280px; line-height: 1.4; }
 
-        .image-preview {
-            display: none;
-            align-items: center;
-            gap: 8px;
+        .composer-shell {
             width: 100%;
-            padding: 0 4px 6px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            margin: 0 10px calc(10px + var(--safe-bottom)) 10px;
+            box-sizing: border-box;
         }
-        .image-preview.show { display: flex; }
-        .image-preview img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; }
-        .image-preview button {
-            background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer;
+        .attach-previews {
+            display: none;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 0 4px 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .attach-previews.show { display: flex; }
+        .image-preview-card {
+            display: none;
+            position: relative;
+            width: 72px;
+            height: 72px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(212,175,55,0.35);
+            background: var(--black-lighter);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+        }
+        .image-preview-card.show { display: block; }
+        .image-preview-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .image-preview-card .preview-remove {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0,0,0,0.72);
+            color: #fff;
+            font-size: 13px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-preview-card .preview-remove:active { background: var(--red); }
+
+        .listening-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 5000;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .listening-overlay.show { display: flex; }
+        .listening-card {
+            width: min(340px, 100%);
+            background: var(--black-light);
+            border: 1px solid rgba(212,175,55,0.45);
+            border-radius: 24px;
+            padding: 28px 22px 22px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.55);
+        }
+        .listening-wave {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            height: 48px;
+            margin-bottom: 14px;
+        }
+        .listening-wave span {
+            width: 4px;
+            height: 16px;
+            border-radius: 4px;
+            background: var(--gold);
+            animation: wavePulse 1.1s ease-in-out infinite;
+        }
+        .listening-wave span:nth-child(2) { animation-delay: 0.12s; }
+        .listening-wave span:nth-child(3) { animation-delay: 0.24s; }
+        .listening-wave span:nth-child(4) { animation-delay: 0.36s; }
+        .listening-wave span:nth-child(5) { animation-delay: 0.48s; }
+        @keyframes wavePulse {
+            0%, 100% { height: 12px; opacity: 0.45; }
+            50% { height: 36px; opacity: 1; }
+        }
+        .listening-label {
+            color: var(--text);
+            font-size: 17px;
+            font-weight: 650;
+            letter-spacing: 0.2px;
+            margin-bottom: 6px;
+        }
+        .listening-interim {
+            min-height: 36px;
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.4;
+            margin-bottom: 16px;
+            word-break: break-word;
+        }
+        .listening-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .listening-btn {
+            font-family: inherit;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--gold-dark);
+            background: var(--gold);
+            color: var(--black);
+        }
+        .listening-btn.secondary {
+            background: transparent;
+            color: var(--text-muted);
+            border-color: #444;
+        }
+        .msg-error-banner {
+            border: 1px solid rgba(239,68,68,0.35);
+            background: rgba(239,68,68,0.08);
+            border-radius: 12px;
+            padding: 10px 12px;
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.45;
+            margin-bottom: 8px;
+        }
+        .retry-btn {
+            background: rgba(212,175,55,0.15) !important;
+            border: 1px solid var(--gold-dark) !important;
+            color: var(--gold) !important;
         }
 
         .md-title {
@@ -392,7 +530,7 @@
         .ai-content em { font-style: italic; }
 
         .input-container {
-            margin: 0 10px calc(10px + var(--safe-bottom)) 10px;
+            margin: 0;
             background: var(--black-light);
             border: 1px solid var(--input-border);
             border-radius: 22px;
@@ -404,6 +542,8 @@
             transition: 0.2s;
             flex-shrink: 0;
             flex-wrap: wrap;
+            width: 100%;
+            box-sizing: border-box;
         }
         .input-container:focus-within { border-color: #555; }
 
@@ -626,10 +766,15 @@
                 padding: 12px 16px;
                 box-sizing: border-box;
             }
-            .input-container {
+            .composer-shell {
                 width: 100%;
                 max-width: 760px;
                 margin: 0 0 16px 0;
+            }
+            .input-container {
+                width: 100%;
+                max-width: none;
+                margin: 0;
                 border-radius: 25px;
                 padding: 10px 15px;
                 gap: 10px;
@@ -673,11 +818,15 @@
         .msg-btn.wide { width: auto; padding: 0 10px; gap: 4px; font-size: 12px; font-family: inherit; }
         .send-btn.stop-mode { background: var(--red); color: #fff; font-size: 12px; }
         .file-preview-chip {
-            display: none; align-items: center; gap: 8px; width: 100%;
-            padding: 0 4px 6px; color: var(--gold); font-size: 12px;
+            display: none; align-items: center; gap: 8px;
+            padding: 8px 12px; color: var(--gold); font-size: 12px;
+            border-radius: 14px; border: 1px solid rgba(212,175,55,0.35);
+            background: var(--black-lighter); max-width: 100%;
         }
-        .file-preview-chip.show { display: flex; }
-        .file-preview-chip button { background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer; }
+        .file-preview-chip.show { display: inline-flex; }
+        .file-preview-chip button {
+            background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer;
+        }
         .katex-display { overflow-x: auto; overflow-y: hidden; }
         .md-table-wrap { overflow-x: auto; margin: 10px 0 14px; border-radius: 10px; border: 1px solid var(--gold-dark); }
         .md-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
@@ -727,61 +876,76 @@
             <div class="chat-area">
                 <div class="messages-container" id="messagesContainer"></div>
 
-                <div class="input-container">
-                    <div class="model-selector">
-                        <button class="model-btn" id="modelBtn" onclick="toggleModelMenu()">
-                            <span id="modelLabel">Grok 4.3</span> v
-                        </button>
-                        <div class="model-menu" id="modelMenu">
-                            <div class="model-menu-item" data-model="normal" onclick="setModel('normal')">
-                                Grok 4.3 <span class="model-menu-desc">Fast</span>
-                            </div>
-                            <div class="model-menu-item" data-model="smart" onclick="setModel('smart')">
-                                Reasoning <span class="model-menu-desc">Deep thinking</span>
-                            </div>
-                            <div class="model-menu-item expert" data-model="expert-4" onclick="setModel('expert-4')">
-                                Expert 4 <span class="model-menu-desc">Web & X</span><span class="model-menu-badge">NEW</span>
-                            </div>
-                            <div class="model-menu-item expert" data-model="expert-16" onclick="setModel('expert-16')">
-                                Expert 16 <span class="model-menu-desc">Deep research</span><span class="model-menu-badge">BEST</span>
-                            </div>
+                <div class="composer-shell">
+                    <div class="attach-previews" id="attachPreviews">
+                        <div class="image-preview-card" id="imagePreview">
+                            <img id="imagePreviewImg" alt="Attached">
+                            <button type="button" class="preview-remove" onclick="clearAttachedImage()" aria-label="Remove image">&times;</button>
+                        </div>
+                        <div class="file-preview-chip" id="filePreview">
+                            <span id="filePreviewName"></span>
+                            <button type="button" onclick="clearAttachedFile()" aria-label="Remove file">&times;</button>
                         </div>
                     </div>
+                    <div class="input-container">
+                        <div class="model-selector">
+                            <button class="model-btn" id="modelBtn" onclick="toggleModelMenu()">
+                                <span id="modelLabel">Fast</span> v
+                            </button>
+                            <div class="model-menu" id="modelMenu">
+                                <div class="model-menu-item" data-model="normal" onclick="setModel('normal')">
+                                    Fast <span class="model-menu-desc">gpt-4o-mini · vision</span>
+                                </div>
+                                <div class="model-menu-item" data-model="smart" onclick="setModel('smart')">
+                                    Thinking <span class="model-menu-desc">Grok 4.3</span>
+                                </div>
+                                <div class="model-menu-item expert" data-model="expert-4" onclick="setModel('expert-4')">
+                                    Expert 4 <span class="model-menu-desc">Web & X</span><span class="model-menu-badge">NEW</span>
+                                </div>
+                                <div class="model-menu-item expert" data-model="expert-16" onclick="setModel('expert-16')">
+                                    Expert 16 <span class="model-menu-desc">Deep research</span><span class="model-menu-badge">BEST</span>
+                                </div>
+                            </div>
+                        </div>
 
-                    <div class="web-search-toggle" id="webSearchToggle" style="display:none;align-items:center;flex-shrink:0;">
-                        <button class="web-search-btn" id="webSearchBtn" onclick="toggleWebSearch()">Web OFF</button>
-                    </div>
+                        <div class="web-search-toggle" id="webSearchToggle" style="display:none;align-items:center;flex-shrink:0;">
+                            <button class="web-search-btn" id="webSearchBtn" onclick="toggleWebSearch()">Web OFF</button>
+                        </div>
 
-                    <div class="input-actions">
-                        <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
-                        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
-                        <input type="file" id="fileInput" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf" style="display:none" onchange="handleFileUpload(event)">
+                        <div class="input-actions">
+                            <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+                            <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
+                            <input type="file" id="fileInput" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf" style="display:none" onchange="handleFileUpload(event)">
+                            
+                            <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Add">+</button>
+                            <div class="plus-menu" id="plusMenu">
+                                <div class="plus-menu-item" onclick="openPhotos()">Photos</div>
+                                <div class="plus-menu-item" onclick="openCamera()">Camera</div>
+                                <div class="plus-menu-item" onclick="openFileAttach()">File (.txt/.md)</div>
+                            </div>
+
+                            <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice">Mic</button>
+                        </div>
                         
-                        <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Add">+</button>
-                        <div class="plus-menu" id="plusMenu">
-                            <div class="plus-menu-item" onclick="openPhotos()">Photos</div>
-                            <div class="plus-menu-item" onclick="openCamera()">Camera</div>
-                            <div class="plus-menu-item" onclick="openFileAttach()">File (.txt/.md)</div>
-                        </div>
-
-                        <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice">Mic</button>
-                    </div>
-                    
-                    <textarea class="message-input" id="messageInput" placeholder="Ask anything" rows="1" onkeydown="handleKeyPress(event)" oninput="autoGrow(this)"></textarea>
-                    
-                    <button class="send-btn" onclick="onSendOrStop()" id="sendBtn" aria-label="Send">&#10148;</button>
-                    <div class="image-preview" id="imagePreview">
-                        <img id="imagePreviewImg" alt="Attached">
-                        <button type="button" onclick="clearAttachedImage()" aria-label="Remove">x</button>
-                    </div>
-                    <div class="file-preview-chip" id="filePreview">
-                        <span id="filePreviewName"></span>
-                        <button type="button" onclick="clearAttachedFile()" aria-label="Remove">x</button>
+                        <textarea class="message-input" id="messageInput" placeholder="Ask anything" rows="1" onkeydown="handleKeyPress(event)" oninput="autoGrow(this)"></textarea>
+                        
+                        <button class="send-btn" onclick="onSendOrStop()" id="sendBtn" aria-label="Send">&#10148;</button>
                     </div>
                 </div>
             </div>
         </div>
         <div class="overlay" id="overlay" onclick="toggleChatsPanel()"></div>
+        <div class="listening-overlay" id="listeningOverlay" role="dialog" aria-modal="true" aria-label="Listening">
+            <div class="listening-card">
+                <div class="listening-wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+                <div class="listening-label">Listening…</div>
+                <div class="listening-interim" id="listeningInterim"></div>
+                <div class="listening-actions">
+                    <button type="button" class="listening-btn secondary" onclick="cancelVoiceInput()">Cancel</button>
+                    <button type="button" class="listening-btn" onclick="stopRecording()">Done</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -813,9 +977,10 @@
             edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>'
         };
 
+        const HISTORY_WINDOW = 40;
         const MODELS = {
-            'normal': { label: 'Grok 4.3', apiMode: 'normal', badge: 'badge-normal', desc: 'Grok 4.3' },
-            'smart': { label: 'Reasoning', apiMode: 'smart', badge: 'badge-smart', desc: 'Grok 4.3 Reasoning' },
+            'normal': { label: 'Fast', apiMode: 'normal', badge: 'badge-normal', desc: 'Fast · gpt-4o-mini' },
+            'smart': { label: 'Thinking', apiMode: 'smart', badge: 'badge-smart', desc: 'Grok 4.3 Thinking' },
             'expert-4': { label: 'Expert 4', apiMode: 'expert', agents: 4, badge: 'badge-expert', desc: 'Expert - 4 Agents' },
             'expert-16': { label: 'Expert 16', apiMode: 'expert', agents: 16, badge: 'badge-expert', desc: 'Expert - 16 Agents' }
         };
@@ -868,6 +1033,20 @@
             initSpeechRecognition();
             updateModelUI();
             document.body.addEventListener('click', requestMicPermission, { once: true });
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) messageInput.addEventListener('paste', handleComposerPaste);
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && isRecording) {
+                    e.preventDefault();
+                    cancelVoiceInput();
+                }
+            });
+            const listeningOverlay = document.getElementById('listeningOverlay');
+            if (listeningOverlay) {
+                listeningOverlay.addEventListener('click', function(e) {
+                    if (e.target === listeningOverlay) cancelVoiceInput();
+                });
+            }
             document.addEventListener('click', function(e) {
                 const modelMenu = document.getElementById('modelMenu');
                 const modelBtn = document.getElementById('modelBtn');
@@ -1192,19 +1371,47 @@
             document.getElementById('fileInput').click();
         }
 
+        function syncAttachPreviews() {
+            const row = document.getElementById('attachPreviews');
+            const imgCard = document.getElementById('imagePreview');
+            const fileChip = document.getElementById('filePreview');
+            const hasImg = !!(imgCard && imgCard.classList.contains('show'));
+            const hasFile = !!(fileChip && fileChip.classList.contains('show'));
+            if (row) row.classList.toggle('show', hasImg || hasFile);
+        }
+
+        function setAttachedImage(dataUrl) {
+            selectedImage = dataUrl;
+            document.getElementById('plusBtn').classList.add('image-attached');
+            const wrap = document.getElementById('imagePreview');
+            const img = document.getElementById('imagePreviewImg');
+            if (img) img.src = dataUrl;
+            if (wrap) wrap.classList.add('show');
+            syncAttachPreviews();
+        }
+
         function handleImageUpload(event) {
             const file = event.target.files[0];
             if(!file) return;
             if(!file.type.startsWith('image/')) { alert('Please select an image.'); return; }
             compressImage(file, function(compressedBase64) {
-                selectedImage = compressedBase64;
-                document.getElementById('plusBtn').classList.add('image-attached');
-                const wrap = document.getElementById('imagePreview');
-                const img = document.getElementById('imagePreviewImg');
-                if (img) img.src = compressedBase64;
-                if (wrap) wrap.classList.add('show');
+                setAttachedImage(compressedBase64);
             });
             event.target.value = '';
+        }
+
+        function handleComposerPaste(e) {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type && item.type.indexOf('image/') === 0) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) compressImage(file, setAttachedImage);
+                    return;
+                }
+            }
         }
 
         function compressImage(file, callback) {
@@ -1234,6 +1441,7 @@
             if (wrap) wrap.classList.remove('show');
             if (img) img.src = '';
             if (plus && !selectedFileText) plus.classList.remove('image-attached');
+            syncAttachPreviews();
         }
 
         function handleFileUpload(event) {
@@ -1260,6 +1468,7 @@
                 if (label) label.textContent = '📎 ' + name;
                 if (wrap) wrap.classList.add('show');
                 document.getElementById('plusBtn').classList.add('image-attached');
+                syncAttachPreviews();
             };
             reader.readAsText(file);
         }
@@ -1275,6 +1484,7 @@
                 const plus = document.getElementById('plusBtn');
                 if (plus) plus.classList.remove('image-attached');
             }
+            syncAttachPreviews();
         }
 
         function autoGrow(el) {
@@ -1402,7 +1612,7 @@
                     headers: clientHeaders(),
                     signal: streamAbort.signal,
                     body: JSON.stringify({
-                        messages: chats[currentChatId].messages.slice(-8),
+                        messages: chats[currentChatId].messages.slice(-HISTORY_WINDOW),
                         customInstructions: combinedInstructions(),
                         mode: MODELS[currentModel].apiMode,
                         agents: MODELS[currentModel].agents || 4,
@@ -1414,6 +1624,7 @@
                 if (!res.ok || !res.body) {
                     let errText = 'Server error';
                     try { const data = await res.json(); errText = data.reply || data.error || errText; } catch (e) {}
+                    if (res.status === 429) errText = errText || 'Rate limited';
                     throw new Error(errText);
                 }
 
@@ -1470,7 +1681,7 @@
                             method: 'POST',
                             headers: clientHeaders(),
                             body: JSON.stringify({
-                                messages: chats[currentChatId].messages.filter(m => m.role !== 'ai' || m.content).slice(-8),
+                                messages: chats[currentChatId].messages.filter(m => m.role !== 'ai' || m.content).slice(-HISTORY_WINDOW),
                                 customInstructions: combinedInstructions(),
                                 mode: MODELS[currentModel].apiMode,
                                 agents: MODELS[currentModel].agents || 4,
@@ -1485,14 +1696,25 @@
                         throw fbErr;
                     }
                 }
-                if (!String(finalText).trim()) finalText = errMsg || '⚠️ No response from the model. Try again.';
-                chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
-                chats[currentChatId].updatedAt = new Date().toISOString();
-                saveChats();
-                if (contentEl) {
-                    contentEl.setAttribute('data-text', finalText);
-                    contentEl.innerHTML = formatMarkdown(finalText);
-                    renderMathIn(contentEl);
+                if (!String(finalText).trim()) {
+                    finalText = friendlyError(errMsg || 'empty reply');
+                    chats[currentChatId].messages[chats[currentChatId].messages.length - 1].isError = true;
+                    chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
+                    chats[currentChatId].updatedAt = new Date().toISOString();
+                    saveChats();
+                    loadChat();
+                } else {
+                    if (errMsg && !streamedText) {
+                        // covered by throw above when no text
+                    }
+                    chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
+                    chats[currentChatId].updatedAt = new Date().toISOString();
+                    saveChats();
+                    if (contentEl) {
+                        contentEl.setAttribute('data-text', finalText);
+                        contentEl.innerHTML = formatMarkdown(finalText);
+                        renderMathIn(contentEl);
+                    }
                 }
                 markLastAiActions();
             } catch(err) {
@@ -1518,7 +1740,13 @@
                     }
                 } else {
                     console.error('Error:', err);
-                    const errMsgObj = { role: 'ai', content: '' + (err.message || 'Could not reach Grok.'), model: currentModel, timestamp: new Date().toISOString() };
+                    const errMsgObj = {
+                        role: 'ai',
+                        content: friendlyError(err),
+                        model: currentModel,
+                        isError: true,
+                        timestamp: new Date().toISOString()
+                    };
                     const msgs = chats[currentChatId].messages;
                     if (msgs.length && msgs[msgs.length - 1].role === 'ai' && !msgs[msgs.length - 1].content) {
                         msgs[msgs.length - 1] = errMsgObj;
@@ -1548,6 +1776,42 @@
                 const edit = users[i].querySelector('.edit-btn');
                 if (edit) edit.style.display = (i === users.length - 1) ? 'inline-flex' : 'none';
             }
+        }
+
+        function friendlyError(err) {
+            const msg = String((err && err.message) || err || '');
+            const first = msg.split('\n')[0].replace(/\s+at\s+.*/g, '').trim();
+            if (!navigator.onLine || /Failed to fetch|NetworkError|network error|Load failed/i.test(msg)) {
+                return '⚠️ Network error. Check your connection and try again.';
+            }
+            if (/OPENAI_API_KEY|Fast mode needs/i.test(msg)) {
+                return '🔑 Fast mode needs OPENAI_API_KEY. Set it in Render environment variables, then redeploy.';
+            }
+            if (/GROK_API_KEY|Grok API key not configured/i.test(msg)) {
+                return '🔑 Grok API key not configured. Set GROK_API_KEY on Render.';
+            }
+            if (/Invalid or missing|Invalid API key|401|authentication/i.test(msg)) {
+                return first.indexOf('🔑') === 0 ? first : ('🔑 Invalid or missing API key. Check Render environment variables.');
+            }
+            if (/Rate limited|429|Too many requests/i.test(msg)) {
+                return '⏳ Rate limited. Please wait a minute and try again.';
+            }
+            if (/timed out|timeout|cut.?off/i.test(msg)) {
+                return '⏰ The reply timed out or was cut off. Tap Retry.';
+            }
+            if (/empty reply|No response from the model|returned an empty/i.test(msg)) {
+                return '⚠️ The model returned an empty reply. Tap Retry or switch mode.';
+            }
+            if (/Out of credits|quota|billing/i.test(msg)) {
+                return first.indexOf('💰') === 0 ? first : ('💰 Out of credits or quota. Check your provider billing.');
+            }
+            if (!first) return '⚠️ Something went wrong. Please try again.';
+            if (/^[⚠️🔑⏳💰⏰🔧]/.test(first)) return first.length > 220 ? first.slice(0, 220) + '…' : first;
+            return '⚠️ ' + (first.length > 200 ? first.slice(0, 200) + '…' : first);
+        }
+
+        function retryLastFailed() {
+            regenerateLast();
         }
 
         function regenerateLast() {
@@ -1619,12 +1883,19 @@
             if (msg.role === 'ai') {
                 const config = MODELS[msg.model] || MODELS['normal'];
                 inner += '<div class="ai-block">';
-                if (msg.model) {
+                if (msg.model && !msg.isError) {
                     inner += '<div class="message-meta"><span class="message-mode-badge ' + config.badge + '">' + escapeHtmlRaw(config.desc) + '</span></div>';
                 }
                 if (msg.image) {
                     inner += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
                 }
+                if (msg.isError) {
+                    inner += '<div class="msg-error-banner ai-content" data-text="' + escapeAttr(rawText) + '">' + escapeHtml(rawText) + '</div>';
+                    inner += '<div class="message-actions">' +
+                        '<button class="msg-btn retry-btn wide regen-btn" title="Retry" onclick="retryLastFailed()">' + ICO.regen + ' Retry</button>' +
+                        '</div></div>';
+                    div.innerHTML = inner;
+                } else {
                 inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>';
                 inner += '<div class="message-actions">' +
                     '<button class="msg-btn" title="Copy" onclick="copyMessage(this)">' + ICO.copy + '</button>' +
@@ -1636,6 +1907,7 @@
                 div.innerHTML = inner;
                 const contentEl = div.querySelector('.ai-content');
                 if (contentEl) renderMathIn(contentEl);
+                }
             } else {
                 inner += '<div class="message-bubble">';
                 if (msg.image) {
@@ -1719,6 +1991,21 @@
             }
         }
 
+        let voiceFinalTranscript = '';
+        let voiceCancelled = false;
+        let voiceSessionActive = false;
+        let voicePrefill = '';
+
+        function showListeningOverlay(show) {
+            const overlay = document.getElementById('listeningOverlay');
+            if (!overlay) return;
+            overlay.classList.toggle('show', !!show);
+            if (!show) {
+                const interim = document.getElementById('listeningInterim');
+                if (interim) interim.textContent = '';
+            }
+        }
+
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
@@ -1726,22 +2013,33 @@
                 return;
             }
             recognition = new SpeechRecognition();
-            recognition.continuous = false;
+            recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'en-US';
             
             recognition.onstart = function() { 
-                isRecording = true; 
-                document.getElementById('micBtn').classList.add('recording'); 
+                isRecording = true;
+                voiceSessionActive = true;
+                document.getElementById('micBtn').classList.add('recording');
+                showListeningOverlay(true);
             };
             
             recognition.onresult = function(event) {
-                let transcript = '';
+                let interim = '';
                 for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
+                    const piece = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) voiceFinalTranscript += piece;
+                    else interim += piece;
                 }
-                document.getElementById('messageInput').value = transcript;
-                if (event.results[0].isFinal) stopRecording();
+                const display = (voiceFinalTranscript + ' ' + interim).trim();
+                const interimEl = document.getElementById('listeningInterim');
+                if (interimEl) interimEl.textContent = display || 'Say something…';
+                const input = document.getElementById('messageInput');
+                if (input) {
+                    const base = voicePrefill ? (voicePrefill + (display ? ' ' + display : '')) : display;
+                    input.value = base;
+                    autoGrow(input);
+                }
             };
             
             recognition.onerror = function(event) {
@@ -1749,11 +2047,22 @@
                 if (event.error === 'not-allowed') {
                     alert('Microphone access denied. Please allow it in browser settings.');
                     micPermissionGranted = false;
+                    voiceCancelled = true;
+                    voiceSessionActive = false;
+                    finishVoiceSession();
+                    return;
                 }
-                stopRecording();
+                if (event.error === 'aborted' || event.error === 'no-speech') return;
+                voiceSessionActive = false;
+                finishVoiceSession();
             };
             
-            recognition.onend = function() { stopRecording(); };
+            recognition.onend = function() {
+                if (voiceSessionActive && !voiceCancelled) {
+                    try { recognition.start(); return; } catch (e) {}
+                }
+                finishVoiceSession();
+            };
         }
 
         function toggleVoiceInput() {
@@ -1761,7 +2070,7 @@
                 alert('Voice input not supported in this browser.'); 
                 return; 
             }
-            if (isRecording) {
+            if (isRecording || voiceSessionActive) {
                 stopRecording();
             } else {
                 if (!micPermissionGranted) {
@@ -1776,15 +2085,59 @@
             }
         }
 
-        function startRecording() { 
-            try { recognition.start(); } catch(e) { stopRecording(); }
+        function startRecording() {
+            voiceCancelled = false;
+            voiceFinalTranscript = '';
+            voiceSessionActive = true;
+            const input = document.getElementById('messageInput');
+            voicePrefill = input ? String(input.value || '').trim() : '';
+            const interimEl = document.getElementById('listeningInterim');
+            if (interimEl) interimEl.textContent = 'Say something…';
+            showListeningOverlay(true);
+            try { recognition.start(); } catch(e) { voiceSessionActive = false; finishVoiceSession(); }
         }
 
         function stopRecording() {
+            // Done: keep transcript in composer
+            voiceCancelled = false;
+            voiceSessionActive = false;
             isRecording = false;
             const micBtn = document.getElementById('micBtn');
             if (micBtn) micBtn.classList.remove('recording');
             if (recognition) try { recognition.stop(); } catch(e) {}
+            finishVoiceSession();
+        }
+
+        function cancelVoiceInput() {
+            voiceCancelled = true;
+            voiceSessionActive = false;
+            voiceFinalTranscript = '';
+            isRecording = false;
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) micBtn.classList.remove('recording');
+            if (recognition) try { recognition.abort(); } catch(e) { try { recognition.stop(); } catch(e2) {} }
+            const input = document.getElementById('messageInput');
+            if (input) {
+                input.value = voicePrefill || '';
+                autoGrow(input);
+            }
+            showListeningOverlay(false);
+        }
+
+        function finishVoiceSession() {
+            isRecording = false;
+            voiceSessionActive = false;
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) micBtn.classList.remove('recording');
+            showListeningOverlay(false);
+            const input = document.getElementById('messageInput');
+            if (!input || voiceCancelled) return;
+            const spoken = voiceFinalTranscript.trim();
+            if (spoken) {
+                input.value = voicePrefill ? (voicePrefill + ' ' + spoken).trim() : spoken;
+            }
+            autoGrow(input);
+            input.focus();
         }
 
         function speakMessage(btn) {

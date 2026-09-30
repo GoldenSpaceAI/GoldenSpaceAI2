@@ -73,11 +73,33 @@ try {
     console.error('Failed to initialize Grok client:', e.message);
 }
 
+let openaiClient = null;
+if (process.env.OPENAI_API_KEY) {
+    try {
+        openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+            timeout: UPSTREAM_TIMEOUT_MS,
+        });
+    } catch (e) {
+        console.error('Failed to initialize OpenAI client:', e.message);
+    }
+}
+
+const HISTORY_WINDOW = 40;
+const OPENAI_FAST_MODEL = process.env.OPENAI_FAST_MODEL || 'gpt-4o-mini';
+
 const MODELS = {
-    normal: { model: 'grok-4.3', maxTokens: 2048, temperature: 0.7 },
-    smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3 },
-    expert: { model: 'grok-4.20-multi-agent-0309', maxTokens: 4096, temperature: 0.5 }
+    // Fast → OpenAI gpt-4o-mini (vision-capable). Thinking/expert stay on Grok.
+    normal: { model: OPENAI_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'openai' },
+    fast: { model: OPENAI_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'openai' },
+    smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3, provider: 'grok' },
+    expert: { model: 'grok-4.20-multi-agent-0309', maxTokens: 4096, temperature: 0.5, provider: 'grok' }
 };
+
+function resolveMode(mode) {
+    const key = mode === 'fast' ? 'normal' : (mode || 'normal');
+    return { safeMode: key === 'fast' ? 'normal' : (MODELS[key] ? key : 'normal'), config: MODELS[key] || MODELS.normal };
+}
 
 // ==================== MATH CLEANER ====================
 // Soft clean: keep $ / $$ for KaTeX on the client; strip noisy wrappers only lightly.
@@ -220,8 +242,12 @@ function buildConversationMessages(body) {
         });
     }
 
-    if (messages && Array.isArray(messages)) {
-        messages.forEach(msg => {
+    const recentMessages = Array.isArray(messages)
+        ? messages.slice(-HISTORY_WINDOW)
+        : [];
+
+    if (recentMessages.length) {
+        recentMessages.forEach(msg => {
             if (!msg || !msg.role) return;
 
             if (msg.role === 'user') {
@@ -280,37 +306,79 @@ function buildConversationMessages(body) {
     return conversationMessages;
 }
 
-function mapApiError(error) {
-    let errorMessage = 'An error occurred. Please try again.';
-    if (error.status === 401) errorMessage = '🔑 Invalid API key.';
-    else if (error.status === 429) errorMessage = '⏳ Rate limited or out of credits.';
-    else if (error.status === 402) errorMessage = '💰 Out of credits.';
-    else if (error.status === 422) errorMessage = '⚠️ Invalid request. Try a different mode.';
-    else if (error.status === 503) errorMessage = '🔧 Grok service unavailable.';
-    else if (error.status === 504 || error.message?.includes('timeout') || error.message?.includes('timed out')) {
-        errorMessage = '⏰ Request timed out.';
-    } else if (error.message) errorMessage = '⚠️ ' + String(error.message).substring(0, 100);
-    return errorMessage;
+function mapApiError(error, provider) {
+    const raw = String(error?.message || error || '');
+    const clean = raw.split('\n')[0].replace(/\s+at\s+.*/g, '').substring(0, 160);
+    const who = provider === 'openai' ? 'OpenAI' : 'Grok';
+
+    if (error?.code === 'missing_openai_key') {
+        return '🔑 Fast mode needs OPENAI_API_KEY. Set it in Render environment variables, then redeploy.';
+    }
+    if (error?.code === 'missing_grok_key') {
+        return '🔑 Grok API key not configured. Set GROK_API_KEY on Render.';
+    }
+    if (error?.status === 401 || /invalid.?api.?key|incorrect api key|authentication/i.test(raw)) {
+        return '🔑 Invalid or missing ' + who + ' API key. Check Render environment variables.';
+    }
+    if (error?.status === 429 || /rate.?limit|too many requests/i.test(raw)) {
+        return '⏳ Rate limited. Please wait a minute and try again.';
+    }
+    if (error?.status === 402 || /insufficient.?quota|billing|out of credits/i.test(raw)) {
+        return '💰 Out of credits or quota for ' + who + '.';
+    }
+    if (error?.status === 422) return '⚠️ Invalid request. Try a different mode or shorter message.';
+    if (error?.status === 503) return '🔧 ' + who + ' service unavailable. Try again shortly.';
+    if (error?.status === 504 || /timeout|timed out/i.test(raw)) {
+        return '⏰ Request timed out. Tap Retry.';
+    }
+    if (/ECONNRESET|ENOTFOUND|ECONNREFUSED|fetch failed|network/i.test(raw)) {
+        return '⚠️ Network error reaching ' + who + '. Check connectivity and try again.';
+    }
+    if (/empty reply|no response/i.test(raw)) {
+        return '⚠️ The model returned an empty reply. Tap Retry or switch mode.';
+    }
+    if (clean) return '⚠️ ' + clean;
+    return '⚠️ Something went wrong. Please try again.';
+}
+
+function requireProviderKey(safeMode, config) {
+    if (config.provider === 'openai') {
+        if (!process.env.OPENAI_API_KEY || !openaiClient) {
+            const err = new Error('OPENAI_API_KEY missing');
+            err.code = 'missing_openai_key';
+            err.status = 401;
+            throw err;
+        }
+        return openaiClient;
+    }
+    if (!process.env.GROK_API_KEY) {
+        const err = new Error('GROK_API_KEY missing');
+        err.code = 'missing_grok_key';
+        err.status = 401;
+        throw err;
+    }
+    return grok;
 }
 
 // ==================== MAIN CHAT ENDPOINT (non-streaming, compatibility) ====================
 app.post('/api/chat', async (req, res) => {
     try {
         const { mode, webSearch } = req.body;
-
-        if (!process.env.GROK_API_KEY) {
-            return res.status(500).json({
-                reply: '⚠️ Grok API key not configured.',
+        const { safeMode, config } = resolveMode(mode);
+        let client;
+        try {
+            client = requireProviderKey(safeMode, config);
+        } catch (keyErr) {
+            return res.status(401).json({
+                reply: mapApiError(keyErr, config.provider),
                 model: 'Error'
             });
         }
 
         const conversationMessages = buildConversationMessages(req.body);
-        const safeMode = mode || 'normal';
-        const config = MODELS[safeMode] || MODELS.normal;
         const useWebSearch = webSearch === true;
 
-        console.log(`Mode: ${safeMode} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
+        console.log(`Mode: ${safeMode} | Provider: ${config.provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
 
         let reply;
 
@@ -325,7 +393,7 @@ app.post('/api/chat', async (req, res) => {
                 'No response generated.';
         } else if (safeMode === 'smart') {
             const completion = await withTimeout(
-                grok.chat.completions.create({
+                client.chat.completions.create({
                     model: config.model,
                     messages: conversationMessages,
                     max_tokens: config.maxTokens,
@@ -337,27 +405,36 @@ app.post('/api/chat', async (req, res) => {
             );
             reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
         } else {
+            // Fast (normal): OpenAI gpt-4o-mini with multimodal content parts
             const completion = await withTimeout(
-                grok.chat.completions.create({
+                client.chat.completions.create({
                     model: config.model,
                     messages: conversationMessages,
                     max_tokens: config.maxTokens,
                     temperature: config.temperature,
                 }),
                 UPSTREAM_TIMEOUT_MS,
-                'Chat request'
+                'Fast request'
             );
             reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
         }
 
         reply = softCleanLatex(reply);
+        if (!String(reply).trim()) {
+            return res.status(502).json({
+                reply: mapApiError({ message: 'empty reply' }, config.provider),
+                model: 'Error'
+            });
+        }
 
         console.log(`Response: ${String(reply).length} chars`);
-        res.json({ reply, model: safeMode });
+        res.json({ reply, model: safeMode, provider: config.provider });
 
     } catch (error) {
-        console.error('Grok API Error:', error.message || error, error.status || '');
-        res.status(500).json({ reply: mapApiError(error), model: 'Error' });
+        const modeInfo = resolveMode(req.body?.mode);
+        console.error('Chat API Error:', error.message || error, error.status || '');
+        const status = error.status === 401 ? 401 : error.status === 429 ? 429 : 500;
+        res.status(status).json({ reply: mapApiError(error, modeInfo.config.provider), model: 'Error' });
     }
 });
 
@@ -369,22 +446,23 @@ app.post('/api/chat/stream', async (req, res) => {
 
     try {
         const { mode, webSearch } = req.body;
-
-        if (!process.env.GROK_API_KEY) {
-            res.setHeader('Content-Type', 'text/event-stream');
-            res.setHeader('Cache-Control', 'no-cache');
+        const { safeMode, config } = resolveMode(mode);
+        let client;
+        try {
+            client = requireProviderKey(safeMode, config);
+        } catch (keyErr) {
+            res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-cache, no-transform');
             res.setHeader('Connection', 'keep-alive');
-            sendSse({ error: '⚠️ Grok API key not configured.' });
+            sendSse({ error: mapApiError(keyErr, config.provider) });
             sendSse({ done: true });
             return res.end();
         }
 
         const conversationMessages = buildConversationMessages(req.body);
-        const safeMode = mode || 'normal';
-        const config = MODELS[safeMode] || MODELS.normal;
         const useWebSearch = webSearch === true;
 
-        console.log(`Stream: ${safeMode} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
+        console.log(`Stream: ${safeMode} | Provider: ${config.provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
 
         res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -409,7 +487,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 console.log(`Stream done (expert): ${String(reply).length} chars`);
                 return res.end();
             } catch (err) {
-                sendSse({ error: mapApiError(err) });
+                sendSse({ error: mapApiError(err, config.provider) });
                 sendSse({ done: true });
                 return res.end();
             }
@@ -436,7 +514,7 @@ app.post('/api/chat/stream', async (req, res) => {
             };
             if (safeMode === 'smart') createArgs.reasoning_effort = 'high';
 
-            const stream = await grok.chat.completions.create(createArgs, { signal: abortCtrl.signal });
+            const stream = await client.chat.completions.create(createArgs, { signal: abortCtrl.signal });
 
             let full = '';
             for await (const chunk of stream) {
@@ -465,14 +543,14 @@ app.post('/api/chat/stream', async (req, res) => {
                     };
                     if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
                     const completion = await withTimeout(
-                        grok.chat.completions.create(fallbackArgs),
+                        client.chat.completions.create(fallbackArgs),
                         UPSTREAM_TIMEOUT_MS,
                         'Stream fallback'
                     );
                     full = completion?.choices?.[0]?.message?.content || '';
                     if (full) sendSse({ text: full });
                 } catch (fbErr) {
-                    sendSse({ error: mapApiError(fbErr) });
+                    sendSse({ error: mapApiError(fbErr, config.provider) });
                     sendSse({ done: true });
                     return res.end();
                 }
@@ -481,7 +559,7 @@ app.post('/api/chat/stream', async (req, res) => {
             if (!clientClosed) {
                 const cleaned = softCleanLatex(full) || '';
                 if (!cleaned.trim()) {
-                    sendSse({ error: '⚠️ Model returned an empty reply. Try again or switch mode.' });
+                    sendSse({ error: mapApiError({ message: 'empty reply' }, config.provider) });
                 }
                 sendSse({ done: true, model: safeMode, full: cleaned });
                 console.log(`Stream done: ${cleaned.length} chars`);
@@ -499,7 +577,7 @@ app.post('/api/chat/stream', async (req, res) => {
                         temperature: config.temperature,
                     };
                     if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
-                    const completion = await grok.chat.completions.create(fallbackArgs);
+                    const completion = await client.chat.completions.create(fallbackArgs);
                     const text = completion?.choices?.[0]?.message?.content || '';
                     if (text) {
                         sendSse({ text: softCleanLatex(text) });
@@ -510,17 +588,18 @@ app.post('/api/chat/stream', async (req, res) => {
                 try { sendSse({ done: true, aborted: true }); } catch (e) {}
                 return res.end();
             }
-            sendSse({ error: mapApiError(err) });
+            sendSse({ error: mapApiError(err, config.provider) });
             sendSse({ done: true });
             return res.end();
         }
     } catch (error) {
         console.error('Stream Error:', error.message || error);
+        const modeInfo = resolveMode(req.body?.mode);
         if (!res.headersSent) {
-            return res.status(500).json({ reply: mapApiError(error), model: 'Error' });
+            return res.status(500).json({ reply: mapApiError(error, modeInfo.config.provider), model: 'Error' });
         }
         try {
-            sendSse({ error: mapApiError(error) });
+            sendSse({ error: mapApiError(error, modeInfo.config.provider) });
             sendSse({ done: true });
             res.end();
         } catch (e) {}
@@ -692,12 +771,18 @@ app.get('/health', (req, res) => {
     res.json({
         status: 'online',
         app: 'GoldenSpaceAI2',
-        provider: 'Grok (xAI)',
+        providers: {
+            fast: 'OpenAI ' + OPENAI_FAST_MODEL,
+            thinking: 'Grok 4.3',
+            expert: 'Grok multi-agent'
+        },
         mathCleaner: true,
         streaming: true,
         persistence: true,
+        historyWindow: HISTORY_WINDOW,
         pwaReady: true,
-        apiKeyConfigured: !!process.env.GROK_API_KEY
+        grokKeyConfigured: !!process.env.GROK_API_KEY,
+        openaiKeyConfigured: !!process.env.OPENAI_API_KEY
     });
 });
 
@@ -719,13 +804,14 @@ app.listen(PORT, () => {
     console.log('═══════════════════════════════');
     console.log('🚀 GoldenSpaceAI2 Server');
     console.log(`📡 Port: ${PORT}`);
-    console.log(`🤖 Grok (xAI)`);
+    console.log(`⚡ Fast: OpenAI ${OPENAI_FAST_MODEL} (${process.env.OPENAI_API_KEY ? 'key ✅' : 'key ❌'})`);
+    console.log(`🧠 Thinking/Expert: Grok (key ${process.env.GROK_API_KEY ? '✅' : '❌'})`);
+    console.log(`📜 History window: ${HISTORY_WINDOW} messages`);
     console.log(`📐 Math Cleaner: ✅`);
     console.log(`📡 Streaming: ✅ /api/chat/stream`);
     console.log(`💾 Persistence: ✅ ${CHATS_FILE}`);
     console.log(`⏱️ Timeout: ${UPSTREAM_TIMEOUT_MS}ms`);
     console.log(`🛡️ Rate limit: ${RATE_LIMIT}/min per IP on /api/chat*`);
     console.log(`📱 PWA Support: ✅ Ready`);
-    console.log(`🔑 Key: ${process.env.GROK_API_KEY ? '✅' : '❌'}`);
     console.log('═══════════════════════════════');
 });

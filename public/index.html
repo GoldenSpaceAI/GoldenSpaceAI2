@@ -1407,7 +1407,30 @@
                 }
 
                 if (errMsg && !streamedText) throw new Error(errMsg);
-                const finalText = (finalFull && !streamedText) ? finalFull : (streamedText || finalFull || (errMsg || 'No response'));
+                let finalText = (finalFull && !streamedText) ? finalFull : (streamedText || finalFull || '');
+                // Client-side fallback if stream ended empty
+                if (!String(finalText).trim() && !errMsg) {
+                    try {
+                        const fb = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: clientHeaders(),
+                            body: JSON.stringify({
+                                messages: chats[currentChatId].messages.filter(m => m.role !== 'ai' || m.content).slice(-8),
+                                customInstructions: combinedInstructions(),
+                                mode: MODELS[currentModel].apiMode,
+                                agents: MODELS[currentModel].agents || 4,
+                                webSearch: webSearchEnabled,
+                                image: imgToSend || undefined
+                            })
+                        });
+                        const data = await fb.json();
+                        if (data && data.reply) finalText = data.reply;
+                        else if (data && data.error) throw new Error(data.error);
+                    } catch (fbErr) {
+                        throw fbErr;
+                    }
+                }
+                if (!String(finalText).trim()) finalText = errMsg || '⚠️ No response from the model. Try again.';
                 chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
                 chats[currentChatId].updatedAt = new Date().toISOString();
                 saveChats();

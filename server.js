@@ -76,7 +76,7 @@ try {
 const MODELS = {
     normal: { model: 'grok-4.3', maxTokens: 2048, temperature: 0.7 },
     smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3 },
-    expert: { model: 'grok-4.20-multi-agent', maxTokens: 4096, temperature: 0.5 }
+    expert: { model: 'grok-4.20-multi-agent-0309', maxTokens: 4096, temperature: 0.5 }
 };
 
 // ==================== MATH CLEANER ====================
@@ -418,9 +418,12 @@ app.post('/api/chat/stream', async (req, res) => {
         const abortCtrl = new AbortController();
         const timeoutId = setTimeout(() => abortCtrl.abort(), UPSTREAM_TIMEOUT_MS);
         let clientClosed = false;
-        req.on('close', () => {
-            clientClosed = true;
-            try { abortCtrl.abort(); } catch (e) {}
+        // Use response close — request 'close' often fires after the body is read on proxies like Render
+        res.on('close', () => {
+            if (!res.writableEnded) {
+                clientClosed = true;
+                try { abortCtrl.abort(); } catch (e) {}
+            }
         });
 
         try {
@@ -438,23 +441,72 @@ app.post('/api/chat/stream', async (req, res) => {
             let full = '';
             for await (const chunk of stream) {
                 if (clientClosed) break;
-                const delta = chunk.choices?.[0]?.delta?.content || '';
+                const choice = chunk.choices?.[0];
+                const delta = choice?.delta?.content
+                    || choice?.delta?.text
+                    || (typeof choice?.delta === 'string' ? choice.delta : '')
+                    || '';
                 if (delta) {
                     full += delta;
                     sendSse({ text: delta });
                 }
             }
             clearTimeout(timeoutId);
+
+            // If streaming returned nothing (common with reasoning / proxy abort), fall back once
+            if (!clientClosed && !full.trim()) {
+                console.warn('Stream empty — falling back to non-stream completion');
+                try {
+                    const fallbackArgs = {
+                        model: config.model,
+                        messages: conversationMessages,
+                        max_tokens: config.maxTokens,
+                        temperature: config.temperature,
+                    };
+                    if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
+                    const completion = await withTimeout(
+                        grok.chat.completions.create(fallbackArgs),
+                        UPSTREAM_TIMEOUT_MS,
+                        'Stream fallback'
+                    );
+                    full = completion?.choices?.[0]?.message?.content || '';
+                    if (full) sendSse({ text: full });
+                } catch (fbErr) {
+                    sendSse({ error: mapApiError(fbErr) });
+                    sendSse({ done: true });
+                    return res.end();
+                }
+            }
+
             if (!clientClosed) {
-                // Soft-clean full text note: deltas already sent raw; final done marks end.
-                // Client may soft-clean/KaTeX locally. Optionally send cleaned full:
-                sendSse({ done: true, model: safeMode, full: softCleanLatex(full) });
-                console.log(`Stream done: ${full.length} chars`);
+                const cleaned = softCleanLatex(full) || '';
+                if (!cleaned.trim()) {
+                    sendSse({ error: '⚠️ Model returned an empty reply. Try again or switch mode.' });
+                }
+                sendSse({ done: true, model: safeMode, full: cleaned });
+                console.log(`Stream done: ${cleaned.length} chars`);
             }
             return res.end();
         } catch (err) {
             clearTimeout(timeoutId);
             if (clientClosed || err?.name === 'AbortError') {
+                // Last-chance non-stream if abort looked spurious and we got nothing yet
+                try {
+                    const fallbackArgs = {
+                        model: config.model,
+                        messages: conversationMessages,
+                        max_tokens: config.maxTokens,
+                        temperature: config.temperature,
+                    };
+                    if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
+                    const completion = await grok.chat.completions.create(fallbackArgs);
+                    const text = completion?.choices?.[0]?.message?.content || '';
+                    if (text) {
+                        sendSse({ text: softCleanLatex(text) });
+                        sendSse({ done: true, model: safeMode, full: softCleanLatex(text) });
+                        return res.end();
+                    }
+                } catch (e) {}
                 try { sendSse({ done: true, aborted: true }); } catch (e) {}
                 return res.end();
             }

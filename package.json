@@ -1,7 +1,7 @@
 {
   "name": "goldenspaceai2",
-  "version": "2.0.0",
-  "description": "GoldenSpaceAI2 - Professional AI Assistant powered by Grok",
+  "version": "2.1.0",
+  "description": "GoldenSpaceAI2 - Professional AI Assistant powered by Grok (streaming, persistence, PWA)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

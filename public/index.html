@@ -12,6 +12,9 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
     
     <style>
         :root {
@@ -25,8 +28,30 @@
             --gray: #888888;
             --red: #e74c3c;
             --green: #4ade80;
+            --text: #ffffff;
+            --text-muted: #888888;
+            --bubble-user: #2a2a2a;
+            --bubble-user-text: #f2f2f2;
+            --border: #222;
+            --input-border: #333;
+            --code-bg: #141414;
             --safe-bottom: env(safe-area-inset-bottom, 0px);
             --safe-top: env(safe-area-inset-top, 0px);
+        }
+
+        html.light {
+            --black: #f5f3eb;
+            --black-light: #ffffff;
+            --black-lighter: #ebe6d8;
+            --white: #1a1a1a;
+            --text: #1a1a1a;
+            --text-muted: #666666;
+            --bubble-user: #e8e2d0;
+            --bubble-user-text: #1a1a1a;
+            --border: #d4c9a8;
+            --input-border: #cbbf9a;
+            --code-bg: #f0ebe0;
+            --gray: #666666;
         }
 
         * {
@@ -39,6 +64,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--black);
+            color: var(--text);
             height: 100vh;
             height: 100dvh;
             display: flex;
@@ -63,7 +89,7 @@
 
         .top-bar {
             background: var(--black);
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border);
             padding: 10px 15px;
             padding-top: max(10px, var(--safe-top));
             display: flex;
@@ -103,7 +129,7 @@
             width: 280px;
             min-width: 280px;
             background: var(--black-light);
-            border-right: 1px solid #222;
+            border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             transition: transform 0.3s ease, width 0.3s ease, min-width 0.3s ease;
@@ -149,7 +175,7 @@
             flex-shrink: 0;
         }
         .instr-panel.open {
-            max-height: 180px;
+            max-height: 280px;
             border-bottom: 1px solid var(--gold-dark);
         }
         .instr-panel textarea {
@@ -200,12 +226,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            color: var(--white);
+            color: var(--text);
             border: 1px solid transparent;
             font-size: 14px;
         }
         .chat-item:active { background: var(--black-lighter); transform: scale(0.98); }
-        .chat-item.active { background: #1c1c1c; }
+        .chat-item.active { background: var(--black-lighter); }
         .chat-item-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .chat-item-actions { display: flex; gap: 5px; flex-shrink: 0; }
         .chat-item-btn {
@@ -239,15 +265,15 @@
             line-height: 1.45;
         }
         .message.user .message-bubble {
-            background: #2a2a2a;
-            color: #f2f2f2;
+            background: var(--bubble-user);
+            color: var(--bubble-user-text);
             border-bottom-right-radius: 6px;
         }
 
         .ai-block {
             width: 100%;
             max-width: 100%;
-            color: var(--white);
+            color: var(--text);
             font-size: 14px;
             line-height: 1.55;
         }
@@ -299,11 +325,17 @@
         .empty-state {
             height: 100%;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #555;
-            font-size: 16px;
+            color: var(--text-muted);
+            font-size: 15px;
+            text-align: center;
+            padding: 24px;
+            gap: 8px;
         }
+        .empty-state .empty-title { color: var(--gold); font-size: 20px; font-weight: 650; }
+        .empty-state .empty-hint { font-size: 13px; max-width: 280px; line-height: 1.4; }
 
         .image-preview {
             display: none;
@@ -337,7 +369,7 @@
         .md-list { margin: 0 0 12px; padding-left: 1.25em; }
         .md-list li { margin: 5px 0; }
         .md-pre {
-            background: #141414;
+            background: var(--code-bg);
             border: 1px solid rgba(184,134,11,0.45);
             padding: 10px 12px;
             border-radius: 10px;
@@ -354,15 +386,15 @@
             font-size: 0.9em;
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         }
-        .md-pre .md-code { background: none; padding: 0; color: #eee; }
+        .md-pre .md-code { background: none; padding: 0; color: var(--text); }
         .ai-content a { color: var(--gold-light); text-decoration: underline; }
-        .ai-content strong { color: #fff; font-weight: 700; }
+        .ai-content strong { color: var(--text); font-weight: 700; }
         .ai-content em { font-style: italic; }
 
         .input-container {
             margin: 0 10px calc(10px + var(--safe-bottom)) 10px;
             background: var(--black-light);
-            border: 1px solid #333;
+            border: 1px solid var(--input-border);
             border-radius: 22px;
             padding: 8px 10px;
             display: flex;
@@ -469,7 +501,7 @@
             flex: 1;
             background: none;
             border: none;
-            color: var(--white);
+            color: var(--text);
             font-size: 16px;
             outline: none;
             padding: 6px 4px;
@@ -567,13 +599,53 @@
             .input-container { margin: 0 15px 15px 15px; border-radius: 25px; padding: 10px 15px; gap: 10px; flex-wrap: nowrap; }
             .messages-container { padding: 18px 22px; }
         }
+
+        .top-bar-title { flex: 1; }
+        .top-bar-actions { display: flex; gap: 4px; align-items: center; }
+        .icon-btn {
+            background: none; border: 1px solid transparent; color: var(--gold);
+            font-size: 14px; cursor: pointer; padding: 6px 8px; border-radius: 8px; font-family: inherit;
+        }
+        .icon-btn:active { background: var(--black-lighter); }
+        .chat-search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .chat-search {
+            width: 100%; background: var(--black); border: 1px solid var(--input-border);
+            border-radius: 10px; color: var(--text); padding: 8px 10px; font-size: 13px;
+            outline: none; font-family: inherit;
+        }
+        .chat-search:focus { border-color: var(--gold-dark); }
+        .md-code-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 8px; background: rgba(212,175,55,0.08);
+            border-bottom: 1px solid rgba(184,134,11,0.3); font-size: 11px; color: var(--gold);
+        }
+        .md-copy-btn {
+            background: none; border: 1px solid var(--gold-dark); color: var(--gold);
+            border-radius: 6px; font-size: 11px; padding: 2px 8px; cursor: pointer; font-family: inherit;
+        }
+        .md-code-wrap .md-pre { margin: 0; border: none; border-radius: 0; background: transparent; }
+        .msg-btn.wide { width: auto; padding: 0 10px; gap: 4px; font-size: 12px; font-family: inherit; }
+        .send-btn.stop-mode { background: var(--red); color: #fff; font-size: 12px; }
+        .file-preview-chip {
+            display: none; align-items: center; gap: 8px; width: 100%;
+            padding: 0 4px 6px; color: var(--gold); font-size: 12px;
+        }
+        .file-preview-chip.show { display: flex; }
+        .file-preview-chip button { background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer; }
+        .katex-display { overflow-x: auto; overflow-y: hidden; }
+        html.light .badge-expert { color: #1a1a1a; }
+
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="top-bar">
             <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>
-            <span class="top-bar-title">GoldenSpaceAI2</span>
+            <span class="top-bar-title" id="topBarTitle">GoldenSpaceAI2</span>
+            <div class="top-bar-actions">
+                <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button>
+                <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Theme">Theme</button>
+            </div>
         </div>
 
         <div class="main-content">
@@ -586,8 +658,13 @@
                     </div>
                 </div>
                 <div class="instr-panel" id="instrPanel">
-                    <textarea id="customInstructions" placeholder="Rules for every chat..." oninput="saveGlobalInstructions()"></textarea>
+                    <textarea id="customInstructions" placeholder="Global rules for every chat..." oninput="saveGlobalInstructions()"></textarea>
                     <div class="instr-hint">Saved for all chats</div>
+                    <textarea id="chatSystemPrompt" placeholder="Optional per-chat system prompt..." oninput="saveChatSystemPrompt()"></textarea>
+                    <div class="instr-hint">Only for the current chat</div>
+                </div>
+                <div class="chat-search-wrap">
+                    <input class="chat-search" id="chatSearch" type="search" placeholder="Search chats..." oninput="renderChatsList()" aria-label="Search chats">
                 </div>
                 <div class="chats-list" id="chatsList"></div>
             </div>
@@ -623,11 +700,13 @@
                     <div class="input-actions">
                         <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
                         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
+                        <input type="file" id="fileInput" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf" style="display:none" onchange="handleFileUpload(event)">
                         
                         <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Add">+</button>
                         <div class="plus-menu" id="plusMenu">
                             <div class="plus-menu-item" onclick="openPhotos()">Photos</div>
                             <div class="plus-menu-item" onclick="openCamera()">Camera</div>
+                            <div class="plus-menu-item" onclick="openFileAttach()">File (.txt/.md)</div>
                         </div>
 
                         <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice">Mic</button>
@@ -635,10 +714,14 @@
                     
                     <textarea class="message-input" id="messageInput" placeholder="Ask anything" rows="1" onkeydown="handleKeyPress(event)" oninput="autoGrow(this)"></textarea>
                     
-                    <button class="send-btn" onclick="sendMessage()" id="sendBtn" aria-label="Send">&#10148;</button>
+                    <button class="send-btn" onclick="onSendOrStop()" id="sendBtn" aria-label="Send">&#10148;</button>
                     <div class="image-preview" id="imagePreview">
                         <img id="imagePreviewImg" alt="Attached">
                         <button type="button" onclick="clearAttachedImage()" aria-label="Remove">x</button>
+                    </div>
+                    <div class="file-preview-chip" id="filePreview">
+                        <span id="filePreviewName"></span>
+                        <button type="button" onclick="clearAttachedFile()" aria-label="Remove">x</button>
                     </div>
                 </div>
             </div>
@@ -648,6 +731,8 @@
 
     <script>
         const API_URL = '/api/chat';
+        const STREAM_URL = '/api/chat/stream';
+        const CHATS_API = '/api/chats';
         let currentModel = 'normal';
         let currentChatId = null;
         let chats = {};
@@ -655,15 +740,22 @@
         let recognition = null;
         let speaking = false;
         let selectedImage = null;
+        let selectedFileText = null;
+        let selectedFileName = null;
         let micPermissionGranted = false;
         let webSearchEnabled = false;
         let globalInstructions = '';
         let isSending = false;
+        let streamAbort = null;
+        let clientId = null;
+        let syncTimer = null;
         const ICO = {
             copy: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/></svg>',
             share: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
             speak: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 7a7 7 0 0 1 0 10"/></svg>',
-            stop: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>'
+            stop: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
+            regen: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10M1 14l5.4 4.4A9 9 0 0 0 20.5 15"/></svg>',
+            edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>'
         };
 
         const MODELS = {
@@ -673,29 +765,61 @@
             'expert-16': { label: 'Expert 16', apiMode: 'expert', agents: 16, badge: 'badge-expert', desc: 'Expert - 16 Agents' }
         };
 
-        function init() {
+        function ensureClientId() {
+            try {
+                clientId = localStorage.getItem('goldenspaceai2_client_id');
+                if (!clientId) {
+                    clientId = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+                    localStorage.setItem('goldenspaceai2_client_id', clientId);
+                }
+            } catch (e) { clientId = 'c_anon_' + Date.now(); }
+            return clientId;
+        }
+        function clientHeaders(extra) {
+            return Object.assign({ 'Content-Type': 'application/json', 'X-Client-Id': ensureClientId() }, extra || {});
+        }
+        function initTheme() {
+            let theme = null;
+            try { theme = localStorage.getItem('goldenspaceai2_theme'); } catch (e) {}
+            if (!theme) {
+                theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+            }
+            applyTheme(theme);
+        }
+        function applyTheme(theme) {
+            const light = theme === 'light';
+            document.documentElement.classList.toggle('light', light);
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', light ? '#f5f3eb' : '#0a0a0a');
+            const btn = document.getElementById('themeBtn');
+            if (btn) btn.textContent = light ? 'Dark' : 'Light';
+            try { localStorage.setItem('goldenspaceai2_theme', theme); } catch (e) {}
+        }
+        function toggleTheme() {
+            applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light');
+        }
+        async function init() {
+            ensureClientId();
+            initTheme();
             loadChats();
             loadGlobalInstructions();
+            await syncFromServer();
             if (Object.keys(chats).length === 0) createNewChat();
-            else { currentChatId = Object.keys(chats)[0]; loadChat(); }
+            else {
+                if (!currentChatId || !chats[currentChatId]) currentChatId = Object.keys(chats)[0];
+                loadChat();
+            }
             renderChatsList();
             initSpeechRecognition();
             updateModelUI();
-            
             document.body.addEventListener('click', requestMicPermission, { once: true });
-            
             document.addEventListener('click', function(e) {
                 const modelMenu = document.getElementById('modelMenu');
                 const modelBtn = document.getElementById('modelBtn');
                 const plusMenu = document.getElementById('plusMenu');
                 const plusBtn = document.getElementById('plusBtn');
-                
-                if (modelMenu && modelBtn && !modelBtn.contains(e.target) && !modelMenu.contains(e.target)) {
-                    modelMenu.classList.remove('show');
-                }
-                if (plusMenu && plusBtn && !plusBtn.contains(e.target) && !plusMenu.contains(e.target)) {
-                    plusMenu.classList.remove('show');
-                }
+                if (modelMenu && modelBtn && !modelBtn.contains(e.target) && !modelMenu.contains(e.target)) modelMenu.classList.remove('show');
+                if (plusMenu && plusBtn && !plusBtn.contains(e.target) && !plusMenu.contains(e.target)) plusMenu.classList.remove('show');
             });
         }
 
@@ -763,9 +887,74 @@
         function loadChats() {
             try { chats = JSON.parse(localStorage.getItem('goldenspaceai2_chats')) || {}; }
             catch(e) { chats = {}; }
+            try { currentChatId = localStorage.getItem('goldenspaceai2_current') || null; } catch(e) {}
         }
-        function saveChats() { 
+        function saveChatsLocal() {
             try { localStorage.setItem('goldenspaceai2_chats', JSON.stringify(chats)); } catch(e) {}
+            try { if (currentChatId) localStorage.setItem('goldenspaceai2_current', currentChatId); } catch(e) {}
+        }
+        function saveChats() {
+            saveChatsLocal();
+            scheduleSyncToServer();
+        }
+        function scheduleSyncToServer() {
+            if (syncTimer) clearTimeout(syncTimer);
+            syncTimer = setTimeout(function() { syncChatToServer(currentChatId); }, 600);
+        }
+        async function syncFromServer() {
+            if (!navigator.onLine) return;
+            try {
+                const res = await fetch(CHATS_API, { headers: clientHeaders() });
+                if (!res.ok) return;
+                const data = await res.json();
+                const list = data.chats || [];
+                for (let i = 0; i < list.length; i++) {
+                    const meta = list[i];
+                    if (!meta || !meta.id) continue;
+                    const local = chats[meta.id];
+                    const remoteUpdated = meta.updatedAt || meta.createdAt || '';
+                    const localUpdated = local ? (local.updatedAt || local.createdAt || '') : '';
+                    if (!local || remoteUpdated > localUpdated) {
+                        try {
+                            const full = await fetch(CHATS_API + '/' + encodeURIComponent(meta.id), { headers: clientHeaders() });
+                            if (!full.ok) continue;
+                            const chat = await full.json();
+                            chats[meta.id] = {
+                                name: chat.name || 'New Chat',
+                                messages: Array.isArray(chat.messages) ? chat.messages : [],
+                                createdAt: chat.createdAt || new Date().toISOString(),
+                                updatedAt: chat.updatedAt || chat.createdAt || new Date().toISOString(),
+                                named: !!chat.named,
+                                systemPrompt: chat.systemPrompt || '',
+                                customInstructions: chat.customInstructions || ''
+                            };
+                        } catch (e) {}
+                    }
+                }
+                saveChatsLocal();
+            } catch (e) {}
+        }
+        async function syncChatToServer(id) {
+            if (!id || !chats[id] || !navigator.onLine) return;
+            const chat = chats[id];
+            chat.updatedAt = new Date().toISOString();
+            try {
+                const res = await fetch(CHATS_API + '/' + encodeURIComponent(id), {
+                    method: 'PUT', headers: clientHeaders(), body: JSON.stringify(chat)
+                });
+                if (res.status === 404) {
+                    await fetch(CHATS_API, {
+                        method: 'POST', headers: clientHeaders(),
+                        body: JSON.stringify(Object.assign({ id: id }, chat))
+                    });
+                }
+            } catch (e) {}
+        }
+        async function deleteChatOnServer(id) {
+            if (!id || !navigator.onLine) return;
+            try {
+                await fetch(CHATS_API + '/' + encodeURIComponent(id), { method: 'DELETE', headers: clientHeaders() });
+            } catch (e) {}
         }
 
         function loadGlobalInstructions() {
@@ -793,6 +982,18 @@
             try { localStorage.setItem('goldenspaceai2_instructions', globalInstructions); } catch(e) {}
         }
 
+        function saveChatSystemPrompt() {
+            if (!currentChatId || !chats[currentChatId]) return;
+            const box = document.getElementById('chatSystemPrompt');
+            chats[currentChatId].systemPrompt = box ? box.value : '';
+            saveChats();
+        }
+        function loadChatSystemPromptUI() {
+            const box = document.getElementById('chatSystemPrompt');
+            if (!box) return;
+            box.value = (currentChatId && chats[currentChatId] && chats[currentChatId].systemPrompt) ? chats[currentChatId].systemPrompt : '';
+        }
+
         function toggleInstructionsPanel() {
             const panel = document.getElementById('instrPanel');
             const btn = document.getElementById('instrBtn');
@@ -806,18 +1007,20 @@
 
         function createNewChat() {
             const id = 'chat_' + Date.now();
-            chats[id] = { name: 'New Chat', messages: [], createdAt: new Date().toISOString() };
+            chats[id] = { name: 'New Chat', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), systemPrompt: '' };
             currentChatId = id;
             saveChats();
             loadChat();
             renderChatsList();
             closeChatsPanel();
+            syncChatToServer(id);
         }
 
         function deleteChat(id) {
-            if(!confirm('Delete this chat?')) return;
+            if(!confirm('Delete this chat? This cannot be undone.')) return;
             delete chats[id];
-            saveChats();
+            saveChatsLocal();
+            deleteChatOnServer(id);
             if(currentChatId === id) {
                 const ids = Object.keys(chats);
                 currentChatId = ids.length ? ids[0] : null;
@@ -828,8 +1031,15 @@
         }
 
         function renameChat(id) {
-            const name = prompt('Name:', chats[id].name);
-            if(name && name.trim()) { chats[id].name = name.trim(); saveChats(); renderChatsList(); }
+            const name = prompt('Rename chat:', chats[id].name);
+            if(name && name.trim()) {
+                chats[id].name = name.trim();
+                chats[id].named = true;
+                chats[id].updatedAt = new Date().toISOString();
+                saveChats();
+                renderChatsList();
+                updateTopTitle();
+            }
         }
 
         function switchChat(id) {
@@ -837,19 +1047,32 @@
             loadChat();
             renderChatsList();
             closeChatsPanel();
+            try { localStorage.setItem('goldenspaceai2_current', currentChatId); } catch(e) {}
+        }
+
+        function updateTopTitle() {
+            const el = document.getElementById('topBarTitle');
+            if (!el) return;
+            if (currentChatId && chats[currentChatId] && chats[currentChatId].name && chats[currentChatId].name !== 'New Chat') {
+                el.textContent = chats[currentChatId].name;
+            } else {
+                el.textContent = 'GoldenSpaceAI2';
+            }
         }
 
         function loadChat() {
             const container = document.getElementById('messagesContainer');
             container.innerHTML = '';
+            loadChatSystemPromptUI();
+            updateTopTitle();
             if(!currentChatId || !chats[currentChatId]) return;
             const messages = chats[currentChatId].messages || [];
             if (!messages.length) {
-                container.innerHTML = '<div class="empty-state">Ask anything</div>';
+                container.innerHTML = '<div class="empty-state"><div class="empty-title">GoldenSpaceAI2</div><div class="empty-hint">Ask anything. Attach images or .txt/.md files. Switch modes for reasoning or expert research.</div></div>';
                 return;
             }
             for (let i = 0; i < messages.length; i++) {
-                renderMessage(messages[i]);
+                renderMessage(messages[i], i);
             }
             scrollToBottom();
         }
@@ -857,9 +1080,25 @@
         function renderChatsList() {
             const list = document.getElementById('chatsList');
             list.innerHTML = '';
-            const chatIds = Object.keys(chats);
+            const q = ((document.getElementById('chatSearch') || {}).value || '').trim().toLowerCase();
+            let chatIds = Object.keys(chats).sort(function(a, b) {
+                const ua = chats[a].updatedAt || chats[a].createdAt || '';
+                const ub = chats[b].updatedAt || chats[b].createdAt || '';
+                return String(ub).localeCompare(String(ua));
+            });
+            if (q) {
+                chatIds = chatIds.filter(function(id) {
+                    const c = chats[id];
+                    if ((c.name || '').toLowerCase().indexOf(q) !== -1) return true;
+                    const msgs = c.messages || [];
+                    for (let i = 0; i < msgs.length; i++) {
+                        if ((msgs[i].content || '').toLowerCase().indexOf(q) !== -1) return true;
+                    }
+                    return false;
+                });
+            }
             if(!chatIds.length) {
-                list.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:13px;">No chats yet</div>';
+                list.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:13px;">' + (q ? 'No matches' : 'No chats yet') + '</div>';
                 return;
             }
             for (let i = 0; i < chatIds.length; i++) {
@@ -869,8 +1108,8 @@
                 div.className = 'chat-item' + (id === currentChatId ? ' active' : '');
                 div.innerHTML = '<span class="chat-item-name" onclick="switchChat(\'' + id + '\')">' + escapeHtmlRaw(chat.name) + '</span>' +
                     '<div class="chat-item-actions">' +
-                    '<button class="chat-item-btn" onclick="event.stopPropagation();renameChat(\'' + id + '\')">&#9998;</button>' +
-                    '<button class="chat-item-btn delete" onclick="event.stopPropagation();deleteChat(\'' + id + '\')">&#10005;</button>' +
+                    '<button class="chat-item-btn" title="Rename" onclick="event.stopPropagation();renameChat(\'' + id + '\')">&#9998;</button>' +
+                    '<button class="chat-item-btn delete" title="Delete" onclick="event.stopPropagation();deleteChat(\'' + id + '\')">&#10005;</button>' +
                     '</div>';
                 list.appendChild(div);
             }
@@ -891,6 +1130,11 @@
         function openCamera() {
             document.getElementById('plusMenu').classList.remove('show');
             document.getElementById('cameraInput').click();
+        }
+
+        function openFileAttach() {
+            document.getElementById('plusMenu').classList.remove('show');
+            document.getElementById('fileInput').click();
         }
 
         function handleImageUpload(event) {
@@ -934,7 +1178,48 @@
             const plus = document.getElementById('plusBtn');
             if (wrap) wrap.classList.remove('show');
             if (img) img.src = '';
-            if (plus) plus.classList.remove('image-attached');
+            if (plus && !selectedFileText) plus.classList.remove('image-attached');
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            const name = file.name || 'file';
+            const lower = name.toLowerCase();
+            if (lower.endsWith('.pdf') || file.type === 'application/pdf') {
+                alert('PDF attach is not supported in the browser yet. Please use .txt or .md, or paste the text.');
+                return;
+            }
+            if (!(lower.endsWith('.txt') || lower.endsWith('.md') || file.type.startsWith('text/'))) {
+                alert('Please attach a .txt or .md file.');
+                return;
+            }
+            if (file.size > 400 * 1024) { alert('File too large (max ~400KB).'); return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                selectedFileText = String(e.target.result || '');
+                selectedFileName = name;
+                const wrap = document.getElementById('filePreview');
+                const label = document.getElementById('filePreviewName');
+                if (label) label.textContent = '📎 ' + name;
+                if (wrap) wrap.classList.add('show');
+                document.getElementById('plusBtn').classList.add('image-attached');
+            };
+            reader.readAsText(file);
+        }
+
+        function clearAttachedFile() {
+            selectedFileText = null;
+            selectedFileName = null;
+            const wrap = document.getElementById('filePreview');
+            const label = document.getElementById('filePreviewName');
+            if (wrap) wrap.classList.remove('show');
+            if (label) label.textContent = '';
+            if (!selectedImage) {
+                const plus = document.getElementById('plusBtn');
+                if (plus) plus.classList.remove('image-attached');
+            }
         }
 
         function autoGrow(el) {
@@ -945,7 +1230,34 @@
         function setSending(on) {
             isSending = on;
             const btn = document.getElementById('sendBtn');
-            if (btn) btn.disabled = on;
+            if (!btn) return;
+            if (on) {
+                btn.disabled = false;
+                btn.classList.add('stop-mode');
+                btn.innerHTML = '■';
+                btn.setAttribute('aria-label', 'Stop');
+                btn.title = 'Stop';
+            } else {
+                btn.classList.remove('stop-mode');
+                btn.innerHTML = '&#10148;';
+                btn.setAttribute('aria-label', 'Send');
+                btn.title = 'Send';
+                btn.disabled = false;
+            }
+        }
+        function onSendOrStop() {
+            if (isSending) { stopGeneration(); return; }
+            sendMessage();
+        }
+        function stopGeneration() {
+            if (streamAbort) { try { streamAbort.abort(); } catch (e) {} }
+        }
+        function combinedInstructions() {
+            let s = globalInstructions || '';
+            if (currentChatId && chats[currentChatId] && chats[currentChatId].systemPrompt) {
+                s = (s ? s + '\n\n' : '') + chats[currentChatId].systemPrompt;
+            }
+            return s;
         }
 
         function cleanTwoWords(raw) {
@@ -961,7 +1273,7 @@
             try {
                 const res = await fetch(API_URL, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: clientHeaders(),
                     body: JSON.stringify({
                         messages: [{ role: 'user', content: 'Reply with ONLY two words. No punctuation. Title for this chat: ' + seed }],
                         customInstructions: '',
@@ -981,98 +1293,247 @@
             } catch (e) {}
         }
 
-        async function sendMessage() {
+        async function sendMessage(opts) {
+            opts = opts || {};
             if (isSending) return;
             const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            if(!text && !selectedImage) return;
+            let text = opts.text !== undefined ? opts.text : input.value.trim();
+            let imgToSend = opts.image !== undefined ? opts.image : selectedImage;
+            if (selectedFileText && opts.text === undefined) {
+                const fileBlock = '\n\n---\nAttached file: ' + (selectedFileName || 'file') + '\n```\n' + selectedFileText.slice(0, 120000) + '\n```\n';
+                text = (text || 'Please review the attached file.') + fileBlock;
+            }
+            if(!text && !imgToSend) return;
             if(!currentChatId) { createNewChat(); }
 
             const shouldName = chats[currentChatId] && !chats[currentChatId].named && chats[currentChatId].name === 'New Chat';
             setSending(true);
-            input.blur();
+            if (opts.text === undefined) input.blur();
 
-            const userMsg = { 
-                role: 'user', content: text, image: selectedImage,
-                model: currentModel, timestamp: new Date().toISOString() 
-            };
-            
-            renderMessage(userMsg);
-            
-            const msgToStore = { role: userMsg.role, content: userMsg.content, image: null, model: userMsg.model, timestamp: userMsg.timestamp };
-            if (selectedImage && selectedImage.length <= 5 * 1024 * 1024) {
-                msgToStore.image = selectedImage;
+            if (!opts.skipUserAppend) {
+                const userMsg = {
+                    role: 'user', content: text, image: imgToSend,
+                    model: currentModel, timestamp: new Date().toISOString()
+                };
+                renderMessage(userMsg, chats[currentChatId].messages.length);
+                const msgToStore = { role: userMsg.role, content: userMsg.content, image: null, model: userMsg.model, timestamp: userMsg.timestamp };
+                if (imgToSend && imgToSend.length <= 5 * 1024 * 1024) msgToStore.image = imgToSend;
+                if (imgToSend && imgToSend.length > 5 * 1024 * 1024) msgToStore.imageTooBig = true;
+                chats[currentChatId].messages.push(msgToStore);
+                chats[currentChatId].updatedAt = new Date().toISOString();
+                saveChats();
+                if (opts.text === undefined) {
+                    input.value = '';
+                    input.style.height = 'auto';
+                    clearAttachedImage();
+                    clearAttachedFile();
+                }
+                if (shouldName) autoNameChat(text);
             }
-            if (selectedImage && selectedImage.length > 5 * 1024 * 1024) {
-                msgToStore.imageTooBig = true;
-            }
-            
-            chats[currentChatId].messages.push(msgToStore);
-            saveChats();
-            
-            input.value = '';
-            input.style.height = 'auto';
-            const imgToSend = selectedImage;
-            clearAttachedImage();
-            if (shouldName) autoNameChat(text);
-            
+
+            await requestAiReply(imgToSend);
+        }
+
+        async function requestAiReply(imgToSend) {
             const typingId = showTypingIndicator();
+            streamAbort = new AbortController();
+            let streamedText = '';
+            let aiEl = null;
+            let contentEl = null;
 
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(STREAM_URL, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: clientHeaders(),
+                    signal: streamAbort.signal,
                     body: JSON.stringify({
-                        messages: chats[currentChatId].messages.slice(-5),
-                        customInstructions: globalInstructions || '',
+                        messages: chats[currentChatId].messages.slice(-8),
+                        customInstructions: combinedInstructions(),
                         mode: MODELS[currentModel].apiMode,
                         agents: MODELS[currentModel].agents || 4,
                         webSearch: webSearchEnabled,
-                        image: imgToSend
+                        image: imgToSend || undefined
                     })
                 });
-                
-                const data = await res.json();
-                removeTypingIndicator(typingId);
-                
-                if (!res.ok) {
-                    throw new Error(data.reply || 'Server error');
+
+                if (!res.ok || !res.body) {
+                    let errText = 'Server error';
+                    try { const data = await res.json(); errText = data.reply || data.error || errText; } catch (e) {}
+                    throw new Error(errText);
                 }
-                
-                const aiMsg = { 
-                    role: 'ai', 
-                    content: data.reply || 'No response',
-                    model: currentModel, 
-                    timestamp: new Date().toISOString() 
-                };
-                chats[currentChatId].messages.push(aiMsg);
+
+                removeTypingIndicator(typingId);
+                const aiMsgPlaceholder = { role: 'ai', content: '', model: currentModel, timestamp: new Date().toISOString() };
+                const idx = chats[currentChatId].messages.length;
+                chats[currentChatId].messages.push(aiMsgPlaceholder);
+                aiEl = renderMessage(aiMsgPlaceholder, idx, true);
+                contentEl = aiEl ? aiEl.querySelector('.ai-content') : null;
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let doneFlag = false;
+                let errMsg = null;
+                let finalFull = null;
+
+                while (!doneFlag) {
+                    const pack = await reader.read();
+                    const value = pack.value;
+                    const done = pack.done;
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split('\n');
+                    buffer = parts.pop() || '';
+                    for (let i = 0; i < parts.length; i++) {
+                        const line = parts[i].trim();
+                        if (!line || line.indexOf('data:') !== 0) continue;
+                        const payload = line.slice(5).trim();
+                        if (!payload || payload === '[DONE]') continue;
+                        let obj;
+                        try { obj = JSON.parse(payload); } catch (e) { continue; }
+                        if (obj.error) errMsg = obj.error;
+                        if (obj.text) {
+                            streamedText += obj.text;
+                            if (contentEl) {
+                                contentEl.setAttribute('data-text', streamedText);
+                                contentEl.innerHTML = formatMarkdown(streamedText);
+                                renderMathIn(contentEl);
+                            }
+                            scrollToBottom();
+                        }
+                        if (obj.full) finalFull = obj.full;
+                        if (obj.done) doneFlag = true;
+                    }
+                }
+
+                if (errMsg && !streamedText) throw new Error(errMsg);
+                const finalText = (finalFull && !streamedText) ? finalFull : (streamedText || finalFull || (errMsg || 'No response'));
+                chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
+                chats[currentChatId].updatedAt = new Date().toISOString();
                 saveChats();
-                renderMessage(aiMsg);
-                
+                if (contentEl) {
+                    contentEl.setAttribute('data-text', finalText);
+                    contentEl.innerHTML = formatMarkdown(finalText);
+                    renderMathIn(contentEl);
+                }
+                markLastAiActions();
             } catch(err) {
                 removeTypingIndicator(typingId);
-                console.error('Error:', err);
-                
-                const errMsg = { 
-                    role: 'ai', 
-                    content: '' + (err.message || 'Could not reach Grok.'),
-                    model: currentModel, 
-                    timestamp: new Date().toISOString() 
-                };
-                chats[currentChatId].messages.push(errMsg);
-                saveChats();
-                renderMessage(errMsg);
+                if (err && err.name === 'AbortError') {
+                    if (streamedText) {
+                        const last = chats[currentChatId].messages[chats[currentChatId].messages.length - 1];
+                        if (last && last.role === 'ai') {
+                            last.content = streamedText + '\n\n_(stopped)_';
+                            saveChats();
+                            if (contentEl) {
+                                contentEl.setAttribute('data-text', last.content);
+                                contentEl.innerHTML = formatMarkdown(last.content);
+                            }
+                        }
+                    } else {
+                        const msgs = chats[currentChatId].messages;
+                        if (msgs.length && msgs[msgs.length - 1].role === 'ai' && !msgs[msgs.length - 1].content) {
+                            msgs.pop();
+                            if (aiEl) aiEl.remove();
+                            saveChats();
+                        }
+                    }
+                } else {
+                    console.error('Error:', err);
+                    const errMsgObj = { role: 'ai', content: '' + (err.message || 'Could not reach Grok.'), model: currentModel, timestamp: new Date().toISOString() };
+                    const msgs = chats[currentChatId].messages;
+                    if (msgs.length && msgs[msgs.length - 1].role === 'ai' && !msgs[msgs.length - 1].content) {
+                        msgs[msgs.length - 1] = errMsgObj;
+                        loadChat();
+                    } else {
+                        msgs.push(errMsgObj);
+                        saveChats();
+                        renderMessage(errMsgObj, msgs.length - 1);
+                    }
+                    saveChats();
+                }
             }
+            streamAbort = null;
             scrollToBottom();
             setSending(false);
+            markLastAiActions();
         }
 
-        function renderMessage(msg) {
+        function markLastAiActions() {
+            const msgs = document.querySelectorAll('#messagesContainer .message.ai');
+            for (let i = 0; i < msgs.length; i++) {
+                const regen = msgs[i].querySelector('.regen-btn');
+                if (regen) regen.style.display = (i === msgs.length - 1) ? 'inline-flex' : 'none';
+            }
+            const users = document.querySelectorAll('#messagesContainer .message.user');
+            for (let i = 0; i < users.length; i++) {
+                const edit = users[i].querySelector('.edit-btn');
+                if (edit) edit.style.display = (i === users.length - 1) ? 'inline-flex' : 'none';
+            }
+        }
+
+        function regenerateLast() {
+            if (isSending || !currentChatId || !chats[currentChatId]) return;
+            const msgs = chats[currentChatId].messages;
+            if (!msgs.length) return;
+            if (msgs[msgs.length - 1].role === 'ai' || msgs[msgs.length - 1].role === 'assistant') msgs.pop();
+            let lastUser = null;
+            for (let i = msgs.length - 1; i >= 0; i--) {
+                if (msgs[i].role === 'user') { lastUser = msgs[i]; break; }
+            }
+            if (!lastUser) return;
+            saveChats();
+            loadChat();
+            setSending(true);
+            requestAiReply(lastUser.image || null);
+        }
+
+        function editLastUserMessage(index) {
+            if (isSending || !currentChatId || !chats[currentChatId]) return;
+            const msgs = chats[currentChatId].messages;
+            if (index < 0 || index >= msgs.length || msgs[index].role !== 'user') return;
+            const current = msgs[index].content || '';
+            const next = prompt('Edit message and resend:', current);
+            if (next === null) return;
+            const trimmed = next.trim();
+            if (!trimmed) return;
+            if (!confirm('Resend from this message? Later messages will be removed.')) return;
+            const image = msgs[index].image || null;
+            chats[currentChatId].messages = msgs.slice(0, index);
+            saveChats();
+            loadChat();
+            sendMessage({ text: trimmed, image: image });
+        }
+
+        function exportCurrentChat() {
+            if (!currentChatId || !chats[currentChatId]) return;
+            const chat = chats[currentChatId];
+            let md = '# ' + (chat.name || 'Chat') + '\n\n';
+            const msgs = chat.messages || [];
+            for (let i = 0; i < msgs.length; i++) {
+                const m = msgs[i];
+                const role = (m.role === 'user') ? 'User' : 'Assistant';
+                md += '## ' + role + '\n\n' + (m.content || '') + '\n\n';
+            }
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const safe = (chat.name || 'chat').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_');
+            a.download = safe + '.md';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function renderMessage(msg, index, returnEl) {
             const container = document.getElementById('messagesContainer');
             const empty = container.querySelector('.empty-state');
             if (empty) empty.remove();
             const div = document.createElement('div');
             div.className = 'message ' + msg.role;
+            if (typeof index === 'number') div.setAttribute('data-index', String(index));
 
             const rawText = msg.content || '';
             let inner = '';
@@ -1092,8 +1553,11 @@
                     '<button class="msg-btn" title="Share" onclick="shareMessage(this)">' + ICO.share + '</button>' +
                     '<button class="msg-btn" title="Listen" onclick="speakMessage(this)">' + ICO.speak + '</button>' +
                     '<button class="msg-btn stop-btn" title="Stop" onclick="stopSpeaking()">' + ICO.stop + '</button>' +
+                    '<button class="msg-btn regen-btn wide" title="Regenerate" onclick="regenerateLast()">' + ICO.regen + '</button>' +
                     '</div></div>';
                 div.innerHTML = inner;
+                const contentEl = div.querySelector('.ai-content');
+                if (contentEl) renderMathIn(contentEl);
             } else {
                 inner += '<div class="message-bubble">';
                 if (msg.image) {
@@ -1102,12 +1566,18 @@
                 if (rawText) {
                     inner += '<div data-text="' + escapeAttr(rawText) + '">' + escapeHtml(rawText) + '</div>';
                 }
+                inner += '<div class="message-actions">' +
+                    '<button class="msg-btn edit-btn wide" title="Edit & resend" onclick="editLastUserMessage(' + (typeof index === 'number' ? index : -1) + ')">' + ICO.edit + ' Edit</button>' +
+                    '</div>';
                 inner += '</div>';
                 div.innerHTML = inner;
             }
 
             container.appendChild(div);
             scrollToBottom();
+            if (returnEl) return div;
+            markLastAiActions();
+            return div;
         }
 
         function showTypingIndicator() {
@@ -1130,7 +1600,7 @@
         }
 
         function handleKeyPress(e) {
-            if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+            if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!isSending) sendMessage(); }
         }
 
         function getBubbleText(btn) {
@@ -1143,11 +1613,22 @@
             const text = getBubbleText(btn);
             if (text) {
                 navigator.clipboard.writeText(text).then(function() {
-                    btn.innerHTML = ICO.copy;
                     btn.style.color = '#4ade80';
                     setTimeout(function() { btn.style.color = ''; }, 1200);
                 });
             }
+        }
+
+        function copyCodeBlock(btn) {
+            const wrap = btn.closest('.md-code-wrap');
+            const code = wrap ? wrap.querySelector('code') : null;
+            const text = code ? code.textContent : '';
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(function() {
+                const prev = btn.textContent;
+                btn.textContent = 'Copied';
+                setTimeout(function() { btn.textContent = prev; }, 1200);
+            });
         }
 
         function shareMessage(btn) {
@@ -1335,6 +1816,23 @@
             return escapeHtmlRaw(text).replace(/'/g, '&#39;');
         }
 
+        function renderMathIn(el) {
+            if (!el) return;
+            if (window.renderMathInElement) {
+                try {
+                    window.renderMathInElement(el, {
+                        delimiters: [
+                            { left: '$$', right: '$$', display: true },
+                            { left: '\\[', right: '\\]', display: true },
+                            { left: '$', right: '$', display: false },
+                            { left: '\\(', right: '\\)', display: false }
+                        ],
+                        throwOnError: false
+                    });
+                } catch (e) {}
+            }
+        }
+
         function formatMarkdown(text) {
             if (!text) return '';
             let s = String(text).replace(/\r\n/g, '\n');
@@ -1346,7 +1844,19 @@
             }
 
             s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code) {
-                return stash('<pre class="md-pre"><code class="md-code">' + escapeHtmlRaw(code.replace(/\n$/, '')) + '</code></pre>');
+                const langLabel = lang || 'code';
+                return stash(
+                    '<div class="md-code-wrap">' +
+                    '<div class="md-code-header"><span>' + escapeHtmlRaw(langLabel) + '</span>' +
+                    '<button type="button" class="md-copy-btn" onclick="copyCodeBlock(this)">Copy</button></div>' +
+                    '<pre class="md-pre"><code class="md-code">' + escapeHtmlRaw(code.replace(/\n$/, '')) + '</code></pre></div>'
+                );
+            });
+            s = s.replace(/\$\$([\s\S]+?)\$\$/g, function(_, math) {
+                return stash('<div class="katex-block">$$' + math + '$$</div>');
+            });
+            s = s.replace(/\$([^$\n]+?)\$/g, function(_, math) {
+                return stash('<span class="katex-inline">$' + math + '$</span>');
             });
             s = s.replace(/`([^`\n]+)`/g, function(_, code) {
                 return stash('<code class="md-code">' + escapeHtmlRaw(code) + '</code>');
@@ -1359,12 +1869,12 @@
             s = s.replace(/^\n+/, '');
 
             const lines = s.split('\n');
-            let html = '';
+            let htmlOut = '';
             let listType = null;
 
             function closeList() {
-                if (listType === 'ol') html += '</ol>';
-                if (listType === 'ul') html += '</ul>';
+                if (listType === 'ol') htmlOut += '</ol>';
+                if (listType === 'ul') htmlOut += '</ul>';
                 listType = null;
             }
 
@@ -1385,14 +1895,14 @@
                 const line = lines[i];
                 if (/^\u0000S\d+\u0000$/.test(line.trim())) {
                     closeList();
-                    html += line.trim();
+                    htmlOut += line.trim();
                     continue;
                 }
                 const heading = line.match(/^\s*#{1,6}\s+(.*)$/);
                 if (heading) {
                     closeList();
                     const title = heading[1].trim();
-                    if (title) html += '<div class="md-h">' + inlineFormat(title) + '</div>';
+                    if (title) htmlOut += '<div class="md-h">' + inlineFormat(title) + '</div>';
                     continue;
                 }
                 const ol = line.match(/^\s*(\d+)\.\s+(.*)$/);
@@ -1400,16 +1910,16 @@
                     const n = parseInt(ol[1], 10);
                     if (listType !== 'ol') {
                         closeList();
-                        html += '<ol class="md-list"' + (n > 1 ? ' start="' + n + '"' : '') + '>';
+                        htmlOut += '<ol class="md-list"' + (n > 1 ? ' start="' + n + '"' : '') + '>';
                         listType = 'ol';
                     }
-                    html += '<li>' + inlineFormat(ol[2]) + '</li>';
+                    htmlOut += '<li>' + inlineFormat(ol[2]) + '</li>';
                     continue;
                 }
                 const ul = line.match(/^\s*[-*]\s+(.*)$/);
                 if (ul) {
-                    if (listType !== 'ul') { closeList(); html += '<ul class="md-list">'; listType = 'ul'; }
-                    html += '<li>' + inlineFormat(ul[1]) + '</li>';
+                    if (listType !== 'ul') { closeList(); htmlOut += '<ul class="md-list">'; listType = 'ul'; }
+                    htmlOut += '<li>' + inlineFormat(ul[1]) + '</li>';
                     continue;
                 }
                 if (!line.trim()) {
@@ -1417,14 +1927,14 @@
                     continue;
                 }
                 closeList();
-                html += '<p class="md-p">' + inlineFormat(line.trim()) + '</p>';
+                htmlOut += '<p class="md-p">' + inlineFormat(line.trim()) + '</p>';
             }
             closeList();
 
-            html = html.replace(/\u0000S(\d+)\u0000/g, function(_, n) {
+            htmlOut = htmlOut.replace(/\u0000S(\d+)\u0000/g, function(_, n) {
                 return slots[Number(n)] || '';
             });
-            return html;
+            return htmlOut;
         }
 
         if ('visualViewport' in window) {

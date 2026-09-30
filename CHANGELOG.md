@@ -1,3 +1,13 @@
+# GoldenSpaceAI — fix: real PWA install prompt (2026-09-30)
+
+- **Bug:** Install App in the chats panel footer always fell through to `/app-install.html` after (or instead of) the native prompt — including when the user dismissed `beforeinstallprompt`.
+- **Fix:** Call deferred `beforeinstallprompt.prompt()` when available; navigate to `/app-install.html` **only** if no deferred event was captured.
+- Hardened `manifest.json` for installability after GoldenSpaceAI rename: `id`, `scope: "/"`, `start_url: "/"`, `display: "standalone"`, separate `any` + `maskable` icons (`/logo.png`).
+- Service worker remains registered from `index.html`; cache bumped to `goldenspaceai2-v13`.
+- Target HTTPS host: `www.goldenspaceai.space`.
+
+---
+
 # GoldenSpaceAI — branding update (2026-09-30)
 
 - Renamed user-visible app branding from GoldenSpaceAI2 to GoldenSpaceAI across the chat UI, install/offline pages, PWA manifest, health response, and logo.

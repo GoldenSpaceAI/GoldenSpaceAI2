@@ -100,6 +100,10 @@ function createPlansStore(dataDir) {
     }
 
     function flushSync() {
+        if (writeTimer) {
+            clearTimeout(writeTimer);
+            writeTimer = null;
+        }
         ensureDir();
         try {
             const tmp = filePath + '.tmp';
@@ -397,23 +401,38 @@ function createPlansStore(dataDir) {
      * Consume one unit after a chat attempt is accepted / completed.
      * @param {boolean} usedGrokFallback - Fast path OpenAI→Grok fallback only
      */
+    function usageField(kind) {
+        if (kind === 'fast' || kind === 'thinking' || kind === 'expert4' || kind === 'expert16') return kind;
+        return null;
+    }
+
+    /**
+     * Consume one unit. Called when a chat is accepted so parallel requests cannot
+     * slip past the cap. Callers must releaseUsage if the reply does not succeed.
+     * Persists immediately so /api/plan-status sees the same counters as this process.
+     */
     function recordUsage(deviceId, kind, { usedGrokFallback = false } = {}) {
         if (!deviceId || !kind) return;
+        const field = usageField(kind);
+        if (!field) return;
         const u = ensureUsage(deviceId);
-        if (kind === 'fast') {
-            if (usedGrokFallback && !u.fastHalved) {
-                u.fastHalved = true;
-            }
-            u.fast = (u.fast || 0) + 1;
-        } else if (kind === 'thinking') {
-            u.thinking = (u.thinking || 0) + 1;
-        } else if (kind === 'expert4') {
-            u.expert4 = (u.expert4 || 0) + 1;
-        } else if (kind === 'expert16') {
-            u.expert16 = (u.expert16 || 0) + 1;
+        if (kind === 'fast' && usedGrokFallback && !u.fastHalved) {
+            u.fastHalved = true;
         }
-        save();
-        return ensureUsage(deviceId);
+        u[field] = (u[field] || 0) + 1;
+        flushSync();
+        return u;
+    }
+
+    /** Undo one recordUsage when the model call fails or returns an empty reply. */
+    function releaseUsage(deviceId, kind) {
+        if (!deviceId || !kind) return;
+        const field = usageField(kind);
+        if (!field) return;
+        const u = ensureUsage(deviceId);
+        u[field] = Math.max(0, (Number(u[field]) || 0) - 1);
+        flushSync();
+        return u;
     }
 
     /** Flag UTC day as Fast-halved after OpenAI→Grok fallback (does not increment). */
@@ -422,7 +441,7 @@ function createPlansStore(dataDir) {
         const u = ensureUsage(deviceId);
         if (!u.fastHalved) {
             u.fastHalved = true;
-            save();
+            flushSync();
         }
         return u;
     }
@@ -755,6 +774,7 @@ function createPlansStore(dataDir) {
         getPlanStatusUi,
         checkChatAllowed,
         recordUsage,
+        releaseUsage,
         markFastHalved,
         resolveUsageKind,
         createPaymentRequest,

@@ -259,6 +259,42 @@ function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
     return { ok: false };
 }
 
+/** Hidden chat-title call. Must not spend the user's Fast/Thinking/Expert quota. */
+function isAutoTitleRequest(body) {
+    const msgs = body && Array.isArray(body.messages) ? body.messages : null;
+    if (!msgs || msgs.length !== 1) return false;
+    const content = msgs[0] && msgs[0].content;
+    const text = typeof content === 'string' ? content : '';
+    return text.startsWith('Reply with ONLY two words.');
+}
+
+/**
+ * Reserve one unit immediately (blocks parallel over-cap), then keep it only
+ * when the handler marks the reply successful. Otherwise roll it back.
+ */
+function holdUsage(deviceId, kind) {
+    let held = false;
+    if (deviceId && kind) {
+        plansStore.recordUsage(deviceId, kind, { usedGrokFallback: false });
+        held = true;
+    }
+    return {
+        rollback() {
+            if (!held) return;
+            held = false;
+            try { plansStore.releaseUsage(deviceId, kind); } catch (e) {
+                console.error('releaseUsage failed:', e.message);
+            }
+        }
+    };
+}
+
+function sendFreshJson(res, body) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    return res.json(body);
+}
+
 // ==================== MATH CLEANER ====================
 // Soft clean: keep $ / $$ for KaTeX on the client; strip noisy wrappers only lightly.
 function softCleanLatex(text) {
@@ -503,22 +539,17 @@ function mapApiError(error, provider) {
 // ==================== MAIN CHAT ENDPOINT (non-streaming, compatibility) ====================
 app.post('/api/chat', async (req, res) => {
     let activeProvider = 'grok';
+    let usageHold = null;
+    let keepUsage = false;
     try {
         const { mode, webSearch } = req.body;
         const capGate = enforceChatCaps(req, res, { sse: false });
         if (!capGate.ok) return;
         const usageKind = capGate.kind;
         const deviceId = capGate.deviceId;
-        // Reserve quota before calling models (hard cap; refresh/parallel cannot bypass)
-        let usageReserved = false;
-        const reserveUsage = (usedGrokFallback = false) => {
-            if (usageReserved) return;
-            plansStore.recordUsage(deviceId, usageKind, {
-                usedGrokFallback: !!(usedGrokFallback && usageKind === 'fast')
-            });
-            usageReserved = true;
-        };
-        reserveUsage(false);
+        // Reserve before the model call so parallel sends cannot bypass the cap.
+        // Rolled back in finally unless the reply is a real success.
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind);
 
         activeProvider = resolveMode(mode).config.provider;
         let target;
@@ -592,12 +623,15 @@ app.post('/api/chat', async (req, res) => {
         if (result.usedGrokFallback && usageKind === 'fast') {
             plansStore.markFastHalved(deviceId);
         }
+        keepUsage = true;
         res.json({ reply, model: safeMode, provider: result.provider });
 
     } catch (error) {
         console.error('Chat API Error:', error.message || error, error.status || '', error.cause?.code || '');
         const status = error.status === 401 ? 401 : error.status === 429 ? 429 : 500;
         res.status(status).json({ reply: mapApiError(error, activeProvider), model: 'Error' });
+    } finally {
+        if (usageHold && !keepUsage) usageHold.rollback();
     }
 });
 
@@ -606,6 +640,8 @@ app.post('/api/chat/stream', async (req, res) => {
     const sendSse = (obj) => {
         try { res.write('data: ' + JSON.stringify(obj) + '\n\n'); } catch (e) {}
     };
+    let usageHold = null;
+    let keepUsage = false;
 
     try {
         const { mode, webSearch } = req.body;
@@ -614,13 +650,7 @@ app.post('/api/chat/stream', async (req, res) => {
         const usageKind = capGate.kind;
         const deviceId = capGate.deviceId;
         let usedGrokFallback = false;
-        let usageReserved = false;
-        const reserveUsage = () => {
-            if (usageReserved) return;
-            plansStore.recordUsage(deviceId, usageKind, { usedGrokFallback: false });
-            usageReserved = true;
-        };
-        reserveUsage();
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind);
 
         let target;
         try {
@@ -672,6 +702,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 reply = softCleanLatex(reply);
                 sendSse({ status: 'generating' });
                 sendSse({ text: reply });
+                if (String(reply).trim() && reply !== 'No response generated.') keepUsage = true;
                 sendSse({ done: true, model: safeMode, provider });
                 console.log(`Stream done (expert): ${String(reply).length} chars`);
                 return res.end();
@@ -797,8 +828,11 @@ app.post('/api/chat/stream', async (req, res) => {
                 const cleaned = softCleanLatex(full) || '';
                 if (!cleaned.trim()) {
                     sendSse({ error: mapApiError({ message: 'empty reply' }, provider) });
-                } else if (usedGrokFallback && usageKind === 'fast') {
-                    plansStore.markFastHalved(deviceId);
+                } else {
+                    if (usedGrokFallback && usageKind === 'fast') {
+                        plansStore.markFastHalved(deviceId);
+                    }
+                    keepUsage = true;
                 }
                 sendSse({ done: true, model: safeMode, provider, full: cleaned });
                 console.log(`Stream done: ${cleaned.length} chars | provider=${provider}`);
@@ -813,8 +847,11 @@ app.post('/api/chat/stream', async (req, res) => {
                     if (text) {
                         const cleanedAbort = softCleanLatex(text);
                         sendSse({ text: cleanedAbort });
-                        if (usedGrokFallback && usageKind === 'fast') {
-                            plansStore.markFastHalved(deviceId);
+                        if (String(cleanedAbort).trim()) {
+                            if (usedGrokFallback && usageKind === 'fast') {
+                                plansStore.markFastHalved(deviceId);
+                            }
+                            keepUsage = true;
                         }
                         sendSse({ done: true, model: safeMode, provider, full: cleanedAbort });
                         return res.end();
@@ -837,8 +874,11 @@ app.post('/api/chat/stream', async (req, res) => {
                     if (text) {
                         const cleanedRescue = softCleanLatex(text);
                         sendSse({ text: cleanedRescue });
-                        if (usedGrokFallback && usageKind === 'fast') {
-                            plansStore.markFastHalved(deviceId);
+                        if (String(cleanedRescue).trim()) {
+                            if (usedGrokFallback && usageKind === 'fast') {
+                                plansStore.markFastHalved(deviceId);
+                            }
+                            keepUsage = true;
                         }
                         sendSse({ done: true, model: safeMode, provider, full: cleanedRescue });
                         return res.end();
@@ -865,6 +905,8 @@ app.post('/api/chat/stream', async (req, res) => {
             sendSse({ done: true });
             res.end();
         } catch (e) {}
+    } finally {
+        if (usageHold && !keepUsage) usageHold.rollback();
     }
 });
 
@@ -1015,17 +1057,17 @@ app.delete('/api/chats/:id', (req, res) => {
 // ==================== PLANS / UPGRADE / ADMIN ====================
 app.get('/api/plan', (req, res) => {
     const deviceId = getClientId(req);
-    res.json(plansStore.getStatus(deviceId));
+    sendFreshJson(res, plansStore.getStatus(deviceId));
 });
 
 app.get('/api/plan-status', (req, res) => {
     const deviceId = getClientId(req);
-    res.json(plansStore.getPlanStatusUi(deviceId));
+    sendFreshJson(res, plansStore.getPlanStatusUi(deviceId));
 });
 
 app.get('/api/my-plan', (req, res) => {
     const deviceId = getClientId(req);
-    res.json(plansStore.getMyPlan(deviceId));
+    sendFreshJson(res, plansStore.getMyPlan(deviceId));
 });
 
 

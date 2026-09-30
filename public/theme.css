@@ -1,0 +1,111 @@
+/* Shared light/dark theme for plan, legal, and admin pages.
+   Chat stores the choice in localStorage key goldenspaceai2_theme
+   and toggles html.light — same contract here. */
+html { color-scheme: dark; }
+html.light { color-scheme: light; }
+
+html.light {
+  --gold: #B8860B;
+  --gold-light: #8a6a10;
+  --gold-dark: #8a6914;
+  --black: #f5f3eb;
+  --black-light: #ffffff;
+  --black-lighter: #ebe6d8;
+  --white: #1a1a1a;
+  --text: #1a1a1a;
+  --text-muted: #5c5648;
+  --muted: #5c5648;
+  --bg: #f5f3eb;
+  --panel: #ffffff;
+  --panel-elev: #fffdf8;
+  --border: #d4c9a8;
+  --input-border: #cbbf9a;
+  --gray: #666666;
+  --link: #8a6d12;
+  --code-bg: #f0ebe0;
+}
+
+html.light body {
+  background:
+    radial-gradient(1200px 520px at 50% -12%, rgba(184, 134, 11, 0.16), transparent 58%),
+    var(--bg) !important;
+  color: var(--text);
+}
+
+html.light .topnav,
+html.light header {
+  background: rgba(245, 243, 235, 0.94) !important;
+  border-bottom-color: var(--border);
+}
+
+html.light h1 { color: #1a1a1a; }
+html.light .hero h1 {
+  background: linear-gradient(135deg, #8a6a10, #B8860B, #6d5410);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+html.light p,
+html.light ul,
+html.light ol,
+html.light li,
+html.light .toc a,
+html.light .plan-card li,
+html.light .req-grid,
+html.light .lead {
+  color: #2c281f;
+}
+html.light strong { color: #1a1a1a; }
+html.light .err,
+html.light p.err { color: #b42318 !important; }
+html.light .hint,
+html.light .meta,
+html.light .note,
+html.light .tagline,
+html.light .sub { color: var(--muted); }
+
+html.light input,
+html.light textarea,
+html.light select {
+  background: #fffdf8 !important;
+  color: #1a1a1a !important;
+  border-color: #cbbf9a !important;
+}
+
+html.light .plan-card.featured {
+  background:
+    linear-gradient(180deg, rgba(184, 134, 11, 0.14), transparent 42%),
+    linear-gradient(180deg, #fff8e6, #ffffff) !important;
+}
+html.light .meta-item,
+html.light .req,
+html.light .card,
+html.light .plan-block,
+html.light .toc {
+  background: #fffdf8;
+}
+html.light .bar,
+html.light .status-pill.none { background: #e7e0d0 !important; }
+html.light .brand,
+html.light .topnav nav a.active,
+html.light header a { color: #8a6d12; }
+html.light table,
+html.light td,
+html.light th { color: #1a1a1a; }
+html.light th { color: #8a6d12; }
+
+.theme-toggle {
+  border: 1px solid var(--border, #333);
+  background: transparent;
+  color: var(--gold, #d4af37);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+}
+.theme-toggle:hover { background: rgba(212, 175, 55, 0.14); }
+html.light .theme-toggle { color: #8a6d12; border-color: #d4c9a8; }

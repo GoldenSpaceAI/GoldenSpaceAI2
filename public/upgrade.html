@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+(function(){try{var t=localStorage.getItem('goldenspaceai2_theme');if(t!=='light'&&t!=='dark'&&window.matchMedia)t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';if(t==='light')document.documentElement.classList.add('light');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f3eb':'#0a0a0a');}catch(e){}})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Upgrade — GoldenSpaceAI</title>
 <meta name="theme-color" content="#0a0a0a">
@@ -253,6 +256,8 @@
   }
   .footnote a { font-weight: 600; }
 </style>
+<link rel="stylesheet" href="/theme.css">
+<script src="/theme.js" defer></script>
 </head>
 <body>
 <header class="topnav">
@@ -261,6 +266,7 @@
     <span>GoldenSpaceAI</span>
   </a>
   <nav>
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">Light</button>
     <a href="/">Chat</a>
     <a class="active" href="/upgrade">Upgrade</a>
     <a href="/my-plan">My Plan</a>
@@ -315,7 +321,7 @@
       <label class="field" for="phone1">OMT Pay wallet number</label>
       <input type="tel" id="phone1" inputmode="numeric" autocomplete="tel" placeholder="e.g. 81xxxxxx">
       <label class="field" for="phone2">Confirm OMT Pay number</label>
-      <input type="tel" id="phone2" inputmode="numeric" autocomplete="tel" placeholder="Re-enter the same number">
+      <input type="password" id="phone2" inputmode="numeric" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Re-enter the same number" aria-label="Confirm OMT Pay number">
       <p class="hint">Must match exactly. Digits only; spaces are ignored.</p>
       <p class="err" id="phoneErr" hidden></p>
       <div class="actions">
@@ -389,15 +395,21 @@
   let selected = null;
   let clientId = null;
 
+  var ephemeralClientId = null;
+  function newClientId() {
+    var id = ('c_' + Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
+    return id || ('c_' + Date.now().toString(36));
+  }
   function ensureClientId() {
     try {
       clientId = localStorage.getItem('goldenspaceai2_client_id');
-      if (!clientId) {
-        clientId = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      if (!clientId || !/^[a-zA-Z0-9_-]{1,128}$/.test(clientId)) {
+        clientId = newClientId();
         localStorage.setItem('goldenspaceai2_client_id', clientId);
       }
     } catch (e) {
-      clientId = 'c_anon_' + Date.now();
+      if (!ephemeralClientId) ephemeralClientId = newClientId();
+      clientId = ephemeralClientId;
     }
     return clientId;
   }

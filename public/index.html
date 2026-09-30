@@ -7,9 +7,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="GoldenAI2">
-    <meta name="description" content="GoldenSpaceAI2 - AI Chat Assistant powered by Grok">
-    <title>GoldenSpaceAI2</title>
+    <meta name="apple-mobile-web-app-title" content="GoldenSpaceAI">
+    <meta name="description" content="GoldenSpaceAI - AI Chat Assistant powered by Grok">
+    <title>GoldenSpaceAI</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -888,7 +888,7 @@
     <div class="app-container">
         <div class="top-bar">
             <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>
-            <span class="top-bar-title" id="topBarTitle">GoldenSpaceAI2</span>
+            <span class="top-bar-title" id="topBarTitle">GoldenSpaceAI</span>
             <div class="top-bar-actions">
                 <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button>
                 <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Theme">Theme</button>
@@ -1336,7 +1336,7 @@
             if (currentChatId && chats[currentChatId] && chats[currentChatId].name && chats[currentChatId].name !== 'New Chat') {
                 el.textContent = chats[currentChatId].name;
             } else {
-                el.textContent = 'GoldenSpaceAI2';
+                el.textContent = 'GoldenSpaceAI';
             }
         }
 
@@ -1348,7 +1348,7 @@
             if(!currentChatId || !chats[currentChatId]) return;
             const messages = chats[currentChatId].messages || [];
             if (!messages.length) {
-                container.innerHTML = '<div class="empty-state"><div class="empty-title">GoldenSpaceAI2</div><div class="empty-hint">Ask anything. Attach images or .txt/.md files. Switch modes for reasoning or expert research.</div></div>';
+                container.innerHTML = '<div class="empty-state"><div class="empty-title">Welcome to GoldenSpaceAI</div><div class="empty-hint">Ask anything. Attach images or .txt/.md files, or choose a mode to get started.</div></div>';
                 return;
             }
             for (let i = 0; i < messages.length; i++) {

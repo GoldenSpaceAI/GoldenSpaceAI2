@@ -1,6 +1,6 @@
 {
-  "name": "GoldenSpaceAI2",
-  "short_name": "GoldenAI2",
+  "name": "GoldenSpaceAI",
+  "short_name": "GoldenSpaceAI",
   "description": "AI Chat Assistant by Faris - Powered by OpenAI",
   "start_url": "/",
   "display": "standalone",

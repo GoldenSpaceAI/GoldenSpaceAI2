@@ -930,7 +930,7 @@ app.get('/offline.html', (req, res) => {
 app.get('/health', (req, res) => {
     res.json({
         status: 'online',
-        app: 'GoldenSpaceAI2',
+        app: 'GoldenSpaceAI',
         providers: {
             fast: (FAST_PROVIDER_PREF === 'openai' ? ('OpenAI ' + OPENAI_FAST_MODEL + ' → Grok fallback') : ('Grok ' + GROK_FAST_MODEL + ' (OpenAI opt-in via FAST_PROVIDER=openai)')),
             thinking: 'Grok 4.3',
@@ -963,7 +963,7 @@ app.use((err, req, res, next) => {
 ensureDataDir();
 app.listen(PORT, () => {
     console.log('═══════════════════════════════');
-    console.log('🚀 GoldenSpaceAI2 Server');
+    console.log('🚀 GoldenSpaceAI Server');
     console.log(`📡 Port: ${PORT}`);
     console.log(`⚡ Fast: pref=${FAST_PROVIDER_PREF || 'grok-default'} | OpenAI ${OPENAI_FAST_MODEL} (${process.env.OPENAI_API_KEY ? 'key ✅' : 'key ❌'}) | Grok ${GROK_FAST_MODEL} (${process.env.GROK_API_KEY ? 'key ✅' : 'key ❌'})`);
     console.log(`🧠 Thinking/Expert: Grok (key ${process.env.GROK_API_KEY ? '✅' : '❌'})`);

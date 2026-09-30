@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#0a0a0a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="GoldenAI2">
-    <meta name="description" content="GoldenSpaceAI2 - AI Chat Assistant powered by Grok">
-    <title>GoldenSpaceAI2</title>
+    <meta name="apple-mobile-web-app-title" content="GoldenSpaceAI">
+    <meta name="description" content="GoldenSpaceAI - AI Chat Assistant powered by Grok">
+    <title>GoldenSpaceAI</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -299,11 +299,16 @@
         .empty-state {
             height: 100%;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 8px;
             color: #555;
             font-size: 16px;
+            text-align: center;
         }
+        .empty-state .empty-title { color: var(--gold); font-size: 20px; font-weight: 650; }
+        .empty-state .empty-hint { font-size: 13px; max-width: 280px; line-height: 1.4; }
 
         .image-preview {
             display: none;
@@ -573,7 +578,7 @@
     <div class="app-container">
         <div class="top-bar">
             <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>
-            <span class="top-bar-title">GoldenSpaceAI2</span>
+            <span class="top-bar-title">GoldenSpaceAI</span>
         </div>
 
         <div class="main-content">
@@ -845,7 +850,7 @@
             if(!currentChatId || !chats[currentChatId]) return;
             const messages = chats[currentChatId].messages || [];
             if (!messages.length) {
-                container.innerHTML = '<div class="empty-state">Ask anything</div>';
+                container.innerHTML = '<div class="empty-state"><div class="empty-title">Welcome to GoldenSpaceAI</div><div class="empty-hint">Ask anything to get started.</div></div>';
                 return;
             }
             for (let i = 0; i < messages.length; i++) {

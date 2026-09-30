@@ -282,13 +282,14 @@
         .msg-btn {
             background: none;
             border: none;
-            color: #777;
-            width: 32px;
-            height: 32px;
+            color: #888;
+            width: 34px;
+            height: 34px;
             border-radius: 8px;
-            font-size: 15px;
             cursor: pointer;
-            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .msg-btn:active { color: var(--gold); background: #1a1a1a; }
         .msg-btn.active-speaking { color: var(--gold); }
@@ -658,6 +659,12 @@
         let webSearchEnabled = false;
         let globalInstructions = '';
         let isSending = false;
+        const ICO = {
+            copy: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/></svg>',
+            share: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
+            speak: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 7a7 7 0 0 1 0 10"/></svg>',
+            stop: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>'
+        };
 
         const MODELS = {
             'normal': { label: 'Grok 4.3', apiMode: 'normal', badge: 'badge-normal', desc: 'Grok 4.3' },
@@ -1081,10 +1088,10 @@
                 }
                 inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>';
                 inner += '<div class="message-actions">' +
-                    '<button class="msg-btn" title="Copy" onclick="copyMessage(this)">[]</button>' +
-                    '<button class="msg-btn" title="Share" onclick="shareMessage(this)">&gt;</button>' +
-                    '<button class="msg-btn" title="Listen" onclick="speakMessage(this)">))</button>' +
-                    '<button class="msg-btn stop-btn" title="Stop" onclick="stopSpeaking()">x</button>' +
+                    '<button class="msg-btn" title="Copy" onclick="copyMessage(this)">' + ICO.copy + '</button>' +
+                    '<button class="msg-btn" title="Share" onclick="shareMessage(this)">' + ICO.share + '</button>' +
+                    '<button class="msg-btn" title="Listen" onclick="speakMessage(this)">' + ICO.speak + '</button>' +
+                    '<button class="msg-btn stop-btn" title="Stop" onclick="stopSpeaking()">' + ICO.stop + '</button>' +
                     '</div></div>';
                 div.innerHTML = inner;
             } else {
@@ -1136,8 +1143,9 @@
             const text = getBubbleText(btn);
             if (text) {
                 navigator.clipboard.writeText(text).then(function() {
-                    btn.textContent = 'ok';
-                    setTimeout(function() { btn.textContent = '[]'; }, 1200);
+                    btn.innerHTML = ICO.copy;
+                    btn.style.color = '#4ade80';
+                    setTimeout(function() { btn.style.color = ''; }, 1200);
                 });
             }
         }

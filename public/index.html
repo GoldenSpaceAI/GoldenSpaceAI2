@@ -494,16 +494,28 @@
         }
         .input-btn:active { color: var(--gold-light); transform: scale(0.9); }
         .input-btn.recording { color: var(--red); animation: pulse 1s infinite; }
-        .input-btn.install-btn {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-            padding: 0 6px;
-            white-space: nowrap;
-            max-width: 72px;
+        .chats-panel-footer {
+            flex-shrink: 0;
+            padding: 10px 12px calc(10px + var(--safe-bottom));
+            border-top: 1px solid var(--border);
+            background: var(--black-light);
         }
-        .input-btn.install-btn.installed,
-        .input-btn.install-btn[hidden] { display: none !important; }
+        .install-app-footer-btn {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--gold-dark);
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #0a0a0a;
+            font-weight: 800;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .install-app-footer-btn:active { transform: scale(0.98); opacity: 0.9; }
+        .install-app-footer-btn.installed,
+        .install-app-footer-btn[hidden] { display: none !important; }
+        .chats-panel { display: flex; flex-direction: column; }
+        .chats-list { flex: 1; min-height: 0; overflow-y: auto; }
         .input-btn.image-attached { color: var(--green); }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
@@ -683,6 +695,9 @@
                     <input class="chat-search" id="chatSearch" type="search" placeholder="Search chats..." oninput="renderChatsList()" aria-label="Search chats">
                 </div>
                 <div class="chats-list" id="chatsList"></div>
+                <div class="chats-panel-footer">
+                    <button type="button" class="install-app-footer-btn" id="installAppBtn" onclick="installApp()" aria-label="Install app">Install App</button>
+                </div>
             </div>
 
             <div class="chat-area">
@@ -726,7 +741,6 @@
                         </div>
 
                         <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice">Mic</button>
-                        <button class="input-btn install-btn" id="installAppBtn" onclick="installApp()" aria-label="Install app" title="Install app">Install</button>
                     </div>
                     
                     <textarea class="message-input" id="messageInput" placeholder="Ask anything" rows="1" onkeydown="handleKeyPress(event)" oninput="autoGrow(this)"></textarea>

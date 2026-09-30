@@ -1,3 +1,17 @@
+# GoldenSpaceAI2 — hotfix: Fast connection error
+
+## Root cause
+After PR #7, default **Fast** mode always called OpenAI. On Render those calls failed with the OpenAI SDK `Connection error.` (while Thinking/Grok still worked), so every Fast reply looked like a connection failure.
+
+## Fix
+- **Fast defaults back to Grok** `grok-4.3` so chat works without waiting on a broken OpenAI path
+- Opt in to OpenAI Fast with Render env `FAST_PROVIDER=openai` (still falls back to Grok on connection/auth failure)
+- Pin OpenAI `baseURL` to `https://api.openai.com/v1` (ignore stray `OPENAI_BASE_URL`)
+- Clearer mapping for SDK `Connection error.`; client keeps friendly server messages instead of remapping to a generic network error
+- Service worker cache `goldenspaceai2-v10`
+
+---
+
 # GoldenSpaceAI2 — improvement round
 
 ## Voice · errors · Fast(OpenAI) · context · image preview

@@ -76,8 +76,10 @@ try {
 let openaiClient = null;
 if (process.env.OPENAI_API_KEY) {
     try {
+        // Pin baseURL so a stray OPENAI_BASE_URL env cannot break Fast.
         openaiClient = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
+            apiKey: String(process.env.OPENAI_API_KEY).trim(),
+            baseURL: 'https://api.openai.com/v1',
             timeout: UPSTREAM_TIMEOUT_MS,
         });
     } catch (e) {
@@ -87,9 +89,13 @@ if (process.env.OPENAI_API_KEY) {
 
 const HISTORY_WINDOW = 40;
 const OPENAI_FAST_MODEL = process.env.OPENAI_FAST_MODEL || 'gpt-4o-mini';
+const GROK_FAST_MODEL = 'grok-4.3';
+// Fast defaults to Grok. Set FAST_PROVIDER=openai to try OpenAI first (Grok fallback on connection/auth failure).
+// Set FAST_PROVIDER=openai and we still fall back to Grok unless you also need hard-fail — fallback stays on for openai pref.
+const FAST_PROVIDER_PREF = String(process.env.FAST_PROVIDER || '').trim().toLowerCase();
 
 const MODELS = {
-    // Fast → OpenAI gpt-4o-mini (vision-capable). Thinking/expert stay on Grok.
+    // Fast prefers OpenAI gpt-4o-mini when reachable; otherwise Grok. Thinking/expert stay on Grok.
     normal: { model: OPENAI_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'openai' },
     fast: { model: OPENAI_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'openai' },
     smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3, provider: 'grok' },
@@ -98,7 +104,101 @@ const MODELS = {
 
 function resolveMode(mode) {
     const key = mode === 'fast' ? 'normal' : (mode || 'normal');
-    return { safeMode: key === 'fast' ? 'normal' : (MODELS[key] ? key : 'normal'), config: MODELS[key] || MODELS.normal };
+    const safeMode = MODELS[key] ? key : 'normal';
+    return { safeMode, config: MODELS[safeMode] };
+}
+
+function isOpenAIConnectionFailure(error) {
+    const raw = String(error?.message || error || '');
+    const cause = String(error?.cause?.code || error?.cause?.message || error?.cause || '');
+    const blob = raw + ' ' + cause;
+    if (error?.name === 'APIConnectionError') return true;
+    if (/Connection error|ECONNRESET|ENOTFOUND|ECONNREFUSED|EAI_AGAIN|fetch failed|network|socket/i.test(blob)) return true;
+    // OpenAI SDK connection errors often have no HTTP status
+    if (!error?.status && /connection|fetch failed|network/i.test(blob)) return true;
+    return false;
+}
+
+function shouldFallbackOpenAIToGrok(error) {
+    if (!process.env.GROK_API_KEY || !grok) return false;
+    if (isOpenAIConnectionFailure(error)) return true;
+    if (error?.status === 401 || error?.status === 403) return true;
+    if (error?.code === 'invalid_api_key' || error?.code === 'missing_openai_key') return true;
+    return false;
+}
+
+function resolveChatTarget(mode) {
+    const { safeMode, config } = resolveMode(mode);
+    if (config.provider !== 'openai') {
+        if (!process.env.GROK_API_KEY) {
+            const err = new Error('GROK_API_KEY missing');
+            err.code = 'missing_grok_key';
+            err.status = 401;
+            throw err;
+        }
+        return {
+            safeMode,
+            config,
+            client: grok,
+            provider: 'grok',
+            allowGrokFallback: false
+        };
+    }
+
+    // Fast path: default to Grok (reliable on Render). Opt in with FAST_PROVIDER=openai.
+    const useOpenAI = FAST_PROVIDER_PREF === 'openai' && !!openaiClient && !!process.env.OPENAI_API_KEY;
+    if (!useOpenAI) {
+        if (!process.env.GROK_API_KEY || !grok) {
+            if (!process.env.OPENAI_API_KEY || !openaiClient) {
+                const err = new Error('OPENAI_API_KEY missing');
+                err.code = 'missing_openai_key';
+                err.status = 401;
+                throw err;
+            }
+            // OpenAI only available
+            return {
+                safeMode,
+                config,
+                client: openaiClient,
+                provider: 'openai',
+                allowGrokFallback: false
+            };
+        }
+        const grokConfig = {
+            ...config,
+            model: GROK_FAST_MODEL,
+            provider: 'grok'
+        };
+        return {
+            safeMode,
+            config: grokConfig,
+            client: grok,
+            provider: 'grok',
+            allowGrokFallback: false
+        };
+    }
+
+    return {
+        safeMode,
+        config,
+        client: openaiClient,
+        provider: 'openai',
+        allowGrokFallback: !!process.env.GROK_API_KEY && !!grok
+    };
+}
+
+async function runWithProviderFallback(target, runFn) {
+    try {
+        return await runFn(target.client, target.config, target.provider);
+    } catch (err) {
+        if (target.provider === 'openai' && target.allowGrokFallback && shouldFallbackOpenAIToGrok(err)) {
+            const cause = err?.cause?.code || err?.cause?.message || '';
+            console.warn(`OpenAI Fast failed (${err.message}${cause ? '; ' + cause : ''}) — falling back to Grok ${GROK_FAST_MODEL}`);
+            const grokConfig = { ...target.config, model: GROK_FAST_MODEL, provider: 'grok' };
+            return await runFn(grok, grokConfig, 'grok');
+        }
+        throw err;
+    }
 }
 
 // ==================== MATH CLEANER ====================
@@ -307,12 +407,13 @@ function buildConversationMessages(body) {
 }
 
 function mapApiError(error, provider) {
-    const raw = String(error?.message || error || '');
-    const clean = raw.split('\n')[0].replace(/\s+at\s+.*/g, '').substring(0, 160);
+    const cause = String(error?.cause?.code || error?.cause?.message || '');
+    const raw = String(error?.message || error || '') + (cause ? ' ' + cause : '');
+    const clean = String(error?.message || error || '').split('\n')[0].replace(/\s+at\s+.*/g, '').substring(0, 160);
     const who = provider === 'openai' ? 'OpenAI' : 'Grok';
 
     if (error?.code === 'missing_openai_key') {
-        return '🔑 Fast mode needs OPENAI_API_KEY. Set it in Render environment variables, then redeploy.';
+        return '🔑 Fast mode needs OPENAI_API_KEY (or a working GROK_API_KEY fallback). Set it in Render environment variables, then redeploy.';
     }
     if (error?.code === 'missing_grok_key') {
         return '🔑 Grok API key not configured. Set GROK_API_KEY on Render.';
@@ -331,8 +432,8 @@ function mapApiError(error, provider) {
     if (error?.status === 504 || /timeout|timed out/i.test(raw)) {
         return '⏰ Request timed out. Tap Retry.';
     }
-    if (/ECONNRESET|ENOTFOUND|ECONNREFUSED|fetch failed|network/i.test(raw)) {
-        return '⚠️ Network error reaching ' + who + '. Check connectivity and try again.';
+    if (/Connection error|ECONNRESET|ENOTFOUND|ECONNREFUSED|EAI_AGAIN|fetch failed|network|socket/i.test(raw) || error?.name === 'APIConnectionError') {
+        return '⚠️ Could not reach ' + who + '. Tap Retry or switch mode.';
     }
     if (/empty reply|no response/i.test(raw)) {
         return '⚠️ The model returned an empty reply. Tap Retry or switch mode.';
@@ -341,100 +442,86 @@ function mapApiError(error, provider) {
     return '⚠️ Something went wrong. Please try again.';
 }
 
-function requireProviderKey(safeMode, config) {
-    if (config.provider === 'openai') {
-        if (!process.env.OPENAI_API_KEY || !openaiClient) {
-            const err = new Error('OPENAI_API_KEY missing');
-            err.code = 'missing_openai_key';
-            err.status = 401;
-            throw err;
-        }
-        return openaiClient;
-    }
-    if (!process.env.GROK_API_KEY) {
-        const err = new Error('GROK_API_KEY missing');
-        err.code = 'missing_grok_key';
-        err.status = 401;
-        throw err;
-    }
-    return grok;
-}
-
 // ==================== MAIN CHAT ENDPOINT (non-streaming, compatibility) ====================
 app.post('/api/chat', async (req, res) => {
+    let activeProvider = 'grok';
     try {
         const { mode, webSearch } = req.body;
-        const { safeMode, config } = resolveMode(mode);
-        let client;
+        activeProvider = resolveMode(mode).config.provider;
+        let target;
         try {
-            client = requireProviderKey(safeMode, config);
+            target = resolveChatTarget(mode);
         } catch (keyErr) {
             return res.status(401).json({
-                reply: mapApiError(keyErr, config.provider),
+                reply: mapApiError(keyErr, activeProvider),
                 model: 'Error'
             });
         }
 
+        activeProvider = target.provider;
+        const { safeMode } = target;
         const conversationMessages = buildConversationMessages(req.body);
         const useWebSearch = webSearch === true;
 
-        console.log(`Mode: ${safeMode} | Provider: ${config.provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
+        console.log(`Mode: ${safeMode} | Provider: ${target.provider} | Model: ${target.config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
 
-        let reply;
+        const result = await runWithProviderFallback(target, async (client, config, provider) => {
+            activeProvider = provider;
+            let reply;
+            if (safeMode === 'expert') {
+                const responseData = await withTimeout(
+                    callResponsesAPI(conversationMessages, config, useWebSearch),
+                    UPSTREAM_TIMEOUT_MS,
+                    'Expert request'
+                );
+                reply = responseData.output_text ||
+                    responseData.output?.find(o => o.type === 'message')?.content?.[0]?.text ||
+                    'No response generated.';
+            } else if (safeMode === 'smart') {
+                const completion = await withTimeout(
+                    client.chat.completions.create({
+                        model: config.model,
+                        messages: conversationMessages,
+                        max_tokens: config.maxTokens,
+                        temperature: config.temperature,
+                        reasoning_effort: 'high',
+                    }),
+                    UPSTREAM_TIMEOUT_MS,
+                    'Smart request'
+                );
+                reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
+            } else {
+                // Fast (normal): OpenAI when available, else Grok — multimodal content parts supported
+                const completion = await withTimeout(
+                    client.chat.completions.create({
+                        model: config.model,
+                        messages: conversationMessages,
+                        max_tokens: config.maxTokens,
+                        temperature: config.temperature,
+                    }),
+                    UPSTREAM_TIMEOUT_MS,
+                    'Fast request'
+                );
+                reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
+            }
+            return { reply, provider, modelName: config.model };
+        });
 
-        if (safeMode === 'expert') {
-            const responseData = await withTimeout(
-                callResponsesAPI(conversationMessages, config, useWebSearch),
-                UPSTREAM_TIMEOUT_MS,
-                'Expert request'
-            );
-            reply = responseData.output_text ||
-                responseData.output?.find(o => o.type === 'message')?.content?.[0]?.text ||
-                'No response generated.';
-        } else if (safeMode === 'smart') {
-            const completion = await withTimeout(
-                client.chat.completions.create({
-                    model: config.model,
-                    messages: conversationMessages,
-                    max_tokens: config.maxTokens,
-                    temperature: config.temperature,
-                    reasoning_effort: 'high',
-                }),
-                UPSTREAM_TIMEOUT_MS,
-                'Smart request'
-            );
-            reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
-        } else {
-            // Fast (normal): OpenAI gpt-4o-mini with multimodal content parts
-            const completion = await withTimeout(
-                client.chat.completions.create({
-                    model: config.model,
-                    messages: conversationMessages,
-                    max_tokens: config.maxTokens,
-                    temperature: config.temperature,
-                }),
-                UPSTREAM_TIMEOUT_MS,
-                'Fast request'
-            );
-            reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
-        }
-
-        reply = softCleanLatex(reply);
+        let reply = softCleanLatex(result.reply);
         if (!String(reply).trim()) {
             return res.status(502).json({
-                reply: mapApiError({ message: 'empty reply' }, config.provider),
+                reply: mapApiError({ message: 'empty reply' }, result.provider),
                 model: 'Error'
             });
         }
 
-        console.log(`Response: ${String(reply).length} chars`);
-        res.json({ reply, model: safeMode, provider: config.provider });
+        console.log(`Response: ${String(reply).length} chars | provider=${result.provider}`);
+        res.json({ reply, model: safeMode, provider: result.provider });
 
     } catch (error) {
-        const modeInfo = resolveMode(req.body?.mode);
-        console.error('Chat API Error:', error.message || error, error.status || '');
+        console.error('Chat API Error:', error.message || error, error.status || '', error.cause?.code || '');
         const status = error.status === 401 ? 401 : error.status === 429 ? 429 : 500;
-        res.status(status).json({ reply: mapApiError(error, modeInfo.config.provider), model: 'Error' });
+        res.status(status).json({ reply: mapApiError(error, activeProvider), model: 'Error' });
     }
 });
 
@@ -446,23 +533,24 @@ app.post('/api/chat/stream', async (req, res) => {
 
     try {
         const { mode, webSearch } = req.body;
-        const { safeMode, config } = resolveMode(mode);
-        let client;
+        let target;
         try {
-            client = requireProviderKey(safeMode, config);
+            target = resolveChatTarget(mode);
         } catch (keyErr) {
+            const modeInfo = resolveMode(mode);
             res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
             res.setHeader('Cache-Control', 'no-cache, no-transform');
             res.setHeader('Connection', 'keep-alive');
-            sendSse({ error: mapApiError(keyErr, config.provider) });
+            sendSse({ error: mapApiError(keyErr, modeInfo.config.provider) });
             sendSse({ done: true });
             return res.end();
         }
 
+        let { safeMode, config, client, provider, allowGrokFallback } = target;
         const conversationMessages = buildConversationMessages(req.body);
         const useWebSearch = webSearch === true;
 
-        console.log(`Stream: ${safeMode} | Provider: ${config.provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
+        console.log(`Stream: ${safeMode} | Provider: ${provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
 
         res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -483,11 +571,11 @@ app.post('/api/chat/stream', async (req, res) => {
                     'No response generated.';
                 reply = softCleanLatex(reply);
                 sendSse({ text: reply });
-                sendSse({ done: true, model: safeMode });
+                sendSse({ done: true, model: safeMode, provider });
                 console.log(`Stream done (expert): ${String(reply).length} chars`);
                 return res.end();
             } catch (err) {
-                sendSse({ error: mapApiError(err, config.provider) });
+                sendSse({ error: mapApiError(err, provider) });
                 sendSse({ done: true });
                 return res.end();
             }
@@ -504,17 +592,51 @@ app.post('/api/chat/stream', async (req, res) => {
             }
         });
 
-        try {
+        async function openStream(activeClient, activeConfig) {
             const createArgs = {
-                model: config.model,
+                model: activeConfig.model,
                 messages: conversationMessages,
-                max_tokens: config.maxTokens,
-                temperature: config.temperature,
+                max_tokens: activeConfig.maxTokens,
+                temperature: activeConfig.temperature,
                 stream: true,
             };
             if (safeMode === 'smart') createArgs.reasoning_effort = 'high';
+            return activeClient.chat.completions.create(createArgs, { signal: abortCtrl.signal });
+        }
 
-            const stream = await client.chat.completions.create(createArgs, { signal: abortCtrl.signal });
+        async function nonStreamCompletion(activeClient, activeConfig, label) {
+            const fallbackArgs = {
+                model: activeConfig.model,
+                messages: conversationMessages,
+                max_tokens: activeConfig.maxTokens,
+                temperature: activeConfig.temperature,
+            };
+            if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
+            const completion = await withTimeout(
+                activeClient.chat.completions.create(fallbackArgs),
+                UPSTREAM_TIMEOUT_MS,
+                label
+            );
+            return completion?.choices?.[0]?.message?.content || '';
+        }
+
+        try {
+            let stream;
+            try {
+                stream = await openStream(client, config);
+            } catch (openErr) {
+                if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(openErr)) {
+                    const cause = openErr?.cause?.code || openErr?.cause?.message || '';
+                    console.warn(`OpenAI Fast stream failed (${openErr.message}${cause ? '; ' + cause : ''}) — falling back to Grok ${GROK_FAST_MODEL}`);
+                    provider = 'grok';
+                    config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
+                    client = grok;
+                    allowGrokFallback = false;
+                    stream = await openStream(client, config);
+                } else {
+                    throw openErr;
+                }
+            }
 
             let full = '';
             for await (const chunk of stream) {
@@ -535,34 +657,31 @@ app.post('/api/chat/stream', async (req, res) => {
             if (!clientClosed && !full.trim()) {
                 console.warn('Stream empty — falling back to non-stream completion');
                 try {
-                    const fallbackArgs = {
-                        model: config.model,
-                        messages: conversationMessages,
-                        max_tokens: config.maxTokens,
-                        temperature: config.temperature,
-                    };
-                    if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
-                    const completion = await withTimeout(
-                        client.chat.completions.create(fallbackArgs),
-                        UPSTREAM_TIMEOUT_MS,
-                        'Stream fallback'
-                    );
-                    full = completion?.choices?.[0]?.message?.content || '';
+                    full = await nonStreamCompletion(client, config, 'Stream fallback');
                     if (full) sendSse({ text: full });
                 } catch (fbErr) {
-                    sendSse({ error: mapApiError(fbErr, config.provider) });
-                    sendSse({ done: true });
-                    return res.end();
+                    if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(fbErr)) {
+                        console.warn('OpenAI empty-stream fallback failed — trying Grok');
+                        provider = 'grok';
+                        config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
+                        client = grok;
+                        full = await nonStreamCompletion(client, config, 'Stream Grok fallback');
+                        if (full) sendSse({ text: full });
+                    } else {
+                        sendSse({ error: mapApiError(fbErr, provider) });
+                        sendSse({ done: true });
+                        return res.end();
+                    }
                 }
             }
 
             if (!clientClosed) {
                 const cleaned = softCleanLatex(full) || '';
                 if (!cleaned.trim()) {
-                    sendSse({ error: mapApiError({ message: 'empty reply' }, config.provider) });
+                    sendSse({ error: mapApiError({ message: 'empty reply' }, provider) });
                 }
-                sendSse({ done: true, model: safeMode, full: cleaned });
-                console.log(`Stream done: ${cleaned.length} chars`);
+                sendSse({ done: true, model: safeMode, provider, full: cleaned });
+                console.log(`Stream done: ${cleaned.length} chars | provider=${provider}`);
             }
             return res.end();
         } catch (err) {
@@ -570,30 +689,44 @@ app.post('/api/chat/stream', async (req, res) => {
             if (clientClosed || err?.name === 'AbortError') {
                 // Last-chance non-stream if abort looked spurious and we got nothing yet
                 try {
-                    const fallbackArgs = {
-                        model: config.model,
-                        messages: conversationMessages,
-                        max_tokens: config.maxTokens,
-                        temperature: config.temperature,
-                    };
-                    if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
-                    const completion = await client.chat.completions.create(fallbackArgs);
-                    const text = completion?.choices?.[0]?.message?.content || '';
+                    const text = await nonStreamCompletion(client, config, 'Abort recovery');
                     if (text) {
                         sendSse({ text: softCleanLatex(text) });
-                        sendSse({ done: true, model: safeMode, full: softCleanLatex(text) });
+                        sendSse({ done: true, model: safeMode, provider, full: softCleanLatex(text) });
                         return res.end();
                     }
                 } catch (e) {}
                 try { sendSse({ done: true, aborted: true }); } catch (e) {}
                 return res.end();
             }
-            sendSse({ error: mapApiError(err, config.provider) });
+
+            // Final OpenAI → Grok rescue for Fast
+            if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(err)) {
+                try {
+                    const cause = err?.cause?.code || err?.cause?.message || '';
+                    console.warn(`OpenAI Fast failed mid-stream (${err.message}${cause ? '; ' + cause : ''}) — non-stream Grok fallback`);
+                    provider = 'grok';
+                    config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
+                    client = grok;
+                    const text = await nonStreamCompletion(client, config, 'Grok rescue');
+                    if (text) {
+                        sendSse({ text: softCleanLatex(text) });
+                        sendSse({ done: true, model: safeMode, provider, full: softCleanLatex(text) });
+                        return res.end();
+                    }
+                } catch (rescueErr) {
+                    sendSse({ error: mapApiError(rescueErr, 'grok') });
+                    sendSse({ done: true });
+                    return res.end();
+                }
+            }
+
+            sendSse({ error: mapApiError(err, provider) });
             sendSse({ done: true });
             return res.end();
         }
     } catch (error) {
-        console.error('Stream Error:', error.message || error);
+        console.error('Stream Error:', error.message || error, error.cause?.code || '');
         const modeInfo = resolveMode(req.body?.mode);
         if (!res.headersSent) {
             return res.status(500).json({ reply: mapApiError(error, modeInfo.config.provider), model: 'Error' });
@@ -772,7 +905,7 @@ app.get('/health', (req, res) => {
         status: 'online',
         app: 'GoldenSpaceAI2',
         providers: {
-            fast: 'OpenAI ' + OPENAI_FAST_MODEL,
+            fast: (FAST_PROVIDER_PREF === 'openai' ? ('OpenAI ' + OPENAI_FAST_MODEL + ' → Grok fallback') : ('Grok ' + GROK_FAST_MODEL + ' (OpenAI opt-in via FAST_PROVIDER=openai)')),
             thinking: 'Grok 4.3',
             expert: 'Grok multi-agent'
         },
@@ -781,6 +914,7 @@ app.get('/health', (req, res) => {
         persistence: true,
         historyWindow: HISTORY_WINDOW,
         pwaReady: true,
+        fastProviderPref: FAST_PROVIDER_PREF || 'auto',
         grokKeyConfigured: !!process.env.GROK_API_KEY,
         openaiKeyConfigured: !!process.env.OPENAI_API_KEY
     });
@@ -804,7 +938,7 @@ app.listen(PORT, () => {
     console.log('═══════════════════════════════');
     console.log('🚀 GoldenSpaceAI2 Server');
     console.log(`📡 Port: ${PORT}`);
-    console.log(`⚡ Fast: OpenAI ${OPENAI_FAST_MODEL} (${process.env.OPENAI_API_KEY ? 'key ✅' : 'key ❌'})`);
+    console.log(`⚡ Fast: pref=${FAST_PROVIDER_PREF || 'grok-default'} | OpenAI ${OPENAI_FAST_MODEL} (${process.env.OPENAI_API_KEY ? 'key ✅' : 'key ❌'}) | Grok ${GROK_FAST_MODEL} (${process.env.GROK_API_KEY ? 'key ✅' : 'key ❌'})`);
     console.log(`🧠 Thinking/Expert: Grok (key ${process.env.GROK_API_KEY ? '✅' : '❌'})`);
     console.log(`📜 History window: ${HISTORY_WINDOW} messages`);
     console.log(`📐 Math Cleaner: ✅`);

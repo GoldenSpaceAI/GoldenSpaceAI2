@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Upgrade — GoldenSpaceAI</title>
+<link rel="icon" href="/logo.png">
+<style>
+  :root { --gold:#d4af37; --gold-dark:#b8962e; --bg:#0a0a0a; --panel:#141414; --text:#eee; --muted:#999; --border:#333; --ok:#3d9; --warn:#e8a838; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.45; }
+  header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  header a { color:var(--gold); text-decoration:none; font-weight:600; }
+  main { max-width:720px; margin:0 auto; padding:24px 20px 80px; }
+  h1 { color:var(--gold); font-size:1.5rem; margin:0 0 6px; }
+  .sub { color:var(--muted); margin-bottom:20px; font-size:14px; }
+  .step { display:none; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:18px; }
+  .step.active { display:block; }
+  .plans { display:grid; gap:12px; }
+  @media (min-width:640px) { .plans { grid-template-columns: repeat(3, 1fr); } }
+  .plan {
+    border:1px solid var(--border); border-radius:12px; padding:14px; cursor:pointer; background:#0f0f0f;
+    text-align:left; color:inherit; width:100%;
+  }
+  .plan:hover { border-color:var(--gold-dark); }
+  .plan.selected { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold); }
+  .plan h3 { margin:0 0 4px; color:var(--gold); }
+  .plan .price { font-size:1.35rem; font-weight:800; margin:6px 0; }
+  .plan ul { margin:8px 0 0; padding-left:1.1rem; font-size:13px; color:#ccc; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 6px; }
+  input[type=text], input[type=tel] {
+    width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border);
+    background:#0a0a0a; color:var(--text); font-size:16px;
+  }
+  .check { display:flex; gap:10px; align-items:flex-start; margin:14px 0; font-size:14px; color:#ddd; }
+  .check input { margin-top:3px; }
+  .check a { color:var(--gold); }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  button.btn {
+    border:none; border-radius:10px; padding:12px 16px; font-weight:700; cursor:pointer; font-size:14px;
+  }
+  button.btn.primary { background:linear-gradient(135deg,var(--gold),var(--gold-dark)); color:#0a0a0a; }
+  button.btn.ghost { background:transparent; color:var(--gold); border:1px solid var(--border); }
+  button.btn:disabled { opacity:0.45; cursor:not-allowed; }
+  .pay-box {
+    margin-top:12px; padding:14px; border-radius:12px; border:1px dashed var(--gold-dark); background:#12100a;
+  }
+  .pay-box strong.amt { font-size:1.4rem; color:var(--gold); }
+  .status {
+    margin-top:14px; padding:12px 14px; border-radius:10px; background:#0f1a12; border:1px solid #2a5;
+    color:var(--ok); font-weight:600;
+  }
+  .err { color:#f88; font-size:14px; margin-top:10px; }
+  .hint { font-size:13px; color:var(--muted); margin-top:8px; }
+  .nav { display:flex; gap:14px; flex-wrap:wrap; font-size:14px; }
+  .pill { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); margin-bottom:10px; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">← Chat</a>
+  <nav class="nav">
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/refund">Refund</a>
+  </nav>
+</header>
+<main>
+  <h1>Upgrade your plan</h1>
+  <p class="sub" id="currentPlan">Loading your plan…</p>
+
+  <section class="step active" id="step1">
+    <span class="pill">Step 1 of 4</span>
+    <h2 style="margin-top:0;color:var(--gold);font-size:1.1rem;">Choose a plan</h2>
+    <div class="plans" id="plans"></div>
+    <div class="actions">
+      <button class="btn primary" id="toStep2" disabled>Continue</button>
+    </div>
+  </section>
+
+  <section class="step" id="step2">
+    <span class="pill">Step 2 of 4</span>
+    <h2 style="margin-top:0;color:var(--gold);font-size:1.1rem;">Accept policies</h2>
+    <label class="check">
+      <input type="checkbox" id="acceptPolicies">
+      <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>, <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and <a href="/refund" target="_blank" rel="noopener">Refund Policy</a>. I will send the <strong>exact</strong> plan amount from my OMT Pay number to <strong>81056987</strong>. Wrong amounts are refunded minus fees. My plan starts 1–2 working days after confirmation. Plans do not auto-renew.</span>
+    </label>
+    <div class="actions">
+      <button class="btn ghost" type="button" onclick="showStep(1)">Back</button>
+      <button class="btn primary" id="toStep3" disabled>Continue</button>
+    </div>
+  </section>
+
+  <section class="step" id="step3">
+    <span class="pill">Step 3 of 4</span>
+    <h2 style="margin-top:0;color:var(--gold);font-size:1.1rem;">Your OMT Pay number</h2>
+    <label for="phone1">OMT Pay wallet number</label>
+    <input type="tel" id="phone1" inputmode="numeric" autocomplete="tel" placeholder="e.g. 81xxxxxx">
+    <label for="phone2">Confirm OMT Pay number</label>
+    <input type="tel" id="phone2" inputmode="numeric" autocomplete="tel" placeholder="Re-enter the same number">
+    <p class="hint">Must match. Payment must be sent from this same number.</p>
+    <p class="err" id="phoneErr" hidden></p>
+    <div class="actions">
+      <button class="btn ghost" type="button" onclick="showStep(2)">Back</button>
+      <button class="btn primary" id="toStep4">Continue</button>
+    </div>
+  </section>
+
+  <section class="step" id="step4">
+    <span class="pill">Step 4 of 4</span>
+    <h2 style="margin-top:0;color:var(--gold);font-size:1.1rem;">Send payment</h2>
+    <div class="pay-box">
+      <div>Send <strong class="amt" id="payAmount">$0</strong> wallet-to-wallet via <strong>OMT Pay</strong></div>
+      <div style="margin-top:8px;">To: <strong id="dest">81056987</strong></div>
+      <div style="margin-top:8px;">From: <strong id="fromPhone">—</strong></div>
+      <p class="hint">Send the <strong>exact</strong> amount only. No screenshots required. After you transfer, tap “Amount sent”.</p>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" type="button" onclick="showStep(3)">Back</button>
+      <button class="btn primary" id="amountSent">Amount sent</button>
+    </div>
+    <p class="err" id="submitErr" hidden></p>
+    <div class="status" id="waitingStatus" hidden>Status: <strong>Waiting</strong> — we will confirm within 1–2 working days. You can close this page and keep chatting on Free until then.</div>
+  </section>
+</main>
+<script>
+(function() {
+  const PLANS = [
+    { id:'plus', label:'Plus', price:5, bullets:['Fast 120/day','Thinking 40/mo','Expert 4: 15/mo','No Expert 16'] },
+    { id:'pro', label:'Pro', price:10, bullets:['Fast 200/day','Thinking 80/mo','Expert 4: 40/mo','Expert 16: 8/mo'] },
+    { id:'max', label:'Max', price:15, bullets:['Fast 300/day','Thinking 120/mo','Expert 4: 60/mo','Expert 16: 15/mo'] }
+  ];
+  let selected = null;
+  let clientId = null;
+
+  function ensureClientId() {
+    try {
+      clientId = localStorage.getItem('goldenspaceai2_client_id');
+      if (!clientId) {
+        clientId = 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('goldenspaceai2_client_id', clientId);
+      }
+    } catch (e) {
+      clientId = 'c_anon_' + Date.now();
+    }
+    return clientId;
+  }
+
+  function showStep(n) {
+    for (let i = 1; i <= 4; i++) {
+      document.getElementById('step' + i).classList.toggle('active', i === n);
+    }
+  }
+  window.showStep = showStep;
+
+  function renderPlans() {
+    const root = document.getElementById('plans');
+    root.innerHTML = PLANS.map(p => {
+      const lis = p.bullets.map(b => '<li>' + b + '</li>').join('');
+      return '<button type="button" class="plan" data-id="' + p.id + '"><h3>' + p.label + '</h3><div class="price">$' + p.price + '<span style="font-size:12px;font-weight:500;color:#999"> / 30 days</span></div><ul>' + lis + '</ul></button>';
+    }).join('');
+    root.querySelectorAll('.plan').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan').forEach(b => b.classList.toggle('selected', b === btn));
+        document.getElementById('toStep2').disabled = !selected;
+      });
+    });
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  async function loadStatus() {
+    try {
+      const res = await fetch('/api/plan', { headers: { 'X-Client-Id': ensureClientId() } });
+      const data = await res.json();
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      document.getElementById('currentPlan').textContent = data.label
+        ? ('Current plan: ' + data.label + (end ? (' · until ' + end) : '') + ' · Daily Fast resets UTC midnight')
+        : 'Current plan: Free';
+    } catch (e) {
+      document.getElementById('currentPlan').textContent = 'Current plan: Free · Daily Fast resets UTC midnight';
+    }
+  }
+
+  ensureClientId();
+  renderPlans();
+  loadStatus();
+})();
+</script>
+</body>
+</html>

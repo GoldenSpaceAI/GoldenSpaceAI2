@@ -640,6 +640,9 @@
             padding: 10px 12px calc(10px + var(--safe-bottom));
             border-top: 1px solid var(--border);
             background: var(--black-light);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
         .install-app-footer-btn {
             width: 100%;
@@ -655,7 +658,33 @@
         .install-app-footer-btn:active { transform: scale(0.98); opacity: 0.9; }
         .install-app-footer-btn.installed,
         .install-app-footer-btn[hidden] { display: none !important; }
-        .chats-panel-footer:has(#installAppBtn[hidden]) { display: none; }
+        .footer-legal {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            justify-content: center;
+            font-size: 11px;
+        }
+        .footer-legal a {
+            color: #9a9a9a;
+            text-decoration: none;
+        }
+        .footer-legal a:hover { color: var(--gold); }
+        .footer-legal a.upgrade-link {
+            color: var(--gold);
+            font-weight: 700;
+        }
+        .msg-error-banner a.upgrade-cta {
+            display: inline-block;
+            margin-top: 8px;
+            color: var(--black);
+            background: var(--gold);
+            padding: 6px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 13px;
+        }
         .chats-panel { display: flex; flex-direction: column; }
         .chats-list { flex: 1; min-height: 0; overflow-y: auto; }
         .input-btn.image-attached { color: var(--green); }
@@ -917,6 +946,12 @@
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
                     <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
+                    <nav class="footer-legal" aria-label="Legal and upgrade">
+                        <a class="upgrade-link" href="/upgrade">Upgrade</a>
+                        <a href="/terms">Terms</a>
+                        <a href="/privacy">Privacy</a>
+                        <a href="/refund">Refund</a>
+                    </nav>
                 </div>
             </div>
 
@@ -1878,6 +1913,10 @@
         function friendlyError(err) {
             const msg = String((err && err.message) || err || '');
             const first = msg.split('\n')[0].replace(/\s+at\s+.*/g, '').trim();
+            // Plan / usage hard-stops from server — show verbatim
+            if (/Limit reached|not included on|Upgrade your plan|upgrade your plan/i.test(first)) {
+                return first.length > 280 ? first.slice(0, 280) + '…' : first;
+            }
             // Prefer already-friendly server messages (emoji-prefixed) before generic network remap
             if (/^[⚠️🔑⏳💰⏰🔧]/.test(first)) {
                 return first.length > 220 ? first.slice(0, 220) + '…' : first;
@@ -1994,7 +2033,10 @@
                     inner += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
                 }
                 if (msg.isError) {
-                    inner += '<div class="msg-error-banner ai-content" data-text="' + escapeAttr(rawText) + '">' + escapeHtml(rawText) + '</div>';
+                    const needsUpgrade = /Limit reached|not included on|Upgrade your plan|upgrade your plan/i.test(rawText);
+                    inner += '<div class="msg-error-banner ai-content" data-text="' + escapeAttr(rawText) + '">' + escapeHtml(rawText) +
+                        (needsUpgrade ? '<br><a class="upgrade-cta" href="/upgrade">Upgrade plan</a>' : '') +
+                        '</div>';
                     inner += '<div class="message-actions">' +
                         '<button class="msg-btn retry-btn wide regen-btn" title="Retry" onclick="retryLastFailed()">' + ICO.regen + ' Retry</button>' +
                         '</div></div>';

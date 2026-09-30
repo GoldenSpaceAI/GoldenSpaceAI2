@@ -4,12 +4,20 @@ const OpenAI = require('openai');
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
+const {
+    createPlansStore,
+    adminTokenFromPasskey,
+    isAdminAuthed,
+    OMT_DESTINATION
+} = require('./plans');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS) || 60000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const CHATS_FILE = path.join(DATA_DIR, 'chats.json');
+const plansStore = createPlansStore(DATA_DIR);
+const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || '';
 
 // ==================== CORS ====================
 const corsOriginEnv = process.env.CORS_ORIGIN;
@@ -189,16 +197,66 @@ function resolveChatTarget(mode) {
 
 async function runWithProviderFallback(target, runFn) {
     try {
-        return await runFn(target.client, target.config, target.provider);
+        const result = await runFn(target.client, target.config, target.provider);
+        if (result && typeof result === 'object' && result.usedGrokFallback === undefined) {
+            result.usedGrokFallback = false;
+        }
+        return result;
     } catch (err) {
         if (target.provider === 'openai' && target.allowGrokFallback && shouldFallbackOpenAIToGrok(err)) {
             const cause = err?.cause?.code || err?.cause?.message || '';
             console.warn(`OpenAI Fast failed (${err.message}${cause ? '; ' + cause : ''}) — falling back to Grok ${GROK_FAST_MODEL}`);
             const grokConfig = { ...target.config, model: GROK_FAST_MODEL, provider: 'grok' };
-            return await runFn(grok, grokConfig, 'grok');
+            const result = await runFn(grok, grokConfig, 'grok');
+            if (result && typeof result === 'object') result.usedGrokFallback = true;
+            return result;
         }
         throw err;
     }
+}
+
+function sendPlanLimitJson(res, limitError) {
+    const status = limitError.status || 429;
+    return res.status(status).json({
+        error: limitError.code || 'limit_reached',
+        code: limitError.code || 'limit_reached',
+        reply: limitError.reply,
+        upgradeUrl: limitError.upgradeUrl || '/upgrade',
+        limit: limitError.limit || null,
+        model: 'Error'
+    });
+}
+
+function sendPlanLimitSse(res, sendSse, limitError) {
+    if (!res.headersSent) {
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
+        res.setHeader('Connection', 'keep-alive');
+    }
+    sendSse({
+        error: limitError.reply,
+        code: limitError.code || 'limit_reached',
+        upgradeUrl: limitError.upgradeUrl || '/upgrade',
+        limit: limitError.limit || null
+    });
+    sendSse({ done: true });
+    return res.end();
+}
+
+function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
+    const deviceId = getClientId(req);
+    const mode = req.body?.mode;
+    const agents = req.body?.agents;
+    const check = plansStore.checkChatAllowed(deviceId, mode, agents);
+    if (check.ok) {
+        return { ok: true, deviceId, kind: check.kind, plan: check.plan };
+    }
+    if (sse) {
+        sendPlanLimitSse(res, sendSse, check.error);
+        return { ok: false };
+    }
+    sendPlanLimitJson(res, check.error);
+    return { ok: false };
 }
 
 // ==================== MATH CLEANER ====================
@@ -447,6 +505,21 @@ app.post('/api/chat', async (req, res) => {
     let activeProvider = 'grok';
     try {
         const { mode, webSearch } = req.body;
+        const capGate = enforceChatCaps(req, res, { sse: false });
+        if (!capGate.ok) return;
+        const usageKind = capGate.kind;
+        const deviceId = capGate.deviceId;
+        // Reserve quota before calling models (hard cap; refresh/parallel cannot bypass)
+        let usageReserved = false;
+        const reserveUsage = (usedGrokFallback = false) => {
+            if (usageReserved) return;
+            plansStore.recordUsage(deviceId, usageKind, {
+                usedGrokFallback: !!(usedGrokFallback && usageKind === 'fast')
+            });
+            usageReserved = true;
+        };
+        reserveUsage(false);
+
         activeProvider = resolveMode(mode).config.provider;
         let target;
         try {
@@ -463,7 +536,7 @@ app.post('/api/chat', async (req, res) => {
         const conversationMessages = buildConversationMessages(req.body);
         const useWebSearch = webSearch === true;
 
-        console.log(`Mode: ${safeMode} | Provider: ${target.provider} | Model: ${target.config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
+        console.log(`Mode: ${safeMode} | Provider: ${target.provider} | Model: ${target.config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length} | planKind=${usageKind}`);
 
         const result = await runWithProviderFallback(target, async (client, config, provider) => {
             activeProvider = provider;
@@ -516,6 +589,9 @@ app.post('/api/chat', async (req, res) => {
         }
 
         console.log(`Response: ${String(reply).length} chars | provider=${result.provider}`);
+        if (result.usedGrokFallback && usageKind === 'fast') {
+            plansStore.markFastHalved(deviceId);
+        }
         res.json({ reply, model: safeMode, provider: result.provider });
 
     } catch (error) {
@@ -533,6 +609,19 @@ app.post('/api/chat/stream', async (req, res) => {
 
     try {
         const { mode, webSearch } = req.body;
+        const capGate = enforceChatCaps(req, res, { sse: true, sendSse });
+        if (!capGate.ok) return;
+        const usageKind = capGate.kind;
+        const deviceId = capGate.deviceId;
+        let usedGrokFallback = false;
+        let usageReserved = false;
+        const reserveUsage = () => {
+            if (usageReserved) return;
+            plansStore.recordUsage(deviceId, usageKind, { usedGrokFallback: false });
+            usageReserved = true;
+        };
+        reserveUsage();
+
         let target;
         try {
             target = resolveChatTarget(mode);
@@ -550,7 +639,7 @@ app.post('/api/chat/stream', async (req, res) => {
         const conversationMessages = buildConversationMessages(req.body);
         const useWebSearch = webSearch === true;
 
-        console.log(`Stream: ${safeMode} | Provider: ${provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length}`);
+        console.log(`Stream: ${safeMode} | Provider: ${provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length} | planKind=${usageKind}`);
 
         res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -644,6 +733,7 @@ app.post('/api/chat/stream', async (req, res) => {
                     config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
                     client = grok;
                     allowGrokFallback = false;
+                    usedGrokFallback = true;
                     stream = await openStream(client, config);
                 } else {
                     throw openErr;
@@ -692,6 +782,7 @@ app.post('/api/chat/stream', async (req, res) => {
                         provider = 'grok';
                         config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
                         client = grok;
+                        usedGrokFallback = true;
                         full = await nonStreamCompletion(client, config, 'Stream Grok fallback');
                         if (full) sendSse({ text: full });
                     } else {
@@ -706,6 +797,8 @@ app.post('/api/chat/stream', async (req, res) => {
                 const cleaned = softCleanLatex(full) || '';
                 if (!cleaned.trim()) {
                     sendSse({ error: mapApiError({ message: 'empty reply' }, provider) });
+                } else if (usedGrokFallback && usageKind === 'fast') {
+                    plansStore.markFastHalved(deviceId);
                 }
                 sendSse({ done: true, model: safeMode, provider, full: cleaned });
                 console.log(`Stream done: ${cleaned.length} chars | provider=${provider}`);
@@ -718,8 +811,12 @@ app.post('/api/chat/stream', async (req, res) => {
                 try {
                     const text = await nonStreamCompletion(client, config, 'Abort recovery');
                     if (text) {
-                        sendSse({ text: softCleanLatex(text) });
-                        sendSse({ done: true, model: safeMode, provider, full: softCleanLatex(text) });
+                        const cleanedAbort = softCleanLatex(text);
+                        sendSse({ text: cleanedAbort });
+                        if (usedGrokFallback && usageKind === 'fast') {
+                            plansStore.markFastHalved(deviceId);
+                        }
+                        sendSse({ done: true, model: safeMode, provider, full: cleanedAbort });
                         return res.end();
                     }
                 } catch (e) {}
@@ -735,10 +832,15 @@ app.post('/api/chat/stream', async (req, res) => {
                     provider = 'grok';
                     config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
                     client = grok;
+                    usedGrokFallback = true;
                     const text = await nonStreamCompletion(client, config, 'Grok rescue');
                     if (text) {
-                        sendSse({ text: softCleanLatex(text) });
-                        sendSse({ done: true, model: safeMode, provider, full: softCleanLatex(text) });
+                        const cleanedRescue = softCleanLatex(text);
+                        sendSse({ text: cleanedRescue });
+                        if (usedGrokFallback && usageKind === 'fast') {
+                            plansStore.markFastHalved(deviceId);
+                        }
+                        sendSse({ done: true, model: safeMode, provider, full: cleanedRescue });
                         return res.end();
                     }
                 } catch (rescueErr) {
@@ -910,6 +1012,124 @@ app.delete('/api/chats/:id', (req, res) => {
     res.json({ ok: true });
 });
 
+// ==================== PLANS / UPGRADE / ADMIN ====================
+app.get('/api/plan', (req, res) => {
+    const deviceId = getClientId(req);
+    res.json(plansStore.getStatus(deviceId));
+});
+
+app.post('/api/upgrade/request', (req, res) => {
+    const deviceId = getClientId(req);
+    if (!deviceId) {
+        return res.status(400).json({ ok: false, error: 'Missing or invalid X-Client-Id header' });
+    }
+    const body = req.body || {};
+    if (!body.acceptedPolicies) {
+        return res.status(400).json({ ok: false, error: 'You must accept Terms, Privacy, and Refund policies.' });
+    }
+    const result = plansStore.createPaymentRequest({
+        deviceId,
+        plan: body.plan,
+        phone: body.phone
+    });
+    if (!result.ok) {
+        return res.status(400).json(result);
+    }
+    res.status(201).json({
+        ok: true,
+        payment: {
+            id: result.payment.id,
+            plan: result.payment.plan,
+            amount: result.payment.amount,
+            phone: result.payment.phone,
+            status: result.payment.status,
+            createdAt: result.payment.createdAt,
+            destination: OMT_DESTINATION
+        },
+        message: result.message || 'Payment request created. Status: Waiting.'
+    });
+});
+
+app.post('/api/admin/login', (req, res) => {
+    if (!ADMIN_PASSKEY) {
+        return res.status(503).json({ error: 'ADMIN_PASSKEY is not configured on the server.' });
+    }
+    const passkey = (req.body && req.body.passkey) || '';
+    if (!passkey || passkey !== ADMIN_PASSKEY) {
+        return res.status(401).json({ error: 'Invalid passkey' });
+    }
+    const token = adminTokenFromPasskey(ADMIN_PASSKEY);
+    res.setHeader('Set-Cookie', `gsa_admin=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`);
+    res.json({ ok: true });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+    res.setHeader('Set-Cookie', 'gsa_admin=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+    res.json({ ok: true });
+});
+
+function requireAdmin(req, res) {
+    if (!ADMIN_PASSKEY) {
+        res.status(503).json({ error: 'ADMIN_PASSKEY is not configured on the server.' });
+        return false;
+    }
+    if (!isAdminAuthed(req, ADMIN_PASSKEY)) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return false;
+    }
+    return true;
+}
+
+app.get('/api/admin/payments', (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    res.json({ payments: plansStore.listPayments() });
+});
+
+app.post('/api/admin/payments/:id/approve', (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const result = plansStore.approvePayment(req.params.id);
+    if (!result.ok) return res.status(404).json(result);
+    res.json(result);
+});
+
+app.post('/api/admin/payments/:id/decline', (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const result = plansStore.declinePayment(req.params.id);
+    if (!result.ok) return res.status(404).json(result);
+    res.json(result);
+});
+
+app.get('/terms', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+});
+app.get('/terms.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'terms.html'));
+});
+app.get('/privacy', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+app.get('/privacy.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+app.get('/refund', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'refund.html'));
+});
+app.get('/refund.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'refund.html'));
+});
+app.get('/upgrade', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'upgrade.html'));
+});
+app.get('/upgrade.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'upgrade.html'));
+});
+app.get('/admin-page', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin-page.html'));
+});
+app.get('/admin-page.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin-page.html'));
+});
+
 // ==================== STATIC FILE ROUTES (for PWA) ====================
 app.get('/manifest.json', (req, res) => {
     res.setHeader('Content-Type', 'application/manifest+json');
@@ -939,11 +1159,14 @@ app.get('/health', (req, res) => {
         mathCleaner: true,
         streaming: true,
         persistence: true,
+        plans: true,
+        dailyResetTimezone: 'UTC',
         historyWindow: HISTORY_WINDOW,
         pwaReady: true,
         fastProviderPref: FAST_PROVIDER_PREF || 'auto',
         grokKeyConfigured: !!process.env.GROK_API_KEY,
-        openaiKeyConfigured: !!process.env.OPENAI_API_KEY
+        openaiKeyConfigured: !!process.env.OPENAI_API_KEY,
+        adminPasskeyConfigured: !!ADMIN_PASSKEY
     });
 });
 
@@ -971,6 +1194,8 @@ app.listen(PORT, () => {
     console.log(`📐 Math Cleaner: ✅`);
     console.log(`📡 Streaming: ✅ /api/chat/stream`);
     console.log(`💾 Persistence: ✅ ${CHATS_FILE}`);
+    console.log(`💳 Plans store: ✅ ${plansStore.filePath} (daily Fast reset: UTC)`);
+    console.log(`🔐 Admin passkey: ${ADMIN_PASSKEY ? '✅ set' : '❌ missing ADMIN_PASSKEY'}`);
     console.log(`⏱️ Timeout: ${UPSTREAM_TIMEOUT_MS}ms`);
     console.log(`🛡️ Rate limit: ${RATE_LIMIT}/min per IP on /api/chat*`);
     console.log(`📱 PWA Support: ✅ Ready`);

@@ -1,3 +1,11 @@
+# GoldenSpaceAI — upgrade light theme contrast (2026-09-30)
+
+- **Bug:** in `html.light`, the final Upgrade step “Send payment via OMT Pay” kept a hardcoded dark `.pay-box` (`#12100a`) while labels/values switched to dark muted/text — Send to / From / Plan / numbered steps were nearly invisible (Amount gold stayed readable).
+- **Fix:** light-mode overrides for `.pay-box`, `.pay-row`, `.pay-steps`, plus the Accept-policies `.check` card and related step chrome (panel / plan-card / step-dot / password field). Dark theme unchanged.
+- Service worker cache `goldenspaceai2-v19`. App version `2.2.3`.
+
+---
+
 # GoldenSpaceAI — live plan usage + themes (2026-09-30)
 
 - **Root cause (usage stuck at 0):** the chats footer called `GET /api/plan-status` only once at startup and never again after a send, and those GETs were cacheable (`ETag`, no `Cache-Control`). Counters in `data/plans.json` were also written on a 50ms debounce and incremented when the request *started*, including failed model calls, so the footer and `/my-plan` did not show a successful Fast / Thinking / Expert question.

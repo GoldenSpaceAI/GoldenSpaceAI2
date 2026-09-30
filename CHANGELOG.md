@@ -1,3 +1,12 @@
+# GoldenSpaceAI — fix: Install App stays in-app (2026-09-30)
+
+- **Root cause:** After PR #11, Install App still hard-navigated to `/app-install.html` whenever `beforeinstallprompt` had not fired yet (common on iOS Safari, Firefox, early clicks before Chrome engagement heuristics, or after a dismissed prompt). Users experienced a bounce away from chat even though the live SW was already `v13` and the manifest was installable.
+- **Fix:** Keep capturing `beforeinstallprompt` early and call `prompt()` when deferred. If no deferred event, show an **in-app modal** with platform-specific Add to Home Screen / Install steps instead of forcing navigation. Optional “More install help” link opens `/app-install.html` only when the user chooses it.
+- Service worker cache bumped to `goldenspaceai2-v14` so clients drop stale shells.
+- Target HTTPS host: `www.goldenspaceai.space`.
+
+---
+
 # GoldenSpaceAI — fix: real PWA install prompt (2026-09-30)
 
 - **Bug:** Install App in the chats panel footer always fell through to `/app-install.html` after (or instead of) the native prompt — including when the user dismissed `beforeinstallprompt`.

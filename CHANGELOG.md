@@ -1,3 +1,14 @@
+# GoldenSpaceAI — polish plan UI, upgrade & legal + my-plan status (2026-09-30)
+
+- **In-app plan status** (chats footer): current plan name, used/limit + % progress bars (Free: Fast daily; Paid: Fast + Thinking + Expert4 + Expert16 if included). Links to `/my-plan` and `/upgrade`.
+- **API:** `GET /api/plan-status` (quotas + %), `GET /api/my-plan` (plan + quotas + payment requests Waiting/Approved/Declined for this device). Same `X-Client-Id` as chats. Caps/OMT/admin auth unchanged.
+- **`/my-plan`** (alias `/plan-status` → redirect): user-facing page for current plan, expiry, usage %, and payment request status/history. Linked from index footer, upgrade, and legal nav.
+- **`/upgrade`:** SaaS-style pricing cards (featured Pro), exact prices & feature bullets matching caps, polished accept → phone verify → OMT steps. Dark/gold aesthetic.
+- **`/terms`, `/privacy`, `/refund`:** professional legal layout (sticky nav, max-width, hierarchy, ToC). Legal text unchanged.
+- SW cache bumped to `goldenspaceai2-v17`.
+
+---
+
 # GoldenSpaceAI — payment / plans system (2026-09-30)
 
 - **Plans & hard caps** (server-side, device id = same `X-Client-Id` as chat history):

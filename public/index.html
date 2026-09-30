@@ -635,6 +635,91 @@
         }
         .input-btn:active { color: var(--gold-light); transform: scale(0.9); }
         .input-btn.recording { color: var(--red); animation: pulse 1s infinite; }
+
+        .plan-status-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--black);
+            padding: 10px 12px;
+        }
+        .plan-status-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .plan-status-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 0.02em;
+        }
+        .plan-status-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(212,175,55,0.45);
+            color: var(--gold);
+            background: rgba(212,175,55,0.1);
+        }
+        .plan-quota {
+            margin-top: 8px;
+        }
+        .plan-quota-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+        .plan-quota-label { color: var(--text); font-weight: 600; }
+        .plan-quota-meta { color: var(--text-muted); white-space: nowrap; }
+        .plan-quota-bar {
+            height: 6px;
+            border-radius: 999px;
+            background: var(--black-lighter);
+            overflow: hidden;
+        }
+        .plan-quota-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+            transition: width 0.35s ease;
+        }
+        .plan-quota-fill.warn {
+            background: linear-gradient(90deg, #b8860b, #e8a838);
+        }
+        .plan-quota-fill.crit {
+            background: linear-gradient(90deg, #a33, #e74c3c);
+        }
+        .plan-status-note {
+            margin-top: 8px;
+            font-size: 10px;
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+        .plan-status-link {
+            display: block;
+            margin-top: 8px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gold);
+            text-decoration: none;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(212,175,55,0.35);
+            background: rgba(212,175,55,0.08);
+        }
+        .plan-status-link:hover { background: rgba(212,175,55,0.16); }
+        .plan-status-loading { font-size: 11px; color: var(--text-muted); }
+
         .chats-panel-footer {
             flex-shrink: 0;
             padding: 10px 12px calc(10px + var(--safe-bottom));
@@ -945,9 +1030,23 @@
                 </div>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
+                    <div class="plan-status-card" id="planStatusCard" aria-label="Plan status">
+                        <div class="plan-status-loading" id="planStatusLoading">Loading plan…</div>
+                        <div id="planStatusBody" hidden>
+                            <div class="plan-status-head">
+                                <span class="plan-status-name" id="planStatusName">Free</span>
+                                <span class="plan-status-badge" id="planStatusBadge">Plan</span>
+                            </div>
+                            <div id="planStatusQuotas"></div>
+                            <p class="plan-status-note" id="planStatusNote"></p>
+                            <a class="plan-status-link" href="/my-plan" id="planStatusMyPlan">My plan &amp; request status</a>
+                            <a class="plan-status-link" href="/upgrade" id="planStatusUpgrade" style="margin-top:6px;">View plans &amp; upgrade</a>
+                        </div>
+                    </div>
                     <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
                     <nav class="footer-legal" aria-label="Legal and upgrade">
                         <a class="upgrade-link" href="/upgrade">Upgrade</a>
+                        <a href="/my-plan">My Plan</a>
                         <a href="/terms">Terms</a>
                         <a href="/privacy">Privacy</a>
                         <a href="/refund">Refund</a>
@@ -1067,6 +1166,50 @@
             'expert-16': { label: 'Expert 16', apiMode: 'expert', agents: 16, badge: 'badge-expert', desc: 'Expert - 16 Agents' }
         };
 
+
+        async function loadPlanStatus() {
+            const loading = document.getElementById('planStatusLoading');
+            const body = document.getElementById('planStatusBody');
+            const quotasEl = document.getElementById('planStatusQuotas');
+            const nameEl = document.getElementById('planStatusName');
+            const badgeEl = document.getElementById('planStatusBadge');
+            const noteEl = document.getElementById('planStatusNote');
+            if (!quotasEl || !nameEl) return;
+            try {
+                const res = await fetch('/api/plan-status', { headers: { 'X-Client-Id': ensureClientId() } });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                nameEl.textContent = data.label || 'Free';
+                badgeEl.textContent = (data.plan || 'free').toUpperCase();
+                const periodNote = data.plan === 'free'
+                    ? 'Fast resets at UTC midnight.'
+                    : (data.endsAt
+                        ? ('Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Fast resets UTC midnight.')
+                        : 'Fast resets UTC midnight. Thinking/Expert reset each paid period.');
+                noteEl.textContent = periodNote;
+                const quotas = Array.isArray(data.quotas) ? data.quotas : [];
+                quotasEl.innerHTML = quotas.map(function(q) {
+                    const pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
+                    const fillClass = pct >= 90 ? 'crit' : (pct >= 70 ? 'warn' : '');
+                    const period = q.period === 'daily' ? 'today' : 'this period';
+                    const half = q.halved ? ' · halved' : '';
+                    return '<div class="plan-quota">' +
+                        '<div class="plan-quota-row">' +
+                        '<span class="plan-quota-label">' + (q.label || q.id) + '</span>' +
+                        '<span class="plan-quota-meta">' + (q.used || 0) + ' / ' + (q.limit || 0) + ' · ' + pct + '% · ' + period + half + '</span>' +
+                        '</div>' +
+                        '<div class="plan-quota-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + (q.label || q.id) + ' usage">' +
+                        '<div class="plan-quota-fill ' + fillClass + '" style="width:' + pct + '%"></div>' +
+                        '</div></div>';
+                }).join('');
+                if (loading) loading.hidden = true;
+                if (body) body.hidden = false;
+            } catch (e) {
+                if (loading) loading.textContent = 'Plan status unavailable';
+                if (body) body.hidden = true;
+            }
+        }
+
         function ensureClientId() {
             try {
                 clientId = localStorage.getItem('goldenspaceai2_client_id');
@@ -1114,6 +1257,7 @@
             renderChatsList();
             initSpeechRecognition();
             updateModelUI();
+            loadPlanStatus();
             document.body.addEventListener('click', requestMicPermission, { once: true });
             const messageInput = document.getElementById('messageInput');
             if (messageInput) messageInput.addEventListener('paste', handleComposerPaste);

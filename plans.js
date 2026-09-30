@@ -469,6 +469,80 @@ function createPlansStore(dataDir) {
         };
     }
 
+
+    /**
+     * UI-friendly plan status: plan name + quotas with used/limit/percent.
+     * Free: Fast daily only. Paid: Fast daily + Thinking/Expert monthly (Expert16 if cap > 0).
+     */
+    function getPlanStatusUi(deviceId) {
+        const status = getStatus(deviceId);
+        const u = status.usage || {};
+        const quotas = [];
+
+        function pct(used, limit) {
+            const lim = Number(limit) || 0;
+            if (lim <= 0) return 0;
+            const p = Math.round((Number(used) || 0) / lim * 100);
+            return Math.max(0, Math.min(100, p));
+        }
+
+        quotas.push({
+            id: 'fast',
+            label: 'Fast',
+            period: 'daily',
+            used: u.fast || 0,
+            limit: u.fastCap || 0,
+            planLimit: u.fastPlanCap || u.fastCap || 0,
+            percent: pct(u.fast, u.fastCap),
+            halved: !!u.fastHalved
+        });
+
+        if (status.plan !== 'free') {
+            if ((u.thinkingCap || 0) > 0) {
+                quotas.push({
+                    id: 'thinking',
+                    label: 'Thinking',
+                    period: 'monthly',
+                    used: u.thinking || 0,
+                    limit: u.thinkingCap || 0,
+                    percent: pct(u.thinking, u.thinkingCap)
+                });
+            }
+            if ((u.expert4Cap || 0) > 0) {
+                quotas.push({
+                    id: 'expert4',
+                    label: 'Expert 4',
+                    period: 'monthly',
+                    used: u.expert4 || 0,
+                    limit: u.expert4Cap || 0,
+                    percent: pct(u.expert4, u.expert4Cap)
+                });
+            }
+            if ((u.expert16Cap || 0) > 0) {
+                quotas.push({
+                    id: 'expert16',
+                    label: 'Expert 16',
+                    period: 'monthly',
+                    used: u.expert16 || 0,
+                    limit: u.expert16Cap || 0,
+                    percent: pct(u.expert16, u.expert16Cap)
+                });
+            }
+        }
+
+        return {
+            ok: true,
+            plan: status.plan,
+            label: status.label,
+            priceUsd: status.priceUsd,
+            startsAt: status.startsAt,
+            endsAt: status.endsAt,
+            timezoneNote: status.timezoneNote,
+            quotas,
+            upgradeUrl: '/upgrade'
+        };
+    }
+
     function createPaymentRequest({ deviceId, plan, phone }) {
         const planId = String(plan || '').toLowerCase();
         const def = PLAN_DEFS[planId];
@@ -510,6 +584,56 @@ function createPlansStore(dataDir) {
         save();
         flushSync();
         return { ok: true, payment };
+    }
+
+
+    function maskPhone(phone) {
+        const p = normalizePhone(phone);
+        if (!p) return null;
+        if (p.length <= 4) return '****';
+        return p.slice(0, 2) + '*'.repeat(Math.max(2, p.length - 4)) + p.slice(-2);
+    }
+
+    /** Payments for this device only (no other customers). */
+    function listPaymentsForDevice(deviceId) {
+        if (!deviceId) return [];
+        return read().payments
+            .filter(p => p.deviceId === deviceId)
+            .map(p => ({
+                id: p.id,
+                plan: p.plan,
+                label: (PLAN_DEFS[p.plan] || {}).label || p.plan,
+                amount: p.amount,
+                status: p.status, // waiting | approved | declined
+                createdAt: p.createdAt || null,
+                decidedAt: p.decidedAt || null,
+                startsAt: p.startsAt || null,
+                endsAt: p.endsAt || null,
+                phoneMasked: maskPhone(p.phone)
+            }));
+    }
+
+    /**
+     * User-facing my-plan page payload: current plan + quotas + payment requests.
+     */
+    function getMyPlan(deviceId) {
+        const statusUi = getPlanStatusUi(deviceId);
+        const requests = listPaymentsForDevice(deviceId);
+        const latest = requests[0] || null;
+        return {
+            ok: true,
+            plan: statusUi.plan,
+            label: statusUi.label,
+            priceUsd: statusUi.priceUsd,
+            startsAt: statusUi.startsAt,
+            endsAt: statusUi.endsAt,
+            timezoneNote: statusUi.timezoneNote,
+            quotas: statusUi.quotas,
+            latestRequest: latest,
+            requests,
+            upgradeUrl: '/upgrade',
+            myPlanUrl: '/my-plan'
+        };
     }
 
     function listPayments() {
@@ -628,12 +752,15 @@ function createPlansStore(dataDir) {
         isValidOmtPhone,
         getEffectivePlan,
         getStatus,
+        getPlanStatusUi,
         checkChatAllowed,
         recordUsage,
         markFastHalved,
         resolveUsageKind,
         createPaymentRequest,
         listPayments,
+        listPaymentsForDevice,
+        getMyPlan,
         getPayment,
         approvePayment,
         declinePayment,

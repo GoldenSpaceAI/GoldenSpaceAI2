@@ -1,3 +1,22 @@
+# GoldenSpaceAI — payment / plans system (2026-09-30)
+
+- **Plans & hard caps** (server-side, device id = same `X-Client-Id` as chat history):
+  - Free: Fast 50/day; no Thinking / Expert 4 / Expert 16
+  - Plus $5: Fast 120/day; Thinking 40/mo; Expert 4 15/mo; no Expert 16
+  - Pro $10: Fast 200/day; Thinking 80/mo; Expert 4 40/mo; Expert 16 8/mo
+  - Max $15: Fast 300/day; Thinking 120/mo; Expert 4 60/mo; Expert 16 15/mo
+- Daily Fast resets at **UTC midnight** (documented in `/api/plan` + upgrade UI). Thinking/Expert are per **30-day paid period** from admin confirm.
+- Cap enforcement runs **before** model calls on `/api/chat` and `/api/chat/stream`. Limit responses are JSON/SSE with `upgradeUrl: /upgrade`.
+- When Fast is served via **OpenAI→Grok fallback**, that UTC day uses a **halved** Fast budget (`markFastHalved`).
+- Persist subscriptions, usage, and payment requests in `data/plans.json` (JSON store under `DATA_DIR`).
+- **Legal:** `/terms`, `/privacy`, `/refund` (full ToS as provided; matching Privacy + Refund).
+- **`/upgrade`:** choose plan → accept policies → OMT number twice → send exact $ to **81056987** → Amount sent → Waiting.
+- **`/admin-page`:** locked with env **`ADMIN_PASSKEY`**; list/approve/decline requests; approve starts 30-day plan bound to phone + device (one OMT number = one active paid plan).
+- Chats panel footer: Upgrade · Terms · Privacy · Refund. SW cache `goldenspaceai2-v16`. App version `2.2.0`.
+- Env: `ADMIN_PASSKEY` (already set on Render). Optional existing: `DATA_DIR`, `GROK_API_KEY`, `OPENAI_API_KEY`, `FAST_PROVIDER`.
+
+---
+
 # GoldenSpaceAI — fix: Install App one-press only (2026-09-30)
 
 - **Change:** Install App is **one press → native `beforeinstallprompt.prompt()`** only. No teaching modal, no how-to steps, no navigate to `/app-install.html` from the Install button.

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin — GoldenSpaceAI</title>
+<link rel="icon" href="/logo.png">
+<style>
+  :root { --gold:#d4af37; --gold-dark:#b8962e; --bg:#0a0a0a; --panel:#141414; --text:#eee; --muted:#999; --border:#333; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  header a { color:var(--gold); text-decoration:none; font-weight:600; }
+  main { max-width:980px; margin:0 auto; padding:20px; }
+  h1 { color:var(--gold); font-size:1.35rem; margin:0 0 14px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
+  input { width:100%; max-width:360px; padding:12px; border-radius:10px; border:1px solid var(--border); background:#0a0a0a; color:var(--text); font-size:16px; }
+  button.btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; cursor:pointer; font-size:13px; }
+  button.btn.primary { background:linear-gradient(135deg,var(--gold),var(--gold-dark)); color:#0a0a0a; }
+  button.btn.ok { background:#1a5; color:#fff; }
+  button.btn.bad { background:#833; color:#fff; }
+  button.btn.ghost { background:transparent; color:var(--gold); border:1px solid var(--border); }
+  .err { color:#f88; margin-top:10px; font-size:14px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--gold); font-weight:600; }
+  .st-waiting { color:#e8a838; font-weight:700; }
+  .st-approved { color:#3d9; font-weight:700; }
+  .st-declined { color:#f88; font-weight:700; }
+  .row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  #app { display:none; }
+  #login { display:block; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">← GoldenSpaceAI</a>
+  <button class="btn ghost" id="logoutBtn" type="button" hidden>Log out</button>
+</header>
+<main>
+  <section id="login" class="card">
+    <h1>Admin</h1>
+    <p style="color:var(--muted);font-size:14px;">Enter ADMIN_PASSKEY</p>
+    <form id="loginForm">
+      <input type="password" id="passkey" autocomplete="current-password" required>
+      <div style="margin-top:12px;">
+        <button class="btn primary" type="submit">Unlock</button>
+      </div>
+      <p class="err" id="loginErr" hidden></p>
+    </form>
+  </section>
+
+  <section id="app">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+      <h1 style="margin:0;">Payment requests</h1>
+      <button class="btn ghost" type="button" id="refreshBtn">Refresh</button>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Phone</th>
+            <th>Plan</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Device</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="empty" style="color:var(--muted);display:none;">No payment requests yet.</p>
+    </div>
+  </section>
+</main>
+<script>
+(function() {
+  const loginEl = document.getElementById('login');
+  const appEl = document.getElementById('app');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  function showApp(on) {
+    loginEl.style.display = on ? 'none' : 'block';
+    appEl.style.display = on ? 'block' : 'none';
+    logoutBtn.hidden = !on;
+  }
+
+  async function api(path, opts) {
+    const res = await fetch(path, Object.assign({ credentials: 'same-origin' }, opts || {}));
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  }
+
+  async function checkSession() {
+    const { res } = await api('/api/admin/payments');
+    if (res.ok) {
+      showApp(true);
+      await loadPayments();
+      return true;
+    }
+    showApp(false);
+    return false;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
+  }
+
+  async function loadPayments() {
+    const { res, data } = await api('/api/admin/payments');
+    if (!res.ok) {
+      showApp(false);
+      return;
+    }
+    const list = data.payments || [];
+    const tbody = document.getElementById('rows');
+    const empty = document.getElementById('empty');
+    empty.style.display = list.length ? 'none' : 'block';
+    tbody.innerHTML = list.map(p => {
+      const st = p.status || 'waiting';
+      const canDecide = st === 'waiting';
+      const actions = canDecide
+        ? ('<div class="row-actions">' +
+           '<button class="btn ok" data-act="approve" data-id="' + p.id + '">Approve</button>' +
+           '<button class="btn bad" data-act="decline" data-id="' + p.id + '">Decline</button>' +
+           '</div>')
+        : '—';
+      return '<tr>' +
+        '<td>' + fmtDate(p.createdAt) + '</td>' +
+        '<td>' + escapeHtml(p.phone) + '</td>' +
+        '<td>' + escapeHtml(String(p.plan || '').toUpperCase()) + '</td>' +
+        '<td>$' + escapeHtml(String(p.amount)) + '</td>' +
+        '<td class="st-' + st + '">' + st + '</td>' +
+        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(p.deviceId || '') + '</td>' +
+        '<td>' + actions + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = document.getElementById('loginErr');
+    err.hidden = true;
+    const passkey = document.getElementById('passkey').value;
+    const { res, data } = await api('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passkey })
+    });
+    if (!res.ok) {
+      err.hidden = false;
+      err.textContent = data.error || 'Invalid passkey';
+      return;
+    }
+    document.getElementById('passkey').value = '';
+    showApp(true);
+    await loadPayments();
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    await api('/api/admin/logout', { method: 'POST' });
+    showApp(false);
+  });
+
+  document.getElementById('refreshBtn').addEventListener('click', loadPayments);
+
+  document.getElementById('rows').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    const act = btn.getAttribute('data-act');
+    btn.disabled = true;
+    const { res, data } = await api('/api/admin/payments/' + encodeURIComponent(id) + '/' + act, { method: 'POST' });
+    if (!res.ok) {
+      alert(data.error || 'Failed');
+      btn.disabled = false;
+      return;
+    }
+    await loadPayments();
+  });
+
+  checkSession();
+})();
+</script>
+</body>
+</html>

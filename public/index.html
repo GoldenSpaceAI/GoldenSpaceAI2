@@ -749,6 +749,51 @@
         .typing-dot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes typingPulse { 0%,100%{opacity:0.3;transform:scale(1)} 50%{opacity:1;transform:scale(1.2)} }
 
+        .thinking-indicator {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 4px 2px 2px;
+            max-width: 100%;
+        }
+        .thinking-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .thinking-status {
+            color: var(--text-muted, #888);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.2px;
+            line-height: 1.3;
+        }
+        .thinking-trace {
+            display: none;
+            margin: 0;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(212,175,55,0.06);
+            border: 1px solid rgba(212,175,55,0.15);
+            color: var(--text-muted, #888);
+            font-size: 12px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 120px;
+            overflow: auto;
+        }
+        .thinking-trace.show { display: block; }
+        .message.ai.streaming-pending .message-meta,
+        .message.ai.streaming-pending .message-actions {
+            display: none !important;
+        }
+
         ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--gold-dark); border-radius: 3px; }
@@ -1601,13 +1646,41 @@
         }
 
         async function requestAiReply(imgToSend) {
-            const typingId = showTypingIndicator();
+            const thinkingId = showThinkingIndicator(initialThinkingStatus());
             streamAbort = new AbortController();
             let streamedText = '';
+            let reasoningBuf = '';
             let aiEl = null;
             let contentEl = null;
+            let chromeReady = false;
+
+            function ensureAiChrome(seedText) {
+                if (chromeReady) return;
+                removeThinkingIndicator(thinkingId);
+                const aiMsgPlaceholder = {
+                    role: 'ai',
+                    content: seedText || '',
+                    model: currentModel,
+                    timestamp: new Date().toISOString()
+                };
+                const idx = chats[currentChatId].messages.length;
+                chats[currentChatId].messages.push(aiMsgPlaceholder);
+                aiEl = renderMessage(aiMsgPlaceholder, idx, true);
+                contentEl = aiEl ? aiEl.querySelector('.ai-content') : null;
+                chromeReady = true;
+                markLastAiActions();
+            }
+
+            function paintStream() {
+                if (!contentEl) return;
+                contentEl.setAttribute('data-text', streamedText);
+                contentEl.innerHTML = formatMarkdown(streamedText);
+                renderMathIn(contentEl);
+                scrollToBottom();
+            }
 
             try {
+                setThinkingStatus(thinkingId, 'connecting');
                 const res = await fetch(STREAM_URL, {
                     method: 'POST',
                     headers: clientHeaders(),
@@ -1629,12 +1702,10 @@
                     throw new Error(errText);
                 }
 
-                removeTypingIndicator(typingId);
-                const aiMsgPlaceholder = { role: 'ai', content: '', model: currentModel, timestamp: new Date().toISOString() };
-                const idx = chats[currentChatId].messages.length;
-                chats[currentChatId].messages.push(aiMsgPlaceholder);
-                aiEl = renderMessage(aiMsgPlaceholder, idx, true);
-                contentEl = aiEl ? aiEl.querySelector('.ai-content') : null;
+                // Keep thinking UI until real content arrives — do NOT show finished chrome yet
+                setThinkingStatus(thinkingId, webSearchEnabled && String(MODELS[currentModel].apiMode) === 'expert'
+                    ? 'searching'
+                    : (MODELS[currentModel].apiMode === 'smart' ? 'thinking' : 'listening'));
 
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
@@ -1659,14 +1730,18 @@
                         let obj;
                         try { obj = JSON.parse(payload); } catch (e) { continue; }
                         if (obj.error) errMsg = obj.error;
+                        if (obj.status) {
+                            setThinkingStatus(thinkingId, obj.status);
+                        }
+                        if (obj.reasoning) {
+                            reasoningBuf += obj.reasoning;
+                            appendThinkingTrace(thinkingId, obj.reasoning);
+                            if (!chromeReady) setThinkingStatus(thinkingId, 'thinking');
+                        }
                         if (obj.text) {
+                            if (!chromeReady) ensureAiChrome('');
                             streamedText += obj.text;
-                            if (contentEl) {
-                                contentEl.setAttribute('data-text', streamedText);
-                                contentEl.innerHTML = formatMarkdown(streamedText);
-                                renderMathIn(contentEl);
-                            }
-                            scrollToBottom();
+                            paintStream();
                         }
                         if (obj.full) finalFull = obj.full;
                         if (obj.done) doneFlag = true;
@@ -1677,6 +1752,7 @@
                 let finalText = (finalFull && !streamedText) ? finalFull : (streamedText || finalFull || '');
                 // Client-side fallback if stream ended empty
                 if (!String(finalText).trim() && !errMsg) {
+                    setThinkingStatus(thinkingId, 'waiting');
                     try {
                         const fb = await fetch('/api/chat', {
                             method: 'POST',
@@ -1699,14 +1775,29 @@
                 }
                 if (!String(finalText).trim()) {
                     finalText = friendlyError(errMsg || 'empty reply');
-                    chats[currentChatId].messages[chats[currentChatId].messages.length - 1].isError = true;
-                    chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
-                    chats[currentChatId].updatedAt = new Date().toISOString();
-                    saveChats();
-                    loadChat();
+                    if (!chromeReady) {
+                        removeThinkingIndicator(thinkingId);
+                        const errMsgObj = {
+                            role: 'ai',
+                            content: finalText,
+                            model: currentModel,
+                            isError: true,
+                            timestamp: new Date().toISOString()
+                        };
+                        chats[currentChatId].messages.push(errMsgObj);
+                        saveChats();
+                        renderMessage(errMsgObj, chats[currentChatId].messages.length - 1);
+                    } else {
+                        chats[currentChatId].messages[chats[currentChatId].messages.length - 1].isError = true;
+                        chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
+                        chats[currentChatId].updatedAt = new Date().toISOString();
+                        saveChats();
+                        loadChat();
+                    }
                 } else {
-                    if (errMsg && !streamedText) {
-                        // covered by throw above when no text
+                    if (!chromeReady) ensureAiChrome(finalText);
+                    else {
+                        chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
                     }
                     chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
                     chats[currentChatId].updatedAt = new Date().toISOString();
@@ -1717,9 +1808,10 @@
                         renderMathIn(contentEl);
                     }
                 }
+                removeThinkingIndicator(thinkingId);
                 markLastAiActions();
             } catch(err) {
-                removeTypingIndicator(typingId);
+                removeThinkingIndicator(thinkingId);
                 if (err && err.name === 'AbortError') {
                     if (streamedText) {
                         const last = chats[currentChatId].messages[chats[currentChatId].messages.length - 1];
@@ -1750,6 +1842,9 @@
                     };
                     const msgs = chats[currentChatId].messages;
                     if (msgs.length && msgs[msgs.length - 1].role === 'ai' && !msgs[msgs.length - 1].content) {
+                        msgs[msgs.length - 1] = errMsgObj;
+                        loadChat();
+                    } else if (chromeReady && aiEl) {
                         msgs[msgs.length - 1] = errMsgObj;
                         loadChat();
                     } else {
@@ -1938,24 +2033,85 @@
             return div;
         }
 
-        function showTypingIndicator() {
+        const STATUS_LABELS = {
+            connecting: 'Connecting…',
+            listening: 'Listening to stream…',
+            thinking: 'Thinking…',
+            searching: 'Searching the web…',
+            researching: 'Researching…',
+            generating: 'Generating reply…',
+            waiting: 'Waiting for reply…'
+        };
+
+        function initialThinkingStatus() {
+            const cfg = MODELS[currentModel] || MODELS.normal;
+            if (cfg.apiMode === 'expert' && webSearchEnabled) return 'searching';
+            if (cfg.apiMode === 'expert') return 'researching';
+            if (cfg.apiMode === 'smart') return 'thinking';
+            return 'generating';
+        }
+
+        function statusLabel(key) {
+            if (!key) return STATUS_LABELS.waiting;
+            const k = String(key).toLowerCase();
+            if (STATUS_LABELS[k]) return STATUS_LABELS[k];
+            // Honest passthrough for short server phrases; never invent CoT
+            const s = String(key).trim();
+            if (s.length && s.length < 80) return s.charAt(s.length - 1) === '…' || s.charAt(s.length - 1) === '.' ? s : (s + '…');
+            return STATUS_LABELS.waiting;
+        }
+
+        function showThinkingIndicator(statusKey) {
             const container = document.getElementById('messagesContainer');
-            const id = 'typing_' + Date.now();
+            const empty = container.querySelector('.empty-state');
+            if (empty) empty.remove();
+            const id = 'thinking_' + Date.now();
             const div = document.createElement('div');
             div.id = id;
-            div.className = 'message ai';
-            div.innerHTML = '<div class="ai-block"><div style="display:flex;gap:4px;padding:8px 2px;">' +
-                '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>' +
+            div.className = 'message ai thinking';
+            div.setAttribute('aria-live', 'polite');
+            div.innerHTML = '<div class="ai-block"><div class="thinking-indicator">' +
+                '<div class="thinking-row">' +
+                '<div class="thinking-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>' +
+                '<div class="thinking-status">' + escapeHtmlRaw(statusLabel(statusKey || initialThinkingStatus())) + '</div>' +
+                '</div>' +
+                '<div class="thinking-trace" aria-label="Model reasoning"></div>' +
                 '</div></div>';
             container.appendChild(div);
             scrollToBottom();
             return id;
         }
 
-        function removeTypingIndicator(id) {
+        function setThinkingStatus(id, statusKey) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const label = el.querySelector('.thinking-status');
+            if (label) label.textContent = statusLabel(statusKey);
+        }
+
+        function appendThinkingTrace(id, chunk) {
+            if (!chunk) return;
+            const el = document.getElementById(id);
+            if (!el) return;
+            const trace = el.querySelector('.thinking-trace');
+            if (!trace) return;
+            const prev = trace.getAttribute('data-raw') || '';
+            const next = (prev + chunk).slice(-4000);
+            trace.setAttribute('data-raw', next);
+            const shown = next.length > 600 ? ('…' + next.slice(-600)) : next;
+            trace.textContent = shown;
+            trace.classList.add('show');
+            scrollToBottom();
+        }
+
+        function removeThinkingIndicator(id) {
             const el = document.getElementById(id);
             if (el) el.remove();
         }
+
+        // Back-compat aliases used nowhere else after refactor
+        function showTypingIndicator() { return showThinkingIndicator(initialThinkingStatus()); }
+        function removeTypingIndicator(id) { removeThinkingIndicator(id); }
 
         function handleKeyPress(e) {
             if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!isSending) sendMessage(); }
@@ -2148,10 +2304,50 @@
             input.focus();
         }
 
+        function textForSpeech(raw) {
+            let s = String(raw || '');
+            // Fenced code → short spoken cue (avoid reading raw markdown / code)
+            s = s.replace(/```[\w-]*\n([\s\S]*?)```/g, function(_, body) {
+                const lines = String(body || '').trim().split(/\n/).filter(Boolean).length;
+                return lines > 1 ? ' Code block, ' + lines + ' lines. ' : ' Code snippet. ';
+            });
+            s = s.replace(/`([^`]+)`/g, '$1');
+            // Images / links: speak label only
+            s = s.replace(/!\[([^\]]*)]\([^)]*\)/g, '$1');
+            s = s.replace(/\[([^\]]+)]\([^)]*\)/g, '$1');
+            // Headings, quotes, lists, hr
+            s = s.replace(/^#{1,6}\s+/gm, '');
+            s = s.replace(/^>\s?/gm, '');
+            s = s.replace(/^\s*[-*+]\s+/gm, '');
+            s = s.replace(/^\s*\d+\.\s+/gm, '');
+            s = s.replace(/^(-{3,}|_{3,}|\*{3,})\s*$/gm, '');
+            // Bold / italic / strike markers
+            s = s.replace(/(\*\*|__)(.*?)\1/g, '$2');
+            s = s.replace(/(\*|_)(.*?)\1/g, '$2');
+            s = s.replace(/~~(.*?)~~/g, '$1');
+            // HTML entities / tags that might linger
+            s = s.replace(/<[^>]+>/g, ' ');
+            s = s.replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, 'and').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
+            // Emoji & pictographs (so TTS does not say names like "warning sign")
+            try {
+                s = s.replace(/\p{Extended_Pictographic}/gu, '');
+                s = s.replace(/\p{Emoji_Presentation}/gu, '');
+            } catch (e) {
+                // Fallback ranges if Unicode property escapes unavailable
+                s = s.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu, '');
+            }
+            // Variation selectors / ZWJ leftover
+            s = s.replace(/[\u200D\uFE0F\uFE0E]/g, '');
+            // Collapse whitespace
+            s = s.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+            return s;
+        }
+
         function speakMessage(btn) {
             const root = btn.closest('.ai-block') || btn.closest('.message-bubble');
             const holder = root ? root.querySelector('[data-text]') : null;
-            const text = holder ? holder.getAttribute('data-text') : null;
+            const raw = holder ? holder.getAttribute('data-text') : null;
+            const text = textForSpeech(raw);
             if (!text) return;
             
             stopSpeaking();

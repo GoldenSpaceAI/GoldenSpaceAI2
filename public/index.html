@@ -633,6 +633,12 @@
         .file-preview-chip.show { display: flex; }
         .file-preview-chip button { background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer; }
         .katex-display { overflow-x: auto; overflow-y: hidden; }
+        .md-table-wrap { overflow-x: auto; margin: 10px 0 14px; border-radius: 10px; border: 1px solid var(--gold-dark); }
+        .md-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+        .md-table th, .md-table td { border: 1px solid var(--gold-dark); padding: 8px 10px; text-align: left; vertical-align: top; }
+        .md-table th { background: rgba(184,134,11,0.18); font-weight: 700; }
+        .md-table tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+        [data-theme="light"] .md-table tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
         html.light .badge-expert { color: #1a1a1a; }
 
     </style>
@@ -1914,11 +1920,63 @@
                 return str;
             }
 
+            function isTableSep(line) {
+                const t = String(line || '').trim();
+                if (!t || t.indexOf('|') === -1) return false;
+                // |---|:---| or ---|---
+                return /^\:?\|?[\:\-\| ]+\|?\:?$/.test(t.replace(/\s/g, '')) || /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/.test(t);
+            }
+            function splitTableRow(line) {
+                let t = String(line || '').trim();
+                if (t.startsWith('|')) t = t.slice(1);
+                if (t.endsWith('|')) t = t.slice(0, -1);
+                return t.split('|').map(function(c) { return c.trim(); });
+            }
+            function alignFromSep(cell) {
+                const c = String(cell || '').trim();
+                const left = c.startsWith(':');
+                const right = c.endsWith(':');
+                if (left && right) return 'center';
+                if (right) return 'right';
+                return 'left';
+            }
+
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
                 if (/^\u0000S\d+\u0000$/.test(line.trim())) {
                     closeList();
                     htmlOut += line.trim();
+                    continue;
+                }
+                // GitHub-flavored markdown tables
+                if (line.indexOf('|') !== -1 && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+                    closeList();
+                    const header = splitTableRow(line);
+                    const aligns = splitTableRow(lines[i + 1]).map(alignFromSep);
+                    i += 2;
+                    const body = [];
+                    while (i < lines.length && lines[i].indexOf('|') !== -1 && lines[i].trim() && !isTableSep(lines[i])) {
+                        body.push(splitTableRow(lines[i]));
+                        i++;
+                    }
+                    i--; // outer loop will ++
+                    let table = '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
+                    for (let c = 0; c < header.length; c++) {
+                        const a = aligns[c] || 'left';
+                        table += '<th style="text-align:' + a + '">' + inlineFormat(header[c]) + '</th>';
+                    }
+                    table += '</tr></thead><tbody>';
+                    for (let r = 0; r < body.length; r++) {
+                        table += '<tr>';
+                        for (let c = 0; c < header.length; c++) {
+                            const a = aligns[c] || 'left';
+                            const cell = body[r][c] != null ? body[r][c] : '';
+                            table += '<td style="text-align:' + a + '">' + inlineFormat(cell) + '</td>';
+                        }
+                        table += '</tr>';
+                    }
+                    table += '</tbody></table></div>';
+                    htmlOut += table;
                     continue;
                 }
                 const heading = line.match(/^\s*#{1,6}\s+(.*)$/);

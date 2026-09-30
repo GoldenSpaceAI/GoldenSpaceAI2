@@ -1,3 +1,11 @@
+# GoldenSpaceAI — branding update (2026-09-30)
+
+- Renamed user-visible app branding from GoldenSpaceAI2 to GoldenSpaceAI across the chat UI, install/offline pages, PWA manifest, health response, and logo.
+- Added a welcoming “Welcome to GoldenSpaceAI” empty state.
+- Bumped the service worker cache to `goldenspaceai2-v12`.
+
+---
+
 # GoldenSpaceAI2 — hotfix: chat thinking UX + speak cleanup
 
 ## Root cause (premature Fast badge / actions)

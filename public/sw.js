@@ -1,4 +1,4 @@
-const CACHE = 'goldenspaceai2-v5';
+const CACHE = 'goldenspaceai2-v6';
 const OFFLINE = '/offline.html';
 
 self.addEventListener('install', function(event) {

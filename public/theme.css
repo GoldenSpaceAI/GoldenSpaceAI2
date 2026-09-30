@@ -109,3 +109,63 @@ html.light th { color: #8a6d12; }
 }
 .theme-toggle:hover { background: rgba(212, 175, 55, 0.14); }
 html.light .theme-toggle { color: #8a6d12; border-color: #d4c9a8; }
+
+/* Upgrade: hardcoded dark surfaces must flip in light mode */
+html.light .pay-box {
+  background:
+    linear-gradient(135deg, rgba(184, 134, 11, 0.12), transparent 50%),
+    #fffdf8 !important;
+  border-color: rgba(184, 134, 11, 0.45);
+}
+html.light .pay-row {
+  border-bottom-color: rgba(26, 26, 26, 0.1);
+}
+html.light .pay-row .k { color: var(--muted); }
+html.light .pay-row .v { color: var(--text); }
+html.light .pay-row .v.amt { color: var(--gold); }
+html.light .pay-steps,
+html.light .pay-steps li {
+  color: #2c281f;
+}
+html.light .check {
+  background: #fffdf8 !important;
+  color: #2c281f !important;
+  border-color: var(--border);
+}
+html.light .panel {
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--text);
+}
+html.light .plan-card {
+  background: linear-gradient(180deg, var(--panel-elev), var(--panel));
+  color: var(--text);
+}
+html.light .plan-card li.muted::before {
+  background: rgba(26, 26, 26, 0.08);
+  color: #7a7364;
+}
+html.light .step-dot {
+  background: var(--panel);
+  color: var(--muted);
+  border-color: var(--border);
+}
+html.light .step-dot .n {
+  background: #e7e0d0;
+  color: #1a1a1a;
+}
+html.light .step-dot.on {
+  background: rgba(184, 134, 11, 0.12);
+  color: var(--gold);
+  border-color: var(--gold);
+}
+html.light .step-dot.on .n {
+  background: var(--gold);
+  color: #0a0a0a;
+}
+html.light input[type=password] {
+  background: #fffdf8 !important;
+  color: #1a1a1a !important;
+  border-color: #cbbf9a !important;
+}
+

@@ -544,14 +544,14 @@
 <body>
     <div class="app-container">
         <div class="top-bar">
-            <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">â˜°</button>
+            <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>
             <span class="top-bar-title">GoldenSpaceAI2</span>
         </div>
 
         <div class="main-content">
             <div class="chats-panel" id="chatsPanel">
                 <div class="chats-panel-header">
-                    <span class="chats-panel-title">ðŸ’¬ Chats</span>
+                    <span class="chats-panel-title">Chats</span>
                     <div class="header-actions">
                         <button class="instr-btn" id="instrBtn" onclick="toggleInstructionsPanel()" aria-label="Custom instructions">Instructions</button>
                         <button class="new-chat-btn" onclick="createNewChat()" aria-label="New chat">+</button>
@@ -570,44 +570,44 @@
                 <div class="input-container">
                     <div class="model-selector">
                         <button class="model-btn" id="modelBtn" onclick="toggleModelMenu()">
-                            <span id="modelLabel">âš¡ Grok 4.3</span> â–¾
+                            <span id="modelLabel">Grok 4.3</span> v
                         </button>
                         <div class="model-menu" id="modelMenu">
                             <div class="model-menu-item" data-model="normal" onclick="setModel('normal')">
-                                âš¡ Grok 4.3 <span class="model-menu-desc">Fast</span>
+                                Grok 4.3 <span class="model-menu-desc">Fast</span>
                             </div>
                             <div class="model-menu-item" data-model="smart" onclick="setModel('smart')">
-                                ðŸ§  Reasoning <span class="model-menu-desc">Deep thinking</span>
+                                Reasoning <span class="model-menu-desc">Deep thinking</span>
                             </div>
                             <div class="model-menu-item expert" data-model="expert-4" onclick="setModel('expert-4')">
-                                ðŸ” Expert 4 <span class="model-menu-desc">Web & X</span><span class="model-menu-badge">NEW</span>
+                                Expert 4 <span class="model-menu-desc">Web & X</span><span class="model-menu-badge">NEW</span>
                             </div>
                             <div class="model-menu-item expert" data-model="expert-16" onclick="setModel('expert-16')">
-                                ðŸŒ Expert 16 <span class="model-menu-desc">Deep research</span><span class="model-menu-badge">BEST</span>
+                                Expert 16 <span class="model-menu-desc">Deep research</span><span class="model-menu-badge">BEST</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="web-search-toggle" id="webSearchToggle" style="display:none;align-items:center;flex-shrink:0;">
-                        <button class="web-search-btn" id="webSearchBtn" onclick="toggleWebSearch()">ðŸŒ OFF</button>
+                        <button class="web-search-btn" id="webSearchBtn" onclick="toggleWebSearch()">Web OFF</button>
                     </div>
 
                     <div class="input-actions">
                         <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
                         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
                         
-                        <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Add">âž•</button>
+                        <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Add">+</button>
                         <div class="plus-menu" id="plusMenu">
-                            <div class="plus-menu-item" onclick="openPhotos()">ðŸ–¼ï¸ Photos</div>
-                            <div class="plus-menu-item" onclick="openCamera()">ðŸ“· Camera</div>
+                            <div class="plus-menu-item" onclick="openPhotos()">Photos</div>
+                            <div class="plus-menu-item" onclick="openCamera()">Camera</div>
                         </div>
 
-                        <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice">ðŸŽ¤</button>
+                        <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice">Mic</button>
                     </div>
                     
                     <input type="text" class="message-input" id="messageInput" placeholder="Message..." onkeypress="handleKeyPress(event)" autocomplete="off" enterkeyhint="send">
                     
-                    <button class="send-btn" onclick="sendMessage()" id="sendBtn" aria-label="Send">âž¤</button>
+                    <button class="send-btn" onclick="sendMessage()" id="sendBtn" aria-label="Send">&#10148;</button>
                 </div>
             </div>
         </div>
@@ -628,10 +628,10 @@
         let globalInstructions = '';
 
         const MODELS = {
-            'normal': { label: 'âš¡ Grok 4.3', apiMode: 'normal', badge: 'badge-normal', desc: 'Grok 4.3' },
-            'smart': { label: 'ðŸ§  Reasoning', apiMode: 'smart', badge: 'badge-smart', desc: 'Grok 4.3 Reasoning' },
-            'expert-4': { label: 'ðŸ” Expert 4', apiMode: 'expert', agents: 4, badge: 'badge-expert', desc: 'Expert Â· 4 Agents' },
-            'expert-16': { label: 'ðŸŒ Expert 16', apiMode: 'expert', agents: 16, badge: 'badge-expert', desc: 'Expert Â· 16 Agents' }
+            'normal': { label: 'Grok 4.3', apiMode: 'normal', badge: 'badge-normal', desc: 'Grok 4.3' },
+            'smart': { label: 'Reasoning', apiMode: 'smart', badge: 'badge-smart', desc: 'Grok 4.3 Reasoning' },
+            'expert-4': { label: 'Expert 4', apiMode: 'expert', agents: 4, badge: 'badge-expert', desc: 'Expert - 4 Agents' },
+            'expert-16': { label: 'Expert 16', apiMode: 'expert', agents: 16, badge: 'badge-expert', desc: 'Expert - 16 Agents' }
         };
 
         function init() {
@@ -677,10 +677,10 @@
             const btn = document.getElementById('webSearchBtn');
             if (btn) {
                 if (webSearchEnabled) {
-                    btn.textContent = 'ðŸŒ ON';
+                    btn.textContent = 'Web ON';
                     btn.classList.add('on');
                 } else {
-                    btn.textContent = 'ðŸŒ OFF';
+                    btn.textContent = 'Web OFF';
                     btn.classList.remove('on');
                 }
             }
@@ -824,10 +824,10 @@
                 const chat = chats[id];
                 const div = document.createElement('div');
                 div.className = 'chat-item' + (id === currentChatId ? ' active' : '');
-                div.innerHTML = '<span class="chat-item-name" onclick="switchChat(\'' + id + '\')">ðŸ’­ ' + escapeHtmlRaw(chat.name) + '</span>' +
+                div.innerHTML = '<span class="chat-item-name" onclick="switchChat(\'' + id + '\')">' + escapeHtmlRaw(chat.name) + '</span>' +
                     '<div class="chat-item-actions">' +
-                    '<button class="chat-item-btn" onclick="event.stopPropagation();renameChat(\'' + id + '\')">âœï¸</button>' +
-                    '<button class="chat-item-btn delete" onclick="event.stopPropagation();deleteChat(\'' + id + '\')">ðŸ—‘ï¸</button>' +
+                    '<button class="chat-item-btn" onclick="event.stopPropagation();renameChat(\'' + id + '\')">&#9998;</button>' +
+                    '<button class="chat-item-btn delete" onclick="event.stopPropagation();deleteChat(\'' + id + '\')">&#10005;</button>' +
                     '</div>';
                 list.appendChild(div);
             }
@@ -950,7 +950,7 @@
                 
                 const errMsg = { 
                     role: 'ai', 
-                    content: 'âš ï¸ ' + (err.message || 'Could not reach Grok.'),
+                    content: '' + (err.message || 'Could not reach Grok.'),
                     model: currentModel, 
                     timestamp: new Date().toISOString() 
                 };

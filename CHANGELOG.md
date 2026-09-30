@@ -1,3 +1,19 @@
+# GoldenSpaceAI2 — hotfix: chat thinking UX + speak cleanup
+
+## Root cause (premature Fast badge / actions)
+On `/api/chat/stream`, as soon as response headers arrived the client removed the typing dots and called `renderMessage()` on an **empty** AI placeholder. That always injected the mode badge plus Copy/Share/Listen/Regen — so finished-message chrome appeared while the bubble was still empty.
+
+## Fix
+- Keep a real **thinking** state (dots + status line) until the first reply text arrives (or the reply completes)
+- Only then render the AI message with mode badge + action buttons
+- Honest stream status from server SSE (`thinking` / `searching` / `researching` / `generating` / `listening`) — no fake chain-of-thought
+- If the provider streams real `reasoning` / `reasoning_content` deltas, show them tastefully in a small trace under the thinking row
+- **Listen**: `textForSpeech()` strips emojis + markdown noise before `speechSynthesis` (no spoken emoji names)
+- Service worker cache `goldenspaceai2-v11`
+- No regression intended for mobile layout, Install App footer, voice overlay, error Retry, or `HISTORY_WINDOW` 40
+
+---
+
 # GoldenSpaceAI2 — hotfix: Fast connection error
 
 ## Root cause

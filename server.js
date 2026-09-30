@@ -558,9 +558,20 @@ app.post('/api/chat/stream', async (req, res) => {
         res.setHeader('X-Accel-Buffering', 'no');
         if (typeof res.flushHeaders === 'function') res.flushHeaders();
 
+        // Honest UX status (not fabricated CoT) — client shows thinking UI until text arrives
+        const initialStatus = (safeMode === 'expert' && useWebSearch)
+            ? 'searching'
+            : (safeMode === 'expert')
+                ? 'researching'
+                : (safeMode === 'smart')
+                    ? 'thinking'
+                    : 'generating';
+        sendSse({ status: initialStatus, mode: safeMode, provider, webSearch: useWebSearch });
+
         // Expert: non-streaming Responses API, emit as one chunk
         if (safeMode === 'expert') {
             try {
+                sendSse({ status: useWebSearch ? 'searching' : 'researching' });
                 const responseData = await withTimeout(
                     callResponsesAPI(conversationMessages, config, useWebSearch),
                     UPSTREAM_TIMEOUT_MS,
@@ -570,6 +581,7 @@ app.post('/api/chat/stream', async (req, res) => {
                     responseData.output?.find(o => o.type === 'message')?.content?.[0]?.text ||
                     'No response generated.';
                 reply = softCleanLatex(reply);
+                sendSse({ status: 'generating' });
                 sendSse({ text: reply });
                 sendSse({ done: true, model: safeMode, provider });
                 console.log(`Stream done (expert): ${String(reply).length} chars`);
@@ -639,14 +651,28 @@ app.post('/api/chat/stream', async (req, res) => {
             }
 
             let full = '';
+            let emittedGenerating = false;
             for await (const chunk of stream) {
                 if (clientClosed) break;
                 const choice = chunk.choices?.[0];
-                const delta = choice?.delta?.content
-                    || choice?.delta?.text
+                const deltaObj = choice?.delta || {};
+                // Surface real reasoning fields only when the provider sends them (never invent CoT)
+                const reasoningDelta = deltaObj.reasoning_content
+                    || deltaObj.reasoning
+                    || (typeof deltaObj.reasoning_text === 'string' ? deltaObj.reasoning_text : '')
+                    || '';
+                if (reasoningDelta) {
+                    sendSse({ reasoning: reasoningDelta, status: 'thinking' });
+                }
+                const delta = deltaObj.content
+                    || deltaObj.text
                     || (typeof choice?.delta === 'string' ? choice.delta : '')
                     || '';
                 if (delta) {
+                    if (!emittedGenerating) {
+                        emittedGenerating = true;
+                        sendSse({ status: 'generating' });
+                    }
                     full += delta;
                     sendSse({ text: delta });
                 }
@@ -655,6 +681,7 @@ app.post('/api/chat/stream', async (req, res) => {
 
             // If streaming returned nothing (common with reasoning / proxy abort), fall back once
             if (!clientClosed && !full.trim()) {
+                sendSse({ status: safeMode === 'smart' ? 'thinking' : 'waiting' });
                 console.warn('Stream empty — falling back to non-stream completion');
                 try {
                     full = await nonStreamCompletion(client, config, 'Stream fallback');

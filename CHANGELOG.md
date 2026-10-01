@@ -1,3 +1,13 @@
+# GoldenSpaceAI — professional admin + upgrade geo (2026-10-01)
+
+- **Admin `/admin-page`:** professional request cards with clear **Request ID**, email, phone, current plan → requested plan, amount, device/client id, request IP, and estimated location.
+- **IP geo:** store client IP at upgrade submit time; resolve location via free `ipwho.is` API; cache results in plans store (`geoCache`) and on each payment.
+- **Approve/Decline** and **ADMIN_PASSKEY** login unchanged.
+- **Upgrade request email:** security note — do not share Request ID / request code with anyone.
+- Service worker cache `goldenspaceai2-v37`. App `2.3.11`.
+
+---
+
 # GoldenSpaceAI — persist plans/payments across Render deploys (2026-10-01)
 
 - **Root cause:** plan usage, subscriptions, and OMT payment history lived in `data/plans.json` on the Render ephemeral filesystem, so every deploy/restart wiped daily limits and Waiting/Approved/Declined history.

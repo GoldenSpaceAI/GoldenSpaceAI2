@@ -1,3 +1,12 @@
+# GoldenSpaceAI — readable chat tables + bottom-bar auth polish (2026-10-01)
+
+- **Chat tables:** clearer header/zebra/borders/padding; cells wrap sensibly (`min-width` + `max-width`) so text stays readable; wide tables still scroll horizontally inside the wrap (touch-friendly, no page overflow). Mobile-tuned cell sizes.
+- **Chats footer auth:** while signed in, **Log in is fully hidden** (fixed `display` overriding `[hidden]`); shows **email · plan · Sign out · gear**. Log in only when logged out.
+- **Footer layout:** cleaner account row (identity + actions), Install App, then legal links with subtle separators.
+- Service worker cache `goldenspaceai2-v29`. App `2.3.3`.
+
+---
+
 # GoldenSpaceAI — account in bottom bar + scrollable chat tables (2026-10-01)
 
 - **Top bar:** removed account strip; top stays clean (menu, brand, title, export, theme).

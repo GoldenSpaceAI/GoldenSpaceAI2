@@ -940,6 +940,92 @@ app.post('/api/extract-file', (req, res) => {
     });
 });
 
+
+// ==================== PREMIUM TTS (OpenAI) ====================
+const TTS_VOICES = [
+    { id: 'nova', label: 'Nova', desc: 'Warm & friendly' },
+    { id: 'alloy', label: 'Alloy', desc: 'Neutral & clear' },
+    { id: 'shimmer', label: 'Shimmer', desc: 'Soft & expressive' },
+    { id: 'echo', label: 'Echo', desc: 'Soft male' },
+    { id: 'fable', label: 'Fable', desc: 'Storyteller' },
+    { id: 'onyx', label: 'Onyx', desc: 'Deep & steady' }
+];
+const TTS_VOICE_IDS = new Set(TTS_VOICES.map((v) => v.id));
+const TTS_MAX_CHARS = 4000;
+const ttsRateBuckets = new Map();
+const TTS_RATE_LIMIT = 20;
+const TTS_RATE_WINDOW_MS = 60 * 1000;
+
+function ttsRateLimit(req, res) {
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+    const now = Date.now();
+    let bucket = ttsRateBuckets.get(ip);
+    if (!bucket || now - bucket.start >= TTS_RATE_WINDOW_MS) {
+        bucket = { start: now, count: 0 };
+        ttsRateBuckets.set(ip, bucket);
+    }
+    bucket.count += 1;
+    if (bucket.count > TTS_RATE_LIMIT) {
+        res.status(429).json({ error: 'Too many speak requests. Please wait a minute.', fallback: true });
+        return false;
+    }
+    return true;
+}
+
+function openaiTtsReady() {
+    return !!(openaiClient && process.env.OPENAI_API_KEY);
+}
+
+app.get('/api/tts/status', (req, res) => {
+    res.json({
+        provider: openaiTtsReady() ? 'openai' : 'browser',
+        openai: openaiTtsReady(),
+        model: openaiTtsReady() ? 'tts-1-hd' : null,
+        voices: TTS_VOICES,
+        defaultVoice: 'nova',
+        maxChars: TTS_MAX_CHARS
+    });
+});
+
+app.post('/api/tts', async (req, res) => {
+    try {
+        if (!ttsRateLimit(req, res)) return;
+        if (!openaiTtsReady()) {
+            return res.status(503).json({
+                error: 'OpenAI TTS not configured',
+                fallback: true,
+                provider: 'browser'
+            });
+        }
+        const raw = String(req.body?.text || '').trim();
+        if (!raw) return res.status(400).json({ error: 'Missing text', fallback: true });
+        const text = raw.length > TTS_MAX_CHARS ? raw.slice(0, TTS_MAX_CHARS) : raw;
+        const voiceRaw = String(req.body?.voice || 'nova').trim().toLowerCase();
+        const voice = TTS_VOICE_IDS.has(voiceRaw) ? voiceRaw : 'nova';
+
+        const speech = await openaiClient.audio.speech.create({
+            model: 'tts-1-hd',
+            voice,
+            input: text,
+            response_format: 'mp3'
+        });
+        const buf = Buffer.from(await speech.arrayBuffer());
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('X-TTS-Provider', 'openai');
+        res.setHeader('X-TTS-Voice', voice);
+        return res.send(buf);
+    } catch (e) {
+        console.error('TTS error:', e.message || e);
+        return res.status(502).json({
+            error: 'TTS failed',
+            fallback: true,
+            provider: 'browser',
+            detail: String(e.message || e).slice(0, 200)
+        });
+    }
+});
+
 // ==================== MAIN CHAT ENDPOINT (non-streaming, compatibility) ====================
 app.post('/api/chat', async (req, res) => {
     let activeProvider = 'grok';
@@ -2305,6 +2391,7 @@ app.get('/health', (req, res) => {
         fastProviderPref: FAST_PROVIDER_PREF || 'auto',
         grokKeyConfigured: !!process.env.GROK_API_KEY,
         openaiKeyConfigured: !!process.env.OPENAI_API_KEY,
+        ttsProvider: openaiTtsReady() ? 'openai' : 'browser',
         adminPasskeyConfigured: !!ADMIN_PASSKEY,
         auth: auth ? auth.authStatus() : { ready: false }
     });
@@ -2347,6 +2434,7 @@ async function startServer() {
         console.log(`📜 History window: ${HISTORY_WINDOW} messages`);
         console.log(`📐 Math Cleaner: ✅`);
         console.log(`📡 Streaming: ✅ /api/chat/stream`);
+        console.log(`🔊 TTS: ${openaiTtsReady() ? 'OpenAI tts-1-hd ✅' : 'browser fallback (no OPENAI_API_KEY)'}`);
         console.log(`💾 Persistence: ✅ ${CHATS_FILE}`);
         console.log(`💳 Plans store: ✅ ${pi.pg ? 'postgres' : 'json'} (${pi.source || plansPersist.source}) + ${plansStore.filePath} (daily Fast reset: UTC)`);
         console.log(`🔐 Admin passkey: ${ADMIN_PASSKEY ? '✅ set' : '❌ missing ADMIN_PASSKEY'}`);

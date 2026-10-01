@@ -1,3 +1,16 @@
+# GoldenSpaceAI — premium speak-aloud TTS (2026-10-01)
+
+- **Speak aloud:** each assistant reply has a speaker button that reads the answer aloud.
+- **Provider:** OpenAI TTS (`tts-1-hd`) via existing `OPENAI_API_KEY` when configured; otherwise graceful browser `speechSynthesis` fallback (no fake ElevenLabs).
+- **Voices:** Nova (default, warm), Alloy, Shimmer, Echo, Fable, Onyx — picker in Settings → Voice.
+- **Auto-read:** optional Settings toggle to automatically speak new assistant replies.
+- **Playback:** starting a new speak stops the previous one; the button shows playing/stop state (and the stop control).
+- **Input mic/STT unchanged** — this is output voice only.
+- **API:** `GET /api/tts/status`, `POST /api/tts` (mp3). Rate-limited.
+- Service worker cache `goldenspaceai2-v46`. App `2.3.20`.
+
+---
+
 # GoldenSpaceAI — search / thinking activity panel (2026-10-01)
 
 - **Searching panel:** during Expert web search (and when the provider emits tool events), the assistant message shows a collapsible **Searching…** panel with real site/domain URLs as SSE `site` / `sites` events arrive — never faked.

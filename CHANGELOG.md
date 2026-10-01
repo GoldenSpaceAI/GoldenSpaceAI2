@@ -1,3 +1,11 @@
+# GoldenSpaceAI — new-login email alert (2026-10-01)
+
+- **Auth:** after a successful email OTP verify **or** Google OAuth callback, send a separate Resend email (subject: “New login to your GoldenSpaceAI account”) with UTC time and an ignore-if-it-was-you note.
+- **Not** the OTP code email — OTP copy/send path unchanged.
+- Only when the user has an email and `RESEND_API_KEY` is set; reuses `EMAIL_FROM` / Resend. Failures are logged and never block the session.
+
+---
+
 # GoldenSpaceAI — stepped email OTP login UX (2026-10-01)
 
 - **/login:** email OTP is a **two-step** flow — enter email → dedicated code step (not cramped on the same form).

@@ -334,6 +334,11 @@ function createAuth(options = {}) {
             }
         }
         setSessionCookie(res, user, req);
+        // Separate login alert (not OTP). Never blocks session creation.
+        const alertEmail = user && user.email ? String(user.email).trim().toLowerCase() : '';
+        if (alertEmail) {
+            sendLoginAlertEmail(alertEmail).catch((e) => console.error('login alert email:', e.message));
+        }
         return user;
     }
 
@@ -355,7 +360,7 @@ function createAuth(options = {}) {
         const text = `Your GoldenSpaceAI login code is: ${code}\n\nDon't share this code with anyone. If you didn't request it, please ignore this message.\n\n— GoldenSpaceAI Team`;
         const html = `<p>Your GoldenSpaceAI login code is:</p><p style="font-size:28px;letter-spacing:6px;font-weight:700;">${code}</p><p>Don't share this code with anyone. If you didn't request it, please ignore this message.</p><p>— GoldenSpaceAI Team</p>`;
 
-        const from = env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenSpaceAI <onboarding@resend.dev>';
+        const from = emailFromAddress();
         const resp = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
@@ -368,6 +373,51 @@ function createAuth(options = {}) {
             const body = await resp.text().catch(() => '');
             console.error('Resend error:', resp.status, body);
             return { ok: false, error: 'Failed to send email via Resend.' };
+        }
+        return { ok: true };
+    }
+
+    function emailFromAddress() {
+        return env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenSpaceAI <onboarding@resend.dev>';
+    }
+
+    /**
+     * Separate new-login alert via Resend (not the OTP code email).
+     * Only when RESEND_API_KEY is set and recipient has an email.
+     */
+    async function sendLoginAlertEmail(to) {
+        if (!env('RESEND_API_KEY')) {
+            return { ok: false, skipped: true, error: 'RESEND_API_KEY not set' };
+        }
+        const norm = String(to || '').trim().toLowerCase();
+        if (!norm || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm)) {
+            return { ok: false, skipped: true, error: 'No email' };
+        }
+        const whenUtc = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+        const subject = 'New login to your GoldenSpaceAI account';
+        const text =
+            `Someone just signed in to your GoldenSpaceAI account.\n\n` +
+            `Time: ${whenUtc}\n\n` +
+            `If this was you, you can ignore this message. If you did not sign in, consider securing your email account.\n\n` +
+            `— GoldenSpaceAI Team`;
+        const html =
+            `<p>Someone just signed in to your GoldenSpaceAI account.</p>` +
+            `<p><strong>Time:</strong> ${whenUtc}</p>` +
+            `<p>If this was you, you can ignore this message. If you did not sign in, consider securing your email account.</p>` +
+            `<p>— GoldenSpaceAI Team</p>`;
+        const from = emailFromAddress();
+        const resp = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                Authorization: 'Bearer ' + env('RESEND_API_KEY'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ from, to: [norm], subject, html, text })
+        });
+        if (!resp.ok) {
+            const body = await resp.text().catch(() => '');
+            console.error('Resend login-alert error:', resp.status, body);
+            return { ok: false, error: 'Failed to send login alert via Resend.' };
         }
         return { ok: true };
     }

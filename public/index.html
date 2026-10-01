@@ -3134,6 +3134,37 @@
         }
         .settings-instr-save.saved { background: #3dcc9a; border-color: #3dcc9a; color: #0a0a0a; }
 
+        .settings-select {
+            flex-shrink: 0;
+            max-width: 180px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(212,175,55,0.4);
+            background: rgba(212,175,55,0.1);
+            color: var(--gold);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            outline: none;
+        }
+        html.light .settings-select { background: rgba(255,255,255,0.85); color: var(--gold-dark, #a8861a); }
+        .settings-select:focus {
+            border-color: var(--gold-dark);
+            box-shadow: 0 0 0 3px rgba(212,175,55,0.14);
+        }
+        .settings-toggle-on {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark)) !important;
+            color: #0a0a0a !important;
+            border-color: rgba(212,175,55,0.6) !important;
+        }
+        .msg-btn.tts-loading { opacity: 0.65; pointer-events: none; }
+        .msg-btn.active-speaking { animation: ttsPulse 1.4s ease-in-out infinite; }
+        @keyframes ttsPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.0); }
+            50% { box-shadow: 0 0 0 4px rgba(212,175,55,0.22); }
+        }
+
         .messages-container {
             overscroll-behavior-y: contain;
             scroll-padding-bottom: 24px;
@@ -3456,6 +3487,25 @@
                             <button type="button" class="settings-theme-btn" id="settingsThemeBtn" onclick="toggleTheme()" aria-label="Toggle theme">Light</button>
                         </div>
                     </div>
+                    <div class="settings-card" aria-label="Voice output">
+                        <h3>Voice</h3>
+                        <p class="settings-instr-hint" id="settingsTtsHint">Premium speak-aloud for assistant replies. Mic input is unchanged.</p>
+                        <div class="settings-theme-row">
+                            <span class="settings-k">Voice</span>
+                            <select class="settings-select" id="settingsTtsVoice" aria-label="Speak aloud voice" onchange="onTtsVoiceChange()">
+                                <option value="nova">Nova — warm</option>
+                                <option value="alloy">Alloy — clear</option>
+                                <option value="shimmer">Shimmer — soft</option>
+                                <option value="echo">Echo — soft male</option>
+                                <option value="fable">Fable — storyteller</option>
+                                <option value="onyx">Onyx — deep</option>
+                            </select>
+                        </div>
+                        <div class="settings-theme-row" style="margin-top:12px;">
+                            <span class="settings-k">Auto-read replies</span>
+                            <button type="button" class="settings-theme-btn" id="settingsAutoReadBtn" onclick="toggleAutoRead()" aria-pressed="false">Off</button>
+                        </div>
+                    </div>
                     <div class="settings-card" aria-label="Custom instructions">
                         <h3>Custom instructions</h3>
                         <label class="settings-instr-label" for="customInstructions">Global instructions</label>
@@ -3512,6 +3562,15 @@
         let isRecording = false;
         let recognition = null;
         let speaking = false;
+        let ttsAudio = null;
+        let ttsObjectUrl = null;
+        let ttsActiveBtn = null;
+        let ttsFetchAbort = null;
+        let ttsProvider = 'browser'; // 'openai' | 'browser'
+        let ttsVoice = 'nova';
+        let ttsAutoRead = false;
+        const TTS_VOICE_KEY = 'goldenspaceai2_tts_voice';
+        const TTS_AUTOREAD_KEY = 'goldenspaceai2_tts_autoread';
         let selectedImage = null;
         let selectedFileText = null;
         let selectedFileName = null;
@@ -3768,6 +3827,7 @@
             loadChatSystemPromptUI();
             snapshotInstructionsDraft();
             applyTheme(document.documentElement.classList.contains('light') ? 'light' : 'dark');
+            syncTtsSettingsUI();
             const saveBtn = document.getElementById('instrSaveBtn');
             if (saveBtn) {
                 saveBtn.textContent = 'Save instructions';
@@ -3975,6 +4035,7 @@
             }
             renderChatsList();
             initSpeechRecognition();
+            initTtsSettings();
             updateModelUI();
             bindTitleEdit();
             bindMessagesScroll();
@@ -5282,6 +5343,9 @@
                 }
                 removeThinkingIndicator(thinkingId);
                 markLastAiActions();
+                if (finalText && String(finalText).trim() && !(chats[currentChatId].messages[chats[currentChatId].messages.length - 1] || {}).isError) {
+                    maybeAutoReadLastReply();
+                }
             } catch(err) {
                 removeThinkingIndicator(thinkingId);
                 if (err && err.name === 'AbortError') {
@@ -5539,7 +5603,7 @@
                     '<div class="message-actions">' +
                     '<button class="msg-btn" title="Copy" onclick="copyMessage(this)">' + ICO.copy + '</button>' +
                     '<button class="msg-btn" title="Share" onclick="shareMessage(this)">' + ICO.share + '</button>' +
-                    '<button class="msg-btn" title="Listen" onclick="speakMessage(this)">' + ICO.speak + '</button>' +
+                    '<button class="msg-btn" title="Listen" aria-label="Listen" onclick="speakMessage(this)">' + ICO.speak + '</button>' +
                     '<button class="msg-btn stop-btn" title="Stop" onclick="stopSpeaking()">' + ICO.stop + '</button>' +
                     '<button class="msg-btn regen-btn wide" title="Regenerate" onclick="regenerateLast()">' + ICO.regen + '</button>' +
                     '</div></div>';
@@ -6031,21 +6095,112 @@
             return s;
         }
 
-        function speakMessage(btn) {
-            const root = btn.closest('.ai-block') || btn.closest('.message-bubble');
-            const holder = root ? root.querySelector('[data-text]') : null;
-            const raw = holder ? holder.getAttribute('data-text') : null;
-            const text = textForSpeech(raw);
-            if (!text) return;
-            
-            stopSpeaking();
-            if (!window.speechSynthesis) return;
-            
+        function loadTtsPrefs() {
+            try {
+                const v = localStorage.getItem(TTS_VOICE_KEY);
+                if (v && /^(nova|alloy|shimmer|echo|fable|onyx)$/.test(v)) ttsVoice = v;
+            } catch (e) {}
+            try {
+                ttsAutoRead = localStorage.getItem(TTS_AUTOREAD_KEY) === '1';
+            } catch (e) {}
+        }
+
+        function saveTtsPrefs() {
+            try { localStorage.setItem(TTS_VOICE_KEY, ttsVoice); } catch (e) {}
+            try { localStorage.setItem(TTS_AUTOREAD_KEY, ttsAutoRead ? '1' : '0'); } catch (e) {}
+        }
+
+        function syncTtsSettingsUI() {
+            const sel = document.getElementById('settingsTtsVoice');
+            if (sel) sel.value = ttsVoice;
+            const btn = document.getElementById('settingsAutoReadBtn');
+            if (btn) {
+                btn.textContent = ttsAutoRead ? 'On' : 'Off';
+                btn.setAttribute('aria-pressed', ttsAutoRead ? 'true' : 'false');
+                if (ttsAutoRead) btn.classList.add('settings-toggle-on');
+                else btn.classList.remove('settings-toggle-on');
+            }
+            const hint = document.getElementById('settingsTtsHint');
+            if (hint) {
+                hint.textContent = ttsProvider === 'openai'
+                    ? 'Premium OpenAI TTS (tts-1-hd). Mic input is unchanged.'
+                    : 'Browser voice fallback (set OPENAI_API_KEY for premium TTS). Mic input unchanged.';
+            }
+        }
+
+        function onTtsVoiceChange() {
+            const sel = document.getElementById('settingsTtsVoice');
+            if (!sel) return;
+            const v = String(sel.value || 'nova');
+            if (/^(nova|alloy|shimmer|echo|fable|onyx)$/.test(v)) ttsVoice = v;
+            saveTtsPrefs();
+        }
+
+        function toggleAutoRead() {
+            ttsAutoRead = !ttsAutoRead;
+            saveTtsPrefs();
+            syncTtsSettingsUI();
+        }
+
+        async function initTtsSettings() {
+            loadTtsPrefs();
+            syncTtsSettingsUI();
+            try {
+                const res = await fetch('/api/tts/status', { headers: clientHeaders() });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.provider === 'openai') ttsProvider = 'openai';
+                    else ttsProvider = 'browser';
+                    if (data && data.defaultVoice && !localStorage.getItem(TTS_VOICE_KEY)) {
+                        ttsVoice = data.defaultVoice;
+                    }
+                }
+            } catch (e) {
+                ttsProvider = 'browser';
+            }
+            syncTtsSettingsUI();
+        }
+
+        function clearTtsButtonState() {
+            const activeBtns = document.querySelectorAll('.active-speaking, .tts-loading');
+            for (let i = 0; i < activeBtns.length; i++) {
+                activeBtns[i].classList.remove('active-speaking');
+                activeBtns[i].classList.remove('tts-loading');
+                if (activeBtns[i].dataset && activeBtns[i].dataset.ttsIconRestore) {
+                    activeBtns[i].innerHTML = activeBtns[i].dataset.ttsIconRestore;
+                    delete activeBtns[i].dataset.ttsIconRestore;
+                }
+                activeBtns[i].title = 'Listen';
+                activeBtns[i].setAttribute('aria-label', 'Listen');
+            }
+            const stops = document.querySelectorAll('.stop-btn');
+            for (let i = 0; i < stops.length; i++) stops[i].classList.remove('show');
+            ttsActiveBtn = null;
+        }
+
+        function markSpeakingButton(btn) {
+            if (!btn) return;
+            ttsActiveBtn = btn;
+            if (!btn.dataset.ttsIconRestore) btn.dataset.ttsIconRestore = btn.innerHTML;
+            btn.innerHTML = ICO.stop;
+            btn.title = 'Stop';
+            btn.setAttribute('aria-label', 'Stop speaking');
+            btn.classList.remove('tts-loading');
+            btn.classList.add('active-speaking');
+            const stop = btn.parentNode ? btn.parentNode.querySelector('.stop-btn') : null;
+            if (stop) stop.classList.add('show');
+        }
+
+        function speakBrowserFallback(text, btn) {
+            if (!window.speechSynthesis) {
+                speaking = false;
+                clearTtsButtonState();
+                return;
+            }
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1;
             utterance.pitch = 1;
             utterance.volume = 1;
-            
             const voices = speechSynthesis.getVoices();
             if (voices.length) {
                 const preferred = voices.find(function(v) { return v.lang.startsWith('en') && v.name.includes('Google'); }) ||
@@ -6053,36 +6208,156 @@
                                   voices.find(function(v) { return v.lang.startsWith('en-US'); });
                 if (preferred) utterance.voice = preferred;
             }
-            
             speaking = true;
-            btn.classList.add('active-speaking');
-            const stop = btn.parentNode ? btn.parentNode.querySelector('.stop-btn') : null;
-            if (stop) stop.classList.add('show');
-            
-            utterance.onend = function() { 
-                speaking = false; 
-                btn.classList.remove('active-speaking'); 
+            markSpeakingButton(btn);
+            utterance.onend = function() {
+                speaking = false;
+                clearTtsButtonState();
             };
-            
-            utterance.onerror = function() { 
-                speaking = false; 
-                btn.classList.remove('active-speaking'); 
+            utterance.onerror = function() {
+                speaking = false;
+                clearTtsButtonState();
             };
-            
             speechSynthesis.speak(utterance);
         }
 
+        async function playOpenAiTts(text, btn) {
+            if (ttsFetchAbort) {
+                try { ttsFetchAbort.abort(); } catch (e) {}
+            }
+            ttsFetchAbort = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            if (btn) {
+                btn.classList.add('tts-loading');
+                btn.title = 'Loading voice…';
+            }
+            try {
+                const res = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, clientHeaders()),
+                    signal: ttsFetchAbort ? ttsFetchAbort.signal : undefined,
+                    body: JSON.stringify({ text: text, voice: ttsVoice || 'nova' })
+                });
+                const ctype = (res.headers.get('content-type') || '').toLowerCase();
+                if (!res.ok || ctype.indexOf('audio') === -1) {
+                    let fallback = true;
+                    try {
+                        const err = await res.json();
+                        fallback = !!(err && err.fallback);
+                    } catch (e) {}
+                    if (fallback) {
+                        speakBrowserFallback(text, btn);
+                        return;
+                    }
+                    throw new Error('TTS unavailable');
+                }
+                const blob = await res.blob();
+                if (ttsObjectUrl) {
+                    try { URL.revokeObjectURL(ttsObjectUrl); } catch (e) {}
+                    ttsObjectUrl = null;
+                }
+                ttsObjectUrl = URL.createObjectURL(blob);
+                if (ttsAudio) {
+                    try { ttsAudio.pause(); } catch (e) {}
+                    ttsAudio = null;
+                }
+                const audio = new Audio(ttsObjectUrl);
+                ttsAudio = audio;
+                speaking = true;
+                markSpeakingButton(btn);
+                audio.onended = function() {
+                    speaking = false;
+                    clearTtsButtonState();
+                    if (ttsObjectUrl) {
+                        try { URL.revokeObjectURL(ttsObjectUrl); } catch (e) {}
+                        ttsObjectUrl = null;
+                    }
+                    ttsAudio = null;
+                };
+                audio.onerror = function() {
+                    speaking = false;
+                    clearTtsButtonState();
+                    speakBrowserFallback(text, btn);
+                };
+                try {
+                    await audio.play();
+                } catch (playErr) {
+                    speaking = false;
+                    clearTtsButtonState();
+                    speakBrowserFallback(text, btn);
+                }
+            } catch (e) {
+                if (e && e.name === 'AbortError') return;
+                speakBrowserFallback(text, btn);
+            } finally {
+                if (btn) btn.classList.remove('tts-loading');
+            }
+        }
+
+        function speakMessage(btn) {
+            if (!btn) return;
+            // Toggle off if this button is already speaking
+            if (speaking && ttsActiveBtn === btn) {
+                stopSpeaking();
+                return;
+            }
+            const root = btn.closest('.ai-block') || btn.closest('.message-bubble') || btn.closest('.message');
+            const holder = root ? root.querySelector('[data-text]') : null;
+            const raw = holder ? holder.getAttribute('data-text') : null;
+            const text = textForSpeech(raw);
+            if (!text) return;
+
+            stopSpeaking();
+            // Prefer OpenAI premium TTS; graceful browser fallback otherwise
+            if (ttsProvider === 'openai') {
+                playOpenAiTts(text, btn);
+            } else {
+                // Still try OpenAI once (status may have been stale); server returns fallback:true
+                playOpenAiTts(text, btn);
+            }
+        }
+
         function stopSpeaking() {
-            if (speechSynthesis) { 
-                speechSynthesis.cancel(); 
-                speaking = false; 
+            if (ttsFetchAbort) {
+                try { ttsFetchAbort.abort(); } catch (e) {}
+                ttsFetchAbort = null;
             }
-            const activeBtns = document.querySelectorAll('.active-speaking');
-            for (let i = 0; i < activeBtns.length; i++) {
-                activeBtns[i].classList.remove('active-speaking');
+            if (ttsAudio) {
+                try { ttsAudio.pause(); ttsAudio.src = ''; } catch (e) {}
+                ttsAudio = null;
             }
-            const stops = document.querySelectorAll('.stop-btn');
-            for (let i = 0; i < stops.length; i++) stops[i].classList.remove('show');
+            if (ttsObjectUrl) {
+                try { URL.revokeObjectURL(ttsObjectUrl); } catch (e) {}
+                ttsObjectUrl = null;
+            }
+            if (window.speechSynthesis) {
+                try { speechSynthesis.cancel(); } catch (e) {}
+            }
+            speaking = false;
+            clearTtsButtonState();
+        }
+
+        function maybeAutoReadLastReply() {
+            if (!ttsAutoRead) return;
+            const msgs = document.querySelectorAll('#messagesContainer .message.ai:not(.thinking)');
+            if (!msgs.length) return;
+            const last = msgs[msgs.length - 1];
+            if (!last || last.querySelector('.msg-error-banner')) return;
+            const btn = last.querySelector('.message-actions .msg-btn[title="Listen"], .message-actions .msg-btn[aria-label="Listen"]');
+            // Prefer first speak-capable button (Listen); skip if none
+            let speakBtn = null;
+            const actions = last.querySelectorAll('.message-actions .msg-btn');
+            for (let i = 0; i < actions.length; i++) {
+                const t = (actions[i].getAttribute('title') || '') + ' ' + (actions[i].getAttribute('aria-label') || '');
+                if (/Listen/i.test(t) || actions[i].innerHTML.indexOf('M11 5L6 9H3') !== -1) {
+                    speakBtn = actions[i];
+                    break;
+                }
+            }
+            if (!speakBtn) speakBtn = btn;
+            if (speakBtn) {
+                // Slight delay so DOM paint / scroll settle
+                setTimeout(function() { speakMessage(speakBtn); }, 280);
+            }
         }
 
         function isDesktop() {

@@ -351,9 +351,9 @@ function createAuth(options = {}) {
         if (!status.emailOtp) {
             return { ok: false, error: 'Email login is not configured. Set RESEND_API_KEY.' };
         }
-        const subject = 'Your GoldenSpaceAI login code';
-        const text = `Your GoldenSpaceAI login code is: ${code}\n\nIt expires in 10 minutes. If you did not request it, ignore this email.`;
-        const html = `<p>Your GoldenSpaceAI login code is:</p><p style="font-size:28px;letter-spacing:6px;font-weight:700;">${code}</p><p>It expires in 10 minutes. If you did not request it, ignore this email.</p>`;
+        const subject = 'GoldenSpaceAI login code';
+        const text = `Your GoldenSpaceAI login code is: ${code}\n\nDon't share this code with anyone. If you didn't request it, please ignore this message.\n\n— GoldenSpaceAI Team`;
+        const html = `<p>Your GoldenSpaceAI login code is:</p><p style="font-size:28px;letter-spacing:6px;font-weight:700;">${code}</p><p>Don't share this code with anyone. If you didn't request it, please ignore this message.</p><p>— GoldenSpaceAI Team</p>`;
 
         const from = env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenSpaceAI <onboarding@resend.dev>';
         const resp = await fetch('https://api.resend.com/emails', {

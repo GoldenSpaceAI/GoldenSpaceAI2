@@ -210,6 +210,63 @@
   html.light .req-head { background: rgba(184,134,11,0.06); }
   html.light .plan-pill { background:#fff8e6; }
   html.light .badge.waiting { color:#1a1200; }
+
+  /* Decline reason dialog */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.62);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-backdrop[hidden] { display: none !important; }
+  .modal {
+    width: min(440px, 100%);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 18px 16px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+  }
+  .modal h2 {
+    margin: 0 0 6px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .modal p.hint {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .modal textarea {
+    width: 100%;
+    min-height: 96px;
+    resize: vertical;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #0a0a0a;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  .modal textarea:focus {
+    outline: 2px solid rgba(212,175,55,0.35);
+    border-color: var(--gold);
+  }
+  .modal .modal-err {
+    margin: 8px 0 0;
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .modal .modal-err[hidden] { display: none !important; }
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 8px;
+    margin-top: 14px; flex-wrap: wrap;
+  }
+  html.light .modal textarea { background: #fff; }
 </style>
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js" defer></script>
@@ -262,6 +319,19 @@
     <p id="empty" hidden>No payment requests yet.</p>
   </section>
 </main>
+
+<div class="modal-backdrop" id="declineModal" hidden role="dialog" aria-modal="true" aria-labelledby="declineModalTitle">
+  <div class="modal">
+    <h2 id="declineModalTitle">Decline request</h2>
+    <p class="hint">Type a reason for the customer. This is included in the declined email.</p>
+    <textarea id="declineReasonInput" maxlength="2000" placeholder="e.g. OMT number does not match the request"></textarea>
+    <p class="modal-err" id="declineReasonErr" hidden></p>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="declineCancelBtn">Cancel</button>
+      <button type="button" class="btn bad" id="declineOkBtn">OK</button>
+    </div>
+  </div>
+</div>
 <script>
 (function() {
   const loginEl = document.getElementById('login');
@@ -369,6 +439,7 @@
           '<div class="req-foot">' +
             '<div class="when">Submitted ' + escapeHtml(fmtDate(p.createdAt)) +
               (p.decidedAt ? ' · Decided ' + escapeHtml(fmtDate(p.decidedAt)) : '') +
+              (p.declineReason ? '<br>Reason: ' + escapeHtml(p.declineReason) : '') +
             '</div>' +
             actions +
           '</div>' +
@@ -425,11 +496,88 @@
     renderRows();
   });
 
+  const declineModal = document.getElementById('declineModal');
+  const declineReasonInput = document.getElementById('declineReasonInput');
+  const declineReasonErr = document.getElementById('declineReasonErr');
+  const declineOkBtn = document.getElementById('declineOkBtn');
+  const declineCancelBtn = document.getElementById('declineCancelBtn');
+  let pendingDecline = null; // { id, btn }
+
+  function closeDeclineModal() {
+    declineModal.hidden = true;
+    declineReasonInput.value = '';
+    declineReasonErr.hidden = true;
+    declineReasonErr.textContent = '';
+    if (pendingDecline && pendingDecline.btn) {
+      pendingDecline.btn.disabled = false;
+    }
+    pendingDecline = null;
+  }
+
+  function openDeclineModal(id, btn) {
+    pendingDecline = { id, btn };
+    declineReasonInput.value = '';
+    declineReasonErr.hidden = true;
+    declineReasonErr.textContent = '';
+    declineModal.hidden = false;
+    setTimeout(() => declineReasonInput.focus(), 0);
+  }
+
+  declineCancelBtn.addEventListener('click', () => {
+    closeDeclineModal();
+  });
+
+  declineModal.addEventListener('click', (e) => {
+    if (e.target === declineModal) closeDeclineModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !declineModal.hidden) {
+      e.preventDefault();
+      closeDeclineModal();
+    }
+  });
+
+  declineOkBtn.addEventListener('click', async () => {
+    if (!pendingDecline) return;
+    const reason = String(declineReasonInput.value || '').trim();
+    if (!reason) {
+      declineReasonErr.textContent = 'Please enter a non-empty reason.';
+      declineReasonErr.hidden = false;
+      declineReasonInput.focus();
+      return;
+    }
+    const { id, btn } = pendingDecline;
+    declineOkBtn.disabled = true;
+    declineCancelBtn.disabled = true;
+    const { res, data } = await api('/api/admin/payments/' + encodeURIComponent(id) + '/decline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    declineOkBtn.disabled = false;
+    declineCancelBtn.disabled = false;
+    if (!res.ok) {
+      declineReasonErr.textContent = data.error || 'Failed';
+      declineReasonErr.hidden = false;
+      return;
+    }
+    pendingDecline = null;
+    closeDeclineModal();
+    if (btn) btn.disabled = false;
+    await loadPayments();
+  });
+
   document.getElementById('rows').addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
     const id = btn.getAttribute('data-id');
     const act = btn.getAttribute('data-act');
+    if (act === 'decline') {
+      btn.disabled = true;
+      openDeclineModal(id, btn);
+      return;
+    }
     btn.disabled = true;
     const { res, data } = await api('/api/admin/payments/' + encodeURIComponent(id) + '/' + act, { method: 'POST' });
     if (!res.ok) {

@@ -1072,6 +1072,7 @@ function createPlansStore(dataDir, options = {}) {
             status: p.status, // waiting | approved | declined
             createdAt: p.createdAt || null,
             decidedAt: p.decidedAt || null,
+            declineReason: p.declineReason || null,
             startsAt: p.startsAt || null,
             endsAt: p.endsAt || null,
             phoneMasked: maskPhone(p.phone)
@@ -1213,6 +1214,7 @@ function createPlansStore(dataDir, options = {}) {
             status: p.status,
             createdAt: p.createdAt || null,
             decidedAt: p.decidedAt || null,
+            declineReason: p.declineReason || null,
             startsAt: p.startsAt || null,
             endsAt: p.endsAt || null,
             deviceId: p.deviceId || null,
@@ -1336,7 +1338,7 @@ function createPlansStore(dataDir, options = {}) {
         };
     }
 
-    function declinePayment(id) {
+    function declinePayment(id, opts) {
         const store = read();
         const payment = store.payments.find(p => p.id === id);
         if (!payment) return { ok: false, error: 'Not found' };
@@ -1344,8 +1346,14 @@ function createPlansStore(dataDir, options = {}) {
             return { ok: true, payment, already: true };
         }
 
+        const reason = String((opts && opts.reason) || '').trim();
+        if (!reason) {
+            return { ok: false, error: 'Decline reason is required' };
+        }
+
         payment.status = 'declined';
         payment.decidedAt = new Date().toISOString();
+        payment.declineReason = reason.slice(0, 2000);
 
         // If this was the active approved binding, drop to Free
         const ownerKey = paymentOwnerKey(payment);

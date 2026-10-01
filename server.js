@@ -22,6 +22,8 @@ const {
 } = require('./mail');
 
 const app = express();
+// Render / reverse proxies set X-Forwarded-For
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS) || 60000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -1017,6 +1019,102 @@ function getClientId(req) {
     return id;
 }
 
+/** Best-effort client IP (Render / Cloudflare / direct). */
+function clientIp(req) {
+    const xf = (req.headers['x-forwarded-for'] || '').toString();
+    if (xf) {
+        const first = xf.split(',')[0].trim();
+        if (first) return first.slice(0, 64);
+    }
+    const real = (req.headers['x-real-ip'] || '').toString().trim();
+    if (real) return real.slice(0, 64);
+    const cf = (req.headers['cf-connecting-ip'] || '').toString().trim();
+    if (cf) return cf.slice(0, 64);
+    const ip = (req.ip || '').toString().trim();
+    return ip ? ip.slice(0, 64) : '';
+}
+
+function isPrivateOrLocalIp(ip) {
+    const s = String(ip || '').trim().toLowerCase();
+    if (!s || s === 'unknown' || s === '::1' || s === '127.0.0.1') return true;
+    if (s.startsWith('10.') || s.startsWith('192.168.') || s.startsWith('127.')) return true;
+    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(s)) return true;
+    if (s.startsWith('fc') || s.startsWith('fd') || s.startsWith('fe80:')) return true;
+    if (s.startsWith('::ffff:127.') || s.startsWith('::ffff:10.') || s.startsWith('::ffff:192.168.')) return true;
+    return false;
+}
+
+/**
+ * Free IP geolocation via ipwho.is (no API key). Results cached in plans store.
+ */
+function lookupIpGeo(ip) {
+    return new Promise((resolve) => {
+        const key = String(ip || '').trim();
+        if (!key) return resolve(null);
+        if (isPrivateOrLocalIp(key)) {
+            return resolve({
+                city: null,
+                region: null,
+                country: 'Private / local network',
+                countryCode: null,
+                label: 'Private / local network',
+                lookedUpAt: new Date().toISOString(),
+                source: 'local'
+            });
+        }
+        const cached = plansStore.getCachedGeo(key);
+        if (cached && cached.label) return resolve(cached);
+
+        const url = 'https://ipwho.is/' + encodeURIComponent(key);
+        const req = https.get(url, { timeout: 4000 }, (res) => {
+            let raw = '';
+            res.on('data', (c) => { raw += c; if (raw.length > 20000) res.destroy(); });
+            res.on('end', () => {
+                try {
+                    const data = JSON.parse(raw || '{}');
+                    if (!data || data.success === false) return resolve(null);
+                    const geo = {
+                        city: data.city || null,
+                        region: data.region || null,
+                        country: data.country || null,
+                        countryCode: data.country_code || null,
+                        label: null,
+                        lookedUpAt: new Date().toISOString(),
+                        source: 'ipwho.is'
+                    };
+                    geo.label = plansStore.formatGeoLabel(geo) || data.country || key;
+                    try { plansStore.setCachedGeo(key, geo); } catch (_) {}
+                    resolve(geo);
+                } catch (_) {
+                    resolve(null);
+                }
+            });
+        });
+        req.on('error', () => resolve(null));
+        req.on('timeout', () => { try { req.destroy(); } catch (_) {} resolve(null); });
+    });
+}
+
+async function ensurePaymentGeo(payment) {
+    if (!payment) return payment;
+    if (payment.geo && payment.geo.label) return payment;
+    if (!payment.ip) return payment;
+    const cached = plansStore.getCachedGeo(payment.ip);
+    if (cached && cached.label) {
+        try { plansStore.attachGeoToPayment(payment.id, cached); } catch (_) {}
+        payment.geo = cached;
+        payment.location = cached.label;
+        return payment;
+    }
+    const geo = await lookupIpGeo(payment.ip);
+    if (geo) {
+        try { plansStore.attachGeoToPayment(payment.id, geo); } catch (_) {}
+        payment.geo = geo;
+        payment.location = geo.label || plansStore.formatGeoLabel(geo) || null;
+    }
+    return payment;
+}
+
 function requireClientId(req, res) {
     const id = getClientId(req);
     if (!id) {
@@ -1491,18 +1589,29 @@ app.post('/api/upgrade/request', async (req, res) => {
             error: 'Your account has no email. Sign in with Google or email OTP, then try again.'
         });
     }
+    const ownerKey = plansStore.accountOwnerKey(sessionUser.id);
+    const currentPlan = (plansStore.getEffectivePlan(ownerKey).plan || 'free');
+    const ip = clientIp(req);
     const result = plansStore.createPaymentRequest({
         deviceId,
         plan: body.plan,
         phone: body.phone,
         email,
-        userId: sessionUser.id
+        userId: sessionUser.id,
+        ip,
+        currentPlan
     });
     if (!result.ok) {
         return res.status(400).json(result);
     }
     try { await plansStore.flushAsync(); } catch (e) {
         console.error('plans flush after upgrade request:', e.message);
+    }
+    // Resolve & cache estimated location from request IP (best-effort, never blocks response).
+    if (result.payment && result.payment.ip && !result.already) {
+        ensurePaymentGeo(result.payment).then(() =>
+            plansStore.flushAsync().catch(() => {})
+        ).catch((e) => console.error('upgrade geo lookup:', e.message));
     }
     // Notify on new waiting requests, or when an existing waiting request first receives an email.
     if (result.payment && result.payment.email && (!result.already || result.emailAttached)) {
@@ -1556,9 +1665,28 @@ function requireAdmin(req, res) {
     return true;
 }
 
-app.get('/api/admin/payments', (req, res) => {
+app.get('/api/admin/payments', async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    res.json({ payments: plansStore.listPayments() });
+    const payments = plansStore.listPaymentsAdmin();
+    // Fill missing geo for rows that have an IP (cached after first lookup).
+    const needGeo = payments.filter(p => p.ip && !(p.geo && p.geo.label));
+    if (needGeo.length) {
+        const batch = needGeo.slice(0, 15); // avoid stampeding free API
+        await Promise.all(batch.map(async (p) => {
+            try {
+                await ensurePaymentGeo(p);
+                const refreshed = plansStore.listPaymentsAdmin().find(x => x.id === p.id);
+                if (refreshed) {
+                    p.geo = refreshed.geo;
+                    p.location = refreshed.location;
+                }
+            } catch (e) {
+                console.error('admin geo:', e.message);
+            }
+        }));
+        try { await plansStore.flushAsync(); } catch (_) {}
+    }
+    res.json({ payments });
 });
 
 app.post('/api/admin/payments/:id/approve', async (req, res) => {

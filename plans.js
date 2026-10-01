@@ -63,7 +63,8 @@ function emptyStore() {
         subscriptions: {},
         phoneIndex: {},
         usage: {},
-        payments: []
+        payments: [],
+        geoCache: {}
     };
 }
 
@@ -85,7 +86,8 @@ function createPlansStore(dataDir, options = {}) {
             subscriptions: src.subscriptions && typeof src.subscriptions === 'object' ? src.subscriptions : {},
             phoneIndex: src.phoneIndex && typeof src.phoneIndex === 'object' ? src.phoneIndex : {},
             usage: src.usage && typeof src.usage === 'object' ? src.usage : {},
-            payments: Array.isArray(src.payments) ? src.payments : []
+            payments: Array.isArray(src.payments) ? src.payments : [],
+            geoCache: src.geoCache && typeof src.geoCache === 'object' ? src.geoCache : {}
         };
     }
 
@@ -810,7 +812,7 @@ function createPlansStore(dataDir, options = {}) {
         return { ok: true, attached, migratedSub, ownerKey: ak };
     }
 
-    function createPaymentRequest({ deviceId, plan, phone, email, userId }) {
+    function createPaymentRequest({ deviceId, plan, phone, email, userId, ip, currentPlan } = {}) {
         const planId = String(plan || '').toLowerCase();
         const def = PLAN_DEFS[planId];
         if (!def || planId === 'free') {
@@ -869,6 +871,10 @@ function createPlansStore(dataDir, options = {}) {
             };
         }
 
+        const ownerForPlan = uid ? accountOwnerKey(uid) : (deviceId || '');
+        const livePlan = ownerForPlan ? (getEffectivePlan(ownerForPlan).plan || 'free') : 'free';
+        const currentPlanNorm = String(currentPlan || livePlan || 'free').toLowerCase();
+        const ipNorm = typeof ip === 'string' ? ip.trim().slice(0, 64) : '';
         const payment = {
             id: 'pay_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'),
             phone: normalized,
@@ -879,7 +885,10 @@ function createPlansStore(dataDir, options = {}) {
             email: emailNorm,
             status: 'waiting',
             createdAt: new Date().toISOString(),
-            decidedAt: null
+            decidedAt: null,
+            currentPlan: currentPlanNorm,
+            ip: ipNorm || null,
+            geo: null
         };
         store.payments.unshift(payment);
         save();
@@ -974,8 +983,92 @@ function createPlansStore(dataDir, options = {}) {
         };
     }
 
+    function formatGeoLabel(geo) {
+        if (!geo || typeof geo !== 'object') return null;
+        if (geo.label) return String(geo.label);
+        const parts = [geo.city, geo.region, geo.country].filter(Boolean);
+        return parts.length ? parts.join(', ') : null;
+    }
+
+    function getCachedGeo(ip) {
+        const key = String(ip || '').trim();
+        if (!key) return null;
+        const entry = read().geoCache[key];
+        return entry && typeof entry === 'object' ? entry : null;
+    }
+
+    function setCachedGeo(ip, geo) {
+        const key = String(ip || '').trim();
+        if (!key || !geo || typeof geo !== 'object') return null;
+        const store = read();
+        const entry = {
+            city: geo.city || null,
+            region: geo.region || null,
+            country: geo.country || null,
+            countryCode: geo.countryCode || null,
+            label: formatGeoLabel(geo) || geo.label || null,
+            lookedUpAt: geo.lookedUpAt || new Date().toISOString(),
+            source: geo.source || 'ipwho.is'
+        };
+        store.geoCache[key] = entry;
+        save();
+        return entry;
+    }
+
+    function attachGeoToPayment(paymentId, geo) {
+        const store = read();
+        const payment = store.payments.find(p => p.id === paymentId);
+        if (!payment) return null;
+        const entry = {
+            city: geo && geo.city || null,
+            region: geo && geo.region || null,
+            country: geo && geo.country || null,
+            countryCode: geo && geo.countryCode || null,
+            label: formatGeoLabel(geo) || (geo && geo.label) || null,
+            lookedUpAt: (geo && geo.lookedUpAt) || new Date().toISOString(),
+            source: (geo && geo.source) || 'ipwho.is'
+        };
+        payment.geo = entry;
+        if (payment.ip) {
+            store.geoCache[payment.ip] = entry;
+        }
+        save();
+        return payment;
+    }
+
+    function mapPaymentAdmin(p) {
+        const ownerKey = paymentOwnerKey(p);
+        const live = ownerKey ? getEffectivePlan(ownerKey) : null;
+        const cached = p.ip ? getCachedGeo(p.ip) : null;
+        const geo = p.geo || cached || null;
+        return {
+            id: p.id,
+            phone: p.phone || null,
+            email: p.email || null,
+            plan: p.plan,
+            requestedPlan: p.plan,
+            currentPlan: p.currentPlan || (live && live.plan) || 'free',
+            livePlan: (live && live.plan) || 'free',
+            amount: p.amount,
+            status: p.status,
+            createdAt: p.createdAt || null,
+            decidedAt: p.decidedAt || null,
+            startsAt: p.startsAt || null,
+            endsAt: p.endsAt || null,
+            deviceId: p.deviceId || null,
+            userId: p.userId || null,
+            ip: p.ip || null,
+            geo: geo,
+            location: formatGeoLabel(geo) || (p.ip ? 'Looking up…' : '—')
+        };
+    }
+
     function listPayments() {
         return read().payments.slice();
+    }
+
+    function listPaymentsAdmin() {
+        return read().payments.map(mapPaymentAdmin);
     }
 
     function getPayment(id) {
@@ -1101,8 +1194,13 @@ function createPlansStore(dataDir, options = {}) {
         resolveUsageKind,
         createPaymentRequest,
         listPayments,
+        listPaymentsAdmin,
         listPaymentsForDevice,
         listPaymentsForAccount,
+        getCachedGeo,
+        setCachedGeo,
+        attachGeoToPayment,
+        formatGeoLabel,
         syncAccountPlan,
         accountOwnerKey,
         getMyPlan,

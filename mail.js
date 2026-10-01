@@ -75,6 +75,17 @@ async function sendPlanRequestReceivedEmail(payment) {
     const amount = money(payment.amount);
     const when = formatWhen(payment.createdAt);
     const subject = `We received your GoldenSpaceAI ${label} upgrade request`;
+    const securityNoteText =
+        `SECURITY: Do not share your Request ID / request code with anyone. ` +
+        `GoldenSpaceAI staff will never ask you to send it in chat or on social media. ` +
+        `Treat it like a password — only use it on official GoldenSpaceAI pages or when you email us from this address.\n\n`;
+    const securityNoteHtml =
+        `<p style="margin:16px 0;padding:12px 14px;border:1px solid #c9a227;border-radius:8px;` +
+        `background:#fff8e6;color:#1a1a1a;font-size:14px;line-height:1.45;">` +
+        `<strong>Security:</strong> Do <em>not</em> share your Request ID / request code with anyone. ` +
+        `GoldenSpaceAI staff will never ask you to send it in chat or on social media. ` +
+        `Treat it like a password — only use it on official GoldenSpaceAI pages or when you email us from this address.` +
+        `</p>`;
     const text =
         `Hi,\n\n` +
         `Thank you for requesting an upgrade to GoldenSpaceAI ${label}` +
@@ -82,7 +93,8 @@ async function sendPlanRequestReceivedEmail(payment) {
         `Status: Waiting for payment confirmation\n` +
         `Submitted: ${when}\n` +
         (payment.id ? `Request ID: ${payment.id}\n` : '') +
-        `\nOur team will review your OMT Pay transfer and update this request. ` +
+        `\n` + securityNoteText +
+        `Our team will review your OMT Pay transfer and update this request. ` +
         `You can check status anytime at https://www.goldenspaceai.space/my-plan\n\n` +
         `If you did not make this request, you can ignore this email.\n\n` +
         `— GoldenSpaceAI Team`;
@@ -92,8 +104,9 @@ async function sendPlanRequestReceivedEmail(payment) {
         (amount ? ` (${amount} / 30 days)` : '') + `.</p>` +
         `<p><strong>Status:</strong> Waiting for payment confirmation<br>` +
         `<strong>Submitted:</strong> ${when}` +
-        (payment.id ? `<br><strong>Request ID:</strong> ${payment.id}` : '') +
+        (payment.id ? `<br><strong>Request ID:</strong> <code style="font-size:13px;">${payment.id}</code>` : '') +
         `</p>` +
+        securityNoteHtml +
         `<p>Our team will review your OMT Pay transfer and update this request. ` +
         `You can check status anytime on your ` +
         `<a href="https://www.goldenspaceai.space/my-plan">My Plan</a> page.</p>` +

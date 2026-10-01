@@ -10,75 +10,256 @@
 <meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="/logo.png">
 <style>
-  :root { --gold:#d4af37; --gold-dark:#b8962e; --bg:#0a0a0a; --panel:#141414; --text:#eee; --muted:#999; --border:#333; }
+  :root {
+    --gold:#d4af37; --gold-light:#f4d03f; --gold-dark:#b8962e;
+    --bg:#0a0a0a; --panel:#121212; --panel-elev:#171717;
+    --text:#f0f0f0; --muted:#9a9a9a; --border:#2a2a2a;
+    --ok:#3dcc9a; --warn:#e8a838; --danger:#f07070;
+    --radius:14px;
+  }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
-  header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
-  header a { color:var(--gold); text-decoration:none; font-weight:600; }
-  main { max-width:980px; margin:0 auto; padding:20px; }
-  h1 { color:var(--gold); font-size:1.35rem; margin:0 0 14px; }
-  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
-  input { width:100%; max-width:360px; padding:12px; border-radius:10px; border:1px solid var(--border); background:#0a0a0a; color:var(--text); font-size:16px; }
-  button.btn { border:none; border-radius:10px; padding:10px 14px; font-weight:700; cursor:pointer; font-size:13px; }
+  body {
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background:
+      radial-gradient(1100px 520px at 50% -12%, rgba(212,175,55,0.12), transparent 58%),
+      var(--bg);
+    color:var(--text);
+    line-height:1.45;
+    min-height:100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color:var(--gold); text-decoration:none; font-weight:600; }
+  a:hover { color:var(--gold-light); }
+
+  .topnav {
+    position:sticky; top:0; z-index:40;
+    backdrop-filter: blur(12px);
+    background: rgba(10,10,10,0.88);
+    border-bottom:1px solid var(--border);
+    padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:800; color:var(--gold); }
+  .brand img { width:28px; height:28px; border-radius:8px; object-fit:cover; }
+  .topnav-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+  main { max-width:1100px; margin:0 auto; padding:28px 20px 80px; }
+
+  .hero { margin-bottom:22px; }
+  .hero h1 {
+    margin:0 0 6px;
+    font-size:clamp(1.4rem, 3vw, 1.85rem);
+    font-weight:800;
+    letter-spacing:-0.02em;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .hero p { margin:0; color:var(--muted); font-size:14px; }
+
+  .card {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    margin-bottom:14px;
+  }
+  .card.login-card { max-width:420px; }
+
+  input[type="password"] {
+    width:100%;
+    padding:12px 14px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:#0a0a0a;
+    color:var(--text);
+    font-size:16px;
+  }
+  input:focus { outline:2px solid rgba(212,175,55,0.35); border-color:var(--gold); }
+
+  button.btn {
+    border:none; border-radius:10px; padding:10px 14px;
+    font-weight:700; cursor:pointer; font-size:13px;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  }
+  button.btn:disabled { opacity:0.55; cursor:not-allowed; }
   button.btn.primary { background:linear-gradient(135deg,var(--gold),var(--gold-dark)); color:#0a0a0a; }
-  button.btn.ok { background:#1a5; color:#fff; }
-  button.btn.bad { background:#833; color:#fff; }
-  button.btn.ghost { background:transparent; color:var(--gold); border:1px solid var(--border); }
-  .err { color:#f88; margin-top:10px; font-size:14px; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
-  th { color:var(--gold); font-weight:600; }
-  .st-waiting { color:#e8a838; font-weight:700; }
-  .st-approved { color:#3d9; font-weight:700; }
-  .st-declined { color:#f88; font-weight:700; }
-  .row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  button.btn.ok { background:#1a7a55; color:#fff; }
+  button.btn.bad { background:#8a3030; color:#fff; }
+  button.btn.ghost {
+    background:transparent; color:var(--gold);
+    border:1px solid var(--border);
+  }
+  button.btn.ghost:hover { border-color:var(--gold); }
+
+  .err { color:var(--danger); margin-top:10px; font-size:14px; }
+
+  .toolbar {
+    display:flex; justify-content:space-between; align-items:center;
+    gap:12px; flex-wrap:wrap; margin-bottom:14px;
+  }
+  .toolbar h2 { margin:0; font-size:1.05rem; color:var(--text); font-weight:700; }
+  .stats {
+    display:flex; gap:8px; flex-wrap:wrap; font-size:12px; font-weight:600;
+  }
+  .stat {
+    padding:5px 10px; border-radius:999px; border:1px solid var(--border);
+    background:var(--panel-elev); color:var(--muted);
+  }
+  .stat b { color:var(--text); font-weight:800; }
+
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .chip {
+    border:1px solid var(--border); background:var(--panel);
+    color:var(--muted); border-radius:999px; padding:6px 12px;
+    font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .chip.on { border-color:var(--gold); color:var(--gold); background:rgba(212,175,55,0.1); }
+
+  .req-card {
+    background: linear-gradient(180deg, var(--panel-elev), var(--panel));
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:0;
+    overflow:hidden;
+    margin-bottom:14px;
+    transition: border-color 0.15s ease;
+  }
+  .req-card:hover { border-color: rgba(212,175,55,0.45); }
+  .req-card.waiting { box-shadow: inset 3px 0 0 var(--warn); }
+  .req-card.approved { box-shadow: inset 3px 0 0 var(--ok); }
+  .req-card.declined { box-shadow: inset 3px 0 0 var(--danger); }
+
+  .req-head {
+    display:flex; justify-content:space-between; align-items:flex-start;
+    gap:12px; flex-wrap:wrap;
+    padding:14px 16px 10px;
+    border-bottom:1px solid var(--border);
+    background: rgba(212,175,55,0.04);
+  }
+  .req-id-wrap { min-width:0; flex:1; }
+  .req-id-label {
+    display:block; font-size:11px; font-weight:700; letter-spacing:0.06em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:4px;
+  }
+  .req-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size:13px; font-weight:700; color:var(--gold);
+    word-break:break-all; line-height:1.35;
+  }
+  .badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:999px;
+    font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em;
+    border:1px solid transparent; white-space:nowrap;
+  }
+  .badge.waiting { color:#1a1200; background:var(--warn); }
+  .badge.approved { color:#042; background:var(--ok); }
+  .badge.declined { color:#fff; background:var(--danger); }
+
+  .req-body { padding:14px 16px 8px; }
+  .meta-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap:12px 16px;
+  }
+  .meta dt {
+    margin:0 0 2px;
+    font-size:11px; font-weight:700; letter-spacing:0.04em;
+    text-transform:uppercase; color:var(--muted);
+  }
+  .meta dd {
+    margin:0; font-size:14px; font-weight:600; color:var(--text);
+    word-break:break-word;
+  }
+  .meta dd.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size:12px; font-weight:600; color:var(--muted);
+  }
+  .plan-flow {
+    display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .plan-pill {
+    display:inline-flex; align-items:center;
+    padding:3px 9px; border-radius:999px; font-size:12px; font-weight:800;
+    border:1px solid var(--border); background:#0a0a0a; color:var(--text);
+  }
+  .plan-pill.req {
+    border-color: rgba(212,175,55,0.5);
+    background: rgba(212,175,55,0.12);
+    color:var(--gold);
+  }
+  .plan-arrow { color:var(--muted); font-size:12px; font-weight:700; }
+
+  .req-foot {
+    display:flex; justify-content:space-between; align-items:center;
+    gap:10px; flex-wrap:wrap;
+    padding:10px 16px 14px;
+  }
+  .req-foot .when { font-size:12px; color:var(--muted); }
+  .row-actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+  #empty {
+    text-align:center; color:var(--muted); padding:36px 16px;
+    border:1px dashed var(--border); border-radius:var(--radius);
+  }
   #app { display:none; }
   #login { display:block; }
+
+  html.light .req-card { background: linear-gradient(180deg, #fffdf8, #ffffff); }
+  html.light .req-head { background: rgba(184,134,11,0.06); }
+  html.light .plan-pill { background:#fff8e6; }
+  html.light .badge.waiting { color:#1a1200; }
 </style>
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js" defer></script>
 </head>
 <body>
-<header>
-  <a href="/">← GoldenSpaceAI</a>
-  <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">Light</button>
-  <button class="btn ghost" id="logoutBtn" type="button" hidden>Log out</button>
+<header class="topnav">
+  <a class="brand" href="/"><img src="/logo.png" alt="">GoldenSpaceAI Admin</a>
+  <div class="topnav-actions">
+    <button type="button" class="theme-toggle btn ghost" data-theme-toggle aria-label="Toggle color theme">Light</button>
+    <button class="btn ghost" id="logoutBtn" type="button" hidden>Log out</button>
+  </div>
 </header>
 <main>
-  <section id="login" class="card">
-    <h1>Admin</h1>
-    <p style="color:var(--muted);font-size:14px;">Enter ADMIN_PASSKEY</p>
+  <section id="login" class="card login-card">
+    <div class="hero" style="margin-bottom:14px;">
+      <h1>Admin unlock</h1>
+      <p>Enter ADMIN_PASSKEY to review upgrade requests.</p>
+    </div>
     <form id="loginForm">
-      <input type="password" id="passkey" autocomplete="current-password" required>
+      <input type="password" id="passkey" autocomplete="current-password" placeholder="Passkey" required>
       <div style="margin-top:12px;">
-        <button class="btn primary" type="submit">Unlock</button>
+        <button class="btn primary" type="submit">Unlock dashboard</button>
       </div>
       <p class="err" id="loginErr" hidden></p>
     </form>
   </section>
 
   <section id="app">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-      <h1 style="margin:0;">Payment requests</h1>
-      <button class="btn ghost" type="button" id="refreshBtn">Refresh</button>
+    <div class="hero">
+      <h1>Upgrade requests</h1>
+      <p>Review OMT payment requests. Approve or decline with your admin session.</p>
     </div>
-    <div class="card" style="overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Phone</th>
-            <th>Plan</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th>Device</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
-      <p id="empty" style="color:var(--muted);display:none;">No payment requests yet.</p>
+
+    <div class="toolbar">
+      <h2>Inbox</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div class="stats" id="stats"></div>
+        <button class="btn ghost" type="button" id="refreshBtn">Refresh</button>
+      </div>
     </div>
+
+    <div class="filters" id="filters">
+      <button type="button" class="chip on" data-filter="all">All</button>
+      <button type="button" class="chip" data-filter="waiting">Waiting</button>
+      <button type="button" class="chip" data-filter="approved">Approved</button>
+      <button type="button" class="chip" data-filter="declined">Declined</button>
+    </div>
+
+    <div id="rows"></div>
+    <p id="empty" hidden>No payment requests yet.</p>
   </section>
 </main>
 <script>
@@ -86,6 +267,8 @@
   const loginEl = document.getElementById('login');
   const appEl = document.getElementById('app');
   const logoutBtn = document.getElementById('logoutBtn');
+  let filter = 'all';
+  let cache = [];
 
   function showApp(on) {
     loginEl.style.display = on ? 'none' : 'block';
@@ -115,39 +298,94 @@
     try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
   }
 
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function planLabel(p) {
+    const s = String(p || 'free').toLowerCase();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Free';
+  }
+
+  function locationText(p) {
+    if (p.location && p.location !== 'Looking up…') return p.location;
+    if (p.geo && p.geo.label) return p.geo.label;
+    if (p.ip) return 'IP ' + p.ip + ' (geo pending)';
+    return '—';
+  }
+
+  function renderStats(list) {
+    const waiting = list.filter(p => p.status === 'waiting').length;
+    const approved = list.filter(p => p.status === 'approved').length;
+    const declined = list.filter(p => p.status === 'declined').length;
+    document.getElementById('stats').innerHTML =
+      '<span class="stat">Total <b>' + list.length + '</b></span>' +
+      '<span class="stat">Waiting <b>' + waiting + '</b></span>' +
+      '<span class="stat">Approved <b>' + approved + '</b></span>' +
+      '<span class="stat">Declined <b>' + declined + '</b></span>';
+  }
+
+  function renderRows() {
+    const list = filter === 'all' ? cache : cache.filter(p => (p.status || 'waiting') === filter);
+    const tbody = document.getElementById('rows');
+    const empty = document.getElementById('empty');
+    empty.hidden = list.length > 0;
+    tbody.innerHTML = list.map(p => {
+      const st = p.status || 'waiting';
+      const canDecide = st === 'waiting';
+      const actions = canDecide
+        ? ('<div class="row-actions">' +
+           '<button class="btn ok" data-act="approve" data-id="' + escapeHtml(p.id) + '">Approve</button>' +
+           '<button class="btn bad" data-act="decline" data-id="' + escapeHtml(p.id) + '">Decline</button>' +
+           '</div>')
+        : '<span class="when">No action needed</span>';
+      const current = planLabel(p.currentPlan || p.livePlan || 'free');
+      const requested = planLabel(p.requestedPlan || p.plan);
+      const ipLine = p.ip ? escapeHtml(p.ip) : '—';
+      return (
+        '<article class="req-card ' + st + '">' +
+          '<div class="req-head">' +
+            '<div class="req-id-wrap">' +
+              '<span class="req-id-label">Request ID</span>' +
+              '<div class="req-id" title="Request ID">' + escapeHtml(p.id) + '</div>' +
+            '</div>' +
+            '<span class="badge ' + st + '">' + escapeHtml(st) + '</span>' +
+          '</div>' +
+          '<div class="req-body">' +
+            '<dl class="meta-grid meta">' +
+              '<div><dt>Email</dt><dd>' + escapeHtml(p.email || '—') + '</dd></div>' +
+              '<div><dt>Phone (OMT)</dt><dd>' + escapeHtml(p.phone || '—') + '</dd></div>' +
+              '<div><dt>Plan</dt><dd><span class="plan-flow">' +
+                '<span class="plan-pill" title="Current plan at request">' + escapeHtml(current) + '</span>' +
+                '<span class="plan-arrow">→</span>' +
+                '<span class="plan-pill req" title="Requested plan">' + escapeHtml(requested) + '</span>' +
+                (p.amount != null ? '<span style="color:var(--muted);font-size:12px;font-weight:600;">$' + escapeHtml(String(p.amount)) + '</span>' : '') +
+              '</span></dd></div>' +
+              '<div><dt>Estimated location</dt><dd>' + escapeHtml(locationText(p)) + '</dd></div>' +
+              '<div><dt>Request IP</dt><dd class="mono">' + ipLine + '</dd></div>' +
+              '<div><dt>Device / client ID</dt><dd class="mono">' + escapeHtml(p.deviceId || '—') + '</dd></div>' +
+            '</dl>' +
+          '</div>' +
+          '<div class="req-foot">' +
+            '<div class="when">Submitted ' + escapeHtml(fmtDate(p.createdAt)) +
+              (p.decidedAt ? ' · Decided ' + escapeHtml(fmtDate(p.decidedAt)) : '') +
+            '</div>' +
+            actions +
+          '</div>' +
+        '</article>'
+      );
+    }).join('');
+  }
+
   async function loadPayments() {
     const { res, data } = await api('/api/admin/payments');
     if (!res.ok) {
       showApp(false);
       return;
     }
-    const list = data.payments || [];
-    const tbody = document.getElementById('rows');
-    const empty = document.getElementById('empty');
-    empty.style.display = list.length ? 'none' : 'block';
-    tbody.innerHTML = list.map(p => {
-      const st = p.status || 'waiting';
-      const canDecide = st === 'waiting';
-      const actions = canDecide
-        ? ('<div class="row-actions">' +
-           '<button class="btn ok" data-act="approve" data-id="' + p.id + '">Approve</button>' +
-           '<button class="btn bad" data-act="decline" data-id="' + p.id + '">Decline</button>' +
-           '</div>')
-        : '—';
-      return '<tr>' +
-        '<td>' + fmtDate(p.createdAt) + '</td>' +
-        '<td>' + escapeHtml(p.phone) + '</td>' +
-        '<td>' + escapeHtml(String(p.plan || '').toUpperCase()) + '</td>' +
-        '<td>$' + escapeHtml(String(p.amount)) + '</td>' +
-        '<td class="st-' + st + '">' + st + '</td>' +
-        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(p.deviceId || '') + '</td>' +
-        '<td>' + actions + '</td>' +
-        '</tr>';
-    }).join('');
-  }
-
-  function escapeHtml(s) {
-    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    cache = data.payments || [];
+    renderStats(cache);
+    renderRows();
   }
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -176,6 +414,16 @@
   });
 
   document.getElementById('refreshBtn').addEventListener('click', loadPayments);
+
+  document.getElementById('filters').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    filter = btn.getAttribute('data-filter') || 'all';
+    document.querySelectorAll('#filters .chip').forEach(c => {
+      c.classList.toggle('on', c === btn);
+    });
+    renderRows();
+  });
 
   document.getElementById('rows').addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-act]');

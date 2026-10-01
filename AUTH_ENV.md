@@ -73,3 +73,4 @@ Typical first enable order:
 - **On login:** device chats merge into the user (Postgres + JSON fallback).
 - **Plans / OMT / admin / caps:** still device-scoped; not broken by login.
 - **Email OTP:** codes expire in 10 minutes; max 5 verify attempts per code.
+- **Login alert:** after successful OTP verify or Google OAuth, a separate Resend email (“New login to your GoldenSpaceAI account”) is sent when the user has an email and `RESEND_API_KEY` is set. Reuses `EMAIL_FROM`. Does not change the OTP code email.

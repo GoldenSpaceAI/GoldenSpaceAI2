@@ -1,3 +1,12 @@
+# GoldenSpaceAI — fix chat math/number scrambling (2026-10-01)
+
+- **Bug:** `softCleanLatex` turned `\boxed{…}` into `$$1$` (JS replacement `$$$$1$$` eats the capture), and `formatMarkdown` did not stash `\( \)` / `\[ \]` before list normalization, so expressions like `-4 - 2^2 - 3 \cdot 1 - 5` became bullet lists / garbled digits.
+- **Fix:** replacer-function boxed → `$$…$$`; stash `$$`, `\[ \]`, `\( \)`, and `$…$` (HTML-escaped) before markdown list/heading rewrites so KaTeX auto-render gets intact exponents / `\cdot`.
+- Mental check: `-4 - 2^2 - 3 · 1 - 5 = -16`.
+- Service worker cache `goldenspaceai2-v22`. App version `2.2.6`.
+
+---
+
 # GoldenSpaceAI — chatting polish + Office/PDF file extract (2026-10-01)
 
 - **Composer:** attach / mic / send / Stop polish, stronger iPhone safe-area inset, mobile mode picker on its own less-cramped row (no starter prompt chips).

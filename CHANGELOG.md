@@ -1,3 +1,15 @@
+# GoldenSpaceAI — email magic-link + Google OAuth + cross-device chat sync (2026-10-01)
+
+- **Auth:** `/api/auth/status`, `/api/auth/me`, magic-link request/consume, Google OAuth start/callback, logout, `POST /api/auth/merge-device`.
+- **Sessions:** signed HttpOnly cookie `gsa_session` via `SESSION_SECRET`.
+- **Postgres:** users, magic_links, device_links, chats tables when `DATABASE_URL` is set; JSON `chats.json` remains guest/fallback.
+- **Chats:** logged-in owner key `u_<userId>`; guest keeps device id. Login merges device → user. Guest still works.
+- **UI:** Account card in chats footer + login modal (email / Google). Providers disable cleanly until keys exist (`AUTH_ENV.md`).
+- **Unchanged:** plans, OMT upgrade, admin, Fast/Thinking/Expert caps (still `X-Client-Id` device scoped).
+- Env checklist: `AUTH_ENV.md`. SW `goldenspaceai2-v24`. App `2.2.8`.
+
+---
+
 # GoldenSpaceAI — chat page pro polish (2026-10-01)
 
 - **Chat page only** visual/UX step-up beyond PR #19 (index.html CSS/JS). Plans/caps/OMT/admin/math fix untouched.

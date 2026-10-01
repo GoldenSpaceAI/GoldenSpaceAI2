@@ -11,7 +11,9 @@ const {
     OMT_DESTINATION
 } = require('./plans');
 const multer = require('multer');
+const cookieParser = require('cookie-parser');
 const { extractUploadedFile, MAX_FILE_BYTES } = require('./fileExtract');
+const { createAuth } = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +22,9 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const CHATS_FILE = path.join(DATA_DIR, 'chats.json');
 const plansStore = createPlansStore(DATA_DIR);
 const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || '';
+
+// Auth + Postgres chat store (magic-link / Google). Live login needs keys — see AUTH_ENV.md.
+let auth = null;
 
 // ==================== CORS ====================
 const corsOriginEnv = process.env.CORS_ORIGIN;
@@ -38,7 +43,11 @@ if (corsOriginEnv === undefined || corsOriginEnv === '') {
         }
     };
 }
+if (corsOptions && typeof corsOptions === 'object') {
+    corsOptions.credentials = true;
+}
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -1008,12 +1017,51 @@ function requireClientId(req, res) {
     return id;
 }
 
-app.get('/api/chats', (req, res) => {
-    const clientId = requireClientId(req, res);
-    if (!clientId) return;
+function mergeJsonDeviceToUser(deviceId, userKey) {
+    if (!deviceId || !userKey) return { merged: 0 };
     const store = readStore();
-    const clientChats = store[clientId] || {};
-    const list = Object.keys(clientChats).map(id => {
+    const from = store[deviceId] || {};
+    if (!store[userKey]) store[userKey] = {};
+    let merged = 0;
+    for (const id of Object.keys(from)) {
+        const incoming = from[id];
+        const existing = store[userKey][id];
+        if (!existing) {
+            store[userKey][id] = incoming;
+            merged += 1;
+        } else {
+            const a = String(incoming.updatedAt || incoming.createdAt || '');
+            const b = String(existing.updatedAt || existing.createdAt || '');
+            if (a > b) {
+                store[userKey][id] = incoming;
+                merged += 1;
+            }
+        }
+    }
+    delete store[deviceId];
+    writeStore(store);
+    return { merged };
+}
+
+auth = createAuth({ mergeJsonDeviceToUser });
+auth.ensureSchema().catch((e) => console.error('Auth schema warmup:', e.message));
+
+/** Chat owner: logged-in userId key, else guest device id. Plans still use device id. */
+function resolveChatOwnerKey(req, res) {
+    const deviceId = getClientId(req);
+    const user = auth.readUserFromReq(req);
+    if (user && user.id) return 'u_' + user.id;
+    if (!deviceId) {
+        res.status(400).json({ error: 'Missing or invalid X-Client-Id header' });
+        return null;
+    }
+    return deviceId;
+}
+
+function listChatsFromJson(ownerKey) {
+    const store = readStore();
+    const clientChats = store[ownerKey] || {};
+    return Object.keys(clientChats).map(id => {
         const c = clientChats[id] || {};
         return {
             id,
@@ -1024,21 +1072,44 @@ app.get('/api/chats', (req, res) => {
             messageCount: Array.isArray(c.messages) ? c.messages.length : 0
         };
     }).sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
-    res.json({ chats: list });
+}
+
+app.get('/api/chats', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const pgList = await auth.listChats(ownerKey);
+        if (pgList) return res.json({ chats: pgList, ownerKeyPrefix: ownerKey.startsWith('u_') ? 'user' : 'device' });
+    } catch (e) {
+        console.error('pg listChats:', e.message);
+    }
+    res.json({ chats: listChatsFromJson(ownerKey), ownerKeyPrefix: ownerKey.startsWith('u_') ? 'user' : 'device' });
 });
 
-app.get('/api/chats/:id', (req, res) => {
-    const clientId = requireClientId(req, res);
-    if (!clientId) return;
+app.get('/api/chats/:id', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const pgChat = await auth.getChat(ownerKey, req.params.id);
+        if (pgChat === null) {
+            // pg unavailable → json
+        } else if (pgChat === undefined) {
+            return res.status(404).json({ error: 'Not found' });
+        } else {
+            return res.json(pgChat);
+        }
+    } catch (e) {
+        console.error('pg getChat:', e.message);
+    }
     const store = readStore();
-    const chat = store[clientId]?.[req.params.id];
+    const chat = store[ownerKey]?.[req.params.id];
     if (!chat) return res.status(404).json({ error: 'Not found' });
     res.json({ id: req.params.id, ...chat });
 });
 
-app.post('/api/chats', (req, res) => {
-    const clientId = requireClientId(req, res);
-    if (!clientId) return;
+app.post('/api/chats', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
     const body = req.body || {};
     const id = body.id || ('chat_' + Date.now());
     const now = new Date().toISOString();
@@ -1051,9 +1122,15 @@ app.post('/api/chats', (req, res) => {
         customInstructions: body.customInstructions || '',
         systemPrompt: body.systemPrompt || ''
     };
+    try {
+        const ok = await auth.upsertChat(ownerKey, id, chat);
+        if (ok) return res.status(201).json({ id, ...chat });
+    } catch (e) {
+        console.error('pg upsertChat:', e.message);
+    }
     const store = readStore();
-    if (!store[clientId]) store[clientId] = {};
-    store[clientId][id] = chat;
+    if (!store[ownerKey]) store[ownerKey] = {};
+    store[ownerKey][id] = chat;
     try {
         writeStore(store);
     } catch (e) {
@@ -1062,14 +1139,20 @@ app.post('/api/chats', (req, res) => {
     res.status(201).json({ id, ...chat });
 });
 
-app.put('/api/chats/:id', (req, res) => {
-    const clientId = requireClientId(req, res);
-    if (!clientId) return;
-    const store = readStore();
-    if (!store[clientId]) store[clientId] = {};
-    const existing = store[clientId][req.params.id] || {};
+app.put('/api/chats/:id', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
     const body = req.body || {};
     const now = new Date().toISOString();
+    let existing = {};
+    try {
+        const pgChat = await auth.getChat(ownerKey, req.params.id);
+        if (pgChat && pgChat !== null) existing = pgChat;
+    } catch (_) {}
+    if (!existing.name) {
+        const store = readStore();
+        existing = (store[ownerKey] && store[ownerKey][req.params.id]) || {};
+    }
     const chat = {
         name: body.name !== undefined ? body.name : (existing.name || 'New Chat'),
         messages: Array.isArray(body.messages) ? body.messages : (existing.messages || []),
@@ -1079,7 +1162,15 @@ app.put('/api/chats/:id', (req, res) => {
         customInstructions: body.customInstructions !== undefined ? body.customInstructions : (existing.customInstructions || ''),
         systemPrompt: body.systemPrompt !== undefined ? body.systemPrompt : (existing.systemPrompt || '')
     };
-    store[clientId][req.params.id] = chat;
+    try {
+        const ok = await auth.upsertChat(ownerKey, req.params.id, chat);
+        if (ok) return res.json({ id: req.params.id, ...chat });
+    } catch (e) {
+        console.error('pg upsertChat put:', e.message);
+    }
+    const store = readStore();
+    if (!store[ownerKey]) store[ownerKey] = {};
+    store[ownerKey][req.params.id] = chat;
     try {
         writeStore(store);
     } catch (e) {
@@ -1088,20 +1179,135 @@ app.put('/api/chats/:id', (req, res) => {
     res.json({ id: req.params.id, ...chat });
 });
 
-app.delete('/api/chats/:id', (req, res) => {
-    const clientId = requireClientId(req, res);
-    if (!clientId) return;
-    const store = readStore();
-    if (!store[clientId] || !store[clientId][req.params.id]) {
-        return res.status(404).json({ error: 'Not found' });
-    }
-    delete store[clientId][req.params.id];
+app.delete('/api/chats/:id', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    let deleted = false;
     try {
-        writeStore(store);
+        const pgChat = await auth.getChat(ownerKey, req.params.id);
+        if (pgChat) {
+            await auth.deleteChat(ownerKey, req.params.id);
+            deleted = true;
+        } else if (pgChat === null) {
+            // fallback json
+        } else {
+            // pg ok, not found — still try json
+        }
     } catch (e) {
-        return res.status(500).json({ error: 'Failed to delete' });
+        console.error('pg deleteChat:', e.message);
     }
+    const store = readStore();
+    if (store[ownerKey] && store[ownerKey][req.params.id]) {
+        delete store[ownerKey][req.params.id];
+        try { writeStore(store); } catch (e) { return res.status(500).json({ error: 'Failed to delete' }); }
+        deleted = true;
+    }
+    if (!deleted) return res.status(404).json({ error: 'Not found' });
     res.json({ ok: true });
+});
+
+// ==================== AUTH (magic-link + Google OAuth) ====================
+app.get('/api/auth/status', (req, res) => {
+    const st = auth.authStatus();
+    const user = auth.readUserFromReq(req);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+        ...st,
+        user: user ? { id: user.id, email: user.email, name: user.name } : null,
+        guest: !user
+    });
+});
+
+app.get('/api/auth/me', (req, res) => {
+    const user = auth.readUserFromReq(req);
+    res.setHeader('Cache-Control', 'no-store');
+    if (!user) return res.status(401).json({ user: null, guest: true });
+    res.json({ user, guest: false });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    auth.clearSessionCookie(res);
+    res.json({ ok: true });
+});
+
+app.post('/api/auth/magic/request', async (req, res) => {
+    try {
+        const email = (req.body && req.body.email) || '';
+        const deviceId = getClientId(req);
+        const result = await auth.createMagicLink({ email, deviceId, req });
+        if (!result.ok) return res.status(result.status && !result.status.magicLink ? 503 : 400).json(result);
+        res.json(result);
+    } catch (e) {
+        console.error('magic request:', e.message);
+        res.status(500).json({ ok: false, error: 'Failed to start magic link login.' });
+    }
+});
+
+app.get('/api/auth/magic/consume', async (req, res) => {
+    try {
+        const token = req.query.token;
+        const result = await auth.consumeMagicLink(token, res, req);
+        if (!result.ok) {
+            return res.redirect('/?auth=magic_error&msg=' + encodeURIComponent(result.error || 'Login failed'));
+        }
+        return res.redirect('/?auth=ok');
+    } catch (e) {
+        console.error('magic consume:', e.message);
+        return res.redirect('/?auth=magic_error');
+    }
+});
+
+app.get('/api/auth/google/start', (req, res) => {
+    const st = auth.authStatus();
+    if (!st.ready || !st.googleOAuth) {
+        return res.status(503).json({
+            ok: false,
+            error: 'Google OAuth is not configured yet.',
+            missing: st.liveLoginBlockedBy,
+            need: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'DATABASE_URL', 'SESSION_SECRET']
+        });
+    }
+    const qCid = (req.query.cid || '').toString().trim();
+    const deviceId = getClientId(req) || (/^[a-zA-Z0-9_-]{1,128}$/.test(qCid) ? qCid : '');
+    const state = Buffer.from(JSON.stringify({ d: deviceId, t: Date.now() })).toString('base64url');
+    res.redirect(auth.googleAuthUrl(req, state));
+});
+
+app.get('/api/auth/google/callback', async (req, res) => {
+    try {
+        const code = req.query.code;
+        let deviceId = null;
+        try {
+            const state = JSON.parse(Buffer.from(String(req.query.state || ''), 'base64url').toString('utf8'));
+            deviceId = state && state.d ? String(state.d) : null;
+        } catch (_) {}
+        if (!deviceId) deviceId = getClientId(req);
+        const result = await auth.completeGoogleLogin(code, deviceId, res, req);
+        if (!result.ok) {
+            return res.redirect('/?auth=google_error&msg=' + encodeURIComponent(result.error || 'Google login failed'));
+        }
+        return res.redirect('/?auth=ok');
+    } catch (e) {
+        console.error('google callback:', e.message);
+        return res.redirect('/?auth=google_error');
+    }
+});
+
+/** Explicit device→user merge (also runs automatically on login). */
+app.post('/api/auth/merge-device', async (req, res) => {
+    const user = auth.readUserFromReq(req);
+    if (!user) return res.status(401).json({ ok: false, error: 'Login required' });
+    const deviceId = getClientId(req);
+    if (!deviceId) return res.status(400).json({ ok: false, error: 'Missing X-Client-Id' });
+    try {
+        await auth.linkDevice(user.id, deviceId);
+        const pg = await auth.mergeDeviceChatsToUser(deviceId, user.id);
+        const json = mergeJsonDeviceToUser(deviceId, 'u_' + user.id);
+        res.json({ ok: true, postgresMerged: pg.merged, jsonMerged: json.merged });
+    } catch (e) {
+        console.error('merge-device:', e.message);
+        res.status(500).json({ ok: false, error: 'Merge failed' });
+    }
 });
 
 // ==================== PLANS / UPGRADE / ADMIN ====================
@@ -1284,7 +1490,8 @@ app.get('/health', (req, res) => {
         fastProviderPref: FAST_PROVIDER_PREF || 'auto',
         grokKeyConfigured: !!process.env.GROK_API_KEY,
         openaiKeyConfigured: !!process.env.OPENAI_API_KEY,
-        adminPasskeyConfigured: !!ADMIN_PASSKEY
+        adminPasskeyConfigured: !!ADMIN_PASSKEY,
+        auth: auth ? auth.authStatus() : { ready: false }
     });
 });
 
@@ -1314,6 +1521,8 @@ app.listen(PORT, () => {
     console.log(`💾 Persistence: ✅ ${CHATS_FILE}`);
     console.log(`💳 Plans store: ✅ ${plansStore.filePath} (daily Fast reset: UTC)`);
     console.log(`🔐 Admin passkey: ${ADMIN_PASSKEY ? '✅ set' : '❌ missing ADMIN_PASSKEY'}`);
+    const _as = auth.authStatus();
+    console.log(`👤 Auth: db=${_as.database ? '✅' : '❌'} session=${_as.sessionSecret ? '✅' : '❌'} google=${_as.googleOAuth ? '✅' : '❌'} magic=${_as.magicLink ? '✅' : '❌'}`);
     console.log(`⏱️ Timeout: ${UPSTREAM_TIMEOUT_MS}ms`);
     console.log(`🛡️ Rate limit: ${RATE_LIMIT}/min per IP on /api/chat*`);
     console.log(`📱 PWA Support: ✅ Ready`);

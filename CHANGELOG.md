@@ -1,3 +1,13 @@
+# GoldenSpaceAI — guest ephemeral chats + account sync rules (2026-10-01)
+
+- **Guests:** no server chat memory. `/api/chats` list returns empty for guests; write/get-by-id require login. Client stores guest chats in `sessionStorage` only (not durable `localStorage`, not cloud).
+- **Logged-in:** chats still sync under `u_<userId>` (Postgres + JSON fallback). Email OTP and Google continue to merge on the same email → same user.
+- **Login:** load account chats; adopt any in-tab guest session chats into the account once, then clear guest session keys.
+- **Logout:** wipe account chat `localStorage` + guest session state and start a fresh empty guest chat (no leak of account history).
+- Docs: `AUTH_ENV.md` chat memory rules. SW `goldenspaceai2-v32`. App `2.3.6`.
+
+---
+
 # GoldenSpaceAI — new-login email alert (2026-10-01)
 
 - **Auth:** after a successful email OTP verify **or** Google OAuth callback, send a separate Resend email (subject: “New login to your GoldenSpaceAI account”) with UTC time and an ignore-if-it-was-you note.

@@ -74,3 +74,11 @@ Typical first enable order:
 - **Plans / OMT / admin / caps:** still device-scoped; not broken by login.
 - **Email OTP:** codes expire in 10 minutes; max 5 verify attempts per code.
 - **Login alert:** after successful OTP verify or Google OAuth, a separate Resend email (“New login to your GoldenSpaceAI account”) is sent when the user has an email and `RESEND_API_KEY` is set. Reuses `EMAIL_FROM`. Does not change the OTP code email.
+
+## Chat memory rules
+
+1. **Guests:** no cloud chat persistence. Client keeps chats in `sessionStorage` only (this tab / session). Refresh does **not** restore guest history from the server. Clearing the tab ends guest chats.
+2. **Logged-in users:** chats sync under Postgres/JSON owner key `u_<userId>`. Same email (OTP or Google) maps to the same user row so chats follow the account.
+3. **Login:** load that user’s chats; optional one-shot adopt of in-session guest chats into the account, then clear guest session storage.
+4. **Logout:** clear account `localStorage` chat keys and guest session state so account chats never leak into guest mode. Plans/quotas still use `X-Client-Id` (device), not chat owner keys.
+

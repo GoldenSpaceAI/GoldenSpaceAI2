@@ -215,6 +215,10 @@ function createAuth(options = {}) {
         res.clearCookie(SESSION_COOKIE, { path: '/', httpOnly: true, sameSite: 'lax' });
     }
 
+    /**
+     * Same normalized email always maps to one user row (OTP + Google merge).
+     * Google login with an email that already used OTP reuses that account (and chats under u_<id>).
+     */
     async function upsertUserByEmail(email, extra = {}) {
         const p = getPool();
         await ensureSchema();

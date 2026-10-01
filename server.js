@@ -1046,16 +1046,22 @@ function mergeJsonDeviceToUser(deviceId, userKey) {
 auth = createAuth({ mergeJsonDeviceToUser });
 auth.ensureSchema().catch((e) => console.error('Auth schema warmup:', e.message));
 
-/** Chat owner: logged-in userId key, else guest device id. Plans still use device id. */
+/**
+ * Chat sync is account-only: owner key is always u_<userId>.
+ * Guests have no cloud chat memory (ephemeral client-only). Plans still use device id.
+ */
 function resolveChatOwnerKey(req, res) {
-    const deviceId = getClientId(req);
     const user = auth.readUserFromReq(req);
     if (user && user.id) return 'u_' + user.id;
-    if (!deviceId) {
-        res.status(400).json({ error: 'Missing or invalid X-Client-Id header' });
-        return null;
-    }
-    return deviceId;
+    res.status(401).json({ error: 'Login required to sync chats', guest: true });
+    return null;
+}
+
+/** Guest-safe list: empty without requiring login (refresh must not restore cloud guest history). */
+function resolveChatOwnerKeyOrGuestEmpty(req) {
+    const user = auth.readUserFromReq(req);
+    if (user && user.id) return { ownerKey: 'u_' + user.id, guest: false };
+    return { ownerKey: null, guest: true };
 }
 
 function listChatsFromJson(ownerKey) {
@@ -1075,15 +1081,18 @@ function listChatsFromJson(ownerKey) {
 }
 
 app.get('/api/chats', async (req, res) => {
-    const ownerKey = resolveChatOwnerKey(req, res);
-    if (!ownerKey) return;
+    const resolved = resolveChatOwnerKeyOrGuestEmpty(req);
+    if (resolved.guest) {
+        return res.json({ chats: [], ownerKeyPrefix: 'guest', guest: true, persist: false });
+    }
+    const ownerKey = resolved.ownerKey;
     try {
         const pgList = await auth.listChats(ownerKey);
-        if (pgList) return res.json({ chats: pgList, ownerKeyPrefix: ownerKey.startsWith('u_') ? 'user' : 'device' });
+        if (pgList) return res.json({ chats: pgList, ownerKeyPrefix: 'user', guest: false, persist: true });
     } catch (e) {
         console.error('pg listChats:', e.message);
     }
-    res.json({ chats: listChatsFromJson(ownerKey), ownerKeyPrefix: ownerKey.startsWith('u_') ? 'user' : 'device' });
+    res.json({ chats: listChatsFromJson(ownerKey), ownerKeyPrefix: 'user', guest: false, persist: true });
 });
 
 app.get('/api/chats/:id', async (req, res) => {

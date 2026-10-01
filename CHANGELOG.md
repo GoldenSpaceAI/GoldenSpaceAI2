@@ -1,3 +1,14 @@
+# GoldenSpaceAI — landing, plan funnel, chat reliability, settings (2026-10-01)
+
+- **Landing / empty chat:** professional first screen with short value line, clear Start CTA (focuses composer), mode pills, and soft plan hint linking to `/upgrade`.
+- **Plan strip + upgrade funnel:** sidebar plan strip shows usage left, progress, next-tier benefit, and one primary CTA to `/upgrade` (renew/stack on Max). Footer legal keeps Terms/Privacy/Refund; duplicate Upgrade/My Plan links removed from the bar to avoid dead ends (still in Settings).
+- **Chat reliability:** clearer thinking/streaming status (mode pill + Streaming…), stronger sticky scroll on mobile (larger near-bottom threshold, double-rAF, visualViewport), regenerate always available on the last AI turn (inject if missing), stop/regenerate paths hardened; leftover table/math overflow safety on mobile.
+- **Settings polish:** Appearance (theme), Custom instructions (global + this chat), Plan usage, and Plan requests live cleanly in the settings modal. Guests can open Settings for theme/instructions/usage; Log in CTA when signed out.
+- **Sign out:** removed from chat bar/footer; logout remains **only** in Settings. Auth footer: email · plan · gear · Install (guests: Log in · gear · Install).
+- Service worker cache `goldenspaceai2-v44`. App `2.3.18`.
+
+---
+
 # GoldenSpaceAI — hide document extract in chat bubble (2026-10-01)
 
 - **Document uploads:** extracted Word/PDF/txt/etc. text is no longer pasted into the user message bubble.

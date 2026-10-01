@@ -68,9 +68,9 @@ Typical first enable order:
 
 ## Behavior
 
-- **Guest:** chats keyed by device `X-Client-Id` (unchanged).
-- **Logged in:** chats keyed by `u_<userId>`; list/messages sync across devices.
-- **On login:** device chats merge into the user (Postgres + JSON fallback).
+- **Guest:** no cloud chat memory (session-only on the client). Plans still use device `X-Client-Id`.
+- **Logged in:** chats keyed by `u_<userId>`; list/messages sync across devices via Postgres (JSON merged/migrated as fallback).
+- **On login:** linked device chats + JSON fallback merge into the user; client re-hydrates from GET `/api/chats`.
 - **Plans / OMT / admin / caps:** still device-scoped; not broken by login.
 - **Email OTP:** codes expire in 10 minutes; max 5 verify attempts per code.
 - **Login alert:** after successful OTP verify or Google OAuth, a separate Resend email (“New login to your GoldenSpaceAI account”) is sent when the user has an email and `RESEND_API_KEY` is set. Reuses `EMAIL_FROM`. Does not change the OTP code email.
@@ -82,3 +82,14 @@ Typical first enable order:
 3. **Login:** load that user’s chats; optional one-shot adopt of in-session guest chats into the account, then clear guest session storage.
 4. **Logout:** clear account `localStorage` chat keys and guest session state so account chats never leak into guest mode. Plans/quotas still use `X-Client-Id` (device), not chat owner keys.
 
+
+
+## Plan status emails (Resend)
+
+When `RESEND_API_KEY` is set, GoldenSpaceAI sends:
+
+1. **Upgrade request received** — after POST `/api/upgrade/request` creates a Waiting payment (or first attaches an email to an existing Waiting request).
+2. **Plan approved** — after admin POST `/api/admin/payments/:id/approve`.
+3. **Plan declined** — after admin POST `/api/admin/payments/:id/decline`.
+
+Recipient: optional `email` on the upgrade form, else the signed-in account email (session cookie). Stored on the payment record for approve/decline. Missing email or Resend key → skip send; request still succeeds. Uses `EMAIL_FROM` like OTP / login-alert mail.

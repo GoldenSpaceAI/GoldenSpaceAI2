@@ -1,3 +1,13 @@
+# GoldenSpaceAI — account strip in chats bottom bar (2026-10-01)
+
+- **Top bar:** removed account strip; top stays clean (menu, brand, title, export, theme).
+- **Chats footer:** Log in → `/login` when guest; when signed in shows **email**, **plan badge**, and **gear** → settings drawer. Instructions + Install App stay as before.
+- **Install App:** unchanged one-press `beforeinstallprompt` only (hidden when unavailable / Safari-Mac / standalone; no force to `/app-install.html`).
+- Keeps dedicated `/login` page and settings panel from 2.3.0.
+- Service worker cache `goldenspaceai2-v27`. App `2.3.1`.
+
+---
+
 # GoldenSpaceAI — dedicated login page + account strip + settings (2026-10-01)
 
 - **Login page:** new polished `/login` route (`public/login.html`) with logo/branding, Google + email OTP, Terms/Privacy links, light/dark.

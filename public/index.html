@@ -915,7 +915,7 @@
         .account-login-btn {
             display: inline-flex;
             align-items: center;
-            padding: 7px 12px;
+            padding: 8px 14px;
             border-radius: 999px;
             border: 1px solid var(--gold-dark);
             background: linear-gradient(135deg, var(--gold), var(--gold-dark));
@@ -930,13 +930,32 @@
         .account-login-btn:hover { opacity: 0.92; color: #0a0a0a; }
         .account-login-btn:active { transform: scale(0.96); }
         .account-strip > .account-login-btn:not([hidden]) { width: 100%; justify-content: center; }
+        /* display:* rules must not defeat the hidden attribute */
+        .account-login-btn[hidden],
+        .account-logged-in[hidden] {
+            display: none !important;
+        }
         .account-logged-in {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 8px;
             min-width: 0;
             width: 100%;
             max-width: 100%;
+        }
+        .account-identity {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            flex: 1;
+        }
+        .account-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
         }
         .account-email {
             font-size: 12px;
@@ -964,6 +983,27 @@
             background: rgba(212,175,55,0.1);
             white-space: nowrap;
         }
+        .account-signout-btn {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 11px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted, #a89b7a);
+            font-size: 11px;
+            font-weight: 650;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+        }
+        .account-signout-btn:hover {
+            border-color: rgba(240,113,120,0.45);
+            color: #e07070;
+            background: rgba(240,113,120,0.08);
+        }
+        .account-signout-btn:active { transform: scale(0.96); }
         .account-gear {
             flex-shrink: 0;
             width: 34px;
@@ -1148,6 +1188,8 @@
             .account-plan-badge { font-size: 9px; padding: 2px 6px; }
             .account-login-btn { width: 100%; justify-content: center; }
             .account-strip { flex-wrap: wrap; }
+            .account-logged-in { flex-wrap: wrap; }
+            .account-actions { width: 100%; justify-content: flex-end; }
         }
 
         .chats-panel-footer {
@@ -1157,17 +1199,17 @@
             background: linear-gradient(0deg, rgba(0,0,0,0.18), transparent 40%), var(--black-light);
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
         .install-app-footer-btn {
             width: 100%;
-            padding: 12px 14px;
+            padding: 11px 14px;
             border-radius: 12px;
             border: 1px solid var(--gold-dark);
             background: linear-gradient(135deg, var(--gold), var(--gold-dark));
             color: #0a0a0a;
             font-weight: 800;
-            font-size: 14px;
+            font-size: 13.5px;
             cursor: pointer;
         }
         .install-app-footer-btn:active { transform: scale(0.98); opacity: 0.9; }
@@ -1176,13 +1218,21 @@
         .footer-legal {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px 12px;
+            gap: 0;
             justify-content: center;
+            align-items: center;
             font-size: 11px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
         }
         .footer-legal a {
             color: #9a9a9a;
             text-decoration: none;
+            padding: 2px 9px;
+            line-height: 1.3;
+        }
+        .footer-legal a:not(:last-child) {
+            border-right: 1px solid var(--border);
         }
         .footer-legal a:hover { color: var(--gold); }
         .footer-legal a.upgrade-link {
@@ -1444,12 +1494,6 @@
             background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer;
         }
         .katex-display { overflow-x: auto; overflow-y: hidden; }
-        .md-table-wrap { display: block; width: 100%; max-width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; touch-action: pan-x pan-y; margin: 10px 0 14px; border-radius: 10px; border: 1px solid var(--gold-dark); }
-        .md-table { width: max-content; min-width: 100%; max-width: none; border-collapse: collapse; table-layout: auto; font-size: 0.92em; }
-        .md-table th, .md-table td { border: 1px solid var(--gold-dark); padding: 8px 10px; text-align: left; vertical-align: top; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
-        .md-table th { background: rgba(184,134,11,0.18); font-weight: 700; white-space: nowrap; }
-        .md-table tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
-        [data-theme="light"] .md-table tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
         html.light .badge-expert { color: #1a1a1a; }
 
         /* ===== Chat pro polish (v2.3.0) + login page + account strip ===== */
@@ -2049,44 +2093,67 @@
             overflow-x: auto;
             overflow-y: hidden;
             margin: 0.75em 0 1.1em;
-            border-radius: 14px;
-            border: 1px solid var(--gold-line);
+            border-radius: 12px;
+            border: 1px solid var(--gold-line, var(--gold-dark));
             background: var(--black-light);
             -webkit-overflow-scrolling: touch;
             overscroll-behavior-x: contain;
             touch-action: pan-x pan-y;
             scrollbar-width: thin;
+            box-sizing: border-box;
+        }
+        .md-table-wrap::-webkit-scrollbar { height: 8px; }
+        .md-table-wrap::-webkit-scrollbar-thumb {
+            background: rgba(212,175,55,0.45);
+            border-radius: 999px;
         }
         .md-table {
             width: max-content;
             min-width: 100%;
             max-width: none;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             table-layout: auto;
-            font-size: 0.93em;
+            font-size: 0.92em;
+            color: var(--text);
         }
         .md-table th, .md-table td {
             border-bottom: 1px solid var(--border);
             border-right: 1px solid var(--border);
-            padding: 10px 12px;
+            padding: 10px 14px;
             text-align: left;
             vertical-align: top;
             line-height: 1.45;
-            white-space: nowrap;
-            overflow-wrap: normal;
-            word-break: normal;
+            /* Sensible wrap: readable cells; many columns still H-scroll */
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            min-width: 5.5rem;
+            max-width: 16rem;
         }
         .md-table th:last-child, .md-table td:last-child { border-right: none; }
         .md-table tr:last-child td { border-bottom: none; }
-        .md-table th {
-            background: var(--code-header);
+        .md-table thead th {
+            background: linear-gradient(180deg, rgba(212,175,55,0.22), rgba(212,175,55,0.1));
             font-weight: 750;
             color: var(--gold);
-            white-space: nowrap;
+            border-bottom: 1px solid var(--gold-line, var(--gold-dark));
         }
-        .md-table tr:nth-child(even) td { background: rgba(255,255,255,0.025); }
-        html.light .md-table tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
-        html.light .md-table { color: var(--text); }
+        .md-table tbody tr:nth-child(even) td { background: rgba(255,255,255,0.035); }
+        .md-table tbody tr:nth-child(odd) td { background: transparent; }
+        html.light .md-table tbody tr:nth-child(even) td { background: rgba(0,0,0,0.04); }
+        html.light .md-table thead th {
+            background: linear-gradient(180deg, rgba(184,134,11,0.2), rgba(184,134,11,0.08));
+            color: #8a6a0a;
+        }
+        @media (max-width: 520px) {
+            .md-table th, .md-table td {
+                padding: 8px 10px;
+                min-width: 4.75rem;
+                max-width: 12rem;
+                font-size: 0.9em;
+            }
+        }
 
         .katex-block {
             margin: 0.85em 0;
@@ -2420,14 +2487,19 @@
                     <div class="account-strip" id="accountStrip" aria-label="Account">
                         <a class="account-login-btn" id="accountLoginBtn" href="/login">Log in</a>
                         <div class="account-logged-in" id="accountLoggedIn" hidden>
-                            <span class="account-email" id="accountEmail" title=""></span>
-                            <span class="account-plan-badge" id="accountPlanBadge">FREE</span>
-                            <button type="button" class="account-gear" id="accountGearBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <circle cx="12" cy="12" r="3"/>
-                                    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
-                                </svg>
-                            </button>
+                            <div class="account-identity">
+                                <span class="account-email" id="accountEmail" title=""></span>
+                                <span class="account-plan-badge" id="accountPlanBadge">FREE</span>
+                            </div>
+                            <div class="account-actions">
+                                <button type="button" class="account-signout-btn" id="accountSignOutBtn" onclick="logoutAccount()" title="Sign out" aria-label="Sign out">Sign out</button>
+                                <button type="button" class="account-gear" id="accountGearBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="3"/>
+                                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
@@ -2721,8 +2793,15 @@
             const emailEl = document.getElementById('accountEmail');
             if (authState.user) {
                 const email = authState.user.email || authState.user.name || ('User ' + authState.user.id);
-                if (loginBtn) loginBtn.hidden = true;
-                if (loggedIn) loggedIn.hidden = false;
+                // Signed in: never show Log in — only Sign out + email/plan/gear
+                if (loginBtn) {
+                    loginBtn.hidden = true;
+                    loginBtn.setAttribute('aria-hidden', 'true');
+                }
+                if (loggedIn) {
+                    loggedIn.hidden = false;
+                    loggedIn.removeAttribute('aria-hidden');
+                }
                 if (emailEl) {
                     emailEl.textContent = email;
                     emailEl.title = email;
@@ -2732,8 +2811,14 @@
                 if (sEmail) sEmail.textContent = authState.user.email || '—';
                 if (sUser) sUser.textContent = usernameFromUser(authState.user);
             } else {
-                if (loginBtn) loginBtn.hidden = false;
-                if (loggedIn) loggedIn.hidden = true;
+                if (loginBtn) {
+                    loginBtn.hidden = false;
+                    loginBtn.removeAttribute('aria-hidden');
+                }
+                if (loggedIn) {
+                    loggedIn.hidden = true;
+                    loggedIn.setAttribute('aria-hidden', 'true');
+                }
                 closeSettingsPanel();
             }
         }

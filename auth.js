@@ -280,6 +280,35 @@ function createAuth(options = {}) {
      * Merge guest/device chats into the logged-in user owner key.
      * Keeps the newer updated_at when both exist.
      */
+    /** Ensure jsonb bind params are valid JSON text (node-pg objects can become invalid input). */
+    function jsonbParam(value) {
+        if (value == null) return '[]';
+        if (typeof value === 'string') {
+            try {
+                JSON.parse(value);
+                return value;
+            } catch (_) {
+                return JSON.stringify([]);
+            }
+        }
+        try {
+            return JSON.stringify(value);
+        } catch (_) {
+            return '[]';
+        }
+    }
+
+    function tsIso(value) {
+        if (!value) return null;
+        try {
+            const d = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(d.getTime())) return typeof value === 'string' ? value : null;
+            return d.toISOString();
+        } catch (_) {
+            return typeof value === 'string' ? value : null;
+        }
+    }
+
     async function mergeDeviceChatsToUser(deviceId, userId) {
         if (!deviceId || !userId) return { merged: 0 };
         const p = getPool();
@@ -291,6 +320,7 @@ function createAuth(options = {}) {
             await client.query('BEGIN');
             const deviceRows = await client.query('SELECT * FROM chats WHERE owner_key = $1', [deviceId]);
             for (const row of deviceRows.rows) {
+                const messagesJson = jsonbParam(row.messages);
                 const existing = await client.query(
                     'SELECT chat_id, updated_at FROM chats WHERE owner_key = $1 AND chat_id = $2',
                     [userKey, row.chat_id]
@@ -298,8 +328,8 @@ function createAuth(options = {}) {
                 if (!existing.rows[0]) {
                     await client.query(
                         `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt)
-                         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-                        [userKey, row.chat_id, row.name, row.messages, row.created_at, row.updated_at, row.named, row.custom_instructions, row.system_prompt]
+                         VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9)`,
+                        [userKey, row.chat_id, row.name, messagesJson, row.created_at, row.updated_at, row.named, row.custom_instructions, row.system_prompt]
                     );
                     merged += 1;
                 } else {
@@ -307,10 +337,10 @@ function createAuth(options = {}) {
                     const localTs = String(existing.rows[0].updated_at || '');
                     if (remoteTs > localTs) {
                         await client.query(
-                            `UPDATE chats SET name=$3, messages=$4, created_at=$5, updated_at=$6, named=$7,
+                            `UPDATE chats SET name=$3, messages=$4::jsonb, created_at=$5, updated_at=$6, named=$7,
                               custom_instructions=$8, system_prompt=$9
                              WHERE owner_key=$1 AND chat_id=$2`,
-                            [userKey, row.chat_id, row.name, row.messages, row.created_at, row.updated_at, row.named, row.custom_instructions, row.system_prompt]
+                            [userKey, row.chat_id, row.name, messagesJson, row.created_at, row.updated_at, row.named, row.custom_instructions, row.system_prompt]
                         );
                         merged += 1;
                     }
@@ -328,6 +358,24 @@ function createAuth(options = {}) {
         return { merged };
     }
 
+    /** Recover chats stuck under any device_id previously linked to this account. */
+    async function mergeAllLinkedDeviceChats(userId) {
+        if (!userId) return { merged: 0, devices: 0 };
+        const p = getPool();
+        if (!p || !(await ensureSchema())) return { merged: 0, devices: 0 };
+        const links = await p.query('SELECT device_id FROM device_links WHERE user_id = $1', [userId]);
+        let merged = 0;
+        for (const row of links.rows) {
+            try {
+                const r = await mergeDeviceChatsToUser(row.device_id, userId);
+                merged += Number(r && r.merged) || 0;
+            } catch (e) {
+                console.error('mergeAllLinkedDeviceChats:', e.message);
+            }
+        }
+        return { merged, devices: links.rows.length };
+    }
+
     async function afterLogin(user, deviceId, res, req) {
         if (deviceId) {
             try { await linkDevice(user.id, deviceId); } catch (e) { console.error('linkDevice:', e.message); }
@@ -337,6 +385,8 @@ function createAuth(options = {}) {
                 try { options.mergeJsonDeviceToUser(deviceId, 'u_' + user.id); } catch (e) { console.error('merge json:', e.message); }
             }
         }
+        // Repair: pull any chats still stuck under previously linked device keys.
+        try { await mergeAllLinkedDeviceChats(user.id); } catch (e) { console.error('merge linked:', e.message); }
         setSessionCookie(res, user, req);
         // Separate login alert (not OTP). Never blocks session creation.
         const alertEmail = user && user.email ? String(user.email).trim().toLowerCase() : '';
@@ -574,8 +624,8 @@ function createAuth(options = {}) {
         return r.rows.map((row) => ({
             id: row.id,
             name: row.name || 'New Chat',
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
+            createdAt: tsIso(row.createdAt),
+            updatedAt: tsIso(row.updatedAt),
             named: !!row.named,
             messageCount: Number(row.messageCount) || 0
         }));
@@ -596,8 +646,8 @@ function createAuth(options = {}) {
             id: row.id,
             name: row.name || 'New Chat',
             messages: Array.isArray(row.messages) ? row.messages : [],
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
+            createdAt: tsIso(row.createdAt),
+            updatedAt: tsIso(row.updatedAt),
             named: !!row.named,
             customInstructions: row.customInstructions || '',
             systemPrompt: row.systemPrompt || ''
@@ -661,6 +711,7 @@ function createAuth(options = {}) {
         completeGoogleLogin,
         afterLogin,
         mergeDeviceChatsToUser,
+        mergeAllLinkedDeviceChats,
         linkDevice,
         listChats,
         getChat,

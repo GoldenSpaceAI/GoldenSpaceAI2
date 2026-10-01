@@ -14,6 +14,12 @@ const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const { extractUploadedFile, MAX_FILE_BYTES } = require('./fileExtract');
 const { createAuth } = require('./auth');
+const {
+    sendPlanRequestReceivedEmail,
+    sendPlanApprovedEmail,
+    sendPlanDeclinedEmail,
+    normalizeEmail: normalizeNotifyEmail
+} = require('./mail');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1080,19 +1086,91 @@ function listChatsFromJson(ownerKey) {
     }).sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
 }
 
+function chatTs(c) {
+    return String((c && (c.updatedAt || c.createdAt)) || '');
+}
+
+/** Union PG + JSON lists so Oregon JSON fallback is never hidden by an empty PG result. */
+function mergeChatMetaLists(primary, secondary) {
+    const byId = new Map();
+    for (const list of [secondary || [], primary || []]) {
+        for (const c of list) {
+            if (!c || !c.id) continue;
+            const prev = byId.get(c.id);
+            if (!prev || chatTs(c) > chatTs(prev)) byId.set(c.id, c);
+        }
+    }
+    return Array.from(byId.values()).sort((a, b) => chatTs(b).localeCompare(chatTs(a)));
+}
+
+async function migrateJsonChatsToPostgres(ownerKey) {
+    if (!ownerKey || !auth) return { migrated: 0 };
+    const store = readStore();
+    const from = store[ownerKey] || {};
+    const ids = Object.keys(from);
+    if (!ids.length) return { migrated: 0 };
+    let migrated = 0;
+    for (const id of ids) {
+        const chat = from[id];
+        if (!chat) continue;
+        try {
+            const ok = await auth.upsertChat(ownerKey, id, {
+                name: chat.name || 'New Chat',
+                messages: Array.isArray(chat.messages) ? chat.messages : [],
+                createdAt: chat.createdAt || new Date().toISOString(),
+                updatedAt: chat.updatedAt || chat.createdAt || new Date().toISOString(),
+                named: !!chat.named,
+                customInstructions: chat.customInstructions || '',
+                systemPrompt: chat.systemPrompt || ''
+            });
+            if (ok) migrated += 1;
+        } catch (e) {
+            console.error('migrate json→pg:', e.message);
+        }
+    }
+    if (migrated > 0) {
+        try {
+            delete store[ownerKey];
+            writeStore(store);
+        } catch (e) {
+            console.error('clear json after migrate:', e.message);
+        }
+    }
+    return { migrated };
+}
+
 app.get('/api/chats', async (req, res) => {
     const resolved = resolveChatOwnerKeyOrGuestEmpty(req);
     if (resolved.guest) {
         return res.json({ chats: [], ownerKeyPrefix: 'guest', guest: true, persist: false });
     }
     const ownerKey = resolved.ownerKey;
+    const user = auth.readUserFromReq(req);
+    // Repair chats stuck under linked device keys (failed historical merges).
+    if (user && user.id) {
+        try { await auth.mergeAllLinkedDeviceChats(user.id); } catch (e) {
+            console.error('list merge linked:', e.message);
+        }
+    }
+    // Lift any JSON-only account chats into Postgres when available (Oregon split-brain fix).
+    try { await migrateJsonChatsToPostgres(ownerKey); } catch (e) {
+        console.error('list migrate json:', e.message);
+    }
+    let pgList = null;
     try {
-        const pgList = await auth.listChats(ownerKey);
-        if (pgList) return res.json({ chats: pgList, ownerKeyPrefix: 'user', guest: false, persist: true });
+        pgList = await auth.listChats(ownerKey);
     } catch (e) {
         console.error('pg listChats:', e.message);
     }
-    res.json({ chats: listChatsFromJson(ownerKey), ownerKeyPrefix: 'user', guest: false, persist: true });
+    const jsonList = listChatsFromJson(ownerKey);
+    const chats = mergeChatMetaLists(pgList || [], jsonList);
+    res.json({
+        chats,
+        ownerKeyPrefix: 'user',
+        guest: false,
+        persist: true,
+        storage: pgList ? 'postgres+json' : 'json'
+    });
 });
 
 app.get('/api/chats/:id', async (req, res) => {
@@ -1102,17 +1180,28 @@ app.get('/api/chats/:id', async (req, res) => {
         const pgChat = await auth.getChat(ownerKey, req.params.id);
         if (pgChat === null) {
             // pg unavailable → json
-        } else if (pgChat === undefined) {
-            return res.status(404).json({ error: 'Not found' });
-        } else {
+        } else if (pgChat) {
             return res.json(pgChat);
         }
+        // pg ok but miss → still try JSON (pre-migrate / split-brain)
     } catch (e) {
         console.error('pg getChat:', e.message);
     }
     const store = readStore();
     const chat = store[ownerKey]?.[req.params.id];
     if (!chat) return res.status(404).json({ error: 'Not found' });
+    // Opportunistic lift into Postgres so the next device sees it.
+    try {
+        await auth.upsertChat(ownerKey, req.params.id, {
+            name: chat.name || 'New Chat',
+            messages: Array.isArray(chat.messages) ? chat.messages : [],
+            createdAt: chat.createdAt || new Date().toISOString(),
+            updatedAt: chat.updatedAt || chat.createdAt || new Date().toISOString(),
+            named: !!chat.named,
+            customInstructions: chat.customInstructions || '',
+            systemPrompt: chat.systemPrompt || ''
+        });
+    } catch (_) {}
     res.json({ id: req.params.id, ...chat });
 });
 
@@ -1311,17 +1400,19 @@ app.get('/api/auth/google/callback', async (req, res) => {
 /** Explicit device→user merge (also runs automatically on login). */
 app.post('/api/auth/merge-device', async (req, res) => {
     const user = auth.readUserFromReq(req);
-    if (!user) return res.status(401).json({ ok: false, error: 'Login required' });
+    if (!user) return res.status(401).json({ ok: false, error: 'Not logged in' });
     const deviceId = getClientId(req);
     if (!deviceId) return res.status(400).json({ ok: false, error: 'Missing X-Client-Id' });
     try {
         await auth.linkDevice(user.id, deviceId);
         const pg = await auth.mergeDeviceChatsToUser(deviceId, user.id);
         const json = mergeJsonDeviceToUser(deviceId, 'u_' + user.id);
-        res.json({ ok: true, postgresMerged: pg.merged, jsonMerged: json.merged });
+        const linked = await auth.mergeAllLinkedDeviceChats(user.id);
+        try { await migrateJsonChatsToPostgres('u_' + user.id); } catch (_) {}
+        res.json({ ok: true, postgres: pg, json, linked });
     } catch (e) {
         console.error('merge-device:', e.message);
-        res.status(500).json({ ok: false, error: 'Merge failed' });
+        res.status(500).json({ ok: false, error: e.message });
     }
 });
 
@@ -1343,7 +1434,7 @@ app.get('/api/my-plan', (req, res) => {
 
 
 
-app.post('/api/upgrade/request', (req, res) => {
+app.post('/api/upgrade/request', async (req, res) => {
     const deviceId = getClientId(req);
     if (!deviceId) {
         return res.status(400).json({ ok: false, error: 'Missing or invalid X-Client-Id header' });
@@ -1352,13 +1443,24 @@ app.post('/api/upgrade/request', (req, res) => {
     if (!body.acceptedPolicies) {
         return res.status(400).json({ ok: false, error: 'You must accept Terms, Privacy, and Refund policies.' });
     }
+    const sessionUser = auth && auth.readUserFromReq(req);
+    const email =
+        normalizeNotifyEmail(body.email) ||
+        (sessionUser && sessionUser.email ? normalizeNotifyEmail(sessionUser.email) : null);
     const result = plansStore.createPaymentRequest({
         deviceId,
         plan: body.plan,
-        phone: body.phone
+        phone: body.phone,
+        email
     });
     if (!result.ok) {
         return res.status(400).json(result);
+    }
+    // Notify on new waiting requests, or when an existing waiting request first receives an email.
+    if (result.payment && result.payment.email && (!result.already || result.emailAttached)) {
+        sendPlanRequestReceivedEmail(result.payment).catch((e) =>
+            console.error('plan request email:', e.message)
+        );
     }
     res.status(201).json({
         ok: true,
@@ -1410,17 +1512,27 @@ app.get('/api/admin/payments', (req, res) => {
     res.json({ payments: plansStore.listPayments() });
 });
 
-app.post('/api/admin/payments/:id/approve', (req, res) => {
+app.post('/api/admin/payments/:id/approve', async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const result = plansStore.approvePayment(req.params.id);
     if (!result.ok) return res.status(404).json(result);
+    if (!result.already && result.payment) {
+        sendPlanApprovedEmail(result.payment).catch((e) =>
+            console.error('plan approved email:', e.message)
+        );
+    }
     res.json(result);
 });
 
-app.post('/api/admin/payments/:id/decline', (req, res) => {
+app.post('/api/admin/payments/:id/decline', async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const result = plansStore.declinePayment(req.params.id);
     if (!result.ok) return res.status(404).json(result);
+    if (!result.already && result.payment) {
+        sendPlanDeclinedEmail(result.payment).catch((e) =>
+            console.error('plan declined email:', e.message)
+        );
+    }
     res.json(result);
 });
 

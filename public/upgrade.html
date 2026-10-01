@@ -323,6 +323,9 @@
       <label class="field" for="phone2">Confirm OMT Pay number</label>
       <input type="password" id="phone2" inputmode="numeric" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Re-enter the same number" aria-label="Confirm OMT Pay number">
       <p class="hint">Must match exactly. Digits only; spaces are ignored.</p>
+      <label class="field" for="notifyEmail">Email for status updates (recommended)</label>
+      <input type="email" id="notifyEmail" autocomplete="email" placeholder="you@example.com" aria-label="Email for plan status updates">
+      <p class="hint">We email you when this request is received, approved, or declined. Signed-in accounts use your login email if this is blank.</p>
       <p class="err" id="phoneErr" hidden></p>
       <div class="actions">
         <button class="btn ghost" type="button" onclick="showStep(2)">Back</button>
@@ -498,8 +501,11 @@
     const btn = document.getElementById('amountSent');
     btn.disabled = true;
     try {
+      const emailEl = document.getElementById('notifyEmail');
+      const email = emailEl ? String(emailEl.value || '').trim() : '';
       const res = await fetch('/api/upgrade/request', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'X-Client-Id': ensureClientId()
@@ -507,6 +513,7 @@
         body: JSON.stringify({
           plan: selected.id,
           phone: digits(document.getElementById('phone1').value),
+          email: email || undefined,
           acceptedPolicies: true
         })
       });
@@ -523,6 +530,18 @@
     }
   });
 
+  async function prefillNotifyEmail() {
+    const el = document.getElementById('notifyEmail');
+    if (!el) return;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.email && !el.value) {
+        el.value = data.user.email;
+      }
+    } catch (e) {}
+  }
+
   async function loadStatus() {
     try {
       const res = await fetch('/api/plan', { headers: { 'X-Client-Id': ensureClientId() } });
@@ -537,6 +556,7 @@
   }
 
   ensureClientId();
+  prefillNotifyEmail();
   renderPlans();
   loadStatus();
 })();

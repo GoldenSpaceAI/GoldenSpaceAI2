@@ -2939,12 +2939,11 @@
                     try {
                         await apiFetch('/api/auth/merge-device', { method: 'POST', body: '{}' });
                     } catch (e) {}
-                    await adoptGuestSessionChatsAfterLogin();
-                    await syncFromServer();
-                    saveChatsLocal();
+                    // Server is source of truth across devices; do not keep empty/stale local over cloud.
+                    await hydrateAccountChatsFromServer({ adoptGuest: true });
                     renderChatsList();
                     if (Object.keys(chats).length && (!currentChatId || !chats[currentChatId])) {
-                        currentChatId = Object.keys(chats)[0];
+                        currentChatId = newestChatId();
                     }
                     if (currentChatId) loadChat();
                 } else {
@@ -2985,12 +2984,13 @@
             loadGlobalInstructions();
             await handleAuthQueryFlags();
             if (isLoggedIn()) {
-                await syncFromServer();
+                // Always re-pull account chats so device B sees device A history.
+                await hydrateAccountChatsFromServer({ adoptGuest: false });
                 clearGuestChatSession();
             }
             if (Object.keys(chats).length === 0) createNewChat();
             else {
-                if (!currentChatId || !chats[currentChatId]) currentChatId = Object.keys(chats)[0];
+                if (!currentChatId || !chats[currentChatId]) currentChatId = newestChatId();
                 loadChat();
             }
             renderChatsList();
@@ -3141,23 +3141,44 @@
             if (syncTimer) clearTimeout(syncTimer);
             syncTimer = setTimeout(function() { syncChatToServer(currentChatId); }, 600);
         }
-        async function syncFromServer() {
-            if (!isLoggedIn() || !navigator.onLine) return;
+        function chatUpdatedMs(c) {
+            if (!c) return 0;
+            const raw = c.updatedAt || c.createdAt || '';
+            const ms = Date.parse(raw);
+            return Number.isFinite(ms) ? ms : 0;
+        }
+        function newestChatId() {
+            const ids = Object.keys(chats || {});
+            if (!ids.length) return null;
+            ids.sort(function(a, b) { return chatUpdatedMs(chats[b]) - chatUpdatedMs(chats[a]); });
+            return ids[0];
+        }
+        async function syncFromServer(opts) {
+            if (!isLoggedIn() || !navigator.onLine) return { ok: false, count: 0 };
+            opts = opts || {};
+            const replaceLocal = !!opts.replaceLocal;
             try {
-                const res = await apiFetch(CHATS_API, { method: 'GET' });
-                if (!res.ok) return;
+                const res = await apiFetch(CHATS_API, { method: 'GET', cache: 'no-store' });
+                if (!res.ok) return { ok: false, count: 0 };
                 const data = await res.json();
-                if (data.guest) return;
+                if (data.guest) return { ok: false, count: 0, guest: true };
                 const list = data.chats || [];
+                if (replaceLocal) {
+                    chats = {};
+                    currentChatId = null;
+                }
+                let pulled = 0;
                 for (let i = 0; i < list.length; i++) {
                     const meta = list[i];
                     if (!meta || !meta.id) continue;
                     const local = chats[meta.id];
-                    const remoteUpdated = meta.updatedAt || meta.createdAt || '';
-                    const localUpdated = local ? (local.updatedAt || local.createdAt || '') : '';
-                    if (!local || remoteUpdated > localUpdated) {
+                    const remoteMs = chatUpdatedMs(meta);
+                    const localMs = chatUpdatedMs(local);
+                    if (!local || remoteMs >= localMs) {
                         try {
-                            const full = await apiFetch(CHATS_API + '/' + encodeURIComponent(meta.id), { method: 'GET' });
+                            const full = await apiFetch(CHATS_API + '/' + encodeURIComponent(meta.id), {
+                                method: 'GET', cache: 'no-store'
+                            });
                             if (!full.ok) continue;
                             const chat = await full.json();
                             chats[meta.id] = {
@@ -3169,11 +3190,33 @@
                                 systemPrompt: chat.systemPrompt || '',
                                 customInstructions: chat.customInstructions || ''
                             };
+                            pulled += 1;
                         } catch (e) {}
                     }
                 }
                 saveChatsLocal();
-            } catch (e) {}
+                return { ok: true, count: pulled, listed: list.length };
+            } catch (e) {
+                return { ok: false, count: 0 };
+            }
+        }
+        /** Login / refresh: pull cloud account chats, optionally adopt in-tab guest session. */
+        async function hydrateAccountChatsFromServer(opts) {
+            opts = opts || {};
+            if (!isLoggedIn()) return;
+            // Keep guest session aside; start from cloud so empty localStorage cannot hide history.
+            let guestSnapshot = null;
+            if (opts.adoptGuest) {
+                try { guestSnapshot = sessionStorage.getItem('goldenspaceai2_guest_chats'); } catch (e) {}
+            }
+            await syncFromServer({ replaceLocal: true });
+            if (opts.adoptGuest) {
+                if (guestSnapshot) {
+                    try { sessionStorage.setItem('goldenspaceai2_guest_chats', guestSnapshot); } catch (e) {}
+                }
+                await adoptGuestSessionChatsAfterLogin();
+            }
+            saveChatsLocal();
         }
         async function syncChatToServer(id) {
             if (!isLoggedIn() || !id || !chats[id] || !navigator.onLine) return;
@@ -3434,7 +3477,7 @@
             loadChat();
             renderChatsList();
             closeChatsPanel();
-            try { localStorage.setItem('goldenspaceai2_current', currentChatId); } catch(e) {}
+            saveChatsLocal();
         }
 
         function updateTopTitle() {

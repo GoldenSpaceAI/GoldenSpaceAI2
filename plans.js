@@ -562,7 +562,13 @@ function createPlansStore(dataDir) {
         };
     }
 
-    function createPaymentRequest({ deviceId, plan, phone }) {
+    function normalizeEmail(value) {
+        const norm = String(value || '').trim().toLowerCase();
+        if (!norm || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm)) return null;
+        return norm;
+    }
+
+    function createPaymentRequest({ deviceId, plan, phone, email }) {
         const planId = String(plan || '').toLowerCase();
         const def = PLAN_DEFS[planId];
         if (!def || planId === 'free') {
@@ -575,6 +581,7 @@ function createPlansStore(dataDir) {
         if (!deviceId) {
             return { ok: false, error: 'Missing device id.' };
         }
+        const emailNorm = normalizeEmail(email);
 
         const store = read();
         // Block duplicate waiting requests for same device+plan
@@ -582,10 +589,20 @@ function createPlansStore(dataDir) {
             p.status === 'waiting' && p.deviceId === deviceId && p.plan === planId
         );
         if (existingWaiting) {
+            // Backfill email if a later login/request provides one.
+            let emailAttached = false;
+            if (emailNorm && !existingWaiting.email) {
+                existingWaiting.email = emailNorm;
+                save();
+                flushSync();
+                emailAttached = true;
+            }
             return {
                 ok: true,
                 payment: existingWaiting,
-                message: 'You already have a waiting request for this plan.'
+                message: 'You already have a waiting request for this plan.',
+                already: true,
+                emailAttached
             };
         }
 
@@ -595,6 +612,7 @@ function createPlansStore(dataDir) {
             plan: planId,
             amount: def.priceUsd,
             deviceId,
+            email: emailNorm,
             status: 'waiting',
             createdAt: new Date().toISOString(),
             decidedAt: null

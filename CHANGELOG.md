@@ -1,3 +1,9 @@
+# GoldenSpaceAI — cross-device chat sync + plan status emails (2026-10-01)
+
+- **Cross-device sync root cause:** device→user chat merge failed with `invalid input syntax for type json` (jsonb bind), so chats stayed under device keys; GET preferred empty Postgres over JSON fallback (Oregon split-brain); login client could keep an empty local cache ahead of cloud.
+- **Fix:** serialize jsonb on merge; merge all linked device chats on login/list; union + migrate JSON→Postgres on GET `/api/chats`; client `hydrateAccountChatsFromServer` treats cloud as source of truth after login.
+- **Plan emails (Resend):** notify when an upgrade request is submitted (Waiting), when admin approves, and when admin declines. Optional email on `/upgrade` (prefilled from signed-in account). Soft-skip if `RESEND_API_KEY` or email missing — never blocks the API.
+
 # GoldenSpaceAI — guest ephemeral chats + account sync rules (2026-10-01)
 
 - **Guests:** no server chat memory. `/api/chats` list returns empty for guests; write/get-by-id require login. Client stores guest chats in `sessionStorage` only (not durable `localStorage`, not cloud).

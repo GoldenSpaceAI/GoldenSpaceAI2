@@ -901,6 +901,252 @@
         .auth-modal-card .status.ok { color: #6cbf7a; }
         .auth-sync-note { font-size: 11px; color: var(--muted, #a89b7a); margin-top: 6px; line-height: 1.35; }
 
+
+        /* ===== Account strip (top bar) + settings panel ===== */
+        .account-strip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            max-width: min(46vw, 280px);
+        }
+        .account-login-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 7px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--gold-dark);
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #0a0a0a;
+            font-size: 12px;
+            font-weight: 750;
+            text-decoration: none;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .account-login-btn:hover { opacity: 0.92; color: #0a0a0a; }
+        .account-login-btn:active { transform: scale(0.96); }
+        .account-logged-in {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+            max-width: 100%;
+        }
+        .account-email {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
+        }
+        .account-plan-badge {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            border: 1px solid rgba(212,175,55,0.4);
+            color: var(--gold);
+            background: rgba(212,175,55,0.1);
+            white-space: nowrap;
+        }
+        .account-gear {
+            flex-shrink: 0;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--gold);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: background 0.2s, border-color 0.2s, transform 0.15s;
+        }
+        .account-gear:hover { background: var(--gold-soft); border-color: var(--gold-line); }
+        .account-gear:active { transform: scale(0.96); }
+        .account-gear svg { display: block; }
+
+        .settings-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 120;
+            background: rgba(0,0,0,0.52);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            justify-content: flex-end;
+        }
+        .settings-overlay.open { display: flex; }
+        .settings-panel {
+            width: min(400px, 100vw);
+            height: 100%;
+            background: var(--black-light, #121212);
+            border-left: 1px solid var(--border);
+            box-shadow: -12px 0 40px rgba(0,0,0,0.35);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: settingsSlide 0.22s ease-out;
+        }
+        @keyframes settingsSlide {
+            from { transform: translateX(18px); opacity: 0.6; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .settings-panel { animation: none; }
+        }
+        .settings-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 14px 16px;
+            padding-top: max(14px, var(--safe-top));
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .settings-panel-header h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 750;
+            color: var(--gold);
+            letter-spacing: -0.01em;
+        }
+        .settings-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text);
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .settings-close:hover { background: var(--gold-soft); border-color: var(--gold-line); }
+        .settings-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: calc(24px + var(--safe-bottom));
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .settings-card {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            background: rgba(0,0,0,0.12);
+        }
+        html.light .settings-card { background: rgba(255,255,255,0.55); }
+        .settings-card h3 {
+            margin: 0 0 10px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .settings-row:last-child { margin-bottom: 0; }
+        .settings-k { color: var(--text-muted, #9a9a9a); flex-shrink: 0; }
+        .settings-v {
+            color: var(--text);
+            font-weight: 600;
+            text-align: right;
+            word-break: break-all;
+        }
+        .settings-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .settings-actions a,
+        .settings-actions button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--gold);
+            font-size: 13px;
+            font-weight: 700;
+            font-family: inherit;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .settings-actions a.primary,
+        .settings-actions button.primary {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #0a0a0a;
+            border-color: var(--gold-dark);
+        }
+        .settings-actions button.danger {
+            border-color: rgba(220,80,80,0.4);
+            background: rgba(220,80,80,0.12);
+            color: #e07070;
+        }
+        .settings-loading { font-size: 12px; color: var(--text-muted, #9a9a9a); }
+        .settings-req {
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+            margin-top: 10px;
+            font-size: 12.5px;
+        }
+        .settings-req:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+        .settings-req-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+        .settings-req-meta { color: var(--text-muted, #9a9a9a); font-size: 11.5px; }
+        .settings-status-pill {
+            display: inline-flex;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border: 1px solid var(--border);
+            color: var(--text-muted, #9a9a9a);
+        }
+        .settings-status-pill.waiting { color: #e8a838; border-color: rgba(232,168,56,0.4); }
+        .settings-status-pill.approved { color: #3dcc9a; border-color: rgba(61,204,154,0.4); }
+        .settings-status-pill.declined { color: #f07178; border-color: rgba(240,113,120,0.4); }
+
+        @media (max-width: 720px) {
+            .account-email { max-width: 92px; }
+            .account-strip { max-width: min(52vw, 220px); }
+        }
+        @media (max-width: 420px) {
+            .account-email { display: none; }
+            .account-plan-badge { font-size: 9px; padding: 2px 6px; }
+        }
+
         .chats-panel-footer {
             flex-shrink: 0;
             padding: 12px 14px calc(14px + var(--safe-bottom));
@@ -1203,7 +1449,7 @@
         [data-theme="light"] .md-table tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
         html.light .badge-expert { color: #1a1a1a; }
 
-        /* ===== Chat pro polish (v2.2.9) + email OTP auth ===== */
+        /* ===== Chat pro polish (v2.3.0) + login page + account strip ===== */
         .toast-host {
             position: fixed;
             left: 50%;
@@ -2109,6 +2355,19 @@
                 <span class="top-bar-title" id="topBarTitle" contenteditable="false" spellcheck="false" title="Tap to rename chat" role="textbox" aria-label="Chat title">GoldenSpaceAI</span>
                 <span class="top-bar-sub" id="topBarSub">AI assistant</span>
             </div>
+            <div class="account-strip" id="accountStrip" aria-label="Account">
+                <a class="account-login-btn" id="accountLoginBtn" href="/login">Log in</a>
+                <div class="account-logged-in" id="accountLoggedIn" hidden>
+                    <span class="account-email" id="accountEmail" title=""></span>
+                    <span class="account-plan-badge" id="accountPlanBadge">FREE</span>
+                    <button type="button" class="account-gear" id="accountGearBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
             <div class="top-bar-actions">
                 <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button>
                 <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Theme">Theme</button>
@@ -2148,28 +2407,6 @@
                 </div>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
-                    <div class="auth-card" id="authCard" aria-label="Account">
-                        <div class="auth-title">Account</div>
-                        <div class="auth-user" id="authUserLabel">Guest (this device)</div>
-                        <div class="auth-actions" id="authActions">
-                            <button type="button" id="authLoginBtn" onclick="openAuthModal()">Log in</button>
-                            <button type="button" class="danger" id="authLogoutBtn" hidden onclick="logoutAccount()">Log out</button>
-                        </div>
-                        <p class="auth-sync-note" id="authSyncNote">Log in to sync chats across devices. Plans &amp; caps stay on this device.</p>
-                    </div>
-                    <div class="plan-status-card" id="planStatusCard" aria-label="Plan status">
-                        <div class="plan-status-loading" id="planStatusLoading">Loading plan…</div>
-                        <div id="planStatusBody" hidden>
-                            <div class="plan-status-head">
-                                <span class="plan-status-name" id="planStatusName">Free</span>
-                                <span class="plan-status-badge" id="planStatusBadge">Plan</span>
-                            </div>
-                            <div id="planStatusQuotas"></div>
-                            <p class="plan-status-note" id="planStatusNote"></p>
-                            <a class="plan-status-link" href="/my-plan" id="planStatusMyPlan">My plan &amp; request status</a>
-                            <a class="plan-status-link" href="/upgrade" id="planStatusUpgrade" style="margin-top:6px;">View plans &amp; upgrade</a>
-                        </div>
-                    </div>
                     <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
                     <nav class="footer-legal" aria-label="Legal and upgrade">
                         <a class="upgrade-link" href="/upgrade">Upgrade</a>
@@ -2267,29 +2504,37 @@
                 </div>
             </div>
         </div>
-        <div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-label="Log in" onclick="if(event.target===this)closeAuthModal()">
-            <div class="auth-modal-card">
-                <h2>Log in</h2>
-                <p class="hint">Sync your chat list and messages across phones and computers. Guest mode still works without an account. Plans / OMT / caps stay tied to this device.</p>
-                <label for="authEmailInput">Email</label>
-                <input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email">
-                <div class="row">
-                    <button type="button" class="primary" id="authOtpSendBtn" onclick="requestEmailOtp()">Send code</button>
-                    <button type="button" class="secondary" id="authGoogleBtn" onclick="startGoogleLogin()">Continue with Google</button>
+        <div class="settings-overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-label="Settings" onclick="if(event.target===this)closeSettingsPanel()">
+            <aside class="settings-panel" id="settingsPanel">
+                <div class="settings-panel-header">
+                    <h2>Settings</h2>
+                    <button type="button" class="settings-close" onclick="closeSettingsPanel()" aria-label="Close settings">&times;</button>
                 </div>
-                <div class="otp-step" id="authOtpStep">
-                    <label for="authOtpInput">6-digit code</label>
-                    <input type="text" id="authOtpInput" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*">
-                    <div class="row">
-                        <button type="button" class="primary" id="authOtpVerifyBtn" onclick="verifyEmailOtp()">Verify &amp; sign in</button>
-                        <button type="button" class="secondary" id="authOtpResendBtn" onclick="requestEmailOtp()">Resend code</button>
+                <div class="settings-body">
+                    <div class="settings-card" aria-label="Account details">
+                        <h3>Account</h3>
+                        <div class="settings-row"><span class="settings-k">Email</span><span class="settings-v" id="settingsEmail">—</span></div>
+                        <div class="settings-row"><span class="settings-k">Username</span><span class="settings-v" id="settingsUsername">—</span></div>
+                        <div class="settings-row"><span class="settings-k">Plan</span><span class="settings-v" id="settingsPlanLabel">—</span></div>
+                    </div>
+                    <div class="settings-card" aria-label="Plan usage">
+                        <h3>Plan usage</h3>
+                        <div class="settings-loading" id="settingsUsageLoading">Loading usage…</div>
+                        <div id="settingsQuotas"></div>
+                        <p class="settings-req-meta" id="settingsUsageNote" style="margin-top:8px;"></p>
+                    </div>
+                    <div class="settings-card" aria-label="Plan requests">
+                        <h3>Plan requests</h3>
+                        <div class="settings-loading" id="settingsRequestsLoading">Loading requests…</div>
+                        <div id="settingsRequests"></div>
+                    </div>
+                    <div class="settings-actions">
+                        <a class="primary" href="/upgrade">Upgrade / renew</a>
+                        <a href="/my-plan">Full plan &amp; request status</a>
+                        <button type="button" class="danger" id="settingsLogoutBtn" onclick="logoutAccount()">Log out</button>
                     </div>
                 </div>
-                <div class="row" style="margin-top:10px;">
-                    <button type="button" class="secondary" onclick="closeAuthModal()">Cancel</button>
-                </div>
-                <div class="status" id="authModalStatus"></div>
-            </div>
+            </aside>
         </div>
         <div class="toast-host" id="toastHost" aria-live="polite"></div>
         <div class="overlay" id="overlay" onclick="toggleChatsPanel()"></div>
@@ -2350,47 +2595,56 @@
         };
 
 
+        function renderQuotaBars(quotas) {
+            const list = Array.isArray(quotas) ? quotas : [];
+            return list.map(function(q) {
+                const pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
+                const fillClass = pct >= 90 ? 'crit' : (pct >= 70 ? 'warn' : '');
+                const period = q.period === 'daily' ? 'today' : 'this period';
+                const half = q.halved ? ' · halved' : '';
+                return '<div class="plan-quota">' +
+                    '<div class="plan-quota-row">' +
+                    '<span class="plan-quota-label">' + (q.label || q.id) + '</span>' +
+                    '<span class="plan-quota-meta">' + (q.used || 0) + ' / ' + (q.limit || 0) + ' · ' + pct + '% · ' + period + half + '</span>' +
+                    '</div>' +
+                    '<div class="plan-quota-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + (q.label || q.id) + ' usage">' +
+                    '<div class="plan-quota-fill ' + fillClass + '" style="width:' + pct + '%"></div>' +
+                    '</div></div>';
+            }).join('');
+        }
+        function planPeriodNote(data) {
+            if (!data) return '';
+            if (data.plan === 'free') return 'Fast resets at UTC midnight.';
+            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Fast resets UTC midnight.';
+            return 'Fast resets UTC midnight. Thinking/Expert reset each paid period.';
+        }
+        function updateAccountPlanBadge(data) {
+            const badge = document.getElementById('accountPlanBadge');
+            if (!badge || !data) return;
+            badge.textContent = (data.plan || 'free').toUpperCase();
+            badge.title = data.label || data.plan || 'Plan';
+        }
         async function loadPlanStatus() {
-            const loading = document.getElementById('planStatusLoading');
-            const body = document.getElementById('planStatusBody');
-            const quotasEl = document.getElementById('planStatusQuotas');
-            const nameEl = document.getElementById('planStatusName');
-            const badgeEl = document.getElementById('planStatusBadge');
-            const noteEl = document.getElementById('planStatusNote');
-            if (!quotasEl || !nameEl) return;
             try {
                 const res = await apiFetch('/api/plan-status', { method: 'GET', cache: 'no-store' });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed');
                 cachedPlan = data;
-                nameEl.textContent = data.label || 'Free';
-                badgeEl.textContent = (data.plan || 'free').toUpperCase();
-                const periodNote = data.plan === 'free'
-                    ? 'Fast resets at UTC midnight.'
-                    : (data.endsAt
-                        ? ('Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Fast resets UTC midnight.')
-                        : 'Fast resets UTC midnight. Thinking/Expert reset each paid period.');
-                noteEl.textContent = periodNote;
-                const quotas = Array.isArray(data.quotas) ? data.quotas : [];
-                quotasEl.innerHTML = quotas.map(function(q) {
-                    const pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
-                    const fillClass = pct >= 90 ? 'crit' : (pct >= 70 ? 'warn' : '');
-                    const period = q.period === 'daily' ? 'today' : 'this period';
-                    const half = q.halved ? ' · halved' : '';
-                    return '<div class="plan-quota">' +
-                        '<div class="plan-quota-row">' +
-                        '<span class="plan-quota-label">' + (q.label || q.id) + '</span>' +
-                        '<span class="plan-quota-meta">' + (q.used || 0) + ' / ' + (q.limit || 0) + ' · ' + pct + '% · ' + period + half + '</span>' +
-                        '</div>' +
-                        '<div class="plan-quota-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + (q.label || q.id) + ' usage">' +
-                        '<div class="plan-quota-fill ' + fillClass + '" style="width:' + pct + '%"></div>' +
-                        '</div></div>';
-                }).join('');
-                if (loading) loading.hidden = true;
-                if (body) body.hidden = false;
+                updateAccountPlanBadge(data);
+                const settingsQuotas = document.getElementById('settingsQuotas');
+                const settingsLoading = document.getElementById('settingsUsageLoading');
+                const settingsNote = document.getElementById('settingsUsageNote');
+                const settingsPlan = document.getElementById('settingsPlanLabel');
+                if (settingsPlan) settingsPlan.textContent = (data.label || 'Free') + ' · ' + (data.plan || 'free').toUpperCase();
+                if (settingsQuotas) settingsQuotas.innerHTML = renderQuotaBars(data.quotas);
+                if (settingsLoading) settingsLoading.hidden = true;
+                if (settingsNote) settingsNote.textContent = planPeriodNote(data);
             } catch (e) {
-                if (loading) loading.textContent = 'Plan status unavailable';
-                if (body) body.hidden = true;
+                const settingsLoading = document.getElementById('settingsUsageLoading');
+                if (settingsLoading) {
+                    settingsLoading.hidden = false;
+                    settingsLoading.textContent = 'Plan status unavailable';
+                }
             }
         }
 
@@ -2428,56 +2682,99 @@
         let authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false, liveLoginBlockedBy: [] };
 
         function openAuthModal() {
-            const m = document.getElementById('authModal');
-            if (m) m.classList.add('open');
-            const step = document.getElementById('authOtpStep');
-            if (step) step.classList.remove('visible');
-            const otpIn = document.getElementById('authOtpInput');
-            if (otpIn) otpIn.value = '';
-            const st = document.getElementById('authModalStatus');
-            if (st) {
-                st.className = 'status';
-                if (!authState.ready) {
-                    st.textContent = 'Server auth storage not ready yet (DATABASE_URL / SESSION_SECRET).';
-                    st.classList.add('err');
-                } else if (!authState.googleOAuth && !authState.emailOtp) {
-                    st.textContent = 'Login providers not configured yet. Set GOOGLE_CLIENT_ID/SECRET and/or RESEND_API_KEY — see AUTH_ENV.md.';
-                    st.classList.add('err');
-                } else if (!authState.emailOtp) {
-                    st.textContent = 'Email login soft-disabled until RESEND_API_KEY is set. Google may still work.';
-                } else {
-                    st.textContent = '';
-                }
-            }
-            const g = document.getElementById('authGoogleBtn');
-            const sendBtn = document.getElementById('authOtpSendBtn');
-            const verifyBtn = document.getElementById('authOtpVerifyBtn');
-            const resendBtn = document.getElementById('authOtpResendBtn');
-            if (g) g.disabled = !authState.googleOAuth;
-            if (sendBtn) sendBtn.disabled = !authState.emailOtp;
-            if (verifyBtn) verifyBtn.disabled = !authState.emailOtp;
-            if (resendBtn) resendBtn.disabled = !authState.emailOtp;
+            window.location.href = '/login';
         }
-        function closeAuthModal() {
-            const m = document.getElementById('authModal');
-            if (m) m.classList.remove('open');
+        function closeAuthModal() { /* login moved to /login page */ }
+        function usernameFromUser(user) {
+            if (!user) return '—';
+            if (user.name && String(user.name).trim()) return String(user.name).trim();
+            const email = user.email || '';
+            if (email.indexOf('@') > 0) return email.split('@')[0];
+            return user.id ? ('User ' + user.id) : '—';
         }
         function renderAuthCard() {
-            const label = document.getElementById('authUserLabel');
-            const loginBtn = document.getElementById('authLoginBtn');
-            const logoutBtn = document.getElementById('authLogoutBtn');
-            const note = document.getElementById('authSyncNote');
-            if (!label) return;
+            const loginBtn = document.getElementById('accountLoginBtn');
+            const loggedIn = document.getElementById('accountLoggedIn');
+            const emailEl = document.getElementById('accountEmail');
             if (authState.user) {
-                label.textContent = authState.user.email || authState.user.name || ('User ' + authState.user.id);
+                const email = authState.user.email || authState.user.name || ('User ' + authState.user.id);
                 if (loginBtn) loginBtn.hidden = true;
-                if (logoutBtn) logoutBtn.hidden = false;
-                if (note) note.textContent = 'Signed in — chats sync across devices. Plans & caps stay on this device.';
+                if (loggedIn) loggedIn.hidden = false;
+                if (emailEl) {
+                    emailEl.textContent = email;
+                    emailEl.title = email;
+                }
+                const sEmail = document.getElementById('settingsEmail');
+                const sUser = document.getElementById('settingsUsername');
+                if (sEmail) sEmail.textContent = authState.user.email || '—';
+                if (sUser) sUser.textContent = usernameFromUser(authState.user);
             } else {
-                label.textContent = 'Guest (this device)';
                 if (loginBtn) loginBtn.hidden = false;
-                if (logoutBtn) logoutBtn.hidden = true;
-                if (note) note.textContent = 'Log in to sync chats across devices. Plans & caps stay on this device.';
+                if (loggedIn) loggedIn.hidden = true;
+                closeSettingsPanel();
+            }
+        }
+        function openSettingsPanel() {
+            if (!authState.user) {
+                window.location.href = '/login';
+                return;
+            }
+            const overlay = document.getElementById('settingsOverlay');
+            if (overlay) overlay.classList.add('open');
+            renderAuthCard();
+            loadPlanStatus();
+            loadSettingsRequests();
+        }
+        function closeSettingsPanel() {
+            const overlay = document.getElementById('settingsOverlay');
+            if (overlay) overlay.classList.remove('open');
+        }
+        function fmtSettingsDate(iso) {
+            if (!iso) return '—';
+            try {
+                return new Date(iso).toLocaleString(undefined, {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            } catch (e) { return iso; }
+        }
+        function settingsStatusPill(status) {
+            const s = String(status || 'none').toLowerCase();
+            const label = s === 'waiting' ? 'Waiting' : s === 'approved' ? 'Approved' : s === 'declined' ? 'Declined' : 'None';
+            const cls = (s === 'waiting' || s === 'approved' || s === 'declined') ? s : '';
+            return '<span class="settings-status-pill ' + cls + '">' + label + '</span>';
+        }
+        function renderSettingsRequest(r) {
+            if (!r) return '<p class="settings-req-meta">No payment requests yet.</p>';
+            return '<div class="settings-req">' +
+                '<div class="settings-req-head"><span>' + (r.label || r.plan || 'Plan') + ' · $' + (r.amount || 0) + '</span>' +
+                settingsStatusPill(r.status) + '</div>' +
+                '<div class="settings-req-meta">Submitted ' + fmtSettingsDate(r.createdAt) +
+                (r.phoneMasked ? ' · OMT ' + r.phoneMasked : '') + '</div></div>';
+        }
+        async function loadSettingsRequests() {
+            const loading = document.getElementById('settingsRequestsLoading');
+            const box = document.getElementById('settingsRequests');
+            if (!box) return;
+            if (loading) { loading.hidden = false; loading.textContent = 'Loading requests…'; }
+            try {
+                const res = await apiFetch('/api/my-plan', { method: 'GET', cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                const latest = data.latestRequest;
+                const hist = Array.isArray(data.requests) ? data.requests : [];
+                let htmlOut = renderSettingsRequest(latest);
+                if (hist.length > 1) {
+                    htmlOut += hist.slice(1, 4).map(renderSettingsRequest).join('');
+                }
+                box.innerHTML = htmlOut;
+                if (loading) loading.hidden = true;
+            } catch (e) {
+                if (loading) {
+                    loading.hidden = false;
+                    loading.textContent = 'Could not load plan requests';
+                }
+                box.innerHTML = '';
             }
         }
         async function refreshAuthStatus() {
@@ -2497,82 +2794,8 @@
             }
             renderAuthCard();
         }
-        async function requestEmailOtp() {
-            if (!authState.emailOtp) {
-                showToast('Email login disabled until RESEND_API_KEY is set.', 'err', 4500);
-                return;
-            }
-            const input = document.getElementById('authEmailInput');
-            const st = document.getElementById('authModalStatus');
-            const email = (input && input.value || '').trim();
-            if (st) { st.className = 'status'; st.textContent = 'Sending code…'; }
-            try {
-                const res = await apiFetch('/api/auth/otp/request', {
-                    method: 'POST',
-                    body: JSON.stringify({ email: email })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) {
-                    if (st) { st.className = 'status err'; st.textContent = data.error || 'Could not send code'; }
-                    return;
-                }
-                const step = document.getElementById('authOtpStep');
-                if (step) step.classList.add('visible');
-                if (st) { st.className = 'status ok'; st.textContent = data.message || 'Check your email for the 6-digit code.'; }
-                showToast('Code sent — check your email', 'ok', 4000);
-                const otpIn = document.getElementById('authOtpInput');
-                if (otpIn) otpIn.focus();
-            } catch (e) {
-                if (st) { st.className = 'status err'; st.textContent = 'Network error'; }
-            }
-        }
-        async function verifyEmailOtp() {
-            if (!authState.emailOtp) {
-                showToast('Email login disabled until RESEND_API_KEY is set.', 'err', 4500);
-                return;
-            }
-            const emailInput = document.getElementById('authEmailInput');
-            const otpInput = document.getElementById('authOtpInput');
-            const st = document.getElementById('authModalStatus');
-            const email = (emailInput && emailInput.value || '').trim();
-            const code = (otpInput && otpInput.value || '').trim();
-            if (st) { st.className = 'status'; st.textContent = 'Verifying…'; }
-            try {
-                const res = await apiFetch('/api/auth/otp/verify', {
-                    method: 'POST',
-                    body: JSON.stringify({ email: email, code: code })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) {
-                    if (st) { st.className = 'status err'; st.textContent = data.error || 'Could not verify code'; }
-                    return;
-                }
-                if (st) { st.className = 'status ok'; st.textContent = 'Signed in.'; }
-                closeAuthModal();
-                showToast('Signed in — syncing chats…', 'ok', 2800);
-                await refreshAuthStatus();
-                try {
-                    await apiFetch('/api/auth/merge-device', { method: 'POST', body: '{}' });
-                } catch (e) {}
-                await syncFromServer();
-                renderChatsList();
-                if (Object.keys(chats).length && (!currentChatId || !chats[currentChatId])) {
-                    currentChatId = Object.keys(chats)[0];
-                }
-                if (currentChatId) loadChat();
-            } catch (e) {
-                if (st) { st.className = 'status err'; st.textContent = 'Network error'; }
-            }
-        }
         function startGoogleLogin() {
-            if (!authState.googleOAuth) {
-                showToast('Google login not configured yet (GOOGLE_CLIENT_ID / SECRET).', 'err', 4500);
-                return;
-            }
-            const url = '/api/auth/google/start';
-            // Pass device id via header is not possible on navigation; cookie state embeds device from query — server also reads X-Client-Id only on XHR.
-            // Encode device in start URL query for servers that need it on redirect entry.
-            window.location.href = url + '?cid=' + encodeURIComponent(ensureClientId());
+            window.location.href = '/login';
         }
         async function logoutAccount() {
             try {
@@ -2580,6 +2803,7 @@
             } catch (e) {}
             authState.user = null;
             authState.guest = true;
+            closeSettingsPanel();
             renderAuthCard();
             showToast('Logged out — back to guest device chats', 'ok', 2500);
             await syncFromServer();
@@ -2663,6 +2887,8 @@
                 if (e.key === 'Escape' && isRecording) {
                     e.preventDefault();
                     cancelVoiceInput();
+                } else if (e.key === 'Escape') {
+                    closeSettingsPanel();
                 }
             });
             const listeningOverlay = document.getElementById('listeningOverlay');

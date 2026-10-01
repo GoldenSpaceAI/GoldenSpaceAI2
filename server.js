@@ -1440,6 +1440,12 @@ app.get('/upgrade.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'upgrade.html'));
 });
 
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+app.get('/login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
 app.get('/my-plan', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'my-plan.html'));
 });

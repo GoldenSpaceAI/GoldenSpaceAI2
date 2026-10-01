@@ -1,3 +1,13 @@
+# GoldenSpaceAI — dedicated login page + account strip + settings (2026-10-01)
+
+- **Login page:** new polished `/login` route (`public/login.html`) with logo/branding, Google + email OTP, Terms/Privacy links, light/dark.
+- **Chat chrome:** removed bulky sidebar auth card + plan status block. Top bar shows **Log in** (→ `/login`) when guest; when signed in shows **email**, **plan badge**, and **gear**.
+- **Settings panel:** gear opens a drawer with email, username, plan usage counters, plan/payment requests, upgrade + logout. Reuses `/api/auth/status`, `/api/plan-status`, `/api/my-plan`.
+- Auth APIs unchanged; Google still returns to `/?auth=ok`. Guest chat still works.
+- Service worker cache `goldenspaceai2-v26`. App `2.3.0`.
+
+---
+
 # GoldenSpaceAI — email 6-digit OTP (Resend) replaces magic link (2026-10-01)
 
 - **Auth:** email login is now OTP: `POST /api/auth/otp/request` → Resend emails a 6-digit code → `POST /api/auth/otp/verify` sets session. Magic-link routes removed.

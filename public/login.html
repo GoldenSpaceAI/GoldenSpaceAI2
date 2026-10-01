@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>
+(function(){try{var t=localStorage.getItem('goldenspaceai2_theme');if(t!=='light'&&t!=='dark'&&window.matchMedia)t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';if(t==='light')document.documentElement.classList.add('light');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f3eb':'#0a0a0a');}catch(e){}})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Log in — GoldenSpaceAI</title>
+<meta name="theme-color" content="#0a0a0a">
+<meta name="description" content="Sign in to GoldenSpaceAI to sync chats across devices.">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<style>
+  :root {
+    --gold: #d4af37;
+    --gold-light: #f4d03f;
+    --gold-dark: #b8962e;
+    --bg: #0a0a0a;
+    --panel: #121212;
+    --panel-elev: #171717;
+    --text: #f0f0f0;
+    --muted: #9a9a9a;
+    --border: #2a2a2a;
+    --ok: #3dcc9a;
+    --bad: #f07178;
+    --radius: 18px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html.light {
+    --bg: #f5f3eb;
+    --panel: #fffcf5;
+    --panel-elev: #fffdf8;
+    --text: #1a160f;
+    --muted: #6b6458;
+    --border: #e6dfd0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(1100px 520px at 50% -12%, rgba(212,175,55,0.14), transparent 58%),
+      radial-gradient(700px 360px at 100% 10%, rgba(184,150,46,0.07), transparent 50%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+  }
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { color: var(--gold-light); }
+
+  .topnav {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    color: var(--gold);
+    letter-spacing: 0.01em;
+  }
+  .brand img {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    object-fit: cover;
+    box-shadow: 0 2px 10px rgba(212,175,55,0.35);
+  }
+  .topnav a.back {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .topnav a.back:hover { color: var(--gold); }
+
+  main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 20px calc(40px + var(--safe-bottom));
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px 22px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35), 0 0 0 1px rgba(212,175,55,0.06);
+  }
+  html.light .login-card {
+    box-shadow: 0 16px 40px rgba(80,60,20,0.1), 0 0 0 1px rgba(184,134,11,0.08);
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 22px;
+  }
+  .hero-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    object-fit: cover;
+    margin: 0 auto 14px;
+    display: block;
+    box-shadow: 0 8px 24px rgba(212,175,55,0.28);
+  }
+  .hero h1 {
+    margin: 0 0 6px;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  input[type=email],
+  input[type=text] {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(212,175,55,0.28);
+    background: transparent;
+    color: inherit;
+    font-size: 15px;
+    font-family: inherit;
+    margin-bottom: 14px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.16);
+  }
+  #authOtpInput {
+    letter-spacing: 0.35em;
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.12s, opacity 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    color: #0a0a0a;
+    border-color: var(--gold-dark);
+  }
+  .btn-google {
+    background: var(--panel-elev);
+    color: var(--text);
+    border-color: var(--border);
+    margin-bottom: 14px;
+  }
+  .btn-google:hover:not(:disabled) {
+    border-color: rgba(212,175,55,0.45);
+    background: rgba(212,175,55,0.06);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover:not(:disabled) { color: var(--gold); border-color: rgba(212,175,55,0.4); }
+
+  .google-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 4px 0 16px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .divider::before,
+  .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .otp-step { display: none; margin-top: 4px; }
+  .otp-step.visible { display: block; }
+
+  .row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .row .btn { flex: 1 1 140px; }
+
+  .status {
+    min-height: 1.35em;
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .status.err { color: var(--bad); }
+  .status.ok { color: var(--ok); }
+
+  .legal {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+  .legal a { font-weight: 600; }
+
+  .guest-note {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .guest-note a { font-weight: 700; }
+
+  @media (max-width: 420px) {
+    .login-card { padding: 24px 18px 18px; }
+    .hero-logo { width: 56px; height: 56px; }
+  }
+</style>
+</head>
+<body>
+  <header class="topnav">
+    <a class="brand" href="/" aria-label="GoldenSpaceAI home">
+      <img src="/logo.png" alt="" width="32" height="32">
+      <span>GoldenSpaceAI</span>
+    </a>
+    <a class="back" href="/">← Back to chat</a>
+  </header>
+
+  <main>
+    <div class="login-card" role="main">
+      <div class="hero">
+        <img class="hero-logo" src="/logo.png" alt="GoldenSpaceAI">
+        <h1>Welcome back</h1>
+        <p>Sign in to sync chats across phones and computers. Guest mode still works without an account.</p>
+      </div>
+
+      <button type="button" class="btn btn-google" id="authGoogleBtn" onclick="startGoogleLogin()">
+        <svg class="google-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#EA4335" d="M12 10.2v3.6h5.1c-.2 1.2-.9 2.2-1.9 2.9l3.1 2.4c1.8-1.7 2.9-4.1 2.9-7 0-.7-.1-1.3-.2-1.9H12z"/>
+          <path fill="#34A853" d="M12 22c2.6 0 4.8-.9 6.4-2.3l-3.1-2.4c-.9.6-2 .9-3.3.9-2.5 0-4.6-1.7-5.4-4l-3.2 2.5C5.3 19.9 8.4 22 12 22z"/>
+          <path fill="#4A90E2" d="M6.6 14.2c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9L3.4 7.9C2.5 9.6 2 11.3 2 13.2c0 1.9.5 3.6 1.4 5.1l3.2-2.5z"/>
+          <path fill="#FBBC05" d="M12 5.8c1.4 0 2.7.5 3.7 1.4l2.8-2.8C16.8 2.8 14.6 2 12 2 8.4 2 5.3 4.1 3.4 7.5l3.2 2.5c.8-2.3 2.9-4.2 5.4-4.2z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="divider">or email</div>
+
+      <label for="authEmailInput">Email</label>
+      <input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email" inputmode="email">
+
+      <button type="button" class="btn btn-primary" id="authOtpSendBtn" onclick="requestEmailOtp()">Send code</button>
+
+      <div class="otp-step" id="authOtpStep">
+        <label for="authOtpInput">6-digit code</label>
+        <input type="text" id="authOtpInput" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*">
+        <div class="row">
+          <button type="button" class="btn btn-primary" id="authOtpVerifyBtn" onclick="verifyEmailOtp()">Verify &amp; sign in</button>
+          <button type="button" class="btn btn-secondary" id="authOtpResendBtn" onclick="requestEmailOtp()">Resend</button>
+        </div>
+      </div>
+
+      <div class="status" id="authModalStatus" aria-live="polite"></div>
+
+      <p class="legal">
+        By continuing you agree to our
+        <a href="/terms">Terms</a> and
+        <a href="/privacy">Privacy Policy</a>.
+      </p>
+      <p class="guest-note">Prefer guest mode? <a href="/">Continue without signing in</a></p>
+    </div>
+  </main>
+
+<script>
+(function() {
+  var authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false };
+  var ephemeralClientId = null;
+
+  function newClientId() {
+    var id = ('c_' + Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
+    return id || ('c_' + Date.now().toString(36));
+  }
+  function ensureClientId() {
+    try {
+      var id = localStorage.getItem('goldenspaceai2_client_id');
+      if (!id || !/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+        id = newClientId();
+        localStorage.setItem('goldenspaceai2_client_id', id);
+      }
+      return id;
+    } catch (e) {
+      if (!ephemeralClientId) ephemeralClientId = newClientId();
+      return ephemeralClientId;
+    }
+  }
+  function apiFetch(url, opts) {
+    var o = Object.assign({ credentials: 'include' }, opts || {});
+    o.headers = Object.assign(
+      { 'Content-Type': 'application/json', 'X-Client-Id': ensureClientId() },
+      (opts && opts.headers) || {}
+    );
+    if ((o.method === 'GET' || !o.method) && o.headers['Content-Type'] && !o.body) {
+      delete o.headers['Content-Type'];
+    }
+    return fetch(url, o);
+  }
+  function setStatus(msg, kind) {
+    var st = document.getElementById('authModalStatus');
+    if (!st) return;
+    st.className = 'status' + (kind ? ' ' + kind : '');
+    st.textContent = msg || '';
+  }
+  function applyProviderButtons() {
+    var g = document.getElementById('authGoogleBtn');
+    var sendBtn = document.getElementById('authOtpSendBtn');
+    var verifyBtn = document.getElementById('authOtpVerifyBtn');
+    var resendBtn = document.getElementById('authOtpResendBtn');
+    if (g) g.disabled = !authState.googleOAuth;
+    if (sendBtn) sendBtn.disabled = !authState.emailOtp;
+    if (verifyBtn) verifyBtn.disabled = !authState.emailOtp;
+    if (resendBtn) resendBtn.disabled = !authState.emailOtp;
+  }
+  function showProviderHint() {
+    if (!authState.ready) {
+      setStatus('Server auth storage not ready yet (DATABASE_URL / SESSION_SECRET).', 'err');
+    } else if (!authState.googleOAuth && !authState.emailOtp) {
+      setStatus('Login providers not configured yet. See AUTH_ENV.md.', 'err');
+    } else if (!authState.emailOtp) {
+      setStatus('Email login soft-disabled until RESEND_API_KEY is set. Google may still work.');
+    } else {
+      setStatus('');
+    }
+  }
+  async function refreshAuthStatus() {
+    try {
+      var res = await apiFetch('/api/auth/status', { method: 'GET', cache: 'no-store' });
+      var data = await res.json();
+      authState = {
+        user: data.user || null,
+        guest: !!data.guest,
+        googleOAuth: !!data.googleOAuth,
+        emailOtp: !!data.emailOtp,
+        ready: !!data.ready
+      };
+      if (authState.user) {
+        window.location.replace('/?auth=ok');
+        return;
+      }
+    } catch (e) {
+      authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false };
+    }
+    applyProviderButtons();
+    showProviderHint();
+  }
+  window.requestEmailOtp = async function() {
+    if (!authState.emailOtp) {
+      setStatus('Email login disabled until RESEND_API_KEY is set.', 'err');
+      return;
+    }
+    var input = document.getElementById('authEmailInput');
+    var email = (input && input.value || '').trim();
+    setStatus('Sending code…');
+    try {
+      var res = await apiFetch('/api/auth/otp/request', {
+        method: 'POST',
+        body: JSON.stringify({ email: email })
+      });
+      var data = await res.json();
+      if (!res.ok || !data.ok) {
+        setStatus(data.error || 'Could not send code', 'err');
+        return;
+      }
+      var step = document.getElementById('authOtpStep');
+      if (step) step.classList.add('visible');
+      setStatus(data.message || 'Check your email for the 6-digit code.', 'ok');
+      var otpIn = document.getElementById('authOtpInput');
+      if (otpIn) otpIn.focus();
+    } catch (e) {
+      setStatus('Network error', 'err');
+    }
+  };
+  window.verifyEmailOtp = async function() {
+    if (!authState.emailOtp) {
+      setStatus('Email login disabled until RESEND_API_KEY is set.', 'err');
+      return;
+    }
+    var emailInput = document.getElementById('authEmailInput');
+    var otpInput = document.getElementById('authOtpInput');
+    var email = (emailInput && emailInput.value || '').trim();
+    var code = (otpInput && otpInput.value || '').trim();
+    setStatus('Verifying…');
+    try {
+      var res = await apiFetch('/api/auth/otp/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email: email, code: code })
+      });
+      var data = await res.json();
+      if (!res.ok || !data.ok) {
+        setStatus(data.error || 'Could not verify code', 'err');
+        return;
+      }
+      setStatus('Signed in — redirecting…', 'ok');
+      try { await apiFetch('/api/auth/merge-device', { method: 'POST', body: '{}' }); } catch (e) {}
+      window.location.replace('/?auth=ok');
+    } catch (e) {
+      setStatus('Network error', 'err');
+    }
+  };
+  window.startGoogleLogin = function() {
+    if (!authState.googleOAuth) {
+      setStatus('Google login not configured yet (GOOGLE_CLIENT_ID / SECRET).', 'err');
+      return;
+    }
+    window.location.href = '/api/auth/google/start?cid=' + encodeURIComponent(ensureClientId());
+  };
+
+  ensureClientId();
+  refreshAuthStatus();
+  var otpIn = document.getElementById('authOtpInput');
+  if (otpIn) {
+    otpIn.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        window.verifyEmailOtp();
+      }
+    });
+  }
+  var emailIn = document.getElementById('authEmailInput');
+  if (emailIn) {
+    emailIn.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        window.requestEmailOtp();
+      }
+    });
+    emailIn.focus();
+  }
+})();
+</script>
+</body>
+</html>

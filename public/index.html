@@ -903,6 +903,17 @@
 
 
         /* ===== Account strip (chats panel footer) + settings panel ===== */
+
+        .account-guest-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            min-width: 0;
+        }
+        .account-guest-row[hidden] { display: none !important; }
+        .account-guest-row .account-login-btn { flex: 1; justify-content: center; width: auto; }
+
         .account-strip {
             display: flex;
             align-items: center;
@@ -929,7 +940,7 @@
         }
         .account-login-btn:hover { opacity: 0.92; color: #0a0a0a; }
         .account-login-btn:active { transform: scale(0.96); }
-        .account-strip > .account-login-btn:not([hidden]) { width: 100%; justify-content: center; }
+        .account-guest-row .account-login-btn:not([hidden]) { flex: 1; justify-content: center; }
         /* display:* rules must not defeat the hidden attribute */
         .account-login-btn[hidden],
         .account-logged-in[hidden] {
@@ -2850,6 +2861,191 @@
             box-shadow: 0 5px 16px rgba(212,175,55,0.38);
         }
 
+
+
+        /* leftover math/table mobile safety */
+        .ai-content .katex-block,
+        .ai-content .katex-display {
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .ai-content .md-table-wrap {
+            max-width: 100%;
+        }
+
+        /* —— UX polish: empty landing, plan strip, settings —— */
+        .empty-state .empty-value {
+            font-size: 14.5px;
+            font-weight: 550;
+            color: var(--text);
+            max-width: 340px;
+            line-height: 1.45;
+            letter-spacing: -0.01em;
+        }
+        .empty-state .empty-start {
+            margin-top: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(212,175,55,0.4);
+            background: linear-gradient(135deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06));
+            color: var(--gold);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            letter-spacing: -0.01em;
+            transition: background 0.15s, transform 0.15s, border-color 0.15s;
+        }
+        .empty-state .empty-start:hover {
+            background: linear-gradient(135deg, rgba(212,175,55,0.24), rgba(212,175,55,0.1));
+            border-color: var(--gold-dark);
+        }
+        .empty-state .empty-start:active { transform: scale(0.97); }
+        .empty-state .empty-plan-hint {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--text-muted);
+            max-width: 320px;
+            line-height: 1.4;
+        }
+        .empty-state .empty-plan-hint a {
+            color: var(--gold);
+            font-weight: 650;
+            text-decoration: none;
+        }
+        .empty-state .empty-plan-hint a:hover { text-decoration: underline; }
+
+        .plan-strip {
+            margin: 0 0 10px;
+            flex-shrink: 0;
+        }
+        .plan-strip .plan-status-card {
+            padding: 10px 12px;
+            border-radius: 12px;
+        }
+        .plan-strip .plan-usage-line {
+            font-size: 11.5px;
+            color: var(--text);
+            font-weight: 600;
+            margin: 2px 0 6px;
+            line-height: 1.35;
+        }
+        .plan-strip .plan-next-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.35;
+            margin: 0 0 8px;
+        }
+        .plan-strip .plan-status-link {
+            margin-top: 0;
+            padding: 7px 10px;
+            font-size: 11.5px;
+        }
+        .plan-strip[hidden] { display: none !important; }
+
+        .settings-theme-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .settings-theme-btn {
+            flex-shrink: 0;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(212,175,55,0.4);
+            background: rgba(212,175,55,0.1);
+            color: var(--gold);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .settings-theme-btn:hover { background: rgba(212,175,55,0.18); }
+        .settings-instr-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 650;
+            color: var(--text);
+            margin: 0 0 4px;
+        }
+        .settings-instr-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin: 0 0 8px;
+            line-height: 1.35;
+        }
+        .settings-instr-area {
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 72px;
+            resize: vertical;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--black, #0a0a0a);
+            color: var(--text);
+            font-size: 13px;
+            font-family: inherit;
+            line-height: 1.45;
+            margin-bottom: 12px;
+        }
+        html.light .settings-instr-area { background: rgba(255,255,255,0.7); }
+        .settings-instr-area:focus {
+            outline: none;
+            border-color: var(--gold-dark);
+            box-shadow: 0 0 0 3px rgba(212,175,55,0.14);
+        }
+        .settings-instr-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .settings-instr-save {
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(212,175,55,0.45);
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #0a0a0a;
+            font-size: 12px;
+            font-weight: 750;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .settings-instr-save.saved { background: #3dcc9a; border-color: #3dcc9a; color: #0a0a0a; }
+
+        .messages-container {
+            overscroll-behavior-y: contain;
+            scroll-padding-bottom: 24px;
+        }
+        .thinking-indicator.streaming .thinking-status {
+            color: var(--gold);
+        }
+        .thinking-indicator .thinking-mode-pill {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 6px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            font-size: 10.5px;
+            font-weight: 650;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+        @media (max-width: 768px) {
+            .messages-container {
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-y: contain;
+            }
+            .empty-state .empty-value { font-size: 13.5px; max-width: 300px; }
+            .empty-state .empty-start { font-size: 12.5px; padding: 8px 14px; }
+        }
+
         /* —— Settings modal —— */
         .settings-panel {
             border-radius: 20px;
@@ -2981,27 +3177,8 @@
                 <div class="chats-panel-header">
                     <span class="chats-panel-title">Chats</span>
                     <div class="header-actions">
-                        <button class="instr-btn" id="instrBtn" onclick="toggleInstructionsPanel()" aria-label="Custom instructions">Instructions</button>
                         <button class="new-chat-btn" onclick="createNewChat()" aria-label="New chat">+</button>
                         <button type="button" class="panel-close-btn" onclick="closeChatsPanel()" aria-label="Close menu">&times;</button>
-                    </div>
-                </div>
-                <div class="instr-panel" id="instrPanel">
-                    <div class="instr-panel-inner">
-                        <div class="instr-section">
-                            <label class="instr-label" for="customInstructions">Global instructions</label>
-                            <p class="instr-hint">Applied to every chat on this device.</p>
-                            <textarea id="customInstructions" placeholder="e.g. Be concise. Prefer bullet points. Always answer in English…" rows="4"></textarea>
-                        </div>
-                        <div class="instr-section">
-                            <label class="instr-label" for="chatSystemPrompt">This chat only</label>
-                            <p class="instr-hint">Optional system prompt for the current conversation.</p>
-                            <textarea id="chatSystemPrompt" placeholder="e.g. Act as a code reviewer for this project…" rows="3"></textarea>
-                        </div>
-                        <div class="instr-actions">
-                            <button type="button" class="instr-cancel" onclick="cancelInstructionsEdit()">Cancel</button>
-                            <button type="button" class="instr-save" id="instrSaveBtn" onclick="saveInstructionsEdit()">Save</button>
-                        </div>
                     </div>
                 </div>
                 <div class="chat-search-wrap">
@@ -3009,15 +3186,36 @@
                 </div>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
+                    <div class="plan-strip" id="planStrip" aria-label="Plan usage">
+                        <div class="plan-status-card" id="planStatusCard">
+                            <div class="plan-status-head">
+                                <span class="plan-status-name" id="planStripName">Plan</span>
+                                <span class="plan-status-badge" id="planStripBadge">—</span>
+                            </div>
+                            <div class="plan-usage-line" id="planStripUsage">Loading usage…</div>
+                            <div class="plan-quota-bar" id="planStripBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Primary usage">
+                                <div class="plan-quota-fill" id="planStripFill" style="width:0%"></div>
+                            </div>
+                            <p class="plan-next-hint" id="planStripNext"></p>
+                            <a class="plan-status-link" id="planStripCta" href="/upgrade">Upgrade plan</a>
+                        </div>
+                    </div>
                     <div class="account-strip" id="accountStrip" aria-label="Account">
-                        <a class="account-login-btn" id="accountLoginBtn" href="/login">Log in</a>
+                        <div class="account-guest-row" id="accountGuestRow">
+                            <a class="account-login-btn" id="accountLoginBtn" href="/login">Log in</a>
+                            <button type="button" class="account-gear" id="accountGearGuestBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="3"/>
+                                        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+                                    </svg>
+                            </button>
+                        </div>
                         <div class="account-logged-in" id="accountLoggedIn" hidden>
                             <div class="account-identity">
                                 <span class="account-email" id="accountEmail" title=""></span>
                                 <span class="account-plan-badge" id="accountPlanBadge">FREE</span>
                             </div>
                             <div class="account-actions">
-                                <button type="button" class="account-signout-btn" id="accountSignOutBtn" onclick="logoutAccount()" title="Sign out" aria-label="Sign out">Sign out</button>
                                 <button type="button" class="account-gear" id="accountGearBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <circle cx="12" cy="12" r="3"/>
@@ -3028,9 +3226,7 @@
                         </div>
                     </div>
                     <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
-                    <nav class="footer-legal" aria-label="Legal and upgrade">
-                        <a class="upgrade-link" href="/upgrade">Upgrade</a>
-                        <a href="/my-plan">My Plan</a>
+                    <nav class="footer-legal" aria-label="Legal">
                         <a href="/terms">Terms</a>
                         <a href="/privacy">Privacy</a>
                         <a href="/refund">Refund</a>
@@ -3136,6 +3332,25 @@
                         <div class="settings-row"><span class="settings-k">Email</span><span class="settings-v" id="settingsEmail">—</span></div>
                         <div class="settings-row"><span class="settings-k">Username</span><span class="settings-v" id="settingsUsername">—</span></div>
                         <div class="settings-row"><span class="settings-k">Plan</span><span class="settings-v" id="settingsPlanLabel">—</span></div>
+                    </div>
+                    <div class="settings-card" aria-label="Appearance">
+                        <h3>Appearance</h3>
+                        <div class="settings-theme-row">
+                            <span class="settings-k">Theme</span>
+                            <button type="button" class="settings-theme-btn" id="settingsThemeBtn" onclick="toggleTheme()" aria-label="Toggle theme">Light</button>
+                        </div>
+                    </div>
+                    <div class="settings-card" aria-label="Custom instructions">
+                        <h3>Custom instructions</h3>
+                        <label class="settings-instr-label" for="customInstructions">Global instructions</label>
+                        <p class="settings-instr-hint">Applied to every chat on this device.</p>
+                        <textarea class="settings-instr-area" id="customInstructions" placeholder="e.g. Be concise. Prefer bullet points. Always answer in English…" rows="3"></textarea>
+                        <label class="settings-instr-label" for="chatSystemPrompt">This chat only</label>
+                        <p class="settings-instr-hint">Optional system prompt for the current conversation.</p>
+                        <textarea class="settings-instr-area" id="chatSystemPrompt" placeholder="e.g. Act as a code reviewer for this project…" rows="2"></textarea>
+                        <div class="settings-instr-actions">
+                            <button type="button" class="settings-instr-save" id="instrSaveBtn" onclick="saveInstructionsEdit()">Save instructions</button>
+                        </div>
                     </div>
                     <div class="settings-card" aria-label="Plan usage">
                         <h3>Plan usage</h3>
@@ -3244,6 +3459,82 @@
             badge.textContent = (data.plan || 'free').toUpperCase();
             badge.title = data.label || data.plan || 'Plan';
         }
+        const NEXT_TIER = {
+            free: { id: 'plus', label: 'Plus', benefit: 'Unlock Thinking + Expert 4, 120 Fast/day' },
+            plus: { id: 'pro', label: 'Pro', benefit: 'Unlock Expert 16 + higher Thinking & Fast' },
+            pro: { id: 'max', label: 'Max', benefit: 'Highest Fast, Thinking & Expert limits' },
+            max: { id: 'max', label: 'Max', benefit: 'Renew or stack for more capacity' }
+        };
+        function primaryQuota(data) {
+            const list = (data && Array.isArray(data.quotas)) ? data.quotas : [];
+            if (!list.length) return null;
+            // Prefer the quota closest to exhaustion; else Fast
+            let best = list[0];
+            for (let i = 0; i < list.length; i++) {
+                const q = list[i];
+                if ((Number(q.percent) || 0) > (Number(best.percent) || 0)) best = q;
+            }
+            const fast = list.find(function(q) { return q.id === 'fast'; });
+            if (fast && (Number(best.percent) || 0) < 50) return fast;
+            return best;
+        }
+        function renderPlanStrip(data) {
+            const nameEl = document.getElementById('planStripName');
+            const badgeEl = document.getElementById('planStripBadge');
+            const usageEl = document.getElementById('planStripUsage');
+            const fillEl = document.getElementById('planStripFill');
+            const barEl = document.getElementById('planStripBar');
+            const nextEl = document.getElementById('planStripNext');
+            const cta = document.getElementById('planStripCta');
+            if (!usageEl) return;
+            if (!data) {
+                usageEl.textContent = 'Plan status unavailable';
+                return;
+            }
+            const plan = data.plan || 'free';
+            const label = data.label || 'Free';
+            if (nameEl) nameEl.textContent = label;
+            if (badgeEl) badgeEl.textContent = String(plan).toUpperCase();
+            const q = primaryQuota(data);
+            if (q) {
+                const used = Number(q.used) || 0;
+                const limit = Number(q.limit) || 0;
+                const left = Math.max(0, limit - used);
+                const pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
+                const period = q.period === 'daily' ? 'today' : 'this period';
+                usageEl.textContent = left + ' ' + (q.label || q.id) + ' left · ' + used + '/' + limit + ' ' + period;
+                if (fillEl) {
+                    fillEl.style.width = pct + '%';
+                    fillEl.className = 'plan-quota-fill' + (pct >= 90 ? ' crit' : (pct >= 70 ? ' warn' : ''));
+                }
+                if (barEl) barEl.setAttribute('aria-valuenow', String(pct));
+            } else {
+                usageEl.textContent = 'No usage data yet';
+            }
+            const next = NEXT_TIER[plan] || NEXT_TIER.free;
+            if (nextEl) {
+                if (plan === 'max') nextEl.textContent = next.benefit + '.';
+                else nextEl.textContent = 'Next: ' + next.label + ' — ' + next.benefit + '.';
+            }
+            if (cta) {
+                cta.href = '/upgrade';
+                cta.textContent = (plan === 'max') ? 'Renew / add capacity' : ('Upgrade to ' + next.label);
+            }
+            // Soft refresh empty-state plan hint if visible
+            const hint = document.getElementById('emptyPlanHint');
+            if (hint) hint.innerHTML = emptyPlanHintHtml(data);
+        }
+        function emptyPlanHintHtml(data) {
+            const plan = (data && data.plan) || 'free';
+            if (plan === 'free') {
+                return 'Free includes Fast replies. <a href="/upgrade">Upgrade</a> for Thinking & Expert.';
+            }
+            if (plan === 'max') {
+                return 'You are on Max. <a href="/upgrade">Renew or stack</a> when you need more.';
+            }
+            const next = NEXT_TIER[plan] || NEXT_TIER.plus;
+            return 'On ' + ((data && data.label) || plan) + '. <a href="/upgrade">Upgrade to ' + next.label + '</a> for more capacity.';
+        }
         async function loadPlanStatus() {
             try {
                 const res = await apiFetch('/api/plan-status', { method: 'GET', cache: 'no-store' });
@@ -3251,6 +3542,7 @@
                 if (!res.ok) throw new Error(data.error || 'Failed');
                 cachedPlan = data;
                 updateAccountPlanBadge(data);
+                renderPlanStrip(data);
                 const settingsQuotas = document.getElementById('settingsQuotas');
                 const settingsLoading = document.getElementById('settingsUsageLoading');
                 const settingsNote = document.getElementById('settingsUsageNote');
@@ -3260,6 +3552,7 @@
                 if (settingsLoading) settingsLoading.hidden = true;
                 if (settingsNote) settingsNote.textContent = planPeriodNote(data);
             } catch (e) {
+                renderPlanStrip(null);
                 const settingsLoading = document.getElementById('settingsUsageLoading');
                 if (settingsLoading) {
                     settingsLoading.hidden = false;
@@ -3314,11 +3607,13 @@
         }
         function renderAuthCard() {
             const loginBtn = document.getElementById('accountLoginBtn');
+            const guestRow = document.getElementById('accountGuestRow');
             const loggedIn = document.getElementById('accountLoggedIn');
             const emailEl = document.getElementById('accountEmail');
             if (authState.user) {
                 const email = authState.user.email || authState.user.name || ('User ' + authState.user.id);
-                // Signed in: never show Log in — only Sign out + email/plan/gear
+                // Signed in: email · plan · gear (logout only in Settings)
+                if (guestRow) guestRow.hidden = true;
                 if (loginBtn) {
                     loginBtn.hidden = true;
                     loginBtn.setAttribute('aria-hidden', 'true');
@@ -3336,6 +3631,7 @@
                 if (sEmail) sEmail.textContent = authState.user.email || '—';
                 if (sUser) sUser.textContent = usernameFromUser(authState.user);
             } else {
+                if (guestRow) guestRow.hidden = false;
                 if (loginBtn) {
                     loginBtn.hidden = false;
                     loginBtn.removeAttribute('aria-hidden');
@@ -3344,19 +3640,51 @@
                     loggedIn.hidden = true;
                     loggedIn.setAttribute('aria-hidden', 'true');
                 }
-                closeSettingsPanel();
+                // Do not force-close settings on guest refresh (theme/instructions still useful)
             }
         }
         function openSettingsPanel() {
-            if (!authState.user) {
-                window.location.href = '/login';
-                return;
-            }
             const overlay = document.getElementById('settingsOverlay');
             if (overlay) overlay.classList.add('open');
             renderAuthCard();
             loadPlanStatus();
-            loadSettingsRequests();
+            loadGlobalInstructions();
+            loadChatSystemPromptUI();
+            snapshotInstructionsDraft();
+            applyTheme(document.documentElement.classList.contains('light') ? 'light' : 'dark');
+            const saveBtn = document.getElementById('instrSaveBtn');
+            if (saveBtn) {
+                saveBtn.textContent = 'Save instructions';
+                saveBtn.classList.remove('saved');
+            }
+            const loggedIn = !!authState.user;
+            // Account / requests / logout only when signed in; guests still get theme + instructions + usage
+            const accountCard = document.querySelector('.settings-card[aria-label="Account details"]');
+            const reqCard = document.querySelector('.settings-card[aria-label="Plan requests"]');
+            const actions = document.querySelector('.settings-actions');
+            if (accountCard) accountCard.style.display = loggedIn ? '' : 'none';
+            if (reqCard) reqCard.style.display = loggedIn ? '' : 'none';
+            if (actions) {
+                actions.style.display = '';
+                const logoutBtn = document.getElementById('settingsLogoutBtn');
+                if (logoutBtn) logoutBtn.style.display = loggedIn ? '' : 'none';
+                // Guests: primary CTA becomes Log in; signed-in keeps Upgrade
+                let loginLink = document.getElementById('settingsLoginLink');
+                if (!loggedIn) {
+                    if (!loginLink) {
+                        loginLink = document.createElement('a');
+                        loginLink.id = 'settingsLoginLink';
+                        loginLink.className = 'primary';
+                        loginLink.href = '/login';
+                        loginLink.textContent = 'Log in';
+                        actions.insertBefore(loginLink, actions.firstChild);
+                    }
+                    loginLink.style.display = '';
+                } else if (loginLink) {
+                    loginLink.style.display = 'none';
+                }
+            }
+            if (loggedIn) loadSettingsRequests();
         }
         function closeSettingsPanel() {
             const overlay = document.getElementById('settingsOverlay');
@@ -3498,8 +3826,14 @@
             document.documentElement.classList.toggle('light', light);
             const meta = document.querySelector('meta[name="theme-color"]');
             if (meta) meta.setAttribute('content', light ? '#f5f3eb' : '#0a0a0a');
+            const label = light ? 'Dark' : 'Light';
             const btn = document.getElementById('themeBtn');
-            if (btn) btn.textContent = light ? 'Dark' : 'Light';
+            if (btn) btn.textContent = label;
+            const sBtn = document.getElementById('settingsThemeBtn');
+            if (sBtn) {
+                sBtn.textContent = label;
+                sBtn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+            }
             try { localStorage.setItem('goldenspaceai2_theme', theme); } catch (e) {}
         }
         function toggleTheme() {
@@ -3860,22 +4194,9 @@
         }
 
         function toggleInstructionsPanel() {
-            const panel = document.getElementById('instrPanel');
-            const btn = document.getElementById('instrBtn');
-            const open = panel.classList.toggle('open');
-            if (btn) btn.classList.toggle('on', open);
-            if (open) {
-                loadGlobalInstructions();
-                loadChatSystemPromptUI();
-                snapshotInstructionsDraft();
-                const saveBtn = document.getElementById('instrSaveBtn');
-                if (saveBtn) {
-                    saveBtn.textContent = 'Save';
-                    saveBtn.classList.remove('saved');
-                }
-                const box = document.getElementById('customInstructions');
-                if (box) box.focus();
-            }
+            openSettingsPanel();
+            const box = document.getElementById('customInstructions');
+            if (box) setTimeout(function() { box.focus(); }, 50);
         }
 
         function saveInstructionsEdit() {
@@ -3888,11 +4209,12 @@
                 saveBtn.classList.add('saved');
                 setTimeout(function() {
                     if (saveBtn) {
-                        saveBtn.textContent = 'Save';
+                        saveBtn.textContent = 'Save instructions';
                         saveBtn.classList.remove('saved');
                     }
                 }, 1200);
             }
+            showToast('Instructions saved', 'ok', 1600);
         }
 
         function cancelInstructionsEdit() {
@@ -3900,10 +4222,6 @@
             const c = document.getElementById('chatSystemPrompt');
             if (g) g.value = instrDraftGlobal;
             if (c) c.value = instrDraftChat;
-            const panel = document.getElementById('instrPanel');
-            const btn = document.getElementById('instrBtn');
-            if (panel) panel.classList.remove('open');
-            if (btn) btn.classList.remove('on');
         }
 
 
@@ -4087,6 +4405,26 @@
             el.addEventListener('blur', commitTitleEdit);
         }
 
+        
+        function focusComposerFromEmpty() {
+            const input = document.getElementById('messageInput');
+            if (input) {
+                input.focus();
+                try { input.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+            }
+        }
+        function renderEmptyStateHtml() {
+            const hint = emptyPlanHintHtml(cachedPlan);
+            return '<div class="empty-state">' +
+                '<div class="empty-mark" aria-hidden="true">G</div>' +
+                '<div class="empty-title">GoldenSpaceAI</div>' +
+                '<div class="empty-value">Professional answers for research, code, writing, and analysis.</div>' +
+                '<button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Start a conversation</button>' +
+                '<div class="empty-meta"><span>Fast</span><span class="empty-dot" aria-hidden="true">·</span><span>Thinking</span><span class="empty-dot" aria-hidden="true">·</span><span>Expert</span></div>' +
+                '<p class="empty-plan-hint" id="emptyPlanHint">' + hint + '</p>' +
+                '</div>';
+        }
+
         function loadChat() {
             const container = document.getElementById('messagesContainer');
             container.innerHTML = '';
@@ -4095,7 +4433,7 @@
             if(!currentChatId || !chats[currentChatId]) return;
             const messages = chats[currentChatId].messages || [];
             if (!messages.length) {
-                container.innerHTML = '<div class="empty-state"><div class="empty-mark" aria-hidden="true">G</div><div class="empty-title">Welcome to GoldenSpaceAI</div><div class="empty-hint">Ask anything — research, code, writing, or analysis. Attach images, Word, PowerPoint, PDF, or txt/md; the AI receives the extract (not shown in your bubble).</div><div class="empty-meta"><span>Fast</span><span class="empty-dot" aria-hidden="true">·</span><span>Thinking</span><span class="empty-dot" aria-hidden="true">·</span><span>Expert</span></div></div>';
+                container.innerHTML = renderEmptyStateHtml();
                 return;
             }
             stickToBottom = true;
@@ -4394,6 +4732,9 @@
             sendMessage();
         }
         function stopGeneration() {
+            // Prefer aborting the active stream; requestAiReply catch/finally clears isSending
+            const thinking = document.querySelector('#messagesContainer .message.ai.thinking .thinking-status');
+            if (thinking) thinking.textContent = 'Stopping…';
             if (streamAbort) { try { streamAbort.abort(); } catch (e) {} }
         }
         function combinedInstructions() {
@@ -4615,7 +4956,12 @@
                             if (!chromeReady) setThinkingStatus(thinkingId, 'thinking');
                         }
                         if (obj.text) {
-                            if (!chromeReady) ensureAiChrome('');
+                            if (!chromeReady) {
+                                setThinkingStatus(thinkingId, 'streaming');
+                                const ind = document.getElementById(thinkingId + '_ind');
+                                if (ind) ind.classList.add('streaming');
+                                ensureAiChrome('');
+                            }
                             streamedText += obj.text;
                             paintStream();
                         }
@@ -4740,10 +5086,26 @@
         }
 
         function markLastAiActions() {
-            const msgs = document.querySelectorAll('#messagesContainer .message.ai');
+            const msgs = document.querySelectorAll('#messagesContainer .message.ai:not(.thinking)');
             for (let i = 0; i < msgs.length; i++) {
-                const regen = msgs[i].querySelector('.regen-btn');
-                if (regen) regen.style.display = (i === msgs.length - 1) ? 'inline-flex' : 'none';
+                const isLast = (i === msgs.length - 1);
+                let regen = msgs[i].querySelector('.regen-btn');
+                if (isLast && !regen) {
+                    let actions = msgs[i].querySelector('.message-actions');
+                    if (!actions) {
+                        const block = msgs[i].querySelector('.ai-block') || msgs[i];
+                        actions = document.createElement('div');
+                        actions.className = 'message-actions';
+                        block.appendChild(actions);
+                    }
+                    regen = document.createElement('button');
+                    regen.className = 'msg-btn regen-btn wide';
+                    regen.title = 'Regenerate';
+                    regen.setAttribute('onclick', 'regenerateLast()');
+                    regen.innerHTML = ICO.regen + ' Regenerate';
+                    actions.appendChild(regen);
+                }
+                if (regen) regen.style.display = isLast ? 'inline-flex' : 'none';
             }
             const users = document.querySelectorAll('#messagesContainer .message.user');
             for (let i = 0; i < users.length; i++) {
@@ -4805,7 +5167,10 @@
             if (isSending || !currentChatId || !chats[currentChatId]) return;
             const msgs = chats[currentChatId].messages;
             if (!msgs.length) return;
-            if (msgs[msgs.length - 1].role === 'ai' || msgs[msgs.length - 1].role === 'assistant') msgs.pop();
+            // Drop trailing AI / error so we can regenerate from the last user turn
+            while (msgs.length && (msgs[msgs.length - 1].role === 'ai' || msgs[msgs.length - 1].role === 'assistant')) {
+                msgs.pop();
+            }
             let lastUser = null;
             for (let i = msgs.length - 1; i >= 0; i--) {
                 if (msgs[i].role === 'user') { lastUser = msgs[i]; break; }
@@ -4813,6 +5178,7 @@
             if (!lastUser) return;
             saveChats();
             loadChat();
+            stickToBottom = true;
             setSending(true);
             requestAiReply(lastUser.image || null);
         }
@@ -4962,8 +5328,10 @@
             thinking: 'Thinking…',
             searching: 'Searching the web…',
             researching: 'Researching…',
-            generating: 'Typing…',
-            waiting: 'Waiting for reply…'
+            generating: 'Writing…',
+            streaming: 'Streaming…',
+            waiting: 'Waiting for reply…',
+            stopping: 'Stopping…'
         };
 
         function initialThinkingStatus() {
@@ -4993,16 +5361,19 @@
             div.id = id;
             div.className = 'message ai thinking';
             div.setAttribute('aria-live', 'polite');
-            div.innerHTML = '<div class="ai-block"><div class="thinking-indicator">' +
+            const modeLabel = (MODELS[currentModel] || MODELS.normal).label;
+            div.innerHTML = '<div class="ai-block"><div class="thinking-indicator" id="' + id + '_ind">' +
                 '<div class="thinking-row">' +
                 '<div class="thinking-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>' +
                 '<div class="thinking-status">' + escapeHtmlRaw(statusLabel(statusKey || initialThinkingStatus())) + '</div>' +
+                '<span class="thinking-mode-pill">' + escapeHtmlRaw(modeLabel) + '</span>' +
                 '</div>' +
                 '<div class="thinking-shimmer" aria-hidden="true"></div>' +
                 '<div class="thinking-trace" aria-label="Model reasoning"></div>' +
                 '</div></div>';
             container.appendChild(div);
-            scrollToBottom();
+            stickToBottom = true;
+            scrollToBottom(true);
             return id;
         }
 
@@ -5361,7 +5732,9 @@
 
         function isNearBottom(mc) {
             if (!mc) return true;
-            return (mc.scrollHeight - mc.scrollTop - mc.clientHeight) < 96;
+            // Larger threshold on short mobile viewports so sticky follow feels natural
+            const thresh = Math.max(120, Math.min(220, Math.round(mc.clientHeight * 0.22)));
+            return (mc.scrollHeight - mc.scrollTop - mc.clientHeight) < thresh;
         }
 
         function updateJumpLatestBtn() {
@@ -5377,10 +5750,15 @@
                 updateJumpLatestBtn();
                 return;
             }
-            requestAnimationFrame(function() {
+            const go = function() {
                 mc.scrollTop = mc.scrollHeight;
                 stickToBottom = true;
                 updateJumpLatestBtn();
+            };
+            requestAnimationFrame(function() {
+                go();
+                // Second frame helps mobile Safari after keyboard / content growth
+                requestAnimationFrame(go);
             });
         }
 
@@ -5397,6 +5775,13 @@
                 stickToBottom = isNearBottom(mc);
                 updateJumpLatestBtn();
             }, { passive: true });
+            // Keep sticky follow when mobile keyboard / visual viewport shifts
+            if (window.visualViewport && !mc._vvBound) {
+                mc._vvBound = true;
+                window.visualViewport.addEventListener('resize', function() {
+                    if (stickToBottom) scrollToBottom(true);
+                });
+            }
         }
 
         function escapeHtmlRaw(text) {

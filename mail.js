@@ -161,13 +161,20 @@ async function sendPlanDeclinedEmail(payment) {
     const label = planLabel(payment.plan);
     const when = formatWhen(payment.decidedAt || new Date().toISOString());
     const subject = `Update on your GoldenSpaceAI ${label} upgrade request`;
+    const refundText =
+        `Refund: All money you sent for this request will be refunded. ` +
+        `If there are any fees, the refund will be the amount sent minus those fees.\n\n`;
+    const refundHtml =
+        `<p><strong>Refund:</strong> All money you sent for this request will be refunded. ` +
+        `If there are any fees, the refund will be the amount sent minus those fees.</p>`;
     const text =
         `Hi,\n\n` +
         `We reviewed your upgrade request for GoldenSpaceAI ${label} and could not confirm the payment at this time.\n\n` +
         `Status: Declined\n` +
         `Reviewed: ${when}\n` +
         (payment.id ? `Request ID: ${payment.id}\n` : '') +
-        `\nCommon reasons include a mismatched OMT Pay number, an incomplete transfer, or a duplicate request. ` +
+        `\n` + refundText +
+        `Common reasons include a mismatched OMT Pay number, an incomplete transfer, or a duplicate request. ` +
         `You can submit a new request from https://www.goldenspaceai.space/upgrade ` +
         `or check details at https://www.goldenspaceai.space/my-plan\n\n` +
         `If you believe this was a mistake, reply to this email with your request ID and we will help.\n\n` +
@@ -179,6 +186,7 @@ async function sendPlanDeclinedEmail(payment) {
         `<strong>Reviewed:</strong> ${when}` +
         (payment.id ? `<br><strong>Request ID:</strong> ${payment.id}` : '') +
         `</p>` +
+        refundHtml +
         `<p>Common reasons include a mismatched OMT Pay number, an incomplete transfer, or a duplicate request. ` +
         `You can <a href="https://www.goldenspaceai.space/upgrade">submit a new request</a> ` +
         `or check details on <a href="https://www.goldenspaceai.space/my-plan">My Plan</a>.</p>` +

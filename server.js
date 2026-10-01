@@ -23,7 +23,7 @@ const CHATS_FILE = path.join(DATA_DIR, 'chats.json');
 const plansStore = createPlansStore(DATA_DIR);
 const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || '';
 
-// Auth + Postgres chat store (magic-link / Google). Live login needs keys — see AUTH_ENV.md.
+// Auth + Postgres chat store (email OTP / Google). Live login needs keys — see AUTH_ENV.md.
 let auth = null;
 
 // ==================== CORS ====================
@@ -1206,7 +1206,7 @@ app.delete('/api/chats/:id', async (req, res) => {
     res.json({ ok: true });
 });
 
-// ==================== AUTH (magic-link + Google OAuth) ====================
+// ==================== AUTH (email OTP + Google OAuth) ====================
 app.get('/api/auth/status', (req, res) => {
     const st = auth.authStatus();
     const user = auth.readUserFromReq(req);
@@ -1230,30 +1230,36 @@ app.post('/api/auth/logout', (req, res) => {
     res.json({ ok: true });
 });
 
-app.post('/api/auth/magic/request', async (req, res) => {
+app.post('/api/auth/otp/request', async (req, res) => {
     try {
         const email = (req.body && req.body.email) || '';
         const deviceId = getClientId(req);
-        const result = await auth.createMagicLink({ email, deviceId, req });
-        if (!result.ok) return res.status(result.status && !result.status.magicLink ? 503 : 400).json(result);
+        const result = await auth.requestEmailOtp({ email, deviceId });
+        if (!result.ok) {
+            const disabled = result.status && !result.status.emailOtp;
+            return res.status(disabled ? 503 : 400).json(result);
+        }
         res.json(result);
     } catch (e) {
-        console.error('magic request:', e.message);
-        res.status(500).json({ ok: false, error: 'Failed to start magic link login.' });
+        console.error('otp request:', e.message);
+        res.status(500).json({ ok: false, error: 'Failed to send login code.' });
     }
 });
 
-app.get('/api/auth/magic/consume', async (req, res) => {
+app.post('/api/auth/otp/verify', async (req, res) => {
     try {
-        const token = req.query.token;
-        const result = await auth.consumeMagicLink(token, res, req);
+        const email = (req.body && req.body.email) || '';
+        const code = (req.body && req.body.code) || '';
+        const deviceId = getClientId(req);
+        const result = await auth.verifyEmailOtp({ email, code, deviceId, res, req });
         if (!result.ok) {
-            return res.redirect('/?auth=magic_error&msg=' + encodeURIComponent(result.error || 'Login failed'));
+            const disabled = result.status && !result.status.emailOtp;
+            return res.status(disabled ? 503 : 400).json(result);
         }
-        return res.redirect('/?auth=ok');
+        res.json(result);
     } catch (e) {
-        console.error('magic consume:', e.message);
-        return res.redirect('/?auth=magic_error');
+        console.error('otp verify:', e.message);
+        res.status(500).json({ ok: false, error: 'Failed to verify login code.' });
     }
 });
 
@@ -1522,7 +1528,7 @@ app.listen(PORT, () => {
     console.log(`💳 Plans store: ✅ ${plansStore.filePath} (daily Fast reset: UTC)`);
     console.log(`🔐 Admin passkey: ${ADMIN_PASSKEY ? '✅ set' : '❌ missing ADMIN_PASSKEY'}`);
     const _as = auth.authStatus();
-    console.log(`👤 Auth: db=${_as.database ? '✅' : '❌'} session=${_as.sessionSecret ? '✅' : '❌'} google=${_as.googleOAuth ? '✅' : '❌'} magic=${_as.magicLink ? '✅' : '❌'}`);
+    console.log(`👤 Auth: db=${_as.database ? '✅' : '❌'} session=${_as.sessionSecret ? '✅' : '❌'} google=${_as.googleOAuth ? '✅' : '❌'} emailOtp=${_as.emailOtp ? '✅' : '❌'}`);
     console.log(`⏱️ Timeout: ${UPSTREAM_TIMEOUT_MS}ms`);
     console.log(`🛡️ Rate limit: ${RATE_LIMIT}/min per IP on /api/chat*`);
     console.log(`📱 PWA Support: ✅ Ready`);

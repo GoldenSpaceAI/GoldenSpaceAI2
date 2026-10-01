@@ -1,14 +1,15 @@
 /**
- * Auth: email magic-link + Google OAuth + signed session cookies.
+ * Auth: email 6-digit OTP (Resend) + Google OAuth + signed session cookies.
  * Requires DATABASE_URL + SESSION_SECRET for sessions/users.
- * Google/magic-link stay disabled until their keys are set (see AUTH_ENV.md).
+ * Google stays disabled until GOOGLE_* keys; email OTP soft-disabled until RESEND_API_KEY (see AUTH_ENV.md).
  */
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const SESSION_COOKIE = 'gsa_session';
 const SESSION_DAYS = 30;
-const MAGIC_TTL_MS = 20 * 60 * 1000;
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
 
 function env(name) {
     const v = process.env[name];
@@ -23,20 +24,21 @@ function authStatus() {
     const database = boolConfigured('DATABASE_URL');
     const sessionSecret = boolConfigured('SESSION_SECRET');
     const google = boolConfigured('GOOGLE_CLIENT_ID') && boolConfigured('GOOGLE_CLIENT_SECRET');
+    // Soft-disable email OTP until Resend is configured (SMTP reserved/docs only).
     const resend = boolConfigured('RESEND_API_KEY');
-    const smtp = boolConfigured('SMTP_HOST') && boolConfigured('SMTP_FROM');
-    const email = resend || smtp;
+    const emailOtp = resend;
     return {
         database,
         sessionSecret,
         googleOAuth: google,
-        magicLink: email,
-        emailTransport: resend ? 'resend' : (smtp ? 'smtp' : null),
+        emailOtp,
+        magicLink: false, // legacy field; email auth is OTP-only now
+        emailTransport: resend ? 'resend' : null,
         ready: database && sessionSecret,
         liveLoginBlockedBy: [
             !database && 'DATABASE_URL',
             !sessionSecret && 'SESSION_SECRET',
-            !google && !email && 'GOOGLE_CLIENT_ID+GOOGLE_CLIENT_SECRET or RESEND_API_KEY/SMTP_*'
+            !google && !emailOtp && 'GOOGLE_CLIENT_ID+GOOGLE_CLIENT_SECRET or RESEND_API_KEY'
         ].filter(Boolean)
     };
 }
@@ -130,6 +132,16 @@ function createAuth(options = {}) {
                         used_at TIMESTAMPTZ,
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     );
+                    CREATE TABLE IF NOT EXISTS email_otps (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        email TEXT NOT NULL,
+                        code_hash TEXT NOT NULL,
+                        device_id TEXT,
+                        expires_at TIMESTAMPTZ NOT NULL,
+                        used_at TIMESTAMPTZ,
+                        attempts INT NOT NULL DEFAULT 0,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
                     CREATE TABLE IF NOT EXISTS device_links (
                         device_id TEXT PRIMARY KEY,
                         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -149,6 +161,7 @@ function createAuth(options = {}) {
                     );
                     CREATE INDEX IF NOT EXISTS idx_chats_owner_updated ON chats (owner_key, updated_at DESC);
                     CREATE INDEX IF NOT EXISTS idx_magic_links_email ON magic_links (email);
+                    CREATE INDEX IF NOT EXISTS idx_email_otps_email ON email_otps (email);
                 `);
                 schemaReady = true;
                 console.log('Auth/Postgres schema ready');
@@ -324,45 +337,48 @@ function createAuth(options = {}) {
         return user;
     }
 
-    async function sendMagicEmail(to, link) {
-        const status = authStatus();
-        if (!status.magicLink) {
-            return { ok: false, error: 'Magic link email is not configured. Set RESEND_API_KEY (or SMTP_HOST + SMTP_FROM).' };
-        }
-        const subject = 'Your GoldenSpaceAI login link';
-        const text = `Sign in to GoldenSpaceAI:\n\n${link}\n\nThis link expires in 20 minutes. If you did not request it, ignore this email.`;
-        const html = `<p>Sign in to GoldenSpaceAI:</p><p><a href="${link}">${link}</a></p><p>This link expires in 20 minutes. If you did not request it, ignore this email.</p>`;
-
-        if (env('RESEND_API_KEY')) {
-            const from = env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenSpaceAI <onboarding@resend.dev>';
-            const resp = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    Authorization: 'Bearer ' + env('RESEND_API_KEY'),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ from, to: [to], subject, html, text })
-            });
-            if (!resp.ok) {
-                const body = await resp.text().catch(() => '');
-                console.error('Resend error:', resp.status, body);
-                return { ok: false, error: 'Failed to send email via Resend.' };
-            }
-            return { ok: true };
-        }
-
-        // Minimal SMTP via nodemailer is NOT a dependency — use raw net only if SMTP_* set with RESEND preferred.
-        // Without nodemailer, document SMTP; try simple HTTPS Relays only if RESEND missing.
-        return { ok: false, error: 'SMTP is documented but Resend is preferred. Set RESEND_API_KEY, or add nodemailer + SMTP_* later.' };
+    function generateOtpCode() {
+        return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     }
 
-    async function createMagicLink({ email, deviceId, req }) {
+    function hashOtpCode(email, code) {
+        const norm = String(email || '').trim().toLowerCase();
+        return crypto.createHash('sha256').update(`${norm}:${String(code || '').trim()}`).digest('hex');
+    }
+
+    async function sendOtpEmail(to, code) {
+        const status = authStatus();
+        if (!status.emailOtp) {
+            return { ok: false, error: 'Email login is not configured. Set RESEND_API_KEY.' };
+        }
+        const subject = 'Your GoldenSpaceAI login code';
+        const text = `Your GoldenSpaceAI login code is: ${code}\n\nIt expires in 10 minutes. If you did not request it, ignore this email.`;
+        const html = `<p>Your GoldenSpaceAI login code is:</p><p style="font-size:28px;letter-spacing:6px;font-weight:700;">${code}</p><p>It expires in 10 minutes. If you did not request it, ignore this email.</p>`;
+
+        const from = env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenSpaceAI <onboarding@resend.dev>';
+        const resp = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                Authorization: 'Bearer ' + env('RESEND_API_KEY'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ from, to: [to], subject, html, text })
+        });
+        if (!resp.ok) {
+            const body = await resp.text().catch(() => '');
+            console.error('Resend error:', resp.status, body);
+            return { ok: false, error: 'Failed to send email via Resend.' };
+        }
+        return { ok: true };
+    }
+
+    async function requestEmailOtp({ email, deviceId }) {
         const status = authStatus();
         if (!status.ready) {
             return { ok: false, error: 'Auth storage not ready. Set DATABASE_URL and SESSION_SECRET.', status };
         }
-        if (!status.magicLink) {
-            return { ok: false, error: 'Magic link disabled until RESEND_API_KEY (or SMTP_HOST + SMTP_FROM) is set.', status };
+        if (!status.emailOtp) {
+            return { ok: false, error: 'Email login disabled until RESEND_API_KEY is set.', status };
         }
         const norm = String(email || '').trim().toLowerCase();
         if (!norm || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm)) {
@@ -370,37 +386,61 @@ function createAuth(options = {}) {
         }
         const p = getPool();
         await ensureSchema();
-        const raw = crypto.randomBytes(32).toString('base64url');
-        const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
-        const expires = new Date(Date.now() + MAGIC_TTL_MS);
+        const code = generateOtpCode();
+        const codeHash = hashOtpCode(norm, code);
+        const expires = new Date(Date.now() + OTP_TTL_MS);
+        // Invalidate prior unused codes for this email
         await p.query(
-            `INSERT INTO magic_links (email, token_hash, device_id, expires_at) VALUES ($1,$2,$3,$4)`,
-            [norm, tokenHash, deviceId || null, expires.toISOString()]
+            `UPDATE email_otps SET used_at = NOW() WHERE email = $1 AND used_at IS NULL`,
+            [norm]
         );
-        const base = getPublicBaseUrl(req);
-        const link = `${base}/api/auth/magic/consume?token=${encodeURIComponent(raw)}`;
-        const sent = await sendMagicEmail(norm, link);
+        await p.query(
+            `INSERT INTO email_otps (email, code_hash, device_id, expires_at) VALUES ($1,$2,$3,$4)`,
+            [norm, codeHash, deviceId || null, expires.toISOString()]
+        );
+        const sent = await sendOtpEmail(norm, code);
         if (!sent.ok) return { ok: false, error: sent.error, status };
-        return { ok: true, message: 'Check your email for a login link.', status };
+        return { ok: true, message: 'Check your email for a 6-digit code.', status };
     }
 
-    async function consumeMagicLink(rawToken, res, req) {
+    async function verifyEmailOtp({ email, code, deviceId, res, req }) {
         const status = authStatus();
         if (!status.ready) return { ok: false, error: 'Auth not configured.', status };
+        if (!status.emailOtp) {
+            return { ok: false, error: 'Email login disabled until RESEND_API_KEY is set.', status };
+        }
+        const norm = String(email || '').trim().toLowerCase();
+        const rawCode = String(code || '').trim().replace(/\s+/g, '');
+        if (!norm || !/^\d{6}$/.test(rawCode)) {
+            return { ok: false, error: 'Enter your email and the 6-digit code.' };
+        }
         const p = getPool();
         await ensureSchema();
-        const tokenHash = crypto.createHash('sha256').update(String(rawToken || '')).digest('hex');
         const r = await p.query(
-            `SELECT * FROM magic_links WHERE token_hash = $1 LIMIT 1`,
-            [tokenHash]
+            `SELECT * FROM email_otps
+             WHERE email = $1 AND used_at IS NULL
+             ORDER BY created_at DESC LIMIT 1`,
+            [norm]
         );
         const row = r.rows[0];
-        if (!row || row.used_at || new Date(row.expires_at).getTime() < Date.now()) {
-            return { ok: false, error: 'Invalid or expired login link.' };
+        if (!row || new Date(row.expires_at).getTime() < Date.now()) {
+            return { ok: false, error: 'Invalid or expired code. Request a new one.' };
         }
-        await p.query('UPDATE magic_links SET used_at = NOW() WHERE id = $1', [row.id]);
-        const user = await upsertUserByEmail(row.email);
-        await afterLogin(user, row.device_id, res, req);
+        if (Number(row.attempts) >= OTP_MAX_ATTEMPTS) {
+            await p.query('UPDATE email_otps SET used_at = NOW() WHERE id = $1', [row.id]);
+            return { ok: false, error: 'Too many attempts. Request a new code.' };
+        }
+        const expected = hashOtpCode(norm, rawCode);
+        const a = Buffer.from(String(row.code_hash));
+        const b = Buffer.from(expected);
+        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+            await p.query('UPDATE email_otps SET attempts = attempts + 1 WHERE id = $1', [row.id]);
+            return { ok: false, error: 'Incorrect code.' };
+        }
+        await p.query('UPDATE email_otps SET used_at = NOW() WHERE id = $1', [row.id]);
+        const user = await upsertUserByEmail(norm);
+        const useDevice = deviceId || row.device_id;
+        await afterLogin(user, useDevice, res, req);
         return { ok: true, user: { id: user.id, email: user.email, name: user.name } };
     }
 
@@ -560,8 +600,8 @@ function createAuth(options = {}) {
         readUserFromReq,
         setSessionCookie,
         clearSessionCookie,
-        createMagicLink,
-        consumeMagicLink,
+        requestEmailOtp,
+        verifyEmailOtp,
         googleConfigured,
         googleAuthUrl,
         completeGoogleLogin,

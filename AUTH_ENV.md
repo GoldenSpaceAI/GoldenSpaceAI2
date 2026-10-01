@@ -1,6 +1,6 @@
 # Auth environment checklist (GoldenSpaceAI2)
 
-Login (email magic-link + Google OAuth) and cross-device chat sync are implemented in code.
+Login (email **6-digit OTP** via Resend + Google OAuth) and cross-device chat sync are implemented in code.
 **Live login stays disabled until the keys below are set.** Guest chat, plans, OMT, admin, and caps are unchanged and keep using the device `X-Client-Id`.
 
 ## Required for sessions + sync storage
@@ -26,16 +26,18 @@ Authorized redirect URIs to add in Google Cloud Console:
 - `https://goldenspaceai2.onrender.com/api/auth/google/callback`
 - `https://goldenspaceai2-frankfurt.onrender.com/api/auth/google/callback` (if used)
 
-## Email magic-link (optional until you have a sender)
+## Email 6-digit OTP (soft-disabled until Resend)
 
-**Preferred — Resend**
+Email login is **soft-disabled** until `RESEND_API_KEY` is set. The UI shows “Send code” / verify disabled; Google can still work independently once its keys + DB/session are ready.
+
+Flow: user enters email → we email a 6-digit code via Resend → user types the code on the site → session cookie.
 
 | Name | Purpose |
 |------|---------|
-| `RESEND_API_KEY` | Resend API key |
-| `MAGIC_LINK_FROM` | Optional From header, e.g. `GoldenSpaceAI <login@yourdomain.com>` |
+| `RESEND_API_KEY` | Resend API key (**required** to enable email OTP) |
+| `EMAIL_FROM` | Optional From header, e.g. `GoldenSpaceAI <login@yourdomain.com>` (falls back to `MAGIC_LINK_FROM` / `SMTP_FROM` / Resend onboarding address) |
 
-**SMTP alternative (documented; Resend path is wired first)**
+**SMTP alternative (documented only; not wired for OTP send)**
 
 | Name | Purpose |
 |------|---------|
@@ -45,9 +47,9 @@ Authorized redirect URIs to add in Google Cloud Console:
 | `SMTP_PASS` | SMTP password |
 | `SMTP_FROM` | From address |
 
-> Shipping note: magic-link **send** currently uses **Resend** when `RESEND_API_KEY` is set. SMTP names are reserved/documented; full nodemailer SMTP can be added later without API changes.
+> Shipping note: OTP **send** uses **Resend** only when `RESEND_API_KEY` is set. SMTP names are reserved/documented; full nodemailer SMTP can be added later without API changes.
 
-## Public URL (magic links + OAuth redirect)
+## Public URL (OAuth redirect)
 
 | Name | Purpose |
 |------|---------|
@@ -55,14 +57,14 @@ Authorized redirect URIs to add in Google Cloud Console:
 
 ## What blocks live login today
 
-Until keys exist, UI shows providers as disabled. `/api/auth/status` and `/health` → `auth.liveLoginBlockedBy` list missing pieces.
+Until keys exist, UI shows providers as disabled. `/api/auth/status` and `/health` → `auth.liveLoginBlockedBy` list missing pieces. Status also exposes `emailOtp: true/false`.
 
 Typical first enable order:
 
 1. Link `DATABASE_URL` from Render Postgres `GoldenSpaceAI2-db` to **GoldenSpaceAI2** (Oregon) and **GoldenSpaceAI2-frankfurt**.
 2. Confirm `SESSION_SECRET` is set (already applied via MCP if deploy succeeded).
 3. Add `APP_BASE_URL=https://www.goldenspaceai.space`.
-4. Add Google and/or Resend keys when ready — no code change required.
+4. Add Google and/or `RESEND_API_KEY` when ready — no code change required.
 
 ## Behavior
 
@@ -70,3 +72,4 @@ Typical first enable order:
 - **Logged in:** chats keyed by `u_<userId>`; list/messages sync across devices.
 - **On login:** device chats merge into the user (Postgres + JSON fallback).
 - **Plans / OMT / admin / caps:** still device-scoped; not broken by login.
+- **Email OTP:** codes expire in 10 minutes; max 5 verify attempts per code.

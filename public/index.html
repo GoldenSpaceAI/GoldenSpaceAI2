@@ -884,10 +884,17 @@
         .auth-modal-card h2 { margin: 0 0 8px; font-size: 18px; }
         .auth-modal-card p.hint { margin: 0 0 12px; font-size: 13px; color: var(--muted, #a89b7a); line-height: 1.4; }
         .auth-modal-card label { display: block; font-size: 12px; margin-bottom: 6px; color: var(--muted, #a89b7a); }
-        .auth-modal-card input[type=email] {
+        .auth-modal-card input[type=email],
+        .auth-modal-card input[type=text] {
             width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px;
             border: 1px solid rgba(212,175,55,0.3); background: transparent; color: inherit; margin-bottom: 12px;
         }
+        .auth-modal-card input[type=text]#authOtpInput {
+            letter-spacing: 0.35em; font-size: 18px; font-weight: 600; text-align: center;
+        }
+        .auth-modal-card .otp-step { display: none; }
+        .auth-modal-card .otp-step.visible { display: block; }
+        .auth-modal-card button:disabled { opacity: 0.45; cursor: not-allowed; }
         .auth-modal-card .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
         .auth-modal-card .status { font-size: 12px; margin-top: 10px; color: var(--muted, #a89b7a); min-height: 1.2em; }
         .auth-modal-card .status.err { color: #e07070; }
@@ -1196,7 +1203,7 @@
         [data-theme="light"] .md-table tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
         html.light .badge-expert { color: #1a1a1a; }
 
-        /* ===== Chat pro polish (v2.2.8) + auth sync ===== */
+        /* ===== Chat pro polish (v2.2.9) + email OTP auth ===== */
         .toast-host {
             position: fixed;
             left: 50%;
@@ -2264,11 +2271,19 @@
             <div class="auth-modal-card">
                 <h2>Log in</h2>
                 <p class="hint">Sync your chat list and messages across phones and computers. Guest mode still works without an account. Plans / OMT / caps stay tied to this device.</p>
-                <label for="authEmailInput">Email magic link</label>
+                <label for="authEmailInput">Email</label>
                 <input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email">
                 <div class="row">
-                    <button type="button" class="primary" id="authMagicBtn" onclick="requestMagicLink()">Email me a link</button>
+                    <button type="button" class="primary" id="authOtpSendBtn" onclick="requestEmailOtp()">Send code</button>
                     <button type="button" class="secondary" id="authGoogleBtn" onclick="startGoogleLogin()">Continue with Google</button>
+                </div>
+                <div class="otp-step" id="authOtpStep">
+                    <label for="authOtpInput">6-digit code</label>
+                    <input type="text" id="authOtpInput" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*">
+                    <div class="row">
+                        <button type="button" class="primary" id="authOtpVerifyBtn" onclick="verifyEmailOtp()">Verify &amp; sign in</button>
+                        <button type="button" class="secondary" id="authOtpResendBtn" onclick="requestEmailOtp()">Resend code</button>
+                    </div>
                 </div>
                 <div class="row" style="margin-top:10px;">
                     <button type="button" class="secondary" onclick="closeAuthModal()">Cancel</button>
@@ -2410,28 +2425,38 @@
             }
             return fetch(url, o);
         }
-        let authState = { user: null, guest: true, googleOAuth: false, magicLink: false, ready: false, liveLoginBlockedBy: [] };
+        let authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false, liveLoginBlockedBy: [] };
 
         function openAuthModal() {
             const m = document.getElementById('authModal');
             if (m) m.classList.add('open');
+            const step = document.getElementById('authOtpStep');
+            if (step) step.classList.remove('visible');
+            const otpIn = document.getElementById('authOtpInput');
+            if (otpIn) otpIn.value = '';
             const st = document.getElementById('authModalStatus');
             if (st) {
                 st.className = 'status';
                 if (!authState.ready) {
                     st.textContent = 'Server auth storage not ready yet (DATABASE_URL / SESSION_SECRET).';
                     st.classList.add('err');
-                } else if (!authState.googleOAuth && !authState.magicLink) {
+                } else if (!authState.googleOAuth && !authState.emailOtp) {
                     st.textContent = 'Login providers not configured yet. Set GOOGLE_CLIENT_ID/SECRET and/or RESEND_API_KEY — see AUTH_ENV.md.';
                     st.classList.add('err');
+                } else if (!authState.emailOtp) {
+                    st.textContent = 'Email login soft-disabled until RESEND_API_KEY is set. Google may still work.';
                 } else {
                     st.textContent = '';
                 }
             }
             const g = document.getElementById('authGoogleBtn');
-            const e = document.getElementById('authMagicBtn');
+            const sendBtn = document.getElementById('authOtpSendBtn');
+            const verifyBtn = document.getElementById('authOtpVerifyBtn');
+            const resendBtn = document.getElementById('authOtpResendBtn');
             if (g) g.disabled = !authState.googleOAuth;
-            if (e) e.disabled = !authState.magicLink;
+            if (sendBtn) sendBtn.disabled = !authState.emailOtp;
+            if (verifyBtn) verifyBtn.disabled = !authState.emailOtp;
+            if (resendBtn) resendBtn.disabled = !authState.emailOtp;
         }
         function closeAuthModal() {
             const m = document.getElementById('authModal');
@@ -2463,32 +2488,78 @@
                     user: data.user || null,
                     guest: !!data.guest,
                     googleOAuth: !!data.googleOAuth,
-                    magicLink: !!data.magicLink,
+                    emailOtp: !!data.emailOtp,
                     ready: !!data.ready,
                     liveLoginBlockedBy: data.liveLoginBlockedBy || []
                 };
             } catch (e) {
-                authState = { user: null, guest: true, googleOAuth: false, magicLink: false, ready: false, liveLoginBlockedBy: [] };
+                authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false, liveLoginBlockedBy: [] };
             }
             renderAuthCard();
         }
-        async function requestMagicLink() {
+        async function requestEmailOtp() {
+            if (!authState.emailOtp) {
+                showToast('Email login disabled until RESEND_API_KEY is set.', 'err', 4500);
+                return;
+            }
             const input = document.getElementById('authEmailInput');
             const st = document.getElementById('authModalStatus');
             const email = (input && input.value || '').trim();
-            if (st) { st.className = 'status'; st.textContent = 'Sending…'; }
+            if (st) { st.className = 'status'; st.textContent = 'Sending code…'; }
             try {
-                const res = await apiFetch('/api/auth/magic/request', {
+                const res = await apiFetch('/api/auth/otp/request', {
                     method: 'POST',
                     body: JSON.stringify({ email: email })
                 });
                 const data = await res.json();
                 if (!res.ok || !data.ok) {
-                    if (st) { st.className = 'status err'; st.textContent = data.error || 'Could not send link'; }
+                    if (st) { st.className = 'status err'; st.textContent = data.error || 'Could not send code'; }
                     return;
                 }
-                if (st) { st.className = 'status ok'; st.textContent = data.message || 'Check your email.'; }
-                showToast('Magic link sent — check your email', 'ok', 4000);
+                const step = document.getElementById('authOtpStep');
+                if (step) step.classList.add('visible');
+                if (st) { st.className = 'status ok'; st.textContent = data.message || 'Check your email for the 6-digit code.'; }
+                showToast('Code sent — check your email', 'ok', 4000);
+                const otpIn = document.getElementById('authOtpInput');
+                if (otpIn) otpIn.focus();
+            } catch (e) {
+                if (st) { st.className = 'status err'; st.textContent = 'Network error'; }
+            }
+        }
+        async function verifyEmailOtp() {
+            if (!authState.emailOtp) {
+                showToast('Email login disabled until RESEND_API_KEY is set.', 'err', 4500);
+                return;
+            }
+            const emailInput = document.getElementById('authEmailInput');
+            const otpInput = document.getElementById('authOtpInput');
+            const st = document.getElementById('authModalStatus');
+            const email = (emailInput && emailInput.value || '').trim();
+            const code = (otpInput && otpInput.value || '').trim();
+            if (st) { st.className = 'status'; st.textContent = 'Verifying…'; }
+            try {
+                const res = await apiFetch('/api/auth/otp/verify', {
+                    method: 'POST',
+                    body: JSON.stringify({ email: email, code: code })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    if (st) { st.className = 'status err'; st.textContent = data.error || 'Could not verify code'; }
+                    return;
+                }
+                if (st) { st.className = 'status ok'; st.textContent = 'Signed in.'; }
+                closeAuthModal();
+                showToast('Signed in — syncing chats…', 'ok', 2800);
+                await refreshAuthStatus();
+                try {
+                    await apiFetch('/api/auth/merge-device', { method: 'POST', body: '{}' });
+                } catch (e) {}
+                await syncFromServer();
+                renderChatsList();
+                if (Object.keys(chats).length && (!currentChatId || !chats[currentChatId])) {
+                    currentChatId = Object.keys(chats)[0];
+                }
+                if (currentChatId) loadChat();
             } catch (e) {
                 if (st) { st.className = 'status err'; st.textContent = 'Network error'; }
             }

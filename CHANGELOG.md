@@ -1,3 +1,15 @@
+# GoldenSpaceAI — chat page pro polish (2026-10-01)
+
+- **Chat page only** visual/UX step-up beyond PR #19 (index.html CSS/JS). Plans/caps/OMT/admin/math fix untouched.
+- **Header:** brand mark, editable title + live mode subtitle, frosted top bar, pill Export/Theme actions.
+- **Messages:** denser readable rhythm, gold-accent AI column, refined user bubbles, hover actions, timestamps (incl. user) on hover/long-press.
+- **Markdown:** stronger code blocks (header/copy), tables, KaTeX block/inline spacing — stash/render path unchanged.
+- **Composer:** elevated shell, SVG attach/mic/send/stop, focus ring, mobile mode row preserved (no starter-prompt chips).
+- **Empty / thinking / toasts:** branded empty state, status pill + shimmer, dismissible glass toasts; light/dark tokens aligned; subtle motion with reduced-motion respect.
+- Service worker cache `goldenspaceai2-v23`. App version `2.2.7`.
+
+---
+
 # GoldenSpaceAI — fix chat math/number scrambling (2026-10-01)
 
 - **Bug:** `softCleanLatex` turned `\boxed{…}` into `$$1$` (JS replacement `$$$$1$$` eats the capture), and `formatMarkdown` did not stash `\( \)` / `\[ \]` before list normalization, so expressions like `-4 - 2^2 - 3 \cdot 1 - 5` became bullet lists / garbled digits.

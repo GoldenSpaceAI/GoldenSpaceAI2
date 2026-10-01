@@ -845,6 +845,55 @@
         .plan-status-link:hover { background: rgba(212,175,55,0.16); }
         .plan-status-loading { font-size: 11px; color: var(--text-muted); }
 
+        .auth-card {
+            margin: 0 0 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border, rgba(212,175,55,0.22));
+            background: var(--panel-2, rgba(0,0,0,0.25));
+        }
+        .auth-card .auth-title { font-size: 12px; font-weight: 600; color: var(--muted, #a89b7a); margin-bottom: 6px; }
+        .auth-card .auth-user { font-size: 13px; color: var(--text, #f3ecd7); margin-bottom: 8px; word-break: break-all; }
+        .auth-card .auth-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .auth-card button, .auth-modal button.primary, .auth-modal button.secondary {
+            border: 1px solid rgba(212,175,55,0.35);
+            background: rgba(212,175,55,0.12);
+            color: var(--text, #f3ecd7);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .auth-card button.danger { border-color: rgba(220,80,80,0.4); background: rgba(220,80,80,0.12); }
+        .auth-modal {
+            position: fixed; inset: 0; z-index: 12000;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.55); padding: 16px;
+        }
+        .auth-modal.open { display: flex; }
+        .auth-modal-card {
+            width: min(420px, 100%);
+            background: var(--panel, #12100a);
+            border: 1px solid rgba(212,175,55,0.28);
+            border-radius: 16px;
+            padding: 18px 16px 16px;
+            color: var(--text, #f3ecd7);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+        }
+        html.light .auth-modal-card { background: #fffdf8; color: #1a160f; }
+        .auth-modal-card h2 { margin: 0 0 8px; font-size: 18px; }
+        .auth-modal-card p.hint { margin: 0 0 12px; font-size: 13px; color: var(--muted, #a89b7a); line-height: 1.4; }
+        .auth-modal-card label { display: block; font-size: 12px; margin-bottom: 6px; color: var(--muted, #a89b7a); }
+        .auth-modal-card input[type=email] {
+            width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px;
+            border: 1px solid rgba(212,175,55,0.3); background: transparent; color: inherit; margin-bottom: 12px;
+        }
+        .auth-modal-card .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+        .auth-modal-card .status { font-size: 12px; margin-top: 10px; color: var(--muted, #a89b7a); min-height: 1.2em; }
+        .auth-modal-card .status.err { color: #e07070; }
+        .auth-modal-card .status.ok { color: #6cbf7a; }
+        .auth-sync-note { font-size: 11px; color: var(--muted, #a89b7a); margin-top: 6px; line-height: 1.35; }
+
         .chats-panel-footer {
             flex-shrink: 0;
             padding: 12px 14px calc(14px + var(--safe-bottom));
@@ -1147,7 +1196,7 @@
         [data-theme="light"] .md-table tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
         html.light .badge-expert { color: #1a1a1a; }
 
-        /* ===== Chat pro polish (v2.2.7) ===== */
+        /* ===== Chat pro polish (v2.2.8) + auth sync ===== */
         .toast-host {
             position: fixed;
             left: 50%;
@@ -2092,6 +2141,15 @@
                 </div>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
+                    <div class="auth-card" id="authCard" aria-label="Account">
+                        <div class="auth-title">Account</div>
+                        <div class="auth-user" id="authUserLabel">Guest (this device)</div>
+                        <div class="auth-actions" id="authActions">
+                            <button type="button" id="authLoginBtn" onclick="openAuthModal()">Log in</button>
+                            <button type="button" class="danger" id="authLogoutBtn" hidden onclick="logoutAccount()">Log out</button>
+                        </div>
+                        <p class="auth-sync-note" id="authSyncNote">Log in to sync chats across devices. Plans &amp; caps stay on this device.</p>
+                    </div>
                     <div class="plan-status-card" id="planStatusCard" aria-label="Plan status">
                         <div class="plan-status-loading" id="planStatusLoading">Loading plan…</div>
                         <div id="planStatusBody" hidden>
@@ -2202,6 +2260,22 @@
                 </div>
             </div>
         </div>
+        <div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-label="Log in" onclick="if(event.target===this)closeAuthModal()">
+            <div class="auth-modal-card">
+                <h2>Log in</h2>
+                <p class="hint">Sync your chat list and messages across phones and computers. Guest mode still works without an account. Plans / OMT / caps stay tied to this device.</p>
+                <label for="authEmailInput">Email magic link</label>
+                <input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email">
+                <div class="row">
+                    <button type="button" class="primary" id="authMagicBtn" onclick="requestMagicLink()">Email me a link</button>
+                    <button type="button" class="secondary" id="authGoogleBtn" onclick="startGoogleLogin()">Continue with Google</button>
+                </div>
+                <div class="row" style="margin-top:10px;">
+                    <button type="button" class="secondary" onclick="closeAuthModal()">Cancel</button>
+                </div>
+                <div class="status" id="authModalStatus"></div>
+            </div>
+        </div>
         <div class="toast-host" id="toastHost" aria-live="polite"></div>
         <div class="overlay" id="overlay" onclick="toggleChatsPanel()"></div>
         <div class="listening-overlay" id="listeningOverlay" role="dialog" aria-modal="true" aria-label="Listening">
@@ -2270,7 +2344,7 @@
             const noteEl = document.getElementById('planStatusNote');
             if (!quotasEl || !nameEl) return;
             try {
-                const res = await fetch('/api/plan-status', { cache: 'no-store', headers: { 'X-Client-Id': ensureClientId() } });
+                const res = await apiFetch('/api/plan-status', { method: 'GET', cache: 'no-store' });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed');
                 cachedPlan = data;
@@ -2327,6 +2401,146 @@
         function clientHeaders(extra) {
             return Object.assign({ 'Content-Type': 'application/json', 'X-Client-Id': ensureClientId() }, extra || {});
         }
+        function apiFetch(url, opts) {
+            const o = Object.assign({ credentials: 'include' }, opts || {});
+            o.headers = Object.assign({}, clientHeaders(), (opts && opts.headers) || {});
+            // Allow callers to omit Content-Type for GET
+            if (o.method === 'GET' || !o.method) {
+                if (o.headers['Content-Type'] && !o.body) delete o.headers['Content-Type'];
+            }
+            return fetch(url, o);
+        }
+        let authState = { user: null, guest: true, googleOAuth: false, magicLink: false, ready: false, liveLoginBlockedBy: [] };
+
+        function openAuthModal() {
+            const m = document.getElementById('authModal');
+            if (m) m.classList.add('open');
+            const st = document.getElementById('authModalStatus');
+            if (st) {
+                st.className = 'status';
+                if (!authState.ready) {
+                    st.textContent = 'Server auth storage not ready yet (DATABASE_URL / SESSION_SECRET).';
+                    st.classList.add('err');
+                } else if (!authState.googleOAuth && !authState.magicLink) {
+                    st.textContent = 'Login providers not configured yet. Set GOOGLE_CLIENT_ID/SECRET and/or RESEND_API_KEY — see AUTH_ENV.md.';
+                    st.classList.add('err');
+                } else {
+                    st.textContent = '';
+                }
+            }
+            const g = document.getElementById('authGoogleBtn');
+            const e = document.getElementById('authMagicBtn');
+            if (g) g.disabled = !authState.googleOAuth;
+            if (e) e.disabled = !authState.magicLink;
+        }
+        function closeAuthModal() {
+            const m = document.getElementById('authModal');
+            if (m) m.classList.remove('open');
+        }
+        function renderAuthCard() {
+            const label = document.getElementById('authUserLabel');
+            const loginBtn = document.getElementById('authLoginBtn');
+            const logoutBtn = document.getElementById('authLogoutBtn');
+            const note = document.getElementById('authSyncNote');
+            if (!label) return;
+            if (authState.user) {
+                label.textContent = authState.user.email || authState.user.name || ('User ' + authState.user.id);
+                if (loginBtn) loginBtn.hidden = true;
+                if (logoutBtn) logoutBtn.hidden = false;
+                if (note) note.textContent = 'Signed in — chats sync across devices. Plans & caps stay on this device.';
+            } else {
+                label.textContent = 'Guest (this device)';
+                if (loginBtn) loginBtn.hidden = false;
+                if (logoutBtn) logoutBtn.hidden = true;
+                if (note) note.textContent = 'Log in to sync chats across devices. Plans & caps stay on this device.';
+            }
+        }
+        async function refreshAuthStatus() {
+            try {
+                const res = await apiFetch('/api/auth/status', { method: 'GET', cache: 'no-store' });
+                const data = await res.json();
+                authState = {
+                    user: data.user || null,
+                    guest: !!data.guest,
+                    googleOAuth: !!data.googleOAuth,
+                    magicLink: !!data.magicLink,
+                    ready: !!data.ready,
+                    liveLoginBlockedBy: data.liveLoginBlockedBy || []
+                };
+            } catch (e) {
+                authState = { user: null, guest: true, googleOAuth: false, magicLink: false, ready: false, liveLoginBlockedBy: [] };
+            }
+            renderAuthCard();
+        }
+        async function requestMagicLink() {
+            const input = document.getElementById('authEmailInput');
+            const st = document.getElementById('authModalStatus');
+            const email = (input && input.value || '').trim();
+            if (st) { st.className = 'status'; st.textContent = 'Sending…'; }
+            try {
+                const res = await apiFetch('/api/auth/magic/request', {
+                    method: 'POST',
+                    body: JSON.stringify({ email: email })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    if (st) { st.className = 'status err'; st.textContent = data.error || 'Could not send link'; }
+                    return;
+                }
+                if (st) { st.className = 'status ok'; st.textContent = data.message || 'Check your email.'; }
+                showToast('Magic link sent — check your email', 'ok', 4000);
+            } catch (e) {
+                if (st) { st.className = 'status err'; st.textContent = 'Network error'; }
+            }
+        }
+        function startGoogleLogin() {
+            if (!authState.googleOAuth) {
+                showToast('Google login not configured yet (GOOGLE_CLIENT_ID / SECRET).', 'err', 4500);
+                return;
+            }
+            const url = '/api/auth/google/start';
+            // Pass device id via header is not possible on navigation; cookie state embeds device from query — server also reads X-Client-Id only on XHR.
+            // Encode device in start URL query for servers that need it on redirect entry.
+            window.location.href = url + '?cid=' + encodeURIComponent(ensureClientId());
+        }
+        async function logoutAccount() {
+            try {
+                await apiFetch('/api/auth/logout', { method: 'POST', body: '{}' });
+            } catch (e) {}
+            authState.user = null;
+            authState.guest = true;
+            renderAuthCard();
+            showToast('Logged out — back to guest device chats', 'ok', 2500);
+            await syncFromServer();
+            renderChatsList();
+            if (currentChatId && chats[currentChatId]) loadChat();
+        }
+        async function handleAuthQueryFlags() {
+            try {
+                const u = new URL(window.location.href);
+                const flag = u.searchParams.get('auth');
+                if (!flag) return;
+                if (flag === 'ok') {
+                    showToast('Signed in — syncing chats…', 'ok', 2800);
+                    await refreshAuthStatus();
+                    try {
+                        await apiFetch('/api/auth/merge-device', { method: 'POST', body: '{}' });
+                    } catch (e) {}
+                    await syncFromServer();
+                    renderChatsList();
+                    if (Object.keys(chats).length && (!currentChatId || !chats[currentChatId])) {
+                        currentChatId = Object.keys(chats)[0];
+                    }
+                    if (currentChatId) loadChat();
+                } else {
+                    const msg = u.searchParams.get('msg') || 'Login failed';
+                    showToast(msg, 'err', 5000);
+                }
+                u.searchParams.delete('auth');
+                u.searchParams.delete('msg');
+                window.history.replaceState({}, '', u.pathname + u.search + u.hash);
+            } catch (e) {}
+        }
         function initTheme() {
             let theme = null;
             try { theme = localStorage.getItem('goldenspaceai2_theme'); } catch (e) {}
@@ -2352,6 +2566,8 @@
             initTheme();
             loadChats();
             loadGlobalInstructions();
+            await refreshAuthStatus();
+            await handleAuthQueryFlags();
             await syncFromServer();
             if (Object.keys(chats).length === 0) createNewChat();
             else {
@@ -2472,7 +2688,7 @@
         async function syncFromServer() {
             if (!navigator.onLine) return;
             try {
-                const res = await fetch(CHATS_API, { headers: clientHeaders() });
+                const res = await apiFetch(CHATS_API, { method: 'GET' });
                 if (!res.ok) return;
                 const data = await res.json();
                 const list = data.chats || [];
@@ -2484,7 +2700,7 @@
                     const localUpdated = local ? (local.updatedAt || local.createdAt || '') : '';
                     if (!local || remoteUpdated > localUpdated) {
                         try {
-                            const full = await fetch(CHATS_API + '/' + encodeURIComponent(meta.id), { headers: clientHeaders() });
+                            const full = await apiFetch(CHATS_API + '/' + encodeURIComponent(meta.id), { method: 'GET' });
                             if (!full.ok) continue;
                             const chat = await full.json();
                             chats[meta.id] = {
@@ -2507,12 +2723,12 @@
             const chat = chats[id];
             chat.updatedAt = new Date().toISOString();
             try {
-                const res = await fetch(CHATS_API + '/' + encodeURIComponent(id), {
-                    method: 'PUT', headers: clientHeaders(), body: JSON.stringify(chat)
+                const res = await apiFetch(CHATS_API + '/' + encodeURIComponent(id), {
+                    method: 'PUT', body: JSON.stringify(chat)
                 });
                 if (res.status === 404) {
-                    await fetch(CHATS_API, {
-                        method: 'POST', headers: clientHeaders(),
+                    await apiFetch(CHATS_API, {
+                        method: 'POST',
                         body: JSON.stringify(Object.assign({ id: id }, chat))
                     });
                 }
@@ -2521,7 +2737,7 @@
         async function deleteChatOnServer(id) {
             if (!id || !navigator.onLine) return;
             try {
-                await fetch(CHATS_API + '/' + encodeURIComponent(id), { method: 'DELETE', headers: clientHeaders() });
+                await apiFetch(CHATS_API + '/' + encodeURIComponent(id), { method: 'DELETE' });
             } catch (e) {}
         }
 

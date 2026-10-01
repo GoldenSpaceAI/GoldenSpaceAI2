@@ -2946,6 +2946,17 @@
                         currentChatId = newestChatId();
                     }
                     if (currentChatId) loadChat();
+                    try {
+                        var post = sessionStorage.getItem('gsa_post_login');
+                        if (post && post.charAt(0) === '/' && post.charAt(1) !== '/') {
+                            sessionStorage.removeItem('gsa_post_login');
+                            if (post === '/upgrade' || post.indexOf('/upgrade') === 0 ||
+                                post === '/my-plan' || post.indexOf('/my-plan') === 0) {
+                                window.location.replace(post);
+                                return;
+                            }
+                        }
+                    } catch (e) {}
                 } else {
                     const msg = u.searchParams.get('msg') || 'Login failed';
                     showToast(msg, 'err', 5000);

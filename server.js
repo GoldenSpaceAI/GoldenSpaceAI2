@@ -261,7 +261,7 @@ function sendPlanLimitSse(res, sendSse, limitError) {
 }
 
 function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
-    const deviceId = getClientId(req);
+    const deviceId = resolvePlanOwnerKey(req) || getClientId(req);
     const mode = req.body?.mode;
     const agents = req.body?.agents;
     const check = plansStore.checkChatAllowed(deviceId, mode, agents);
@@ -1023,6 +1023,22 @@ function requireClientId(req, res) {
     return id;
 }
 
+/** Plan/subscription owner: u_<userId> when logged in, else X-Client-Id (guest). */
+function resolvePlanOwnerKey(req) {
+    const user = auth && auth.readUserFromReq(req);
+    const deviceId = getClientId(req);
+    if (user && user.id) {
+        try {
+            plansStore.syncAccountPlan(deviceId, user.id, user.email);
+        } catch (e) {
+            console.error('syncAccountPlan:', e.message);
+        }
+        return plansStore.accountOwnerKey(user.id);
+    }
+    return deviceId || '';
+}
+
+
 function mergeJsonDeviceToUser(deviceId, userKey) {
     if (!deviceId || !userKey) return { merged: 0 };
     const store = readStore();
@@ -1409,7 +1425,13 @@ app.post('/api/auth/merge-device', async (req, res) => {
         const json = mergeJsonDeviceToUser(deviceId, 'u_' + user.id);
         const linked = await auth.mergeAllLinkedDeviceChats(user.id);
         try { await migrateJsonChatsToPostgres('u_' + user.id); } catch (_) {}
-        res.json({ ok: true, postgres: pg, json, linked });
+        let planSync = null;
+        try {
+            planSync = plansStore.syncAccountPlan(deviceId, user.id, user.email);
+        } catch (e) {
+            console.error('merge-device plan sync:', e.message);
+        }
+        res.json({ ok: true, postgres: pg, json, linked, planSync });
     } catch (e) {
         console.error('merge-device:', e.message);
         res.status(500).json({ ok: false, error: e.message });
@@ -1418,23 +1440,39 @@ app.post('/api/auth/merge-device', async (req, res) => {
 
 // ==================== PLANS / UPGRADE / ADMIN ====================
 app.get('/api/plan', (req, res) => {
-    const deviceId = getClientId(req);
-    sendFreshJson(res, plansStore.getStatus(deviceId));
+    const ownerKey = resolvePlanOwnerKey(req);
+    sendFreshJson(res, plansStore.getStatus(ownerKey));
 });
 
 app.get('/api/plan-status', (req, res) => {
-    const deviceId = getClientId(req);
-    sendFreshJson(res, plansStore.getPlanStatusUi(deviceId));
+    const ownerKey = resolvePlanOwnerKey(req);
+    sendFreshJson(res, plansStore.getPlanStatusUi(ownerKey));
 });
 
 app.get('/api/my-plan', (req, res) => {
     const deviceId = getClientId(req);
-    sendFreshJson(res, plansStore.getMyPlan(deviceId));
+    const sessionUser = auth && auth.readUserFromReq(req);
+    if (sessionUser && sessionUser.id) {
+        sendFreshJson(res, plansStore.getMyPlan(plansStore.accountOwnerKey(sessionUser.id), {
+            deviceId,
+            userId: sessionUser.id,
+            email: sessionUser.email
+        }));
+        return;
+    }
+    // Guests: device-local payment history only
+    sendFreshJson(res, plansStore.getMyPlan(deviceId, { deviceId }));
 });
 
-
-
 app.post('/api/upgrade/request', async (req, res) => {
+    const sessionUser = auth && auth.readUserFromReq(req);
+    if (!sessionUser || !sessionUser.id) {
+        return res.status(401).json({
+            ok: false,
+            error: 'Log in to request an upgrade.',
+            loginUrl: '/login'
+        });
+    }
     const deviceId = getClientId(req);
     if (!deviceId) {
         return res.status(400).json({ ok: false, error: 'Missing or invalid X-Client-Id header' });
@@ -1443,15 +1481,19 @@ app.post('/api/upgrade/request', async (req, res) => {
     if (!body.acceptedPolicies) {
         return res.status(400).json({ ok: false, error: 'You must accept Terms, Privacy, and Refund policies.' });
     }
-    const sessionUser = auth && auth.readUserFromReq(req);
-    const email =
-        normalizeNotifyEmail(body.email) ||
-        (sessionUser && sessionUser.email ? normalizeNotifyEmail(sessionUser.email) : null);
+    const email = normalizeNotifyEmail(sessionUser.email);
+    if (!email) {
+        return res.status(400).json({
+            ok: false,
+            error: 'Your account has no email. Sign in with Google or email OTP, then try again.'
+        });
+    }
     const result = plansStore.createPaymentRequest({
         deviceId,
         plan: body.plan,
         phone: body.phone,
-        email
+        email,
+        userId: sessionUser.id
     });
     if (!result.ok) {
         return res.status(400).json(result);
@@ -1471,6 +1513,7 @@ app.post('/api/upgrade/request', async (req, res) => {
             phone: result.payment.phone,
             status: result.payment.status,
             createdAt: result.payment.createdAt,
+            email: result.payment.email,
             destination: OMT_DESTINATION
         },
         message: result.message || 'Payment request created. Status: Waiting.'

@@ -2,6 +2,9 @@
  * GoldenSpaceAI plans, usage caps, and OMT payment requests.
  * Persistence: JSON file under DATA_DIR (survives process restart when disk is available).
  * Daily Fast limits reset on UTC calendar day. Paid Thinking/Expert caps are per 30-day period.
+ * Logged-in users: subscriptions, usage, and payment history are keyed by u_<userId>
+ * (account), not only X-Client-Id, so every device sees the same plan/history.
+ * Guests remain device-local.
  */
 const fs = require('fs');
 const path = require('path');
@@ -568,7 +571,75 @@ function createPlansStore(dataDir) {
         return norm;
     }
 
-    function createPaymentRequest({ deviceId, plan, phone, email }) {
+    function accountOwnerKey(userId) {
+        if (!userId) return null;
+        return 'u_' + String(userId);
+    }
+
+    function paymentOwnerKey(payment) {
+        if (!payment) return null;
+        if (payment.userId) return accountOwnerKey(payment.userId);
+        return payment.deviceId || null;
+    }
+
+    /**
+     * Attach device-local payments/subscription to a logged-in account so history
+     * and plan status follow the user across devices (not only X-Client-Id).
+     */
+    function syncAccountPlan(deviceId, userId, email) {
+        const uid = userId != null ? String(userId) : '';
+        if (!uid) return { ok: false, attached: 0 };
+        const ak = accountOwnerKey(uid);
+        const emailNorm = normalizeEmail(email);
+        const store = read();
+        let attached = 0;
+        let migratedSub = false;
+
+        for (const p of store.payments) {
+            const sameDevice = deviceId && p.deviceId === deviceId;
+            const sameEmail = emailNorm && p.email && p.email === emailNorm;
+            const alreadyUser = p.userId != null && String(p.userId) === uid;
+            if (!alreadyUser && (sameDevice || sameEmail)) {
+                p.userId = uid;
+                attached += 1;
+            }
+            if (emailNorm && !p.email && (sameDevice || alreadyUser || String(p.userId) === uid)) {
+                p.email = emailNorm;
+                attached += 1;
+            }
+        }
+
+        const deviceSub = deviceId ? store.subscriptions[deviceId] : null;
+        const userSub = store.subscriptions[ak];
+        const devicePaid = deviceSub && deviceSub.plan && deviceSub.plan !== 'free';
+        const userPaid = userSub && userSub.plan && userSub.plan !== 'free';
+        if (devicePaid && !userPaid) {
+            store.subscriptions[ak] = Object.assign({}, deviceSub);
+            const phone = normalizePhone(deviceSub.phone);
+            if (phone) store.phoneIndex[phone] = ak;
+            store.subscriptions[deviceId] = {
+                plan: 'free',
+                phone: null,
+                startsAt: null,
+                endsAt: null,
+                paymentRequestId: null,
+                migratedTo: ak,
+                migratedAt: new Date().toISOString()
+            };
+            if (store.usage[deviceId] && !store.usage[ak]) {
+                store.usage[ak] = Object.assign({}, store.usage[deviceId]);
+            }
+            migratedSub = true;
+        }
+
+        if (attached || migratedSub) {
+            save();
+            flushSync();
+        }
+        return { ok: true, attached, migratedSub, ownerKey: ak };
+    }
+
+    function createPaymentRequest({ deviceId, plan, phone, email, userId }) {
         const planId = String(plan || '').toLowerCase();
         const def = PLAN_DEFS[planId];
         if (!def || planId === 'free') {
@@ -578,24 +649,45 @@ function createPlansStore(dataDir) {
         if (!isValidOmtPhone(normalized)) {
             return { ok: false, error: 'Enter a valid OMT Pay wallet number.' };
         }
-        if (!deviceId) {
+        const uid = userId != null ? String(userId) : '';
+        // Logged-in upgrades are account-scoped; guests (if allowed) stay device-local.
+        if (!uid && !deviceId) {
             return { ok: false, error: 'Missing device id.' };
         }
         const emailNorm = normalizeEmail(email);
+        if (uid && !emailNorm) {
+            return { ok: false, error: 'Account email required for upgrade notifications.' };
+        }
+
+        if (uid && deviceId) {
+            syncAccountPlan(deviceId, uid, emailNorm);
+        }
 
         const store = read();
-        // Block duplicate waiting requests for same device+plan
-        const existingWaiting = store.payments.find(p =>
-            p.status === 'waiting' && p.deviceId === deviceId && p.plan === planId
-        );
+        // Block duplicate waiting requests for same account (or guest device)+plan
+        const existingWaiting = store.payments.find(p => {
+            if (p.status !== 'waiting' || p.plan !== planId) return false;
+            if (uid) {
+                return String(p.userId || '') === uid ||
+                    (emailNorm && p.email === emailNorm) ||
+                    (deviceId && p.deviceId === deviceId);
+            }
+            return p.deviceId === deviceId;
+        });
         if (existingWaiting) {
-            // Backfill email if a later login/request provides one.
             let emailAttached = false;
+            let userAttached = false;
             if (emailNorm && !existingWaiting.email) {
                 existingWaiting.email = emailNorm;
+                emailAttached = true;
+            }
+            if (uid && String(existingWaiting.userId || '') !== uid) {
+                existingWaiting.userId = uid;
+                userAttached = true;
+            }
+            if (emailAttached || userAttached) {
                 save();
                 flushSync();
-                emailAttached = true;
             }
             return {
                 ok: true,
@@ -611,7 +703,8 @@ function createPlansStore(dataDir) {
             phone: normalized,
             plan: planId,
             amount: def.priceUsd,
-            deviceId,
+            deviceId: deviceId || null,
+            userId: uid || null,
             email: emailNorm,
             status: 'waiting',
             createdAt: new Date().toISOString(),
@@ -631,31 +724,67 @@ function createPlansStore(dataDir) {
         return p.slice(0, 2) + '*'.repeat(Math.max(2, p.length - 4)) + p.slice(-2);
     }
 
-    /** Payments for this device only (no other customers). */
+    function mapPaymentPublic(p) {
+        return {
+            id: p.id,
+            plan: p.plan,
+            label: (PLAN_DEFS[p.plan] || {}).label || p.plan,
+            amount: p.amount,
+            status: p.status, // waiting | approved | declined
+            createdAt: p.createdAt || null,
+            decidedAt: p.decidedAt || null,
+            startsAt: p.startsAt || null,
+            endsAt: p.endsAt || null,
+            phoneMasked: maskPhone(p.phone)
+        };
+    }
+
+    /** Payments for this device only (guests / legacy). */
     function listPaymentsForDevice(deviceId) {
         if (!deviceId) return [];
         return read().payments
             .filter(p => p.deviceId === deviceId)
-            .map(p => ({
-                id: p.id,
-                plan: p.plan,
-                label: (PLAN_DEFS[p.plan] || {}).label || p.plan,
-                amount: p.amount,
-                status: p.status, // waiting | approved | declined
-                createdAt: p.createdAt || null,
-                decidedAt: p.decidedAt || null,
-                startsAt: p.startsAt || null,
-                endsAt: p.endsAt || null,
-                phoneMasked: maskPhone(p.phone)
-            }));
+            .map(mapPaymentPublic);
+    }
+
+    /**
+     * Logged-in: all payments for this userId/email (any device).
+     * Guest: device-local only.
+     */
+    function listPaymentsForAccount({ deviceId, userId, email } = {}) {
+        const uid = userId != null ? String(userId) : '';
+        const emailNorm = normalizeEmail(email);
+        if (uid || emailNorm) {
+            if (uid && deviceId) syncAccountPlan(deviceId, uid, emailNorm);
+            return read().payments
+                .filter(p => {
+                    if (uid && p.userId != null && String(p.userId) === uid) return true;
+                    if (emailNorm && p.email && p.email === emailNorm) return true;
+                    // Include still-unattached device rows until sync runs
+                    if (uid && deviceId && p.deviceId === deviceId) return true;
+                    return false;
+                })
+                .map(mapPaymentPublic);
+        }
+        return listPaymentsForDevice(deviceId);
     }
 
     /**
      * User-facing my-plan page payload: current plan + quotas + payment requests.
+     * Prefer account owner key when logged in so all devices share history/plan.
      */
-    function getMyPlan(deviceId) {
-        const statusUi = getPlanStatusUi(deviceId);
-        const requests = listPaymentsForDevice(deviceId);
+    function getMyPlan(ownerOrDeviceId, opts) {
+        const options = opts && typeof opts === 'object' ? opts : {};
+        const deviceId = options.deviceId || null;
+        const userId = options.userId != null ? options.userId : null;
+        const email = options.email || null;
+        let ownerKey = ownerOrDeviceId || '';
+        if (userId) {
+            syncAccountPlan(deviceId, userId, email);
+            ownerKey = accountOwnerKey(userId);
+        }
+        const statusUi = getPlanStatusUi(ownerKey);
+        const requests = listPaymentsForAccount({ deviceId, userId, email });
         const latest = requests[0] || null;
         return {
             ok: true,
@@ -669,7 +798,8 @@ function createPlansStore(dataDir) {
             latestRequest: latest,
             requests,
             upgradeUrl: '/upgrade',
-            myPlanUrl: '/my-plan'
+            myPlanUrl: '/my-plan',
+            accountScoped: !!userId
         };
     }
 
@@ -690,7 +820,10 @@ function createPlansStore(dataDir) {
         }
 
         const phone = normalizePhone(payment.phone);
-        const deviceId = payment.deviceId;
+        const ownerKey = paymentOwnerKey(payment);
+        if (!ownerKey) {
+            return { ok: false, error: 'Payment has no account or device owner' };
+        }
         const planId = payment.plan;
         const def = getPlanDef(planId);
         if (!def || planId === 'free') {
@@ -698,9 +831,9 @@ function createPlansStore(dataDir) {
         }
 
         // One OMT number = one active paid plan: clear previous holder if any
-        const prevDevice = store.phoneIndex[phone];
-        if (prevDevice && prevDevice !== deviceId) {
-            store.subscriptions[prevDevice] = {
+        const prevOwner = store.phoneIndex[phone];
+        if (prevOwner && prevOwner !== ownerKey) {
+            store.subscriptions[prevOwner] = {
                 plan: 'free',
                 phone: null,
                 startsAt: null,
@@ -713,17 +846,17 @@ function createPlansStore(dataDir) {
 
         const startsAt = new Date();
         const endsAt = new Date(startsAt.getTime() + PAID_PERIOD_MS);
-        store.subscriptions[deviceId] = {
+        store.subscriptions[ownerKey] = {
             plan: planId,
             phone,
             startsAt: startsAt.toISOString(),
             endsAt: endsAt.toISOString(),
             paymentRequestId: payment.id
         };
-        store.phoneIndex[phone] = deviceId;
+        store.phoneIndex[phone] = ownerKey;
 
-        // Reset period usage for this device
-        const u = store.usage[deviceId] || {
+        // Reset period usage for this account/device owner
+        const u = store.usage[ownerKey] || {
             day: utcDayKey(),
             fast: 0,
             fastHalved: false,
@@ -735,7 +868,7 @@ function createPlansStore(dataDir) {
         u.thinking = 0;
         u.expert4 = 0;
         u.expert16 = 0;
-        store.usage[deviceId] = u;
+        store.usage[ownerKey] = u;
 
         payment.status = 'approved';
         payment.decidedAt = new Date().toISOString();
@@ -744,7 +877,7 @@ function createPlansStore(dataDir) {
 
         save();
         flushSync();
-        return { ok: true, payment, subscription: store.subscriptions[deviceId] };
+        return { ok: true, payment, subscription: store.subscriptions[ownerKey] };
     }
 
     function declinePayment(id) {
@@ -759,14 +892,14 @@ function createPlansStore(dataDir) {
         payment.decidedAt = new Date().toISOString();
 
         // If this was the active approved binding, drop to Free
-        const deviceId = payment.deviceId;
-        const sub = store.subscriptions[deviceId];
+        const ownerKey = paymentOwnerKey(payment);
+        const sub = ownerKey ? store.subscriptions[ownerKey] : null;
         if (sub && sub.paymentRequestId === payment.id) {
             const phone = normalizePhone(sub.phone);
-            if (phone && store.phoneIndex[phone] === deviceId) {
+            if (phone && store.phoneIndex[phone] === ownerKey) {
                 delete store.phoneIndex[phone];
             }
-            store.subscriptions[deviceId] = {
+            store.subscriptions[ownerKey] = {
                 plan: 'free',
                 phone: null,
                 startsAt: null,
@@ -798,6 +931,9 @@ function createPlansStore(dataDir) {
         createPaymentRequest,
         listPayments,
         listPaymentsForDevice,
+        listPaymentsForAccount,
+        syncAccountPlan,
+        accountOwnerKey,
         getMyPlan,
         getPayment,
         approvePayment,

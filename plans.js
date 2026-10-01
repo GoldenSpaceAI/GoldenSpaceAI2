@@ -7,6 +7,14 @@
  * Logged-in users: subscriptions, usage, and payment history are keyed by u_<userId>
  * (account), not only X-Client-Id, so every device sees the same plan/history.
  * Guests remain device-local.
+ *
+ * Approve / upgrade stacking (Fast, Thinking, Expert 4 / 16-AI):
+ * 1) Free → any paid: grant that plan's full base limits.
+ * 2) Higher tier (e.g. Plus→Pro, Pro→Max): keep current effective caps and ADD
+ *    (newBase − oldBase) for each quota.
+ * 3) Same plan again (e.g. Max→Max): ADD another full base allotment (doubles when
+ *    starting from a single allotment).
+ * Effective caps are stored on the subscription as `caps` and used for enforcement.
  */
 const fs = require('fs');
 const path = require('path');
@@ -53,6 +61,129 @@ const PLAN_DEFS = {
         expert16PerPeriod: 15
     }
 };
+
+const PLAN_RANK = { free: 0, plus: 1, pro: 2, max: 3 };
+
+function cloneCaps(c) {
+    const src = c && typeof c === 'object' ? c : {};
+    return {
+        fastPerDay: Math.max(0, Number(src.fastPerDay) || 0),
+        thinkingPerPeriod: Math.max(0, Number(src.thinkingPerPeriod) || 0),
+        expert4PerPeriod: Math.max(0, Number(src.expert4PerPeriod) || 0),
+        expert16PerPeriod: Math.max(0, Number(src.expert16PerPeriod) || 0)
+    };
+}
+
+function capsFromPlanId(planId) {
+    return cloneCaps(PLAN_DEFS[planId] || PLAN_DEFS.free);
+}
+
+function addCaps(a, b) {
+    const x = cloneCaps(a);
+    const y = cloneCaps(b);
+    return {
+        fastPerDay: x.fastPerDay + y.fastPerDay,
+        thinkingPerPeriod: x.thinkingPerPeriod + y.thinkingPerPeriod,
+        expert4PerPeriod: x.expert4PerPeriod + y.expert4PerPeriod,
+        expert16PerPeriod: x.expert16PerPeriod + y.expert16PerPeriod
+    };
+}
+
+/** Difference of base plan defs (new − old), floored at 0 per quota. */
+function deltaCaps(newPlanId, oldPlanId) {
+    const n = capsFromPlanId(newPlanId);
+    const o = capsFromPlanId(oldPlanId);
+    return {
+        fastPerDay: Math.max(0, n.fastPerDay - o.fastPerDay),
+        thinkingPerPeriod: Math.max(0, n.thinkingPerPeriod - o.thinkingPerPeriod),
+        expert4PerPeriod: Math.max(0, n.expert4PerPeriod - o.expert4PerPeriod),
+        expert16PerPeriod: Math.max(0, n.expert16PerPeriod - o.expert16PerPeriod)
+    };
+}
+
+function defWithCaps(planId, caps) {
+    const base = PLAN_DEFS[planId] || PLAN_DEFS.free;
+    if (!caps) return base;
+    const c = cloneCaps(caps);
+    return {
+        id: base.id,
+        label: base.label,
+        priceUsd: base.priceUsd,
+        fastPerDay: c.fastPerDay,
+        thinkingPerPeriod: c.thinkingPerPeriod,
+        expert4PerPeriod: c.expert4PerPeriod,
+        expert16PerPeriod: c.expert16PerPeriod
+    };
+}
+
+/**
+ * Compute stacked caps when approving a paid plan purchase.
+ * @param {object|null} currentSub - active subscription (or null/free)
+ * @param {string} newPlanId - purchased plan id
+ * @returns {{ mode, plan, fromPlan, toPlan, capsBefore, capsDelta, capsAfter }}
+ */
+function computeStackOnApprove(currentSub, newPlanId) {
+    const toPlan = String(newPlanId || '').toLowerCase();
+    if (!PLAN_DEFS[toPlan] || toPlan === 'free') {
+        return null;
+    }
+    const ends = currentSub ? Date.parse(currentSub.endsAt || 0) : NaN;
+    const activePaid = !!(
+        currentSub &&
+        currentSub.plan &&
+        currentSub.plan !== 'free' &&
+        Number.isFinite(ends) &&
+        Date.now() < ends
+    );
+    const fromPlan = activePaid ? String(currentSub.plan).toLowerCase() : 'free';
+    const before = activePaid
+        ? (currentSub.caps ? cloneCaps(currentSub.caps) : capsFromPlanId(fromPlan))
+        : capsFromPlanId('free');
+    const newBase = capsFromPlanId(toPlan);
+    const fromRank = PLAN_RANK[fromPlan] || 0;
+    const toRank = PLAN_RANK[toPlan] || 0;
+
+    let mode;
+    let plan;
+    let delta;
+    let after;
+
+    if (!activePaid || fromPlan === 'free' || fromRank === 0) {
+        // Free → any paid: full plan limits
+        mode = 'grant_full';
+        plan = toPlan;
+        delta = cloneCaps(newBase);
+        after = cloneCaps(newBase);
+    } else if (toPlan === fromPlan) {
+        // Same plan again: stack another full allotment
+        mode = 'same_stack';
+        plan = toPlan;
+        delta = cloneCaps(newBase);
+        after = addCaps(before, newBase);
+    } else if (toRank > fromRank) {
+        // Higher tier: keep current + add (newBase − oldBase)
+        mode = 'upgrade_delta';
+        plan = toPlan;
+        delta = deltaCaps(toPlan, fromPlan);
+        after = addCaps(before, delta);
+    } else {
+        // Lower tier purchase while on higher: stack full purchased allotment, keep higher tier
+        mode = 'lower_stack';
+        plan = fromPlan;
+        delta = cloneCaps(newBase);
+        after = addCaps(before, newBase);
+    }
+
+    return {
+        mode,
+        plan,
+        fromPlan,
+        toPlan,
+        capsBefore: before,
+        capsDelta: delta,
+        capsAfter: after
+    };
+}
 
 function utcDayKey(d = new Date()) {
     return d.toISOString().slice(0, 10);
@@ -332,6 +463,8 @@ function createPlansStore(dataDir, options = {}) {
             startsAt: null,
             endsAt: null,
             paymentRequestId: null,
+            caps: null,
+            stackMode: null,
             expiredAt: new Date().toISOString()
         };
         save();
@@ -345,18 +478,23 @@ function createPlansStore(dataDir, options = {}) {
             return {
                 plan: 'free',
                 def: PLAN_DEFS.free,
+                caps: capsFromPlanId('free'),
                 phone: null,
                 startsAt: null,
-                endsAt: null
+                endsAt: null,
+                stackMode: null
             };
         }
+        const caps = sub.caps ? cloneCaps(sub.caps) : capsFromPlanId(sub.plan);
         return {
             plan: sub.plan,
-            def: getPlanDef(sub.plan),
+            def: defWithCaps(sub.plan, caps),
+            caps,
             phone: sub.phone || null,
             startsAt: sub.startsAt || null,
             endsAt: sub.endsAt || null,
-            paymentRequestId: sub.paymentRequestId || null
+            paymentRequestId: sub.paymentRequestId || null,
+            stackMode: sub.stackMode || null
         };
     }
 
@@ -630,6 +768,13 @@ function createPlansStore(dataDir, options = {}) {
         const { cap, halved, planCap } = deviceId
             ? fastCapFor(deviceId)
             : { cap: PLAN_DEFS.free.fastPerDay, halved: false, planCap: PLAN_DEFS.free.fastPerDay };
+        const baseDef = getPlanDef(effective.plan);
+        const stacked = effective.plan !== 'free' && (
+            effective.caps.fastPerDay !== baseDef.fastPerDay ||
+            effective.caps.thinkingPerPeriod !== baseDef.thinkingPerPeriod ||
+            effective.caps.expert4PerPeriod !== baseDef.expert4PerPeriod ||
+            effective.caps.expert16PerPeriod !== baseDef.expert16PerPeriod
+        );
         return {
             plan: effective.plan,
             label: effective.def.label,
@@ -639,6 +784,18 @@ function createPlansStore(dataDir, options = {}) {
             endsAt: effective.endsAt,
             timezoneNote: 'Daily Fast limits reset at UTC midnight. Thinking and Expert limits are per 30-day paid period starting on payment confirmation.',
             omtDestination: OMT_DESTINATION,
+            stacking: {
+                active: effective.plan !== 'free',
+                stacked: !!stacked,
+                stackMode: effective.stackMode || null,
+                caps: effective.caps || capsFromPlanId(effective.plan),
+                baseCaps: capsFromPlanId(effective.plan),
+                rules: [
+                    'Free → paid: grant full plan limits (Fast / Thinking / 4-AI / 16-AI).',
+                    'Upgrade to a higher plan: keep current caps and ADD the difference (newBase − oldBase).',
+                    'Buy the same plan again: ADD another full allotment (doubles from a single allotment).'
+                ]
+            },
             usage: {
                 day: u.day,
                 fast: u.fast,
@@ -796,6 +953,8 @@ function createPlansStore(dataDir, options = {}) {
                 startsAt: null,
                 endsAt: null,
                 paymentRequestId: null,
+                caps: null,
+                stackMode: null,
                 migratedTo: ak,
                 migratedAt: new Date().toISOString()
             };
@@ -1049,6 +1208,7 @@ function createPlansStore(dataDir, options = {}) {
             requestedPlan: p.plan,
             currentPlan: p.currentPlan || (live && live.plan) || 'free',
             livePlan: (live && live.plan) || 'free',
+            effectivePlan: p.effectivePlan || (live && live.plan) || p.plan,
             amount: p.amount,
             status: p.status,
             createdAt: p.createdAt || null,
@@ -1059,7 +1219,13 @@ function createPlansStore(dataDir, options = {}) {
             userId: p.userId || null,
             ip: p.ip || null,
             geo: geo,
-            location: formatGeoLabel(geo) || (p.ip ? 'Looking up…' : '—')
+            location: formatGeoLabel(geo) || (p.ip ? 'Looking up…' : '—'),
+            stackMode: p.stackMode || null,
+            stackedFrom: p.stackedFrom || null,
+            stackedTo: p.stackedTo || null,
+            capsBefore: p.capsBefore || null,
+            capsDelta: p.capsDelta || null,
+            capsAfter: p.capsAfter || (live && live.caps) || null
         };
     }
 
@@ -1094,6 +1260,14 @@ function createPlansStore(dataDir, options = {}) {
             return { ok: false, error: 'Invalid plan on payment' };
         }
 
+        // Expire current owner sub if needed so stacking sees accurate state
+        expireIfNeeded(ownerKey);
+        const currentSub = store.subscriptions[ownerKey] || null;
+        const stack = computeStackOnApprove(currentSub, planId);
+        if (!stack) {
+            return { ok: false, error: 'Invalid plan on payment' };
+        }
+
         // One OMT number = one active paid plan: clear previous holder if any
         const prevOwner = store.phoneIndex[phone];
         if (prevOwner && prevOwner !== ownerKey) {
@@ -1103,6 +1277,8 @@ function createPlansStore(dataDir, options = {}) {
                 startsAt: null,
                 endsAt: null,
                 paymentRequestId: null,
+                caps: null,
+                stackMode: null,
                 replacedBy: payment.id,
                 expiredAt: new Date().toISOString()
             };
@@ -1111,11 +1287,15 @@ function createPlansStore(dataDir, options = {}) {
         const startsAt = new Date();
         const endsAt = new Date(startsAt.getTime() + PAID_PERIOD_MS);
         store.subscriptions[ownerKey] = {
-            plan: planId,
+            plan: stack.plan,
             phone,
             startsAt: startsAt.toISOString(),
             endsAt: endsAt.toISOString(),
-            paymentRequestId: payment.id
+            paymentRequestId: payment.id,
+            caps: cloneCaps(stack.capsAfter),
+            stackMode: stack.mode,
+            stackedFrom: stack.fromPlan,
+            stackedTo: stack.toPlan
         };
         store.phoneIndex[phone] = ownerKey;
 
@@ -1138,10 +1318,22 @@ function createPlansStore(dataDir, options = {}) {
         payment.decidedAt = new Date().toISOString();
         payment.startsAt = startsAt.toISOString();
         payment.endsAt = endsAt.toISOString();
+        payment.stackMode = stack.mode;
+        payment.stackedFrom = stack.fromPlan;
+        payment.stackedTo = stack.toPlan;
+        payment.capsBefore = cloneCaps(stack.capsBefore);
+        payment.capsDelta = cloneCaps(stack.capsDelta);
+        payment.capsAfter = cloneCaps(stack.capsAfter);
+        payment.effectivePlan = stack.plan;
 
         save();
         flushSync();
-        return { ok: true, payment, subscription: store.subscriptions[ownerKey] };
+        return {
+            ok: true,
+            payment,
+            subscription: store.subscriptions[ownerKey],
+            stacking: stack
+        };
     }
 
     function declinePayment(id) {
@@ -1169,6 +1361,8 @@ function createPlansStore(dataDir, options = {}) {
                 startsAt: null,
                 endsAt: null,
                 paymentRequestId: null,
+                caps: null,
+                stackMode: null,
                 declinedAt: new Date().toISOString()
             };
         }
@@ -1180,10 +1374,12 @@ function createPlansStore(dataDir, options = {}) {
 
     return {
         PLAN_DEFS,
+        PLAN_RANK,
         OMT_DESTINATION,
         utcDayKey,
         normalizePhone,
         isValidOmtPhone,
+        computeStackOnApprove,
         getEffectivePlan,
         getStatus,
         getPlanStatusUi,
@@ -1255,5 +1451,10 @@ module.exports = {
     parseCookies,
     isAdminAuthed,
     PLAN_DEFS,
+    PLAN_RANK,
+    computeStackOnApprove,
+    capsFromPlanId,
+    deltaCaps,
+    addCaps,
     OMT_DESTINATION
 };

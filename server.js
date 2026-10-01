@@ -447,7 +447,156 @@ function withTimeout(promise, ms, label) {
 }
 
 // ==================== RESPONSES API CALL ====================
-function callResponsesAPI(conversationMessages, config, useWebSearch) {
+
+function hostnameFromUrl(raw) {
+    try {
+        const u = new URL(String(raw));
+        return (u.hostname || '').replace(/^www\./i, '') || '';
+    } catch (e) {
+        return '';
+    }
+}
+
+function normalizeSiteEntry(entry) {
+    if (!entry) return null;
+    if (typeof entry === 'string') {
+        const url = entry.trim();
+        if (!/^https?:\/\//i.test(url)) return null;
+        const domain = hostnameFromUrl(url);
+        return domain ? { url, domain, title: domain } : null;
+    }
+    if (typeof entry !== 'object') return null;
+    const url = String(entry.url || entry.uri || entry.href || '').trim();
+    if (!/^https?:\/\//i.test(url)) return null;
+    const domain = hostnameFromUrl(url) || String(entry.domain || '').trim();
+    if (!domain) return null;
+    const title = String(entry.title || entry.label || entry.name || domain).trim() || domain;
+    return { url, domain, title };
+}
+
+/** Collect real search/citation sites + reasoning snippets from a Responses API payload. Never invents URLs. */
+function extractActivityFromResponses(responseData) {
+    const sites = [];
+    const seen = new Set();
+    const pushSite = (entry) => {
+        const site = normalizeSiteEntry(entry);
+        if (!site) return;
+        const key = site.url.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        sites.push(site);
+    };
+
+    if (!responseData || typeof responseData !== 'object') {
+        return { sites, reasoning: '', text: '' };
+    }
+
+    // Top-level citations (xAI / agent tools): list of URL strings
+    const topCitations = responseData.citations;
+    if (Array.isArray(topCitations)) {
+        topCitations.forEach((c) => pushSite(typeof c === 'string' ? c : c));
+    }
+
+    let text = '';
+    if (typeof responseData.output_text === 'string' && responseData.output_text.trim()) {
+        text = responseData.output_text;
+    }
+
+    const output = Array.isArray(responseData.output) ? responseData.output : [];
+    for (const item of output) {
+        if (!item || typeof item !== 'object') continue;
+
+        // web_search_call / tool call actions may include open_page URLs or queries (query is not a site)
+        if (item.type === 'web_search_call' || item.type === 'server_side_tool_call') {
+            const action = item.action || item.web_search_call?.action || {};
+            if (action.url) pushSite({ url: action.url, title: action.title || hostnameFromUrl(action.url) });
+            if (Array.isArray(action.sources)) action.sources.forEach(pushSite);
+            if (Array.isArray(action.urls)) action.urls.forEach(pushSite);
+            if (Array.isArray(item.sources)) item.sources.forEach(pushSite);
+        }
+
+        if (item.type === 'message' || item.role === 'assistant') {
+            const parts = Array.isArray(item.content) ? item.content : [];
+            for (const part of parts) {
+                if (!part || typeof part !== 'object') continue;
+                const partText = part.text || part.output_text || '';
+                if (!text && typeof partText === 'string' && partText.trim()) text = partText;
+                const anns = part.annotations || part.citation || [];
+                if (Array.isArray(anns)) {
+                    anns.forEach((a) => {
+                        if (!a) return;
+                        if (a.type === 'url_citation' || a.url || a.url_citation) {
+                            pushSite(a.url_citation || a);
+                        }
+                    });
+                }
+            }
+            // Some payloads put annotations on the message itself
+            if (Array.isArray(item.annotations)) {
+                item.annotations.forEach((a) => pushSite(a.url_citation || a));
+            }
+        }
+
+        // Reasoning summary items (when provider emits them)
+        if (item.type === 'reasoning') {
+            // collected below via reasoning fields
+        }
+    }
+
+    let reasoning = '';
+    const r = responseData.reasoning;
+    if (r && typeof r === 'object') {
+        if (typeof r.summary === 'string' && r.summary.trim() && r.summary !== 'detailed' && r.summary !== 'concise' && r.summary !== 'auto') {
+            reasoning = r.summary.trim();
+        }
+        if (typeof r.content === 'string' && r.content.trim()) reasoning = (reasoning ? reasoning + '\n' : '') + r.content.trim();
+    } else if (typeof r === 'string' && r.trim()) {
+        reasoning = r.trim();
+    }
+    // Also scan output for reasoning text parts
+    for (const item of output) {
+        if (!item || item.type !== 'reasoning') continue;
+        const parts = Array.isArray(item.summary) ? item.summary
+            : (Array.isArray(item.content) ? item.content : []);
+        for (const part of parts) {
+            if (!part) continue;
+            const t = typeof part === 'string' ? part : (part.text || part.content || '');
+            if (typeof t === 'string' && t.trim()) {
+                reasoning = (reasoning ? reasoning + '\n' : '') + t.trim();
+            }
+        }
+    }
+
+    if (!text) {
+        const msg = output.find((o) => o && o.type === 'message');
+        const c0 = msg && Array.isArray(msg.content) ? msg.content[0] : null;
+        text = (c0 && (c0.text || c0.output_text)) || '';
+    }
+
+    return { sites, reasoning: reasoning.slice(0, 8000), text: text || '' };
+}
+
+function siteFromStreamEvent(evt) {
+    if (!evt || typeof evt !== 'object') return null;
+    // annotation.added
+    const ann = evt.annotation || evt.url_citation || null;
+    if (ann) return normalizeSiteEntry(ann.url_citation || ann);
+    // output_item.done / added with web_search_call
+    const item = evt.item || null;
+    if (item && (item.type === 'web_search_call' || item.type === 'server_side_tool_call')) {
+        const action = item.action || {};
+        if (action.url) return normalizeSiteEntry({ url: action.url, title: action.title });
+        if (Array.isArray(action.sources) && action.sources[0]) return normalizeSiteEntry(action.sources[0]);
+    }
+    if (evt.url) return normalizeSiteEntry(evt);
+    return null;
+}
+
+function callResponsesAPI(conversationMessages, config, useWebSearch, opts) {
+    const options = opts || {};
+    const onEvent = typeof options.onEvent === 'function' ? options.onEvent : null;
+    const wantStream = !!options.stream && !!onEvent;
+
     return new Promise((resolve, reject) => {
         const apiKey = process.env.GROK_API_KEY;
 
@@ -468,15 +617,18 @@ function callResponsesAPI(conversationMessages, config, useWebSearch) {
 
         const tools = useWebSearch ? [{ type: 'web_search' }] : [];
 
-        const payload = JSON.stringify({
+        const body = {
             model: config.model,
             input: input,
             tools: tools,
             max_output_tokens: config.maxTokens,
             temperature: config.temperature
-        });
+        };
+        if (wantStream) body.stream = true;
 
-        const options = {
+        const payload = JSON.stringify(body);
+
+        const reqOptions = {
             hostname: 'api.x.ai',
             path: '/v1/responses',
             method: 'POST',
@@ -488,7 +640,102 @@ function callResponsesAPI(conversationMessages, config, useWebSearch) {
             timeout: UPSTREAM_TIMEOUT_MS
         };
 
-        const req = https.request(options, (res) => {
+        const req = https.request(reqOptions, (res) => {
+            if (wantStream && res.statusCode < 400) {
+                let buffer = '';
+                let finalResponse = null;
+                let textAcc = '';
+                const siteSeen = new Set();
+
+                const emitSite = (site) => {
+                    if (!site) return;
+                    const key = String(site.url || '').toLowerCase();
+                    if (!key || siteSeen.has(key)) return;
+                    siteSeen.add(key);
+                    try { onEvent({ type: 'site', site }); } catch (e) {}
+                };
+
+                res.on('data', (chunk) => {
+                    buffer += chunk.toString('utf8');
+                    const parts = buffer.split('\n');
+                    buffer = parts.pop() || '';
+                    for (let i = 0; i < parts.length; i++) {
+                        const line = parts[i].trim();
+                        if (!line || line.indexOf('data:') !== 0) continue;
+                        const raw = line.slice(5).trim();
+                        if (!raw || raw === '[DONE]') continue;
+                        let evt;
+                        try { evt = JSON.parse(raw); } catch (e) { continue; }
+                        const et = String(evt.type || '');
+
+                        if (et === 'response.web_search_call.in_progress' || et === 'response.web_search_call.searching') {
+                            try { onEvent({ type: 'status', status: 'searching' }); } catch (e) {}
+                        }
+                        if (et === 'response.output_item.added' || et === 'response.output_item.done') {
+                            const item = evt.item || {};
+                            if (item.type === 'web_search_call' || item.type === 'server_side_tool_call') {
+                                try { onEvent({ type: 'status', status: 'searching' }); } catch (e) {}
+                                emitSite(siteFromStreamEvent(evt));
+                                const action = item.action || {};
+                                if (action.query && typeof action.query === 'string') {
+                                    try { onEvent({ type: 'search_query', query: action.query.slice(0, 240) }); } catch (e) {}
+                                }
+                                if (Array.isArray(action.sources)) action.sources.forEach((s) => emitSite(normalizeSiteEntry(s)));
+                                if (action.url) emitSite(normalizeSiteEntry(action));
+                            }
+                            if (item.type === 'reasoning') {
+                                try { onEvent({ type: 'status', status: 'thinking' }); } catch (e) {}
+                            }
+                        }
+                        if (et === 'response.output_text.annotation.added' || et.indexOf('annotation') !== -1) {
+                            emitSite(siteFromStreamEvent(evt));
+                        }
+                        if (et === 'response.reasoning_summary_text.delta' || et === 'response.reasoning.delta') {
+                            const d = evt.delta || evt.text || '';
+                            if (d) {
+                                try { onEvent({ type: 'reasoning', text: String(d) }); } catch (e) {}
+                            }
+                        }
+                        if (et === 'response.output_text.delta') {
+                            const d = evt.delta || '';
+                            if (d) {
+                                textAcc += d;
+                                try { onEvent({ type: 'text', text: String(d) }); } catch (e) {}
+                            }
+                        }
+                        if (et === 'response.completed') {
+                            finalResponse = evt.response || evt;
+                        }
+                        // Some gateways wrap the whole object without type
+                        if (!et && (evt.output || evt.output_text || evt.citations)) {
+                            finalResponse = evt;
+                        }
+                    }
+                });
+
+                res.on('end', () => {
+                    if (!finalResponse) {
+                        finalResponse = { output_text: textAcc, citations: [] };
+                    }
+                    // Merge any late citations from completed payload
+                    const meta = extractActivityFromResponses(finalResponse);
+                    meta.sites.forEach(emitSite);
+                    if (meta.reasoning) {
+                        try { onEvent({ type: 'reasoning', text: meta.reasoning }); } catch (e) {}
+                    }
+                    if (!textAcc && meta.text) {
+                        try { onEvent({ type: 'text', text: meta.text }); } catch (e) {}
+                        textAcc = meta.text;
+                    }
+                    resolve(Object.assign({}, finalResponse, {
+                        output_text: textAcc || meta.text || finalResponse.output_text || '',
+                        _activity: extractActivityFromResponses(Object.assign({}, finalResponse, { output_text: textAcc || meta.text }))
+                    }));
+                });
+                return;
+            }
+
+            // Non-streaming (or stream open failed with HTTP error body)
             let data = '';
             res.on('data', (chunk) => { data += chunk; });
             res.on('end', () => {
@@ -497,6 +744,8 @@ function callResponsesAPI(conversationMessages, config, useWebSearch) {
                     if (res.statusCode >= 400) {
                         reject({ status: res.statusCode, message: json.error?.message || json.detail || 'Unknown error' });
                     } else {
+                        const activity = extractActivityFromResponses(json);
+                        json._activity = activity;
                         resolve(json);
                     }
                 } catch (e) {
@@ -515,6 +764,8 @@ function callResponsesAPI(conversationMessages, config, useWebSearch) {
         req.end();
     });
 }
+
+
 
 
 /** Expand stored attachedFile extract into model-facing user text (UI keeps content clean). */
@@ -731,9 +982,12 @@ app.post('/api/chat', async (req, res) => {
                     UPSTREAM_TIMEOUT_MS,
                     'Expert request'
                 );
+                const activity = responseData._activity || extractActivityFromResponses(responseData);
                 reply = responseData.output_text ||
+                    activity.text ||
                     responseData.output?.find(o => o.type === 'message')?.content?.[0]?.text ||
                     'No response generated.';
+                return { reply, provider, modelName: config.model, activity };
             } else if (safeMode === 'smart') {
                 const completion = await withTimeout(
                     client.chat.completions.create({
@@ -777,7 +1031,12 @@ app.post('/api/chat', async (req, res) => {
             plansStore.markFastHalved(deviceId);
         }
         keepUsage = true;
-        res.json({ reply, model: safeMode, provider: result.provider });
+        const chatPayload = { reply, model: safeMode, provider: result.provider };
+        if (result.activity && (result.activity.sites?.length || result.activity.reasoning)) {
+            chatPayload.sites = result.activity.sites || [];
+            if (result.activity.reasoning) chatPayload.reasoning = result.activity.reasoning;
+        }
+        res.json(chatPayload);
 
     } catch (error) {
         console.error('Chat API Error:', error.message || error, error.status || '', error.cause?.code || '');
@@ -840,24 +1099,99 @@ app.post('/api/chat/stream', async (req, res) => {
                     : 'generating';
         sendSse({ status: initialStatus, mode: safeMode, provider, webSearch: useWebSearch });
 
-        // Expert: non-streaming Responses API, emit as one chunk
+        // Expert: Responses API (prefer stream so search/thinking events surface live)
         if (safeMode === 'expert') {
             try {
                 sendSse({ status: useWebSearch ? 'searching' : 'researching' });
-                const responseData = await withTimeout(
-                    callResponsesAPI(conversationMessages, config, useWebSearch),
-                    UPSTREAM_TIMEOUT_MS,
-                    'Expert stream'
-                );
-                let reply = responseData.output_text ||
+                const collectedSites = [];
+                const siteKeys = new Set();
+                let reasoningAcc = '';
+                let streamedText = '';
+                let emittedGenerating = false;
+
+                const pushSiteSse = (site) => {
+                    const normalized = normalizeSiteEntry(site);
+                    if (!normalized) return;
+                    const key = normalized.url.toLowerCase();
+                    if (siteKeys.has(key)) return;
+                    siteKeys.add(key);
+                    collectedSites.push(normalized);
+                    sendSse({ site: normalized, sites: collectedSites.slice(), status: 'searching' });
+                };
+
+                const onEvent = (evt) => {
+                    if (!evt || typeof evt !== 'object') return;
+                    if (evt.type === 'status' && evt.status) sendSse({ status: evt.status });
+                    if (evt.type === 'site' && evt.site) pushSiteSse(evt.site);
+                    if (evt.type === 'search_query' && evt.query) {
+                        sendSse({ searchQuery: String(evt.query).slice(0, 240), status: 'searching' });
+                    }
+                    if (evt.type === 'reasoning' && evt.text) {
+                        reasoningAcc += evt.text;
+                        sendSse({ reasoning: evt.text, status: 'thinking' });
+                    }
+                    if (evt.type === 'text' && evt.text) {
+                        if (!emittedGenerating) {
+                            emittedGenerating = true;
+                            sendSse({ status: 'generating' });
+                        }
+                        streamedText += evt.text;
+                        sendSse({ text: evt.text });
+                    }
+                };
+
+                let responseData;
+                try {
+                    responseData = await withTimeout(
+                        callResponsesAPI(conversationMessages, config, useWebSearch, {
+                            stream: true,
+                            onEvent
+                        }),
+                        UPSTREAM_TIMEOUT_MS,
+                        'Expert stream'
+                    );
+                } catch (streamErr) {
+                    console.warn('Expert Responses stream failed — falling back to non-stream:', streamErr.message || streamErr);
+                    responseData = await withTimeout(
+                        callResponsesAPI(conversationMessages, config, useWebSearch),
+                        UPSTREAM_TIMEOUT_MS,
+                        'Expert stream fallback'
+                    );
+                }
+
+                const activity = responseData._activity || extractActivityFromResponses(responseData);
+                (activity.sites || []).forEach(pushSiteSse);
+                if (activity.reasoning && !reasoningAcc) {
+                    reasoningAcc = activity.reasoning;
+                    sendSse({ reasoning: activity.reasoning, status: 'thinking' });
+                }
+
+                let reply = streamedText ||
+                    responseData.output_text ||
+                    activity.text ||
                     responseData.output?.find(o => o.type === 'message')?.content?.[0]?.text ||
                     'No response generated.';
                 reply = softCleanLatex(reply);
-                sendSse({ status: 'generating' });
-                sendSse({ text: reply });
+
+                // If stream already sent text deltas, avoid duplicating; otherwise emit once
+                if (!streamedText.trim() && reply && reply !== 'No response generated.') {
+                    sendSse({ status: 'generating' });
+                    sendSse({ text: reply });
+                } else if (streamedText.trim() && softCleanLatex(streamedText) !== reply) {
+                    // Soft-clean may have adjusted latex — send full cleaned as authoritative
+                    sendSse({ full: reply });
+                }
+
                 if (String(reply).trim() && reply !== 'No response generated.') keepUsage = true;
-                sendSse({ done: true, model: safeMode, provider });
-                console.log(`Stream done (expert): ${String(reply).length} chars`);
+                sendSse({
+                    done: true,
+                    model: safeMode,
+                    provider,
+                    full: reply,
+                    sites: collectedSites.slice(),
+                    reasoning: reasoningAcc ? reasoningAcc.slice(0, 8000) : undefined
+                });
+                console.log(`Stream done (expert): ${String(reply).length} chars | sites=${collectedSites.length}`);
                 return res.end();
             } catch (err) {
                 sendSse({ error: mapApiError(err, provider) });

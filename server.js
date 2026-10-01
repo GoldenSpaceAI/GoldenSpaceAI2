@@ -302,7 +302,8 @@ function sendFreshJson(res, body) {
 function softCleanLatex(text) {
     if (!text) return text;
     return text
-        .replace(/\\boxed\{([^}]+)\}/g, '$$$$1$$')
+        // Replacer fn required: string '$$$$1$$' is parsed as $$ + literal 1 + $ (drops capture/digits).
+        .replace(/\\boxed\{([^}]+)\}/g, function (_, inner) { return '$$' + inner + '$$'; })
         .replace(/\\displaystyle\b/g, '')
         .replace(/\\left\b/g, '')
         .replace(/\\right\b/g, '');

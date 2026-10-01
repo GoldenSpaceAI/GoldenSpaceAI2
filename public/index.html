@@ -3341,11 +3341,19 @@
                     '<pre class="md-pre"><code class="md-code">' + escapeHtmlRaw(code.replace(/\n$/, '')) + '</code></pre></div>'
                 );
             });
+            // Protect all math delimiters before list/heading normalization (which
+            // otherwise turns " - " inside expressions into bullet lines and garbles digits).
             s = s.replace(/\$\$([\s\S]+?)\$\$/g, function(_, math) {
-                return stash('<div class="katex-block">$$' + math + '$$</div>');
+                return stash('<div class="katex-block">$$' + escapeHtmlRaw(math) + '$$</div>');
+            });
+            s = s.replace(/\\\[([\s\S]+?)\\\]/g, function(_, math) {
+                return stash('<div class="katex-block">\\[' + escapeHtmlRaw(math) + '\\]</div>');
+            });
+            s = s.replace(/\\\(([\s\S]+?)\\\)/g, function(_, math) {
+                return stash('<span class="katex-inline">\\(' + escapeHtmlRaw(math) + '\\)</span>');
             });
             s = s.replace(/\$([^$\n]+?)\$/g, function(_, math) {
-                return stash('<span class="katex-inline">$' + math + '$</span>');
+                return stash('<span class="katex-inline">$' + escapeHtmlRaw(math) + '$</span>');
             });
             s = s.replace(/`([^`\n]+)`/g, function(_, code) {
                 return stash('<code class="md-code">' + escapeHtmlRaw(code) + '</code>');

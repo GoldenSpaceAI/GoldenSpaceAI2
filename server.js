@@ -1706,8 +1706,12 @@ app.post('/api/admin/payments/:id/approve', async (req, res) => {
 
 app.post('/api/admin/payments/:id/decline', async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    const result = plansStore.declinePayment(req.params.id);
-    if (!result.ok) return res.status(404).json(result);
+    const reason = String((req.body && req.body.reason) || '').trim();
+    if (!reason) {
+        return res.status(400).json({ ok: false, error: 'Decline reason is required' });
+    }
+    const result = plansStore.declinePayment(req.params.id, { reason });
+    if (!result.ok) return res.status(result.error === 'Not found' ? 404 : 400).json(result);
     try { await plansStore.flushAsync(); } catch (e) {
         console.error('plans flush after decline:', e.message);
     }

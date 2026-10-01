@@ -1,3 +1,12 @@
+# GoldenSpaceAI — admin decline reason in email (2026-10-01)
+
+- **Admin Decline:** clicking Decline opens a dialog to type a non-empty reason; Cancel aborts; OK sends the reason to the decline API.
+- **Storage:** `declineReason` saved on the payment with `decidedAt`.
+- **Declined email:** includes `Reason: {admin text}` (HTML + plain text) while keeping the refund wording from PR #38.
+- Service worker cache `goldenspaceai2-v40`. App `2.3.14`.
+
+---
+
 # GoldenSpaceAI — declined plan email refund notice (2026-10-01)
 
 - **Declined upgrade email:** clearly states that all money sent will be refunded; if fees apply, the refund is the amount sent minus those fees.

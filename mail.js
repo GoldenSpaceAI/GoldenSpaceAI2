@@ -151,6 +151,12 @@ async function sendPlanApprovedEmail(payment) {
     return sendResendEmail({ to, subject, text, html });
 }
 
+function escapeEmailHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
 /**
  * (3) Admin declined the payment request.
  */
@@ -160,6 +166,7 @@ async function sendPlanDeclinedEmail(payment) {
     if (!to) return { ok: false, skipped: true, error: 'No email on payment' };
     const label = planLabel(payment.plan);
     const when = formatWhen(payment.decidedAt || new Date().toISOString());
+    const reason = String(payment.declineReason || '').trim();
     const subject = `Update on your GoldenSpaceAI ${label} upgrade request`;
     const refundText =
         `Refund: All money you sent for this request will be refunded. ` +
@@ -167,12 +174,17 @@ async function sendPlanDeclinedEmail(payment) {
     const refundHtml =
         `<p><strong>Refund:</strong> All money you sent for this request will be refunded. ` +
         `If there are any fees, the refund will be the amount sent minus those fees.</p>`;
+    const reasonText = reason ? `Reason: ${reason}\n` : '';
+    const reasonHtml = reason
+        ? `<br><strong>Reason:</strong> ${escapeEmailHtml(reason)}`
+        : '';
     const text =
         `Hi,\n\n` +
         `We reviewed your upgrade request for GoldenSpaceAI ${label} and could not confirm the payment at this time.\n\n` +
         `Status: Declined\n` +
         `Reviewed: ${when}\n` +
         (payment.id ? `Request ID: ${payment.id}\n` : '') +
+        reasonText +
         `\n` + refundText +
         `Common reasons include a mismatched OMT Pay number, an incomplete transfer, or a duplicate request. ` +
         `You can submit a new request from https://www.goldenspaceai.space/upgrade ` +
@@ -185,6 +197,7 @@ async function sendPlanDeclinedEmail(payment) {
         `<p><strong>Status:</strong> Declined<br>` +
         `<strong>Reviewed:</strong> ${when}` +
         (payment.id ? `<br><strong>Request ID:</strong> ${payment.id}` : '') +
+        reasonHtml +
         `</p>` +
         refundHtml +
         `<p>Common reasons include a mismatched OMT Pay number, an incomplete transfer, or a duplicate request. ` +
@@ -194,6 +207,7 @@ async function sendPlanDeclinedEmail(payment) {
         `<p>— GoldenSpaceAI Team</p>`;
     return sendResendEmail({ to, subject, text, html });
 }
+
 
 module.exports = {
     sendResendEmail,

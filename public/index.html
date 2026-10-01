@@ -126,79 +126,165 @@
 
         .main-content { display: flex; flex: 1; overflow: hidden; position: relative; }
 
+        /* Mobile-first: full-screen drawer when open; desktop overrides below */
         .chats-panel {
-            width: 280px;
-            min-width: 280px;
+            width: 100%;
+            min-width: 100%;
             background: var(--black-light);
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             transition: transform 0.3s ease, width 0.3s ease, min-width 0.3s ease;
-            z-index: 50;
-            position: absolute;
+            z-index: 200;
+            position: fixed;
             left: 0;
             top: 0;
+            right: 0;
             bottom: 0;
             transform: translateX(-100%);
+            box-shadow: 8px 0 32px rgba(0,0,0,0.45);
         }
         .chats-panel.open { transform: translateX(0); }
 
         .chats-panel-header {
-            padding: 12px;
-            border-bottom: 1px solid var(--gold-dark);
+            padding: 14px 16px;
+            padding-top: max(14px, var(--safe-top));
+            border-bottom: 1px solid rgba(184,134,11,0.45);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, rgba(212,175,55,0.06), transparent);
+        }
+        .chats-panel-title {
+            color: var(--gold);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .panel-close-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            font-family: inherit;
             flex-shrink: 0;
         }
-        .chats-panel-title { color: var(--gold); font-size: 15px; font-weight: bold; }
-        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .panel-close-btn:active { color: var(--gold); border-color: var(--gold-dark); background: rgba(212,175,55,0.1); }
 
         .instr-btn {
             background: none;
-            border: 1px solid var(--gold-dark);
+            border: 1px solid rgba(184,134,11,0.55);
             color: var(--gold);
-            border-radius: 14px;
-            padding: 6px 10px;
-            font-size: 11px;
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
             font-family: inherit;
             white-space: nowrap;
+            letter-spacing: 0.01em;
         }
         .instr-btn:active { background: var(--gold-dark); color: var(--black); }
-        .instr-btn.on { border-color: var(--gold); background: rgba(212,175,55,0.12); }
+        .instr-btn.on { border-color: var(--gold); background: rgba(212,175,55,0.14); }
 
         .instr-panel {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.25s ease;
+            transition: max-height 0.28s ease;
             flex-shrink: 0;
         }
         .instr-panel.open {
-            max-height: 280px;
-            border-bottom: 1px solid var(--gold-dark);
+            max-height: 560px;
+            border-bottom: 1px solid rgba(184,134,11,0.4);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .instr-panel-inner {
+            padding: 14px 14px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            background: var(--black);
+        }
+        .instr-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .instr-label {
+            color: var(--gold);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .instr-hint {
+            color: var(--text-muted);
+            font-size: 11px;
+            line-height: 1.4;
+            padding: 0;
+            margin: 0;
         }
         .instr-panel textarea {
             width: 100%;
-            height: 110px;
-            resize: none;
-            border: none;
-            background: var(--black);
-            color: var(--gold-light);
-            padding: 10px 12px 4px;
+            min-height: 88px;
+            height: 96px;
+            resize: vertical;
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            background: var(--black-light);
+            color: var(--text);
+            padding: 10px 12px;
             font-size: 13px;
+            line-height: 1.45;
             font-family: inherit;
             outline: none;
             -webkit-user-select: text;
             user-select: text;
+            transition: border-color 0.2s;
         }
-        .instr-panel textarea::placeholder { color: #555; }
-        .instr-hint {
-            color: #666;
-            font-size: 11px;
-            padding: 0 12px 10px;
+        .instr-panel textarea:focus { border-color: var(--gold-dark); }
+        .instr-panel textarea::placeholder { color: var(--text-muted); opacity: 0.75; }
+        .instr-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            padding-top: 2px;
         }
+        .instr-cancel, .instr-save {
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 650;
+            cursor: pointer;
+            font-family: inherit;
+            line-height: 1.2;
+        }
+        .instr-cancel {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        .instr-cancel:active { border-color: var(--gold-dark); color: var(--text); }
+        .instr-save {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            border: 1px solid var(--gold-dark);
+            color: #0a0a0a;
+        }
+        .instr-save:active { opacity: 0.9; transform: scale(0.98); }
+        .instr-save.saved { background: var(--green); border-color: #2f9e5b; color: #0a0a0a; }
+        html.light .instr-save { color: #0a0a0a; }
 
         .new-chat-btn {
             background: var(--gold);
@@ -216,24 +302,36 @@
         }
         .new-chat-btn:active { transform: scale(0.9); background: var(--gold-light); }
 
-        .chats-list { flex: 1; overflow-y: auto; padding: 8px; -webkit-overflow-scrolling: touch; }
+        .chats-list { flex: 1; overflow-y: auto; padding: 10px 12px; -webkit-overflow-scrolling: touch; }
 
         .chat-item {
-            padding: 14px 12px;
-            margin: 3px 0;
+            padding: 12px 12px;
+            margin: 4px 0;
             border-radius: 12px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: background 0.15s, border-color 0.15s;
             display: flex;
             justify-content: space-between;
             align-items: center;
             color: var(--text);
             border: 1px solid transparent;
             font-size: 14px;
+            gap: 8px;
         }
-        .chat-item:active { background: var(--black-lighter); transform: scale(0.98); }
-        .chat-item.active { background: var(--black-lighter); }
-        .chat-item-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .chat-item:active { background: var(--black-lighter); transform: scale(0.99); }
+        .chat-item.active {
+            background: rgba(212,175,55,0.1);
+            border-color: rgba(212,175,55,0.28);
+        }
+        .chat-item-name {
+            flex: 1;
+            font-size: 13.5px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .chat-item-actions { display: flex; gap: 5px; flex-shrink: 0; }
         .chat-item-btn {
             background: none;
@@ -637,10 +735,13 @@
         .input-btn.recording { color: var(--red); animation: pulse 1s infinite; }
 
         .plan-status-card {
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            background: var(--black);
-            padding: 10px 12px;
+            border: 1px solid rgba(212,175,55,0.28);
+            border-radius: 14px;
+            background:
+                linear-gradient(135deg, rgba(212,175,55,0.1), transparent 55%),
+                var(--black);
+            padding: 12px 14px;
+            box-shadow: inset 0 1px 0 rgba(212,175,55,0.08);
         }
         .plan-status-head {
             display: flex;
@@ -722,12 +823,12 @@
 
         .chats-panel-footer {
             flex-shrink: 0;
-            padding: 10px 12px calc(10px + var(--safe-bottom));
+            padding: 12px 14px calc(14px + var(--safe-bottom));
             border-top: 1px solid var(--border);
-            background: var(--black-light);
+            background: linear-gradient(0deg, rgba(0,0,0,0.18), transparent 40%), var(--black-light);
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
         }
         .install-app-footer-btn {
             width: 100%;
@@ -847,11 +948,23 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.6);
-            z-index: 40;
+            background: rgba(0,0,0,0.72);
+            z-index: 190;
             display: none;
         }
         .overlay.show { display: block; }
+
+        /* Hide composer under full-screen mobile sidebar / instructions */
+        @media (max-width: 768px) {
+            body.chats-open .composer-shell {
+                visibility: hidden !important;
+                pointer-events: none !important;
+                opacity: 0 !important;
+            }
+            body.chats-open .chat-area {
+                pointer-events: none;
+            }
+        }
 
         .typing-dot {
             width: 7px;
@@ -914,8 +1027,21 @@
         ::-webkit-scrollbar-thumb { background: var(--gold-dark); border-radius: 3px; }
 
         @media (min-width: 769px) {
-            .chats-panel { position: relative; transform: translateX(0); width: 260px; min-width: 260px; }
+            .chats-panel {
+                position: relative;
+                transform: translateX(0);
+                width: 280px;
+                min-width: 280px;
+                left: auto;
+                top: auto;
+                right: auto;
+                bottom: auto;
+                z-index: 50;
+                box-shadow: none;
+            }
             .chats-panel.closed { transform: none; min-width: 0; width: 0; overflow: hidden; border-right: none; }
+            .panel-close-btn { display: none; }
+            .chats-panel-header { padding-top: 14px; }
             .chat-area {
                 display: flex;
                 flex-direction: column;
@@ -959,10 +1085,10 @@
             font-size: 14px; cursor: pointer; padding: 6px 8px; border-radius: 8px; font-family: inherit;
         }
         .icon-btn:active { background: var(--black-lighter); }
-        .chat-search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .chat-search-wrap { padding: 10px 12px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
         .chat-search {
             width: 100%; background: var(--black); border: 1px solid var(--input-border);
-            border-radius: 10px; color: var(--text); padding: 8px 10px; font-size: 13px;
+            border-radius: 12px; color: var(--text); padding: 10px 12px; font-size: 13px;
             outline: none; font-family: inherit;
         }
         .chat-search:focus { border-color: var(--gold-dark); }
@@ -1017,13 +1143,26 @@
                     <div class="header-actions">
                         <button class="instr-btn" id="instrBtn" onclick="toggleInstructionsPanel()" aria-label="Custom instructions">Instructions</button>
                         <button class="new-chat-btn" onclick="createNewChat()" aria-label="New chat">+</button>
+                        <button type="button" class="panel-close-btn" onclick="closeChatsPanel()" aria-label="Close menu">&times;</button>
                     </div>
                 </div>
                 <div class="instr-panel" id="instrPanel">
-                    <textarea id="customInstructions" placeholder="Global rules for every chat..." oninput="saveGlobalInstructions()"></textarea>
-                    <div class="instr-hint">Saved for all chats</div>
-                    <textarea id="chatSystemPrompt" placeholder="Optional per-chat system prompt..." oninput="saveChatSystemPrompt()"></textarea>
-                    <div class="instr-hint">Only for the current chat</div>
+                    <div class="instr-panel-inner">
+                        <div class="instr-section">
+                            <label class="instr-label" for="customInstructions">Global instructions</label>
+                            <p class="instr-hint">Applied to every chat on this device.</p>
+                            <textarea id="customInstructions" placeholder="e.g. Be concise. Prefer bullet points. Always answer in English…" rows="4"></textarea>
+                        </div>
+                        <div class="instr-section">
+                            <label class="instr-label" for="chatSystemPrompt">This chat only</label>
+                            <p class="instr-hint">Optional system prompt for the current conversation.</p>
+                            <textarea id="chatSystemPrompt" placeholder="e.g. Act as a code reviewer for this project…" rows="3"></textarea>
+                        </div>
+                        <div class="instr-actions">
+                            <button type="button" class="instr-cancel" onclick="cancelInstructionsEdit()">Cancel</button>
+                            <button type="button" class="instr-save" id="instrSaveBtn" onclick="saveInstructionsEdit()">Save</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="chat-search-wrap">
                     <input class="chat-search" id="chatSearch" type="search" placeholder="Search chats..." oninput="renderChatsList()" aria-label="Search chats">
@@ -1466,15 +1605,61 @@
             box.value = (currentChatId && chats[currentChatId] && chats[currentChatId].systemPrompt) ? chats[currentChatId].systemPrompt : '';
         }
 
+        let instrDraftGlobal = '';
+        let instrDraftChat = '';
+
+        function snapshotInstructionsDraft() {
+            const g = document.getElementById('customInstructions');
+            const c = document.getElementById('chatSystemPrompt');
+            instrDraftGlobal = g ? g.value : '';
+            instrDraftChat = c ? c.value : '';
+        }
+
         function toggleInstructionsPanel() {
             const panel = document.getElementById('instrPanel');
             const btn = document.getElementById('instrBtn');
             const open = panel.classList.toggle('open');
             if (btn) btn.classList.toggle('on', open);
             if (open) {
+                loadGlobalInstructions();
+                loadChatSystemPromptUI();
+                snapshotInstructionsDraft();
+                const saveBtn = document.getElementById('instrSaveBtn');
+                if (saveBtn) {
+                    saveBtn.textContent = 'Save';
+                    saveBtn.classList.remove('saved');
+                }
                 const box = document.getElementById('customInstructions');
                 if (box) box.focus();
             }
+        }
+
+        function saveInstructionsEdit() {
+            saveGlobalInstructions();
+            saveChatSystemPrompt();
+            snapshotInstructionsDraft();
+            const saveBtn = document.getElementById('instrSaveBtn');
+            if (saveBtn) {
+                saveBtn.textContent = 'Saved';
+                saveBtn.classList.add('saved');
+                setTimeout(function() {
+                    if (saveBtn) {
+                        saveBtn.textContent = 'Save';
+                        saveBtn.classList.remove('saved');
+                    }
+                }, 1200);
+            }
+        }
+
+        function cancelInstructionsEdit() {
+            const g = document.getElementById('customInstructions');
+            const c = document.getElementById('chatSystemPrompt');
+            if (g) g.value = instrDraftGlobal;
+            if (c) c.value = instrDraftChat;
+            const panel = document.getElementById('instrPanel');
+            const btn = document.getElementById('instrBtn');
+            if (panel) panel.classList.remove('open');
+            if (btn) btn.classList.remove('on');
         }
 
         function createNewChat() {
@@ -2607,6 +2792,7 @@
             if (isDesktop()) {
                 panel.classList.toggle('closed');
                 overlay.classList.remove('show');
+                document.body.classList.remove('chats-open');
                 return;
             }
             if (panel.classList.contains('open')) {
@@ -2614,6 +2800,7 @@
             } else {
                 panel.classList.add('open');
                 overlay.classList.add('show');
+                document.body.classList.add('chats-open');
                 history.pushState({panel:true}, '');
             }
         }
@@ -2621,6 +2808,7 @@
         function closeChatsPanel() {
             document.getElementById('chatsPanel').classList.remove('open');
             document.getElementById('overlay').classList.remove('show');
+            document.body.classList.remove('chats-open');
         }
 
         window.addEventListener('popstate', function(e) { 

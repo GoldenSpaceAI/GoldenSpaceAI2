@@ -1,3 +1,12 @@
+# GoldenSpaceAI — sidebar & instructions UI polish (2026-10-01)
+
+- **Chats sidebar:** clearer spacing/typography, refined chat rows, stronger plan strip, polished search and footer.
+- **Custom Instructions:** labeled Global / This chat sections, clearer hints, Save + Cancel actions (same localStorage + per-chat prompt persistence; no payment/OMT/admin changes).
+- **Mobile:** opening chats/sidebar (including instructions) is a full-screen cover; composer bar is hidden underneath. Desktop stays a side drawer.
+- Service worker cache `goldenspaceai2-v20`. App version `2.2.4`.
+
+---
+
 # GoldenSpaceAI — upgrade light theme contrast (2026-09-30)
 
 - **Bug:** in `html.light`, the final Upgrade step “Send payment via OMT Pay” kept a hardcoded dark `.pay-box` (`#12100a`) while labels/values switched to dark muted/text — Send to / From / Plan / numbered steps were nearly invisible (Amount gold stayed readable).

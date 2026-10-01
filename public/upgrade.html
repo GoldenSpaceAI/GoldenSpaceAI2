@@ -172,6 +172,30 @@
   }
   .plan-card li.muted { color: var(--muted); }
   .plan-card li.muted::before { content: '–'; background: rgba(255,255,255,0.06); color: #666; }
+  .stack-note {
+    display: none;
+    margin: 18px 0 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(212,175,55,0.35);
+    background: rgba(212,175,55,0.08);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.55;
+    text-align: left;
+  }
+  .stack-note.show { display: block; }
+  .stack-note strong { color: var(--gold); }
+  .stack-note ul { margin: 8px 0 0; padding-left: 18px; }
+  .stack-note li { margin: 4px 0; }
+  .stack-preview {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(212,175,55,0.25);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  .stack-preview em { color: var(--text); font-style: normal; font-weight: 600; }
 
   .panel {
     background: var(--panel);
@@ -281,6 +305,15 @@
     <h1>Simple plans. Clear limits.</h1>
     <p class="sub">Pay once for 30 days via OMT Pay. No auto-renew. Confirmation usually within 1–2 working days.</p>
     <div class="current-pill" id="currentPlan">Loading your plan…</div>
+    <div class="stack-note" id="stackNote" role="note" aria-live="polite">
+      <strong>Already on a paid plan?</strong> Buying again <strong>stacks</strong> your Fast / Thinking / 4-AI / 16-AI limits:
+      <ul>
+        <li><strong>Same plan again</strong> (e.g. Max → Max): adds another full allotment (doubles from a single allotment).</li>
+        <li><strong>Higher plan</strong> (e.g. Plus → Pro): keep your current caps and add the difference (newBase − oldBase).</li>
+        <li><strong>Free → paid</strong>: grant that plan’s full limits.</li>
+      </ul>
+      <div class="stack-preview" id="stackPreview"></div>
+    </div>
     <p style="margin:12px 0 0;font-size:13px;"><a href="/my-plan">Check payment / plan request status →</a></p>
   </section>
 
@@ -296,7 +329,7 @@
     <div class="actions" style="justify-content:center;margin-top:24px;">
       <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
     </div>
-    <p class="footnote">Free includes Fast chat only. Thinking &amp; Expert modes require a paid plan. See <a href="/terms">Terms</a> for exact caps.</p>
+    <p class="footnote">Free includes Fast chat only. Thinking &amp; Expert modes require a paid plan. Paid users who buy again stack quotas (same plan doubles; higher plan adds the difference). See <a href="/terms">Terms</a> for base caps.</p>
   </section>
 
   <section class="step" id="step2">
@@ -395,6 +428,95 @@
   ];
   let selected = null;
   let clientId = null;
+  let planStatus = null;
+  const PLAN_RANK = { free: 0, plus: 1, pro: 2, max: 3 };
+  const BASE_CAPS = {
+    free: { fastPerDay: 50, thinkingPerPeriod: 0, expert4PerPeriod: 0, expert16PerPeriod: 0 },
+    plus: { fastPerDay: 120, thinkingPerPeriod: 40, expert4PerPeriod: 15, expert16PerPeriod: 0 },
+    pro: { fastPerDay: 200, thinkingPerPeriod: 80, expert4PerPeriod: 40, expert16PerPeriod: 8 },
+    max: { fastPerDay: 300, thinkingPerPeriod: 120, expert4PerPeriod: 60, expert16PerPeriod: 15 }
+  };
+
+  function fmtCaps(c) {
+    if (!c) return '—';
+    return 'Fast ' + c.fastPerDay + '/day · Thinking ' + c.thinkingPerPeriod +
+      ' · 4-AI ' + c.expert4PerPeriod + ' · 16-AI ' + c.expert16PerPeriod + ' / 30 days';
+  }
+
+  function previewStack(fromPlan, currentCaps, toPlan) {
+    const from = fromPlan || 'free';
+    const to = toPlan;
+    const before = currentCaps || BASE_CAPS[from] || BASE_CAPS.free;
+    const newBase = BASE_CAPS[to];
+    if (!newBase) return null;
+    const fromRank = PLAN_RANK[from] || 0;
+    const toRank = PLAN_RANK[to] || 0;
+    let mode, after, delta;
+    function add(a, b) {
+      return {
+        fastPerDay: a.fastPerDay + b.fastPerDay,
+        thinkingPerPeriod: a.thinkingPerPeriod + b.thinkingPerPeriod,
+        expert4PerPeriod: a.expert4PerPeriod + b.expert4PerPeriod,
+        expert16PerPeriod: a.expert16PerPeriod + b.expert16PerPeriod
+      };
+    }
+    if (from === 'free' || fromRank === 0) {
+      mode = 'grant_full';
+      delta = newBase;
+      after = newBase;
+    } else if (to === from) {
+      mode = 'same_stack';
+      delta = newBase;
+      after = add(before, newBase);
+    } else if (toRank > fromRank) {
+      mode = 'upgrade_delta';
+      const oldBase = BASE_CAPS[from];
+      delta = {
+        fastPerDay: Math.max(0, newBase.fastPerDay - oldBase.fastPerDay),
+        thinkingPerPeriod: Math.max(0, newBase.thinkingPerPeriod - oldBase.thinkingPerPeriod),
+        expert4PerPeriod: Math.max(0, newBase.expert4PerPeriod - oldBase.expert4PerPeriod),
+        expert16PerPeriod: Math.max(0, newBase.expert16PerPeriod - oldBase.expert16PerPeriod)
+      };
+      after = add(before, delta);
+    } else {
+      mode = 'lower_stack';
+      delta = newBase;
+      after = add(before, newBase);
+    }
+    return { mode, before, delta, after, from, to };
+  }
+
+  function updateStackPreview() {
+    const note = document.getElementById('stackNote');
+    const prev = document.getElementById('stackPreview');
+    if (!note || !prev) return;
+    const plan = (planStatus && planStatus.plan) || 'free';
+    const paid = plan && plan !== 'free';
+    note.classList.toggle('show', !!paid);
+    if (!paid) {
+      prev.textContent = '';
+      return;
+    }
+    const caps = (planStatus.stacking && planStatus.stacking.caps) || {
+      fastPerDay: (planStatus.usage && planStatus.usage.fastPlanCap) || BASE_CAPS[plan].fastPerDay,
+      thinkingPerPeriod: (planStatus.usage && planStatus.usage.thinkingCap) || BASE_CAPS[plan].thinkingPerPeriod,
+      expert4PerPeriod: (planStatus.usage && planStatus.usage.expert4Cap) || BASE_CAPS[plan].expert4PerPeriod,
+      expert16PerPeriod: (planStatus.usage && planStatus.usage.expert16Cap) || BASE_CAPS[plan].expert16PerPeriod
+    };
+    let html = 'Your effective caps now: <em>' + fmtCaps(caps) + '</em>';
+    if (selected) {
+      const p = previewStack(plan, caps, selected.id);
+      if (p) {
+        const modeLabel = p.mode === 'same_stack' ? 'same-plan stack (+ full allotment)'
+          : p.mode === 'upgrade_delta' ? 'upgrade (+ difference)'
+          : p.mode === 'lower_stack' ? 'add purchased allotment (keep higher tier)'
+          : 'full grant';
+        html += '<br>If you buy <em>' + selected.label + '</em> (' + modeLabel + '): <em>' + fmtCaps(p.after) + '</em>';
+        html += '<br>Math: ' + fmtCaps(p.before) + ' + Δ(' + fmtCaps(p.delta) + ')';
+      }
+    }
+    prev.innerHTML = html;
+  }
 
   var ephemeralClientId = null;
   function newClientId() {
@@ -452,6 +574,7 @@
         selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
         root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
         document.getElementById('toStep2').disabled = !selected;
+        updateStackPreview();
       });
     });
     // Pre-select featured Pro for polish
@@ -562,12 +685,17 @@
         headers: { 'X-Client-Id': ensureClientId() }
       });
       const data = await res.json();
+      planStatus = data || null;
       const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
       document.getElementById('currentPlan').textContent = data.label
-        ? ('Current plan: ' + data.label + (end ? (' · until ' + end) : '') + ' · Daily Fast resets UTC midnight')
+        ? ('Current plan: ' + data.label + (stacked ? ' (stacked caps)' : '') + (end ? (' · until ' + end) : '') + ' · Daily Fast resets UTC midnight')
         : 'Current plan: Free · Daily Fast resets UTC midnight';
+      updateStackPreview();
     } catch (e) {
+      planStatus = { plan: 'free' };
       document.getElementById('currentPlan').textContent = 'Current plan: Free · Daily Fast resets UTC midnight';
+      updateStackPreview();
     }
   }
 

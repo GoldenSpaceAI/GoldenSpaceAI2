@@ -1,3 +1,13 @@
+# GoldenSpaceAI — plan stacking on approve/upgrade (2026-10-01)
+
+- **Stacking on admin approve:** when a payment is approved, quotas stack instead of merely replacing the plan tier.
+  1. **Free → any paid:** grant that plan’s full base limits (Fast / Thinking / Expert 4 / Expert 16).
+  2. **Upgrade to a higher plan** (Plus→Pro, Pro→Max, Plus→Max): keep current effective caps and **ADD** `(newBase − oldBase)` per quota.
+  3. **Same plan again** (e.g. Max→Max): **ADD** another full base allotment (doubles from a single allotment; further buys keep adding).
+- Effective caps stored on the subscription as `caps` and used for Fast/Thinking/4-AI/16-AI enforcement.
+- **`/upgrade`:** when the user already has a paid plan, show a clear stacking notice plus a live preview of resulting caps for the selected plan.
+- Admin payment records include `stackMode`, `capsBefore` / `capsDelta` / `capsAfter`. App `2.3.12`. SW `goldenspaceai2-v38`.
+
 # GoldenSpaceAI — professional admin + upgrade geo (2026-10-01)
 
 - **Admin `/admin-page`:** professional request cards with clear **Request ID**, email, phone, current plan → requested plan, amount, device/client id, request IP, and estimated location.

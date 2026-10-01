@@ -76,6 +76,7 @@ const PAUSE_ASSET_EXEMPT = new Set([
 function isPauseExemptPath(pathname) {
     const p = String(pathname || '');
     if (p === '/admin-page' || p === '/admin-page.html') return true;
+    if (p === '/admin-users' || p === '/admin-users.html') return true;
     if (p.startsWith('/api/admin/')) return true;
     if (PAUSE_ASSET_EXEMPT.has(p)) return true;
     return false;
@@ -1806,6 +1807,61 @@ app.post('/api/admin/pause', async (req, res) => {
     res.json({ ok: true, ...state });
 });
 
+app.get('/api/admin/users', async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    let accounts = [];
+    let authError = null;
+    if (auth && typeof auth.listUsersForAdmin === 'function') {
+        try {
+            const listed = await auth.listUsersForAdmin();
+            if (listed && listed.ok) {
+                accounts = listed.users || [];
+            } else {
+                authError = (listed && listed.error) || 'Auth list failed';
+            }
+        } catch (e) {
+            console.error('admin users list:', e.message);
+            authError = e.message || 'Auth list failed';
+        }
+    } else {
+        authError = 'Auth not configured';
+    }
+    const users = plansStore.listUsersAdmin({ accounts });
+    // Best-effort geo fill for rows that only have a payment IP
+    const needGeo = users.filter(u => u.ip && !(u.geo && u.geo.label));
+    if (needGeo.length) {
+        const batch = needGeo.slice(0, 15);
+        await Promise.all(batch.map(async (u) => {
+            try {
+                const geo = await lookupIpGeo(u.ip);
+                if (geo) {
+                    try { plansStore.setCachedGeo(u.ip, geo); } catch (_) {}
+                    u.geo = geo;
+                    u.location = plansStore.formatGeoLabel(geo) || geo.label || null;
+                    u.locationLabel = u.location || ('IP ' + u.ip);
+                    u.locationSource = 'geo_cache';
+                }
+            } catch (e) {
+                console.error('admin users geo:', e.message);
+            }
+        }));
+        try { await plansStore.flushAsync(); } catch (_) {}
+    }
+    res.json({
+        ok: true,
+        users,
+        meta: {
+            accountCount: accounts.length,
+            authError: authError || null,
+            gaps: [
+                'No dedicated last-login IP / user-agent on users table',
+                'Location from last payment request IP geo (or cached IP) when available',
+                'Device from device_links (most recent) else last payment deviceId'
+            ]
+        }
+    });
+});
+
 app.get('/terms', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'terms.html'));
 });
@@ -1855,6 +1911,13 @@ app.get('/admin-page', (req, res) => {
 });
 app.get('/admin-page.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin-page.html'));
+});
+
+app.get('/admin-users', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin-users.html'));
+});
+app.get('/admin-users.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin-users.html'));
 });
 
 // ==================== STATIC FILE ROUTES (for PWA) ====================

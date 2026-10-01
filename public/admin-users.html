@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>
+(function(){try{var t=localStorage.getItem('goldenspaceai2_theme');if(t!=='light'&&t!=='dark'&&window.matchMedia)t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';if(t==='light')document.documentElement.classList.add('light');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f3eb':'#0a0a0a');}catch(e){}})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin Users — GoldenSpaceAI</title>
+<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" href="/logo.png">
+<style>
+  :root {
+    --gold:#d4af37; --gold-light:#f4d03f; --gold-dark:#b8962e;
+    --bg:#0a0a0a; --panel:#121212; --panel-elev:#171717;
+    --text:#f0f0f0; --muted:#9a9a9a; --border:#2a2a2a;
+    --ok:#3dcc9a; --warn:#e8a838; --danger:#f07070;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background:
+      radial-gradient(1100px 520px at 50% -12%, rgba(212,175,55,0.12), transparent 58%),
+      var(--bg);
+    color:var(--text);
+    line-height:1.45;
+    min-height:100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color:var(--gold); text-decoration:none; font-weight:600; }
+  a:hover { color:var(--gold-light); }
+
+  .topnav {
+    position:sticky; top:0; z-index:40;
+    backdrop-filter: blur(12px);
+    background: rgba(10,10,10,0.88);
+    border-bottom:1px solid var(--border);
+    padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:800; color:var(--gold); }
+  .brand img { width:28px; height:28px; border-radius:8px; object-fit:cover; }
+  .topnav-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+  main { max-width:1100px; margin:0 auto; padding:28px 20px 80px; }
+
+  .hero { margin-bottom:22px; }
+  .hero h1 {
+    margin:0 0 6px;
+    font-size:clamp(1.4rem, 3vw, 1.85rem);
+    font-weight:800;
+    letter-spacing:-0.02em;
+    background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .hero p { margin:0; color:var(--muted); font-size:14px; }
+
+  .card {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    margin-bottom:14px;
+  }
+  .card.login-card { max-width:420px; }
+
+  input[type="password"] {
+    width:100%;
+    padding:12px 14px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:#0a0a0a;
+    color:var(--text);
+    font-size:16px;
+  }
+  input:focus { outline:2px solid rgba(212,175,55,0.35); border-color:var(--gold); }
+
+  button.btn {
+    border:none; border-radius:10px; padding:10px 14px;
+    font-weight:700; cursor:pointer; font-size:13px;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  }
+  button.btn:disabled { opacity:0.55; cursor:not-allowed; }
+  button.btn.primary { background:linear-gradient(135deg,var(--gold),var(--gold-dark)); color:#0a0a0a; }
+  button.btn.ghost {
+    background:transparent; color:var(--gold);
+    border:1px solid var(--border);
+  }
+  button.btn.ghost:hover { border-color:var(--gold); }
+
+  .err { color:var(--danger); margin-top:10px; font-size:14px; }
+
+  .toolbar {
+    display:flex; justify-content:space-between; align-items:center;
+    gap:12px; flex-wrap:wrap; margin-bottom:14px;
+  }
+  .toolbar h2 { margin:0; font-size:1.05rem; color:var(--text); font-weight:700; }
+  .stats {
+    display:flex; gap:8px; flex-wrap:wrap; font-size:12px; font-weight:600;
+  }
+  .stat {
+    padding:5px 10px; border-radius:999px; border:1px solid var(--border);
+    background:var(--panel-elev); color:var(--muted);
+  }
+  .stat b { color:var(--text); font-weight:800; }
+
+  .note {
+    margin:0 0 14px;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:rgba(212,175,55,0.06);
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.45;
+  }
+
+  .table-wrap {
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    background: linear-gradient(180deg, var(--panel-elev), var(--panel));
+  }
+  table.users {
+    width:100%;
+    border-collapse:collapse;
+    min-width:720px;
+  }
+  table.users th, table.users td {
+    text-align:left;
+    padding:12px 14px;
+    border-bottom:1px solid var(--border);
+    vertical-align:top;
+    font-size:13px;
+  }
+  table.users th {
+    font-size:11px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    background:rgba(212,175,55,0.04);
+    font-weight:700;
+  }
+  table.users tr:last-child td { border-bottom:none; }
+  table.users tr:hover td { background:rgba(212,175,55,0.04); }
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size:12px;
+    word-break:break-all;
+  }
+  .plan-pill {
+    display:inline-flex; align-items:center;
+    padding:3px 9px; border-radius:999px; font-size:12px; font-weight:800;
+    border:1px solid rgba(212,175,55,0.5);
+    background: rgba(212,175,55,0.12);
+    color:var(--gold);
+  }
+  .plan-pill.free {
+    border-color: var(--border);
+    background:#0a0a0a;
+    color:var(--text);
+  }
+  .muted { color:var(--muted); font-size:11px; font-weight:600; margin-top:4px; }
+
+  #empty {
+    text-align:center; color:var(--muted); padding:36px 16px;
+    border:1px dashed var(--border); border-radius:var(--radius);
+  }
+  #app { display:none; }
+  #login { display:block; }
+
+  html.light .table-wrap { background: linear-gradient(180deg, #fffdf8, #ffffff); }
+  html.light table.users th { background: rgba(184,134,11,0.06); }
+  html.light .plan-pill.free { background:#fff8e6; }
+</style>
+<link rel="stylesheet" href="/theme.css">
+<script src="/theme.js" defer></script>
+</head>
+<body>
+<header class="topnav">
+  <a class="brand" href="/"><img src="/logo.png" alt="">GoldenSpaceAI Admin</a>
+  <div class="topnav-actions">
+    <a class="btn ghost" href="/admin-page" style="padding:8px 12px;">Upgrade requests</a>
+    <button type="button" class="theme-toggle btn ghost" data-theme-toggle aria-label="Toggle color theme">Light</button>
+    <button class="btn ghost" id="logoutBtn" type="button" hidden>Log out</button>
+  </div>
+</header>
+<main>
+  <section id="login" class="card login-card">
+    <div class="hero" style="margin-bottom:14px;">
+      <h1>Admin unlock</h1>
+      <p>Enter ADMIN_PASSKEY to view users (read-only).</p>
+    </div>
+    <form id="loginForm">
+      <input type="password" id="passkey" autocomplete="current-password" placeholder="Passkey" required>
+      <div style="margin-top:12px;">
+        <button class="btn primary" type="submit">Unlock users</button>
+      </div>
+      <p class="err" id="loginErr" hidden></p>
+    </form>
+  </section>
+
+  <section id="app">
+    <div class="hero">
+      <h1>Users</h1>
+      <p>Read-only directory of accounts and plan signals. No approve / decline / pause here.</p>
+    </div>
+
+    <div class="toolbar">
+      <h2>Directory</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div class="stats" id="stats"></div>
+        <button class="btn ghost" type="button" id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+
+    <p class="note" id="gapsNote" hidden></p>
+
+    <div class="table-wrap" id="tableWrap" hidden>
+      <table class="users">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Plan</th>
+            <th>Device</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p id="empty" hidden>No users found yet.</p>
+  </section>
+</main>
+<script>
+(function() {
+  const loginEl = document.getElementById('login');
+  const appEl = document.getElementById('app');
+  const logoutBtn = document.getElementById('logoutBtn');
+  let cache = [];
+
+  function showApp(on) {
+    loginEl.style.display = on ? 'none' : 'block';
+    appEl.style.display = on ? 'block' : 'none';
+    logoutBtn.hidden = !on;
+  }
+
+  async function api(path, opts) {
+    const res = await fetch(path, Object.assign({ credentials: 'same-origin' }, opts || {}));
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function planLabel(p) {
+    const s = String(p || 'free').toLowerCase();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Free';
+  }
+
+  function locationText(u) {
+    if (u.location) return u.location;
+    if (u.locationLabel && u.locationLabel !== '—') return u.locationLabel;
+    if (u.geo && u.geo.label) return u.geo.label;
+    if (u.ip) return 'IP ' + u.ip + ' (geo pending)';
+    return '—';
+  }
+
+  function deviceText(u) {
+    if (!u.device) return '—';
+    return u.device;
+  }
+
+  function renderStats(list) {
+    const paid = list.filter(u => String(u.plan || 'free').toLowerCase() !== 'free').length;
+    document.getElementById('stats').innerHTML =
+      '<span class="stat">Total <b>' + list.length + '</b></span>' +
+      '<span class="stat">Paid <b>' + paid + '</b></span>' +
+      '<span class="stat">Free <b>' + (list.length - paid) + '</b></span>';
+  }
+
+  function renderGaps(meta) {
+    const el = document.getElementById('gapsNote');
+    const gaps = (meta && meta.gaps) || [];
+    if (!gaps.length && !(meta && meta.authError)) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    const parts = [];
+    if (meta && meta.authError) parts.push('Auth: ' + meta.authError);
+    gaps.forEach(g => parts.push(g));
+    el.hidden = false;
+    el.textContent = 'Data notes: ' + parts.join(' · ');
+  }
+
+  function renderRows() {
+    const list = cache;
+    const tbody = document.getElementById('rows');
+    const empty = document.getElementById('empty');
+    const wrap = document.getElementById('tableWrap');
+    empty.hidden = list.length > 0;
+    wrap.hidden = list.length === 0;
+    tbody.innerHTML = list.map(u => {
+      const plan = String(u.plan || 'free').toLowerCase();
+      const pillClass = plan === 'free' ? 'plan-pill free' : 'plan-pill';
+      const deviceMeta = u.deviceSource
+        ? ('<div class="muted">' + escapeHtml(u.deviceSource) +
+           (u.deviceCount > 1 ? (' · ' + u.deviceCount + ' devices') : '') + '</div>')
+        : '';
+      const locMeta = u.locationSource
+        ? ('<div class="muted">' + escapeHtml(u.locationSource) + '</div>')
+        : '';
+      return (
+        '<tr>' +
+          '<td>' + escapeHtml(u.email || '—') +
+            (u.name ? ('<div class="muted">' + escapeHtml(u.name) + '</div>') : '') +
+          '</td>' +
+          '<td><span class="' + pillClass + '">' + escapeHtml(planLabel(plan)) + '</span></td>' +
+          '<td><span class="mono">' + escapeHtml(deviceText(u)) + '</span>' + deviceMeta + '</td>' +
+          '<td>' + escapeHtml(locationText(u)) + locMeta + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  async function loadUsers() {
+    const { res, data } = await api('/api/admin/users');
+    if (!res.ok) {
+      showApp(false);
+      return;
+    }
+    cache = data.users || [];
+    renderStats(cache);
+    renderGaps(data.meta || {});
+    renderRows();
+  }
+
+  async function checkSession() {
+    const { res } = await api('/api/admin/users');
+    if (res.ok) {
+      showApp(true);
+      await loadUsers();
+      return true;
+    }
+    showApp(false);
+    return false;
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = document.getElementById('loginErr');
+    err.hidden = true;
+    const passkey = document.getElementById('passkey').value;
+    const { res, data } = await api('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passkey })
+    });
+    if (!res.ok) {
+      err.hidden = false;
+      err.textContent = data.error || 'Invalid passkey';
+      return;
+    }
+    document.getElementById('passkey').value = '';
+    showApp(true);
+    await loadUsers();
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    await api('/api/admin/logout', { method: 'POST' });
+    showApp(false);
+  });
+
+  document.getElementById('refreshBtn').addEventListener('click', () => {
+    loadUsers();
+  });
+
+  checkSession();
+})();
+</script>
+</body>
+</html>

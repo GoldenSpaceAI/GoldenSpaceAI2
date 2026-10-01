@@ -1,3 +1,12 @@
+# GoldenSpaceAI — account-scoped plan/payment history (2026-10-01)
+
+- **Cross-device plan history:** upgrade requests (Waiting / Approved / Declined), amounts, plan, status, and dates persist under the **logged-in account** (`userId` + email), not only `X-Client-Id`. Settings, `/my-plan`, and `/upgrade` load the same history on every device.
+- **Subscriptions / usage:** approved plans bind to `u_<userId>` so paid status follows the account; guests stay device-local.
+- **Upgrade flow:** login required; removed the email input — notifications always use the signed-in account email. `/login?next=/upgrade` returns users to the upgrade page after OTP (and Google via `gsa_post_login`).
+- Service worker cache `goldenspaceai2-v34`. App `2.3.8`.
+
+---
+
 # GoldenSpaceAI — cross-device chat sync + plan status emails (2026-10-01)
 
 - **Cross-device sync root cause:** device→user chat merge failed with `invalid input syntax for type json` (jsonb bind), so chats stayed under device keys; GET preferred empty Postgres over JSON fallback (Oregon split-brain); login client could keep an empty local cache ahead of cloud.

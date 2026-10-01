@@ -196,7 +196,7 @@
 
 <main>
   <h1>My plan</h1>
-  <p class="lead">See your current plan, usage, and whether a payment request is Waiting, Approved, or Declined.</p>
+  <p class="lead">See your current plan, usage, and payment request history (Waiting, Approved, or Declined). Signed-in accounts sync this across all your devices.</p>
 
   <div id="loading" class="loading">Loading your plan…</div>
   <div id="error" class="err" hidden></div>
@@ -325,6 +325,7 @@
     var content = document.getElementById('content');
     try {
       var res = await fetch('/api/my-plan', {
+        credentials: 'include',
         cache: 'no-store',
         headers: { 'X-Client-Id': ensureClientId() }
       });

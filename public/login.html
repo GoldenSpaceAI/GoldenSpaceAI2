@@ -583,7 +583,7 @@
         ready: !!data.ready
       };
       if (authState.user) {
-        window.location.replace('/?auth=ok');
+        window.location.replace(postLoginTarget());
         return;
       }
     } catch (e) {
@@ -703,7 +703,7 @@
       stopResendCooldown();
       setStatus('Signed in — redirecting…', 'ok');
       try { await apiFetch('/api/auth/merge-device', { method: 'POST', body: '{}' }); } catch (e) {}
-      window.location.replace('/?auth=ok');
+      window.location.replace(postLoginTarget());
     } catch (e) {
       setStatus('Network error', 'err');
       verifying = false;
@@ -711,11 +711,38 @@
     }
   };
 
+
+  function postLoginTarget() {
+    var next = '/?auth=ok';
+    try {
+      var q = new URLSearchParams(window.location.search).get('next');
+      if (q && q.charAt(0) === '/' && q.charAt(1) !== '/') next = q;
+      var stored = sessionStorage.getItem('gsa_post_login');
+      if (stored && stored.charAt(0) === '/' && stored.charAt(1) !== '/') {
+        next = stored;
+        sessionStorage.removeItem('gsa_post_login');
+      }
+    } catch (e) {}
+    if (next === '/upgrade' || next.indexOf('/upgrade') === 0) return next;
+    if (next === '/my-plan' || next.indexOf('/my-plan') === 0) return next;
+    if (next.charAt(0) === '/' && next.charAt(1) !== '/' && next.indexOf('/login') !== 0) {
+      if (next === '/' || next.indexOf('/?') === 0) return '/?auth=ok';
+      return next;
+    }
+    return '/?auth=ok';
+  }
+
   window.startGoogleLogin = function() {
     if (!authState.googleOAuth) {
       setStatus('Google login not configured yet (GOOGLE_CLIENT_ID / SECRET).', 'err');
       return;
     }
+    try {
+      var qn = new URLSearchParams(window.location.search).get('next');
+      if (qn && qn.charAt(0) === '/' && qn.charAt(1) !== '/') {
+        sessionStorage.setItem('gsa_post_login', qn);
+      }
+    } catch (e) {}
     window.location.href = '/api/auth/google/start?cid=' + encodeURIComponent(ensureClientId());
   };
 

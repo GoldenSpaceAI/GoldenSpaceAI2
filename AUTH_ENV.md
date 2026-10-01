@@ -1,7 +1,7 @@
 # Auth environment checklist (GoldenSpaceAI2)
 
 Login (email **6-digit OTP** via Resend + Google OAuth) and cross-device chat sync are implemented in code.
-**Live login stays disabled until the keys below are set.** Guest chat, plans, OMT, admin, and caps are unchanged and keep using the device `X-Client-Id`.
+**Live login stays disabled until the keys below are set.** Guest chat stays device-local (`X-Client-Id`). **Upgrades require login**; paid plan status and payment history sync under the account (`u_<userId>`) across devices. Guests without a session keep device-local plan history only.
 
 ## Required for sessions + sync storage
 
@@ -92,4 +92,4 @@ When `RESEND_API_KEY` is set, GoldenSpaceAI sends:
 2. **Plan approved** — after admin POST `/api/admin/payments/:id/approve`.
 3. **Plan declined** — after admin POST `/api/admin/payments/:id/decline`.
 
-Recipient: optional `email` on the upgrade form, else the signed-in account email (session cookie). Stored on the payment record for approve/decline. Missing email or Resend key → skip send; request still succeeds. Uses `EMAIL_FROM` like OTP / login-alert mail.
+Recipient: **always the signed-in account email** (session cookie). There is no email field on `/upgrade`. Login is required to POST `/api/upgrade/request`. Email is stored on the payment (`userId` + email) so history/approve/decline follow the account on every device. Missing Resend key → skip send; request still succeeds. Uses `EMAIL_FROM` like OTP / login-alert mail.

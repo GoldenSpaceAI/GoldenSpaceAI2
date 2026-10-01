@@ -10,6 +10,8 @@ const {
     isAdminAuthed,
     OMT_DESTINATION
 } = require('./plans');
+const multer = require('multer');
+const { extractUploadedFile, MAX_FILE_BYTES } = require('./fileExtract');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -535,6 +537,53 @@ function mapApiError(error, provider) {
     if (clean) return '⚠️ ' + clean;
     return '⚠️ Something went wrong. Please try again.';
 }
+
+// ==================== FILE EXTRACT (chat attachments; does NOT burn plan caps) ====================
+const uploadMemory = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_FILE_BYTES, files: 1 }
+});
+
+app.post('/api/extract-file', (req, res) => {
+    uploadMemory.single('file')(req, res, async (err) => {
+        if (err) {
+            const msg = err.code === 'LIMIT_FILE_SIZE'
+                ? 'File too large (max ~12MB).'
+                : (err.message || 'Upload failed');
+            return res.status(400).json({
+                ok: false,
+                error: msg,
+                preferMode: 'thinking',
+                reason: 'upload_error'
+            });
+        }
+        try {
+            if (!req.file) {
+                return res.status(400).json({
+                    ok: false,
+                    error: 'No file uploaded.',
+                    preferMode: 'thinking',
+                    reason: 'missing_file'
+                });
+            }
+            const result = await extractUploadedFile({
+                buffer: req.file.buffer,
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype
+            });
+            // Never meters Thinking/Fast — extraction is free.
+            return res.json(result);
+        } catch (e) {
+            console.error('extract-file:', e.message || e);
+            return res.status(500).json({
+                ok: false,
+                error: 'Extraction failed.',
+                preferMode: 'thinking',
+                reason: 'server_error'
+            });
+        }
+    });
+});
 
 // ==================== MAIN CHAT ENDPOINT (non-streaming, compatibility) ====================
 app.post('/api/chat', async (req, res) => {

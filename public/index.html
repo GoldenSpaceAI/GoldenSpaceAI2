@@ -1123,13 +1123,167 @@
         [data-theme="light"] .md-table tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
         html.light .badge-expert { color: #1a1a1a; }
 
+        /* ===== Chat polish: toasts, jump, timestamps, composer ===== */
+        .toast-host {
+            position: fixed;
+            left: 50%;
+            bottom: calc(88px + var(--safe-bottom));
+            transform: translateX(-50%);
+            z-index: 6000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: min(420px, calc(100% - 24px));
+            pointer-events: none;
+        }
+        .toast {
+            pointer-events: auto;
+            background: var(--black-lighter);
+            border: 1px solid rgba(212,175,55,0.45);
+            color: var(--text);
+            border-radius: 14px;
+            padding: 12px 14px;
+            font-size: 13px;
+            line-height: 1.4;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+            animation: toastIn 0.22s ease;
+        }
+        .toast.ok { border-color: rgba(74,222,128,0.45); }
+        .toast.warn { border-color: rgba(244,208,63,0.55); }
+        .toast.err { border-color: rgba(231,76,60,0.55); }
+        .toast a { color: var(--gold); font-weight: 700; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+        .jump-latest {
+            display: none;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: calc(76px + var(--safe-bottom));
+            z-index: 90;
+            border: 1px solid rgba(212,175,55,0.55);
+            background: var(--black-light);
+            color: var(--gold);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 650;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        .jump-latest.show { display: inline-flex; align-items: center; gap: 6px; }
+        @media (min-width: 769px) {
+            .jump-latest { bottom: 100px; }
+        }
+
+        .msg-time {
+            display: none;
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+        .message.show-time .msg-time,
+        .message:hover .msg-time { display: block; }
+        .message.user .msg-time { text-align: right; }
+
+        .top-bar-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: text;
+            border-radius: 8px;
+            padding: 4px 8px;
+            margin: -4px -4px;
+            outline: none;
+            min-width: 0;
+        }
+        .top-bar-title:focus, .top-bar-title.editing {
+            background: var(--black-light);
+            border: 1px solid var(--gold-dark);
+            box-shadow: 0 0 0 2px rgba(212,175,55,0.15);
+        }
+
+        .composer-shell {
+            padding-bottom: 0;
+            margin: 0 10px max(10px, var(--safe-bottom)) 10px;
+        }
+        .composer-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            width: 100%;
+            margin-bottom: 2px;
+        }
+        .input-container {
+            border-radius: 20px;
+            padding: 10px 12px;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .model-btn {
+            font-size: 12px;
+            padding: 7px 10px;
+            border-radius: 12px;
+            min-height: 34px;
+        }
+        .send-btn {
+            width: 36px;
+            height: 36px;
+            font-size: 15px;
+            margin-bottom: 1px;
+        }
+        .input-btn {
+            min-width: 36px;
+            min-height: 36px;
+            font-size: 17px;
+        }
+        .message-bubble {
+            box-shadow: 0 1px 0 rgba(255,255,255,0.03);
+        }
+        .ai-block {
+            padding: 2px 2px 4px;
+        }
+        .ai-content .stream-caret {
+            display: inline-block;
+            width: 7px;
+            height: 1em;
+            margin-left: 2px;
+            background: var(--gold);
+            border-radius: 1px;
+            vertical-align: text-bottom;
+            animation: caretBlink 0.9s step-end infinite;
+        }
+        @keyframes caretBlink { 50% { opacity: 0; } }
+
+        @media (max-width: 768px) {
+            .composer-tools {
+                width: 100%;
+                margin-bottom: 6px;
+            }
+            .composer-tools .model-selector { flex: 1 1 auto; min-width: 0; }
+            .composer-tools .model-btn { width: 100%; justify-content: space-between; }
+            .composer-tools .model-menu { min-width: min(280px, 92vw); left: 0; right: auto; }
+            .input-container {
+                flex-wrap: nowrap;
+                padding: 8px 10px calc(8px + 0px);
+            }
+            .model-selector.composer-inline { display: none; }
+            .web-search-toggle.composer-inline { display: none !important; }
+        }
+        @media (min-width: 769px) {
+            .composer-tools.mobile-only { display: none; }
+            .composer-shell { margin: 0 0 max(16px, var(--safe-bottom)) 0; }
+        }
+
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="top-bar">
             <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>
-            <span class="top-bar-title" id="topBarTitle">GoldenSpaceAI</span>
+            <span class="top-bar-title" id="topBarTitle" contenteditable="false" spellcheck="false" title="Tap to rename chat" role="textbox" aria-label="Chat title">GoldenSpaceAI</span>
             <div class="top-bar-actions">
                 <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button>
                 <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Theme">Theme</button>
@@ -1195,6 +1349,7 @@
 
             <div class="chat-area">
                 <div class="messages-container" id="messagesContainer"></div>
+                <button type="button" class="jump-latest" id="jumpLatestBtn" onclick="jumpToLatest()" aria-label="Jump to latest">↓ Latest</button>
 
                 <div class="composer-shell">
                     <div class="attach-previews" id="attachPreviews">
@@ -1207,14 +1362,38 @@
                             <button type="button" onclick="clearAttachedFile()" aria-label="Remove file">&times;</button>
                         </div>
                     </div>
+                    <div class="composer-tools mobile-only">
+                        <div class="model-selector" id="modelSelectorMobile">
+                            <button class="model-btn" id="modelBtnMobile" onclick="toggleModelMenu('mobile')" aria-label="Mode">
+                                <span id="modelLabelMobile">Fast</span> ▾
+                            </button>
+                            <div class="model-menu" id="modelMenuMobile">
+                                <div class="model-menu-item" data-model="normal" onclick="setModel('normal')">
+                                    Fast <span class="model-menu-desc">Vision + files</span>
+                                </div>
+                                <div class="model-menu-item" data-model="smart" onclick="setModel('smart')">
+                                    Thinking <span class="model-menu-desc">Grok 4.3</span>
+                                </div>
+                                <div class="model-menu-item expert" data-model="expert-4" onclick="setModel('expert-4')">
+                                    Expert 4 <span class="model-menu-desc">Web & X</span><span class="model-menu-badge">NEW</span>
+                                </div>
+                                <div class="model-menu-item expert" data-model="expert-16" onclick="setModel('expert-16')">
+                                    Expert 16 <span class="model-menu-desc">Deep research</span><span class="model-menu-badge">BEST</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="web-search-toggle" id="webSearchToggleMobile" style="display:none;align-items:center;flex-shrink:0;">
+                            <button class="web-search-btn" id="webSearchBtnMobile" onclick="toggleWebSearch()">Web OFF</button>
+                        </div>
+                    </div>
                     <div class="input-container">
-                        <div class="model-selector">
-                            <button class="model-btn" id="modelBtn" onclick="toggleModelMenu()">
-                                <span id="modelLabel">Fast</span> v
+                        <div class="model-selector composer-inline">
+                            <button class="model-btn" id="modelBtn" onclick="toggleModelMenu('desktop')">
+                                <span id="modelLabel">Fast</span> ▾
                             </button>
                             <div class="model-menu" id="modelMenu">
                                 <div class="model-menu-item" data-model="normal" onclick="setModel('normal')">
-                                    Fast <span class="model-menu-desc">Grok · vision</span>
+                                    Fast <span class="model-menu-desc">Vision + files</span>
                                 </div>
                                 <div class="model-menu-item" data-model="smart" onclick="setModel('smart')">
                                     Thinking <span class="model-menu-desc">Grok 4.3</span>
@@ -1228,20 +1407,20 @@
                             </div>
                         </div>
 
-                        <div class="web-search-toggle" id="webSearchToggle" style="display:none;align-items:center;flex-shrink:0;">
+                        <div class="web-search-toggle composer-inline" id="webSearchToggle" style="display:none;align-items:center;flex-shrink:0;">
                             <button class="web-search-btn" id="webSearchBtn" onclick="toggleWebSearch()">Web OFF</button>
                         </div>
 
                         <div class="input-actions">
                             <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
                             <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
-                            <input type="file" id="fileInput" accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf" style="display:none" onchange="handleFileUpload(event)">
+                            <input type="file" id="fileInput" accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx,text/plain,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" style="display:none" onchange="handleFileUpload(event)">
                             
                             <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Add">+</button>
                             <div class="plus-menu" id="plusMenu">
                                 <div class="plus-menu-item" onclick="openPhotos()">Photos</div>
                                 <div class="plus-menu-item" onclick="openCamera()">Camera</div>
-                                <div class="plus-menu-item" onclick="openFileAttach()">File (.txt/.md)</div>
+                                <div class="plus-menu-item" onclick="openFileAttach()">File (Word / PPT / PDF / txt)</div>
                             </div>
 
                             <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice">Mic</button>
@@ -1254,6 +1433,7 @@
                 </div>
             </div>
         </div>
+        <div class="toast-host" id="toastHost" aria-live="polite"></div>
         <div class="overlay" id="overlay" onclick="toggleChatsPanel()"></div>
         <div class="listening-overlay" id="listeningOverlay" role="dialog" aria-modal="true" aria-label="Listening">
             <div class="listening-card">
@@ -1281,6 +1461,12 @@
         let selectedImage = null;
         let selectedFileText = null;
         let selectedFileName = null;
+        let selectedFilePreferMode = 'fast';
+        let selectedFileNote = null;
+        let cachedPlan = null;
+        let stickToBottom = true;
+        let streamPaintRaf = null;
+        let streamTargetText = '';
         let micPermissionGranted = false;
         let webSearchEnabled = false;
         let globalInstructions = '';
@@ -1318,6 +1504,7 @@
                 const res = await fetch('/api/plan-status', { cache: 'no-store', headers: { 'X-Client-Id': ensureClientId() } });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed');
+                cachedPlan = data;
                 nameEl.textContent = data.label || 'Free';
                 badgeEl.textContent = (data.plan || 'free').toUpperCase();
                 const periodNote = data.plan === 'free'
@@ -1405,6 +1592,10 @@
             renderChatsList();
             initSpeechRecognition();
             updateModelUI();
+            bindTitleEdit();
+            bindMessagesScroll();
+            stickToBottom = true;
+            updateJumpLatestBtn();
             loadPlanStatus();
             document.addEventListener('visibilitychange', function() {
                 if (document.visibilityState === 'visible') loadPlanStatus();
@@ -1427,9 +1618,12 @@
             document.addEventListener('click', function(e) {
                 const modelMenu = document.getElementById('modelMenu');
                 const modelBtn = document.getElementById('modelBtn');
+                const modelMenuMobile = document.getElementById('modelMenuMobile');
+                const modelBtnMobile = document.getElementById('modelBtnMobile');
                 const plusMenu = document.getElementById('plusMenu');
                 const plusBtn = document.getElementById('plusBtn');
                 if (modelMenu && modelBtn && !modelBtn.contains(e.target) && !modelMenu.contains(e.target)) modelMenu.classList.remove('show');
+                if (modelMenuMobile && modelBtnMobile && !modelBtnMobile.contains(e.target) && !modelMenuMobile.contains(e.target)) modelMenuMobile.classList.remove('show');
                 if (plusMenu && plusBtn && !plusBtn.contains(e.target) && !plusMenu.contains(e.target)) plusMenu.classList.remove('show');
             });
         }
@@ -1448,51 +1642,45 @@
         }
 
         function updateWebSearchUI() {
-            const btn = document.getElementById('webSearchBtn');
-            if (btn) {
-                if (webSearchEnabled) {
-                    btn.textContent = 'Web ON';
-                    btn.classList.add('on');
-                } else {
-                    btn.textContent = 'Web OFF';
-                    btn.classList.remove('on');
-                }
-            }
+            syncWebSearchToggles();
         }
 
-        function toggleModelMenu() {
-            const modelMenu = document.getElementById('modelMenu');
+        function toggleModelMenu(which) {
             const plusMenu = document.getElementById('plusMenu');
             if (plusMenu) plusMenu.classList.remove('show');
-            if (modelMenu) modelMenu.classList.toggle('show');
+            const desktop = document.getElementById('modelMenu');
+            const mobile = document.getElementById('modelMenuMobile');
+            if (which === 'mobile') {
+                if (desktop) desktop.classList.remove('show');
+                if (mobile) mobile.classList.toggle('show');
+            } else if (which === 'desktop') {
+                if (mobile) mobile.classList.remove('show');
+                if (desktop) desktop.classList.toggle('show');
+            } else {
+                const openDesktop = desktop && desktop.classList.contains('show');
+                const openMobile = mobile && mobile.classList.contains('show');
+                if (openDesktop || openMobile) {
+                    if (desktop) desktop.classList.remove('show');
+                    if (mobile) mobile.classList.remove('show');
+                } else if (window.matchMedia('(max-width: 768px)').matches) {
+                    if (mobile) mobile.classList.add('show');
+                } else if (desktop) {
+                    desktop.classList.add('show');
+                }
+            }
         }
 
         function setModel(model) {
             currentModel = model;
             updateModelUI();
-            document.getElementById('modelMenu').classList.remove('show');
-            document.getElementById('plusMenu').classList.remove('show');
-            
-            const webToggle = document.getElementById('webSearchToggle');
-            if (webToggle) {
-                webToggle.style.display = model.startsWith('expert') ? 'flex' : 'none';
-            }
+            const menus = [document.getElementById('modelMenu'), document.getElementById('modelMenuMobile'), document.getElementById('plusMenu')];
+            menus.forEach(function(m) { if (m) m.classList.remove('show'); });
+            syncWebSearchToggles();
         }
 
         function updateModelUI() {
-            const config = MODELS[currentModel];
-            if (!config) return;
-            document.getElementById('modelLabel').textContent = config.label;
-            const btn = document.getElementById('modelBtn');
-            if (currentModel.startsWith('expert')) {
-                btn.classList.add('expert-active');
-            } else {
-                btn.classList.remove('expert-active');
-            }
-            const items = document.querySelectorAll('.model-menu-item');
-            for (let i = 0; i < items.length; i++) {
-                items[i].classList.toggle('selected', items[i].getAttribute('data-model') === currentModel);
-            }
+            syncModelLabels();
+            syncWebSearchToggles();
         }
 
         function loadChats() {
@@ -1662,6 +1850,55 @@
             if (btn) btn.classList.remove('on');
         }
 
+
+        function showToast(message, kind, ms) {
+            const host = document.getElementById('toastHost');
+            if (!host) return;
+            const el = document.createElement('div');
+            el.className = 'toast ' + (kind || '');
+            el.innerHTML = String(message || '');
+            host.appendChild(el);
+            const ttl = typeof ms === 'number' ? ms : (kind === 'err' ? 5200 : 2800);
+            setTimeout(function() {
+                el.style.opacity = '0';
+                el.style.transition = 'opacity 0.25s';
+                setTimeout(function() { el.remove(); }, 280);
+            }, ttl);
+        }
+
+        function isFreePlan() {
+            return !cachedPlan || cachedPlan.plan === 'free' || !cachedPlan.plan;
+        }
+
+        function syncModelLabels() {
+            const label = (MODELS[currentModel] || MODELS.normal).label;
+            const a = document.getElementById('modelLabel');
+            const b = document.getElementById('modelLabelMobile');
+            if (a) a.textContent = label;
+            if (b) b.textContent = label;
+            const expert = currentModel.indexOf('expert') === 0;
+            const btn = document.getElementById('modelBtn');
+            const btnM = document.getElementById('modelBtnMobile');
+            if (btn) btn.classList.toggle('expert-active', expert);
+            if (btnM) btnM.classList.toggle('expert-active', expert);
+            document.querySelectorAll('.model-menu-item').forEach(function(item) {
+                item.classList.toggle('selected', item.getAttribute('data-model') === currentModel);
+            });
+        }
+
+        function syncWebSearchToggles() {
+            const show = String(currentModel).indexOf('expert') === 0;
+            const desktop = document.getElementById('webSearchToggle');
+            const mobile = document.getElementById('webSearchToggleMobile');
+            if (desktop) desktop.style.display = show ? 'flex' : 'none';
+            if (mobile) mobile.style.display = show ? 'flex' : 'none';
+            const label = webSearchEnabled ? 'Web ON' : 'Web OFF';
+            const b1 = document.getElementById('webSearchBtn');
+            const b2 = document.getElementById('webSearchBtnMobile');
+            if (b1) { b1.textContent = label; b1.classList.toggle('on', webSearchEnabled); }
+            if (b2) { b2.textContent = label; b2.classList.toggle('on', webSearchEnabled); }
+        }
+
         function createNewChat() {
             const id = 'chat_' + Date.now();
             chats[id] = { name: 'New Chat', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), systemPrompt: '' };
@@ -1710,11 +1947,73 @@
         function updateTopTitle() {
             const el = document.getElementById('topBarTitle');
             if (!el) return;
+            if (el.classList.contains('editing')) return;
             if (currentChatId && chats[currentChatId] && chats[currentChatId].name && chats[currentChatId].name !== 'New Chat') {
                 el.textContent = chats[currentChatId].name;
             } else {
                 el.textContent = 'GoldenSpaceAI';
             }
+        }
+
+        function beginTitleEdit() {
+            if (!currentChatId || !chats[currentChatId]) return;
+            const el = document.getElementById('topBarTitle');
+            if (!el || el.classList.contains('editing')) return;
+            el.classList.add('editing');
+            el.contentEditable = 'true';
+            el.focus();
+            try {
+                const range = document.createRange();
+                range.selectNodeContents(el);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            } catch (e) {}
+        }
+
+        function commitTitleEdit() {
+            const el = document.getElementById('topBarTitle');
+            if (!el || !el.classList.contains('editing')) return;
+            el.classList.remove('editing');
+            el.contentEditable = 'false';
+            let name = (el.textContent || '').replace(/\s+/g, ' ').trim();
+            if (!currentChatId || !chats[currentChatId]) {
+                updateTopTitle();
+                return;
+            }
+            if (!name) {
+                updateTopTitle();
+                return;
+            }
+            if (name.length > 48) name = name.slice(0, 48);
+            if (name !== chats[currentChatId].name) {
+                chats[currentChatId].name = name;
+                chats[currentChatId].named = true;
+                chats[currentChatId].updatedAt = new Date().toISOString();
+                saveChats();
+                renderChatsList();
+                showToast('Chat renamed', 'ok', 1600);
+            }
+            updateTopTitle();
+        }
+
+        function bindTitleEdit() {
+            const el = document.getElementById('topBarTitle');
+            if (!el || el._titleBound) return;
+            el._titleBound = true;
+            el.addEventListener('click', function() {
+                if (!el.classList.contains('editing')) beginTitleEdit();
+            });
+            el.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    el.classList.remove('editing');
+                    el.contentEditable = 'false';
+                    updateTopTitle();
+                }
+            });
+            el.addEventListener('blur', commitTitleEdit);
         }
 
         function loadChat() {
@@ -1725,13 +2024,14 @@
             if(!currentChatId || !chats[currentChatId]) return;
             const messages = chats[currentChatId].messages || [];
             if (!messages.length) {
-                container.innerHTML = '<div class="empty-state"><div class="empty-title">Welcome to GoldenSpaceAI</div><div class="empty-hint">Ask anything. Attach images or .txt/.md files, or choose a mode to get started.</div></div>';
+                container.innerHTML = '<div class="empty-state"><div class="empty-title">Welcome to GoldenSpaceAI</div><div class="empty-hint">Ask anything. Attach images, Word, PowerPoint, PDF, or txt/md — extracted text goes into chat context.</div></div>';
                 return;
             }
+            stickToBottom = true;
             for (let i = 0; i < messages.length; i++) {
                 renderMessage(messages[i], i);
             }
-            scrollToBottom();
+            scrollToBottom(true);
         }
 
         function renderChatsList() {
@@ -1816,7 +2116,7 @@
         function handleImageUpload(event) {
             const file = event.target.files[0];
             if(!file) return;
-            if(!file.type.startsWith('image/')) { alert('Please select an image.'); return; }
+            if(!file.type.startsWith('image/')) { showToast('Please select an image.', 'err'); return; }
             compressImage(file, function(compressedBase64) {
                 setAttachedImage(compressedBase64);
             });
@@ -1867,38 +2167,123 @@
             syncAttachPreviews();
         }
 
-        function handleFileUpload(event) {
+        function applyFileAttachment(result) {
+            selectedFileText = result.text || '';
+            selectedFileName = result.name || 'file';
+            selectedFilePreferMode = result.preferMode || 'fast';
+            selectedFileNote = result.note || null;
+            const wrap = document.getElementById('filePreview');
+            const label = document.getElementById('filePreviewName');
+            const noteBit = result.ok ? '' : ' (limited)';
+            if (label) label.textContent = '📎 ' + selectedFileName + noteBit;
+            if (wrap) wrap.classList.add('show');
+            document.getElementById('plusBtn').classList.add('image-attached');
+            syncAttachPreviews();
+        }
+
+        async function routeFileMode(preferMode, reason) {
+            // Prefer Fast for vision + extracted text. Only escalate to Thinking when needed.
+            if (preferMode !== 'thinking') {
+                selectedFilePreferMode = 'fast';
+                return true;
+            }
+            // Hard-stop Free users before burning Thinking quota
+            if (!cachedPlan) {
+                try { await loadPlanStatus(); } catch (e) {}
+            }
+            if (isFreePlan()) {
+                clearAttachedFile();
+                showToast('This file needs <strong>Thinking</strong>, which is not on Free. <a href="/upgrade">Upgrade</a> to unlock — no Thinking used.', 'err', 7000);
+                return false;
+            }
+            if (currentModel !== 'smart') {
+                setModel('smart');
+                showToast('Switched to Thinking — Fast cannot handle this file type well.', 'warn', 4200);
+            } else {
+                showToast('Using Thinking for this file.', 'warn', 2600);
+            }
+            selectedFilePreferMode = 'thinking';
+            return true;
+        }
+
+        async function handleFileUpload(event) {
             const file = event.target.files[0];
             event.target.value = '';
             if (!file) return;
             const name = file.name || 'file';
             const lower = name.toLowerCase();
-            if (lower.endsWith('.pdf') || file.type === 'application/pdf') {
-                alert('PDF attach is not supported in the browser yet. Please use .txt or .md, or paste the text.');
+            const okExt = /\.(txt|md|markdown|pdf|docx|doc|pptx|ppt)$/i.test(lower)
+                || (file.type && (file.type.startsWith('text/') || file.type === 'application/pdf'
+                    || /word|powerpoint|officedocument/i.test(file.type)));
+            if (!okExt) {
+                showToast('Unsupported file. Use Word, PowerPoint, PDF, txt/md, or images.', 'err');
                 return;
             }
-            if (!(lower.endsWith('.txt') || lower.endsWith('.md') || file.type.startsWith('text/'))) {
-                alert('Please attach a .txt or .md file.');
+            if (file.size > 12 * 1024 * 1024) {
+                showToast('File too large (max ~12MB).', 'err');
                 return;
             }
-            if (file.size > 400 * 1024) { alert('File too large (max ~400KB).'); return; }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                selectedFileText = String(e.target.result || '');
-                selectedFileName = name;
-                const wrap = document.getElementById('filePreview');
-                const label = document.getElementById('filePreviewName');
-                if (label) label.textContent = '📎 ' + name;
-                if (wrap) wrap.classList.add('show');
-                document.getElementById('plusBtn').classList.add('image-attached');
-                syncAttachPreviews();
-            };
-            reader.readAsText(file);
+
+            // Tiny text: extract client-side (Fast path)
+            if (/\.(txt|md|markdown)$/i.test(lower) || (file.type && file.type.startsWith('text/') && file.size < 500000)) {
+                try {
+                    const text = await file.text();
+                    const ok = await routeFileMode('fast', 'extracted_text');
+                    if (!ok) return;
+                    applyFileAttachment({ ok: true, name: name, text: text, preferMode: 'fast', note: null });
+                    showToast('Attached ' + name, 'ok', 1600);
+                    return;
+                } catch (e) {
+                    showToast('Could not read text file.', 'err');
+                    return;
+                }
+            }
+
+            showToast('Extracting ' + name + '…', '', 1800);
+            try {
+                const fd = new FormData();
+                fd.append('file', file, name);
+                const res = await fetch('/api/extract-file', {
+                    method: 'POST',
+                    headers: { 'X-Client-Id': ensureClientId() },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok && !data) {
+                    showToast('Upload failed.', 'err');
+                    return;
+                }
+                const prefer = data.preferMode || (data.ok ? 'fast' : 'thinking');
+                const allowed = await routeFileMode(prefer, data.reason || '');
+                if (!allowed) return;
+
+                if (data.ok && data.text) {
+                    applyFileAttachment(data);
+                    showToast('Extracted text from ' + name, 'ok', 2000);
+                } else if (prefer === 'thinking' && !isFreePlan()) {
+                    // Attach a note so chat still has context without burning a useless Fast call
+                    applyFileAttachment({
+                        ok: false,
+                        name: name,
+                        text: data.note || ('[Could not extract text from ' + name + ']'),
+                        preferMode: 'thinking',
+                        note: data.note || null
+                    });
+                    showToast(data.note || 'Limited extraction — using Thinking.', 'warn', 4200);
+                } else {
+                    showToast(data.note || data.error || 'Could not extract this file.', 'err');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('File extract failed. Check connection.', 'err');
+            }
         }
 
         function clearAttachedFile() {
             selectedFileText = null;
             selectedFileName = null;
+            selectedFilePreferMode = 'fast';
+            selectedFileNote = null;
             const wrap = document.getElementById('filePreview');
             const label = document.getElementById('filePreviewName');
             if (wrap) wrap.classList.remove('show');
@@ -1988,7 +2373,15 @@
             let text = opts.text !== undefined ? opts.text : input.value.trim();
             let imgToSend = opts.image !== undefined ? opts.image : selectedImage;
             if (selectedFileText && opts.text === undefined) {
-                const fileBlock = '\n\n---\nAttached file: ' + (selectedFileName || 'file') + '\n```\n' + selectedFileText.slice(0, 120000) + '\n```\n';
+                if (selectedFilePreferMode === 'thinking' && currentModel !== 'smart') {
+                    if (isFreePlan()) {
+                        showToast('This file needs <strong>Thinking</strong>. <a href="/upgrade">Upgrade</a> to continue — no Thinking used.', 'err', 7000);
+                        return;
+                    }
+                    setModel('smart');
+                }
+                const noteLine = selectedFileNote ? ('\nNote: ' + selectedFileNote) : '';
+                const fileBlock = '\n\n---\nAttached file: ' + (selectedFileName || 'file') + noteLine + '\n```\n' + selectedFileText.slice(0, 120000) + '\n```\n';
                 text = (text || 'Please review the attached file.') + fileBlock;
             }
             if(!text && !imgToSend) return;
@@ -2049,11 +2442,16 @@
             }
 
             function paintStream() {
-                if (!contentEl) return;
-                contentEl.setAttribute('data-text', streamedText);
-                contentEl.innerHTML = formatMarkdown(streamedText);
-                renderMathIn(contentEl);
-                scrollToBottom();
+                streamTargetText = streamedText;
+                if (streamPaintRaf) return;
+                streamPaintRaf = requestAnimationFrame(function() {
+                    streamPaintRaf = null;
+                    if (!contentEl) return;
+                    contentEl.setAttribute('data-text', streamTargetText);
+                    contentEl.innerHTML = formatMarkdown(streamTargetText) + '<span class="stream-caret" aria-hidden="true"></span>';
+                    renderMathIn(contentEl);
+                    scrollToBottom();
+                });
             }
 
             try {
@@ -2180,6 +2578,7 @@
                     chats[currentChatId].updatedAt = new Date().toISOString();
                     saveChats();
                     if (contentEl) {
+                        if (streamPaintRaf) { cancelAnimationFrame(streamPaintRaf); streamPaintRaf = null; }
                         contentEl.setAttribute('data-text', finalText);
                         contentEl.innerHTML = formatMarkdown(finalText);
                         renderMathIn(contentEl);
@@ -2257,7 +2656,9 @@
             const first = msg.split('\n')[0].replace(/\s+at\s+.*/g, '').trim();
             // Plan / usage hard-stops from server — show verbatim
             if (/Limit reached|not included on|Upgrade your plan|upgrade your plan/i.test(first)) {
-                return first.length > 280 ? first.slice(0, 280) + '…' : first;
+                const clipped = first.length > 280 ? first.slice(0, 280) + '…' : first;
+                try { showToast(escapeHtmlRaw(clipped) + ' <a href="/upgrade">Upgrade</a>', 'err', 6500); } catch (e) {}
+                return clipped;
             }
             // Prefer already-friendly server messages (emoji-prefixed) before generic network remap
             if (/^[⚠️🔑⏳💰⏰🔧]/.test(first)) {
@@ -2354,6 +2755,31 @@
             URL.revokeObjectURL(url);
         }
 
+        function formatMsgTime(iso) {
+            if (!iso) return '';
+            try {
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return '';
+                return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return ''; }
+        }
+
+        function bindMessageTimeGestures(div) {
+            if (!div || div._timeBound) return;
+            div._timeBound = true;
+            let timer = null;
+            div.addEventListener('pointerdown', function() {
+                timer = setTimeout(function() {
+                    div.classList.add('show-time');
+                    setTimeout(function() { div.classList.remove('show-time'); }, 2600);
+                }, 480);
+            });
+            const clear = function() { if (timer) { clearTimeout(timer); timer = null; } };
+            div.addEventListener('pointerup', clear);
+            div.addEventListener('pointerleave', clear);
+            div.addEventListener('pointercancel', clear);
+        }
+
         function renderMessage(msg, index, returnEl) {
             const container = document.getElementById('messagesContainer');
             const empty = container.querySelector('.empty-state');
@@ -2385,7 +2811,9 @@
                     div.innerHTML = inner;
                 } else {
                 inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>';
-                inner += '<div class="message-actions">' +
+                const tAi = formatMsgTime(msg.timestamp);
+                inner += (tAi ? '<div class="msg-time">' + escapeHtmlRaw(tAi) + '</div>' : '') +
+                    '<div class="message-actions">' +
                     '<button class="msg-btn" title="Copy" onclick="copyMessage(this)">' + ICO.copy + '</button>' +
                     '<button class="msg-btn" title="Share" onclick="shareMessage(this)">' + ICO.share + '</button>' +
                     '<button class="msg-btn" title="Listen" onclick="speakMessage(this)">' + ICO.speak + '</button>' +
@@ -2420,11 +2848,11 @@
 
         const STATUS_LABELS = {
             connecting: 'Connecting…',
-            listening: 'Listening to stream…',
+            listening: 'Receiving…',
             thinking: 'Thinking…',
             searching: 'Searching the web…',
             researching: 'Researching…',
-            generating: 'Generating reply…',
+            generating: 'Typing…',
             waiting: 'Waiting for reply…'
         };
 
@@ -2510,12 +2938,14 @@
 
         function copyMessage(btn) {
             const text = getBubbleText(btn);
-            if (text) {
-                navigator.clipboard.writeText(text).then(function() {
-                    btn.style.color = '#4ade80';
-                    setTimeout(function() { btn.style.color = ''; }, 1200);
-                });
-            }
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(function() {
+                btn.style.color = '#4ade80';
+                setTimeout(function() { btn.style.color = ''; }, 1200);
+                showToast('Copied to clipboard', 'ok', 1600);
+            }).catch(function() {
+                showToast('Copy failed', 'err');
+            });
         }
 
         function copyCodeBlock(btn) {
@@ -2527,6 +2957,9 @@
                 const prev = btn.textContent;
                 btn.textContent = 'Copied';
                 setTimeout(function() { btn.textContent = prev; }, 1200);
+                showToast('Code copied', 'ok', 1400);
+            }).catch(function() {
+                showToast('Copy failed', 'err');
             });
         }
 
@@ -2815,11 +3248,44 @@
             if (e.state && e.state.panel) closeChatsPanel(); 
         });
 
-        function scrollToBottom() {
+        function isNearBottom(mc) {
+            if (!mc) return true;
+            return (mc.scrollHeight - mc.scrollTop - mc.clientHeight) < 96;
+        }
+
+        function updateJumpLatestBtn() {
+            const btn = document.getElementById('jumpLatestBtn');
+            if (!btn) return;
+            btn.classList.toggle('show', !stickToBottom);
+        }
+
+        function scrollToBottom(force) {
             const mc = document.getElementById('messagesContainer');
-            requestAnimationFrame(function() { 
-                mc.scrollTop = mc.scrollHeight; 
+            if (!mc) return;
+            if (!force && !stickToBottom) {
+                updateJumpLatestBtn();
+                return;
+            }
+            requestAnimationFrame(function() {
+                mc.scrollTop = mc.scrollHeight;
+                stickToBottom = true;
+                updateJumpLatestBtn();
             });
+        }
+
+        function jumpToLatest() {
+            stickToBottom = true;
+            scrollToBottom(true);
+        }
+
+        function bindMessagesScroll() {
+            const mc = document.getElementById('messagesContainer');
+            if (!mc || mc._scrollBound) return;
+            mc._scrollBound = true;
+            mc.addEventListener('scroll', function() {
+                stickToBottom = isNearBottom(mc);
+                updateJumpLatestBtn();
+            }, { passive: true });
         }
 
         function escapeHtmlRaw(text) {
@@ -3013,7 +3479,7 @@
         }
 
         if ('visualViewport' in window) {
-            window.visualViewport.addEventListener('resize', function() { scrollToBottom(); });
+            window.visualViewport.addEventListener('resize', function() { if (stickToBottom) scrollToBottom(true); });
         }
 
 

@@ -1,6 +1,6 @@
 {
   "name": "goldenspaceai2",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "description": "GoldenSpaceAI - Professional AI Assistant powered by Grok (streaming, persistence, PWA)",
   "main": "server.js",
   "scripts": {
@@ -11,7 +11,11 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.0",
-    "openai": "^4.73.0"
+    "jszip": "^3.10.2",
+    "mammoth": "^1.13.0",
+    "multer": "^2.4.0",
+    "openai": "^4.73.0",
+    "pdf-parse": "^2.4.5"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -130,6 +130,13 @@
     color: var(--muted);
     font-size: 13.5px;
   }
+  .hero .email-sent {
+    margin-top: 8px;
+    color: var(--text);
+    font-size: 13.5px;
+    font-weight: 600;
+    word-break: break-all;
+  }
 
   label {
     display: block;
@@ -138,8 +145,7 @@
     color: var(--muted);
     margin-bottom: 6px;
   }
-  input[type=email],
-  input[type=text] {
+  input[type=email] {
     width: 100%;
     padding: 12px 14px;
     border-radius: 12px;
@@ -152,15 +158,9 @@
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
-  input:focus {
+  input[type=email]:focus {
     border-color: var(--gold);
     box-shadow: 0 0 0 3px rgba(212,175,55,0.16);
-  }
-  #authOtpInput {
-    letter-spacing: 0.35em;
-    font-size: 1.25rem;
-    font-weight: 700;
-    text-align: center;
   }
 
   .btn {
@@ -185,6 +185,7 @@
     color: #0a0a0a;
     border-color: var(--gold-dark);
   }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.05); }
   .btn-google {
     background: var(--panel-elev);
     color: var(--text);
@@ -201,6 +202,17 @@
     border-color: var(--border);
   }
   .btn-secondary:hover:not(:disabled) { color: var(--gold); border-color: rgba(212,175,55,0.4); }
+  .btn-link {
+    width: auto;
+    padding: 8px 4px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .btn-link:hover:not(:disabled) { color: var(--gold); }
+  .btn-link:disabled { opacity: 0.7; }
 
   .google-icon {
     width: 18px;
@@ -227,16 +239,62 @@
     background: var(--border);
   }
 
-  .otp-step { display: none; margin-top: 4px; }
-  .otp-step.visible { display: block; }
+  .step { display: none; }
+  .step.active { display: block; }
 
-  .row {
+  .otp-boxes {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 4px;
+    justify-content: center;
+    margin: 4px 0 18px;
   }
-  .row .btn { flex: 1 1 140px; }
+  .otp-boxes input {
+    width: 44px;
+    height: 52px;
+    padding: 0;
+    text-align: center;
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    border-radius: 12px;
+    border: 1px solid rgba(212,175,55,0.28);
+    background: transparent;
+    color: inherit;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    caret-color: var(--gold);
+  }
+  .otp-boxes input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.16);
+  }
+  .otp-boxes input.err {
+    border-color: var(--bad);
+    box-shadow: 0 0 0 3px rgba(240,113,120,0.18);
+  }
+
+  .otp-actions { margin-top: 2px; }
+  .otp-actions .btn-primary { margin-bottom: 12px; }
+
+  .resend-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    min-height: 2.4em;
+  }
+  .resend-hint {
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .resend-hint strong { color: var(--text); font-weight: 700; }
+
+  .back-row {
+    text-align: center;
+    margin-top: 10px;
+  }
 
   .status {
     min-height: 1.35em;
@@ -268,6 +326,12 @@
   @media (max-width: 420px) {
     .login-card { padding: 24px 18px 18px; }
     .hero-logo { width: 56px; height: 56px; }
+    .otp-boxes { gap: 6px; }
+    .otp-boxes input {
+      width: 40px;
+      height: 48px;
+      font-size: 1.2rem;
+    }
   }
 </style>
 </head>
@@ -282,35 +346,60 @@
 
   <main>
     <div class="login-card" role="main">
-      <div class="hero">
-        <img class="hero-logo" src="/logo.png" alt="GoldenSpaceAI">
-        <h1>Welcome back</h1>
-        <p>Sign in to sync chats across phones and computers. Guest mode still works without an account.</p>
+      <!-- Step 1: email + Google -->
+      <div class="step active" id="stepEmail" data-step="email">
+        <div class="hero">
+          <img class="hero-logo" src="/logo.png" alt="GoldenSpaceAI">
+          <h1>Welcome back</h1>
+          <p>Sign in to sync chats across phones and computers. Guest mode still works without an account.</p>
+        </div>
+
+        <button type="button" class="btn btn-google" id="authGoogleBtn" onclick="startGoogleLogin()">
+          <svg class="google-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#EA4335" d="M12 10.2v3.6h5.1c-.2 1.2-.9 2.2-1.9 2.9l3.1 2.4c1.8-1.7 2.9-4.1 2.9-7 0-.7-.1-1.3-.2-1.9H12z"/>
+            <path fill="#34A853" d="M12 22c2.6 0 4.8-.9 6.4-2.3l-3.1-2.4c-.9.6-2 .9-3.3.9-2.5 0-4.6-1.7-5.4-4l-3.2 2.5C5.3 19.9 8.4 22 12 22z"/>
+            <path fill="#4A90E2" d="M6.6 14.2c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9L3.4 7.9C2.5 9.6 2 11.3 2 13.2c0 1.9.5 3.6 1.4 5.1l3.2-2.5z"/>
+            <path fill="#FBBC05" d="M12 5.8c1.4 0 2.7.5 3.7 1.4l2.8-2.8C16.8 2.8 14.6 2 12 2 8.4 2 5.3 4.1 3.4 7.5l3.2 2.5c.8-2.3 2.9-4.2 5.4-4.2z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <div class="divider">or email</div>
+
+        <label for="authEmailInput">Email</label>
+        <input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email" inputmode="email">
+
+        <button type="button" class="btn btn-primary" id="authOtpSendBtn" onclick="requestEmailOtp()">Send code</button>
       </div>
 
-      <button type="button" class="btn btn-google" id="authGoogleBtn" onclick="startGoogleLogin()">
-        <svg class="google-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="#EA4335" d="M12 10.2v3.6h5.1c-.2 1.2-.9 2.2-1.9 2.9l3.1 2.4c1.8-1.7 2.9-4.1 2.9-7 0-.7-.1-1.3-.2-1.9H12z"/>
-          <path fill="#34A853" d="M12 22c2.6 0 4.8-.9 6.4-2.3l-3.1-2.4c-.9.6-2 .9-3.3.9-2.5 0-4.6-1.7-5.4-4l-3.2 2.5C5.3 19.9 8.4 22 12 22z"/>
-          <path fill="#4A90E2" d="M6.6 14.2c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9L3.4 7.9C2.5 9.6 2 11.3 2 13.2c0 1.9.5 3.6 1.4 5.1l3.2-2.5z"/>
-          <path fill="#FBBC05" d="M12 5.8c1.4 0 2.7.5 3.7 1.4l2.8-2.8C16.8 2.8 14.6 2 12 2 8.4 2 5.3 4.1 3.4 7.5l3.2 2.5c.8-2.3 2.9-4.2 5.4-4.2z"/>
-        </svg>
-        Continue with Google
-      </button>
+      <!-- Step 2: OTP code entry -->
+      <div class="step" id="stepOtp" data-step="otp">
+        <div class="hero">
+          <img class="hero-logo" src="/logo.png" alt="GoldenSpaceAI">
+          <h1>Enter code</h1>
+          <p>We sent a 6-digit code to</p>
+          <p class="email-sent" id="otpEmailDisplay"></p>
+        </div>
 
-      <div class="divider">or email</div>
+        <label id="otpBoxesLabel">Verification code</label>
+        <div class="otp-boxes" id="otpBoxes" role="group" aria-labelledby="otpBoxesLabel">
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="[0-9]*" aria-label="Digit 1" data-otp-index="0">
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="[0-9]*" aria-label="Digit 2" data-otp-index="1">
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="[0-9]*" aria-label="Digit 3" data-otp-index="2">
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="[0-9]*" aria-label="Digit 4" data-otp-index="3">
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="[0-9]*" aria-label="Digit 5" data-otp-index="4">
+          <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="[0-9]*" aria-label="Digit 6" data-otp-index="5">
+        </div>
 
-      <label for="authEmailInput">Email</label>
-      <input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email" inputmode="email">
-
-      <button type="button" class="btn btn-primary" id="authOtpSendBtn" onclick="requestEmailOtp()">Send code</button>
-
-      <div class="otp-step" id="authOtpStep">
-        <label for="authOtpInput">6-digit code</label>
-        <input type="text" id="authOtpInput" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*">
-        <div class="row">
-          <button type="button" class="btn btn-primary" id="authOtpVerifyBtn" onclick="verifyEmailOtp()">Verify &amp; sign in</button>
-          <button type="button" class="btn btn-secondary" id="authOtpResendBtn" onclick="requestEmailOtp()">Resend</button>
+        <div class="otp-actions">
+          <button type="button" class="btn btn-primary" id="authOtpVerifyBtn" onclick="verifyEmailOtp()">Sign in</button>
+          <div class="resend-row">
+            <span class="resend-hint" id="resendHint" aria-live="polite">Resend available in <strong id="resendCountdown">2:00</strong></span>
+            <button type="button" class="btn btn-secondary" id="authOtpResendBtn" onclick="resendEmailOtp()" disabled hidden>Resend code</button>
+          </div>
+          <div class="back-row">
+            <button type="button" class="btn btn-link" id="authOtpBackBtn" onclick="backToEmailStep()">← Use a different email</button>
+          </div>
         </div>
       </div>
 
@@ -327,8 +416,13 @@
 
 <script>
 (function() {
+  var RESEND_COOLDOWN_MS = 2 * 60 * 1000;
   var authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false };
   var ephemeralClientId = null;
+  var pendingEmail = '';
+  var resendTimerId = null;
+  var resendAvailableAt = 0;
+  var verifying = false;
 
   function newClientId() {
     var id = ('c_' + Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
@@ -364,17 +458,108 @@
     st.className = 'status' + (kind ? ' ' + kind : '');
     st.textContent = msg || '';
   }
+
+  function getOtpInputs() {
+    return Array.prototype.slice.call(document.querySelectorAll('#otpBoxes input'));
+  }
+  function getOtpCode() {
+    return getOtpInputs().map(function(el) { return (el.value || '').replace(/\D/g, '').slice(0, 1); }).join('');
+  }
+  function clearOtpBoxes(opts) {
+    opts = opts || {};
+    var inputs = getOtpInputs();
+    inputs.forEach(function(el) {
+      el.value = '';
+      el.classList.remove('err');
+    });
+    if (opts.focus !== false && inputs[0]) inputs[0].focus();
+  }
+  function markOtpError() {
+    getOtpInputs().forEach(function(el) { el.classList.add('err'); });
+  }
+  function clearOtpErrorStyles() {
+    getOtpInputs().forEach(function(el) { el.classList.remove('err'); });
+  }
+  function fillOtpFromString(str) {
+    var digits = String(str || '').replace(/\D/g, '').slice(0, 6).split('');
+    var inputs = getOtpInputs();
+    inputs.forEach(function(el, i) {
+      el.value = digits[i] || '';
+      el.classList.remove('err');
+    });
+    var focusIdx = Math.min(digits.length, inputs.length - 1);
+    if (digits.length >= 6) focusIdx = inputs.length - 1;
+    if (inputs[focusIdx]) inputs[focusIdx].focus();
+  }
+
+  function showStep(name) {
+    var emailStep = document.getElementById('stepEmail');
+    var otpStep = document.getElementById('stepOtp');
+    if (emailStep) emailStep.classList.toggle('active', name === 'email');
+    if (otpStep) otpStep.classList.toggle('active', name === 'otp');
+  }
+
+  function formatCountdown(ms) {
+    var total = Math.max(0, Math.ceil(ms / 1000));
+    var m = Math.floor(total / 60);
+    var s = total % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function updateResendUi() {
+    var hint = document.getElementById('resendHint');
+    var countdownEl = document.getElementById('resendCountdown');
+    var resendBtn = document.getElementById('authOtpResendBtn');
+    var remaining = resendAvailableAt - Date.now();
+    if (remaining > 0) {
+      if (hint) hint.hidden = false;
+      if (countdownEl) countdownEl.textContent = formatCountdown(remaining);
+      if (resendBtn) {
+        resendBtn.hidden = true;
+        resendBtn.disabled = true;
+      }
+    } else {
+      if (hint) hint.hidden = true;
+      if (resendBtn) {
+        resendBtn.hidden = false;
+        resendBtn.disabled = !authState.emailOtp;
+      }
+    }
+  }
+
+  function startResendCooldown() {
+    resendAvailableAt = Date.now() + RESEND_COOLDOWN_MS;
+    if (resendTimerId) clearInterval(resendTimerId);
+    updateResendUi();
+    resendTimerId = setInterval(function() {
+      updateResendUi();
+      if (Date.now() >= resendAvailableAt) {
+        clearInterval(resendTimerId);
+        resendTimerId = null;
+        updateResendUi();
+      }
+    }, 250);
+  }
+
+  function stopResendCooldown() {
+    if (resendTimerId) clearInterval(resendTimerId);
+    resendTimerId = null;
+    resendAvailableAt = 0;
+  }
+
   function applyProviderButtons() {
     var g = document.getElementById('authGoogleBtn');
     var sendBtn = document.getElementById('authOtpSendBtn');
     var verifyBtn = document.getElementById('authOtpVerifyBtn');
-    var resendBtn = document.getElementById('authOtpResendBtn');
     if (g) g.disabled = !authState.googleOAuth;
     if (sendBtn) sendBtn.disabled = !authState.emailOtp;
-    if (verifyBtn) verifyBtn.disabled = !authState.emailOtp;
-    if (resendBtn) resendBtn.disabled = !authState.emailOtp;
+    if (verifyBtn) verifyBtn.disabled = !authState.emailOtp || verifying;
+    updateResendUi();
   }
+
   function showProviderHint() {
+    var onOtp = document.getElementById('stepOtp') && document.getElementById('stepOtp').classList.contains('active');
+    if (onOtp) return;
     if (!authState.ready) {
       setStatus('Server auth storage not ready yet (DATABASE_URL / SESSION_SECRET).', 'err');
     } else if (!authState.googleOAuth && !authState.emailOtp) {
@@ -385,6 +570,7 @@
       setStatus('');
     }
   }
+
   async function refreshAuthStatus() {
     try {
       var res = await apiFetch('/api/auth/status', { method: 'GET', cache: 'no-store' });
@@ -406,13 +592,47 @@
     applyProviderButtons();
     showProviderHint();
   }
-  window.requestEmailOtp = async function() {
+
+  function goToOtpStep(email) {
+    pendingEmail = email;
+    var display = document.getElementById('otpEmailDisplay');
+    if (display) display.textContent = email;
+    showStep('otp');
+    clearOtpBoxes({ focus: true });
+    setStatus('Check your email for the 6-digit code.', 'ok');
+    startResendCooldown();
+    applyProviderButtons();
+  }
+
+  window.backToEmailStep = function() {
+    stopResendCooldown();
+    pendingEmail = '';
+    showStep('email');
+    clearOtpBoxes({ focus: false });
+    setStatus('');
+    showProviderHint();
+    var emailIn = document.getElementById('authEmailInput');
+    if (emailIn) emailIn.focus();
+    applyProviderButtons();
+  };
+
+  window.requestEmailOtp = async function(opts) {
+    opts = opts || {};
     if (!authState.emailOtp) {
       setStatus('Email login disabled until RESEND_API_KEY is set.', 'err');
       return;
     }
     var input = document.getElementById('authEmailInput');
-    var email = (input && input.value || '').trim();
+    var email = opts.email || (input && input.value || '').trim() || pendingEmail;
+    if (!email) {
+      setStatus('Enter your email address.', 'err');
+      if (input) input.focus();
+      return;
+    }
+    var sendBtn = document.getElementById('authOtpSendBtn');
+    var resendBtn = document.getElementById('authOtpResendBtn');
+    if (sendBtn) sendBtn.disabled = true;
+    if (resendBtn) resendBtn.disabled = true;
     setStatus('Sending code…');
     try {
       var res = await apiFetch('/api/auth/otp/request', {
@@ -422,27 +642,50 @@
       var data = await res.json();
       if (!res.ok || !data.ok) {
         setStatus(data.error || 'Could not send code', 'err');
+        applyProviderButtons();
         return;
       }
-      var step = document.getElementById('authOtpStep');
-      if (step) step.classList.add('visible');
-      setStatus(data.message || 'Check your email for the 6-digit code.', 'ok');
-      var otpIn = document.getElementById('authOtpInput');
-      if (otpIn) otpIn.focus();
+      if (input) input.value = email;
+      goToOtpStep(email);
+      if (data.message) setStatus(data.message, 'ok');
     } catch (e) {
       setStatus('Network error', 'err');
+      applyProviderButtons();
     }
   };
+
+  window.resendEmailOtp = async function() {
+    if (Date.now() < resendAvailableAt) {
+      updateResendUi();
+      return;
+    }
+    await window.requestEmailOtp({ email: pendingEmail });
+  };
+
   window.verifyEmailOtp = async function() {
     if (!authState.emailOtp) {
       setStatus('Email login disabled until RESEND_API_KEY is set.', 'err');
       return;
     }
-    var emailInput = document.getElementById('authEmailInput');
-    var otpInput = document.getElementById('authOtpInput');
-    var email = (emailInput && emailInput.value || '').trim();
-    var code = (otpInput && otpInput.value || '').trim();
+    if (verifying) return;
+    var email = pendingEmail || (document.getElementById('authEmailInput') && document.getElementById('authEmailInput').value || '').trim();
+    var code = getOtpCode();
+    if (!email) {
+      setStatus('Email missing. Go back and enter your email.', 'err');
+      return;
+    }
+    if (code.length !== 6) {
+      setStatus('Enter the 6-digit code.', 'err');
+      markOtpError();
+      var inputs = getOtpInputs();
+      var empty = inputs.find(function(el) { return !el.value; });
+      if (empty) empty.focus();
+      return;
+    }
+    verifying = true;
+    applyProviderButtons();
     setStatus('Verifying…');
+    clearOtpErrorStyles();
     try {
       var res = await apiFetch('/api/auth/otp/verify', {
         method: 'POST',
@@ -450,16 +693,24 @@
       });
       var data = await res.json();
       if (!res.ok || !data.ok) {
-        setStatus(data.error || 'Could not verify code', 'err');
+        setStatus(data.error || 'Incorrect code. Try again.', 'err');
+        clearOtpBoxes({ focus: true });
+        markOtpError();
+        verifying = false;
+        applyProviderButtons();
         return;
       }
+      stopResendCooldown();
       setStatus('Signed in — redirecting…', 'ok');
       try { await apiFetch('/api/auth/merge-device', { method: 'POST', body: '{}' }); } catch (e) {}
       window.location.replace('/?auth=ok');
     } catch (e) {
       setStatus('Network error', 'err');
+      verifying = false;
+      applyProviderButtons();
     }
   };
+
   window.startGoogleLogin = function() {
     if (!authState.googleOAuth) {
       setStatus('Google login not configured yet (GOOGLE_CLIENT_ID / SECRET).', 'err');
@@ -468,17 +719,70 @@
     window.location.href = '/api/auth/google/start?cid=' + encodeURIComponent(ensureClientId());
   };
 
-  ensureClientId();
-  refreshAuthStatus();
-  var otpIn = document.getElementById('authOtpInput');
-  if (otpIn) {
-    otpIn.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
+  function wireOtpBoxes() {
+    var inputs = getOtpInputs();
+    inputs.forEach(function(input, index) {
+      input.addEventListener('input', function(e) {
+        clearOtpErrorStyles();
+        var raw = (e.target.value || '').replace(/\D/g, '');
+        if (raw.length > 1) {
+          // Multi-digit typed into one box (some mobile keyboards)
+          fillOtpFromString(getOtpCode().slice(0, index) + raw + getOtpCode().slice(index + 1));
+          if (getOtpCode().length === 6) {
+            // leave focus on last; user taps Sign in
+          }
+          return;
+        }
+        e.target.value = raw.slice(0, 1);
+        if (raw && index < inputs.length - 1) {
+          inputs[index + 1].focus();
+        }
+      });
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace') {
+          clearOtpErrorStyles();
+          if (!e.target.value && index > 0) {
+            e.preventDefault();
+            inputs[index - 1].value = '';
+            inputs[index - 1].focus();
+          }
+          return;
+        }
+        if (e.key === 'ArrowLeft' && index > 0) {
+          e.preventDefault();
+          inputs[index - 1].focus();
+          return;
+        }
+        if (e.key === 'ArrowRight' && index < inputs.length - 1) {
+          e.preventDefault();
+          inputs[index + 1].focus();
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          window.verifyEmailOtp();
+        }
+      });
+      input.addEventListener('paste', function(e) {
         e.preventDefault();
-        window.verifyEmailOtp();
-      }
+        clearOtpErrorStyles();
+        var text = '';
+        try {
+          text = (e.clipboardData || window.clipboardData).getData('text') || '';
+        } catch (err) {}
+        fillOtpFromString(text);
+        setStatus('');
+      });
+      input.addEventListener('focus', function() {
+        try { input.select(); } catch (err) {}
+      });
     });
   }
+
+  ensureClientId();
+  wireOtpBoxes();
+  refreshAuthStatus();
+
   var emailIn = document.getElementById('authEmailInput');
   if (emailIn) {
     emailIn.addEventListener('keydown', function(e) {

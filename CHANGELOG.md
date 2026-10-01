@@ -1,3 +1,17 @@
+# GoldenSpaceAI — chatting polish + Office/PDF file extract (2026-10-01)
+
+- **Composer:** attach / mic / send / Stop polish, stronger iPhone safe-area inset, mobile mode picker on its own less-cramped row (no starter prompt chips).
+- **Messages:** bubble polish, code/math copy, timestamp on hover / long-press.
+- **Streaming:** RAF-batched typing with caret; clearer Thinking status labels.
+- **Scroll:** stick-to-bottom on new replies; jump-to-latest when scrolled up.
+- **Header:** inline chat title edit; mobile mode menu spacing.
+- **Toasts:** copy, limit hit, file extract / upgrade hard-stops.
+- **Files:** upload Word (.doc/.docx), PowerPoint (.ppt/.pptx), PDF, txt/md (+ images as before). Server extract via `/api/extract-file` (mammoth / pptx XML / pdf-parse). Extracted text enters chat context. **Does not burn plan caps.**
+- **Mode routing:** prefer Fast for images + extracted text; escalate to Thinking when Fast cannot handle; Free users who need Thinking get an upgrade hard-stop (no Thinking burn).
+- Service worker cache `goldenspaceai2-v21`. App version `2.2.5`.
+
+---
+
 # GoldenSpaceAI — sidebar & instructions UI polish (2026-10-01)
 
 - **Chats sidebar:** clearer spacing/typography, refined chat rows, stronger plan strip, polished search and footer.

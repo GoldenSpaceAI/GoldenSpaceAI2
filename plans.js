@@ -1,6 +1,8 @@
 /**
  * GoldenSpaceAI plans, usage caps, and OMT payment requests.
- * Persistence: JSON file under DATA_DIR (survives process restart when disk is available).
+ * Persistence: Postgres (DATABASE_URL) is primary so data survives Render redeploys;
+ * JSON under DATA_DIR is a local mirror / offline fallback. On boot, load PG first;
+ * if PG is empty and JSON has data, migrate JSON → Postgres.
  * Daily Fast limits reset on UTC calendar day. Paid Thinking/Expert caps are per 30-day period.
  * Logged-in users: subscriptions, usage, and payment history are keyed by u_<userId>
  * (account), not only X-Client-Id, so every device sees the same plan/history.
@@ -65,10 +67,35 @@ function emptyStore() {
     };
 }
 
-function createPlansStore(dataDir) {
+function createPlansStore(dataDir, options = {}) {
     const filePath = path.join(dataDir, 'plans.json');
+    const getPool = typeof options.getPool === 'function' ? options.getPool : () => null;
     let cache = null;
     let writeTimer = null;
+    let pgSchemaReady = false;
+    let pgSchemaPromise = null;
+    let pgPersistTimer = null;
+    let pgPersistPromise = null;
+    let persistenceSource = 'uninitialized';
+    let pgEnabled = false;
+
+    function normalizeStore(parsed) {
+        const src = parsed && typeof parsed === 'object' ? parsed : {};
+        return {
+            subscriptions: src.subscriptions && typeof src.subscriptions === 'object' ? src.subscriptions : {},
+            phoneIndex: src.phoneIndex && typeof src.phoneIndex === 'object' ? src.phoneIndex : {},
+            usage: src.usage && typeof src.usage === 'object' ? src.usage : {},
+            payments: Array.isArray(src.payments) ? src.payments : []
+        };
+    }
+
+    function storeHasData(store) {
+        if (!store) return false;
+        return Object.keys(store.subscriptions || {}).length > 0 ||
+            Object.keys(store.usage || {}).length > 0 ||
+            Object.keys(store.phoneIndex || {}).length > 0 ||
+            (Array.isArray(store.payments) && store.payments.length > 0);
+    }
 
     function ensureDir() {
         try {
@@ -78,35 +105,22 @@ function createPlansStore(dataDir) {
         }
     }
 
-    function read() {
-        if (cache) return cache;
+    function readFromFile() {
         ensureDir();
         try {
             if (!fs.existsSync(filePath)) {
-                cache = emptyStore();
-                return cache;
+                return emptyStore();
             }
             const raw = fs.readFileSync(filePath, 'utf8');
             const parsed = JSON.parse(raw || '{}') || {};
-            cache = {
-                subscriptions: parsed.subscriptions || {},
-                phoneIndex: parsed.phoneIndex || {},
-                usage: parsed.usage || {},
-                payments: Array.isArray(parsed.payments) ? parsed.payments : []
-            };
-            return cache;
+            return normalizeStore(parsed);
         } catch (e) {
             console.error('plans.json read error:', e.message);
-            cache = emptyStore();
-            return cache;
+            return emptyStore();
         }
     }
 
-    function flushSync() {
-        if (writeTimer) {
-            clearTimeout(writeTimer);
-            writeTimer = null;
-        }
+    function writeFileSync() {
         ensureDir();
         try {
             const tmp = filePath + '.tmp';
@@ -115,6 +129,163 @@ function createPlansStore(dataDir) {
         } catch (e) {
             console.error('plans.json write error:', e.message);
         }
+    }
+
+    async function ensurePgSchema() {
+        const p = getPool();
+        if (!p) return false;
+        if (pgSchemaReady) return true;
+        if (pgSchemaPromise) return pgSchemaPromise;
+        pgSchemaPromise = (async () => {
+            const client = await p.connect();
+            try {
+                await client.query(`
+                    CREATE TABLE IF NOT EXISTS plans_store (
+                        id TEXT PRIMARY KEY,
+                        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                `);
+                pgSchemaReady = true;
+                pgEnabled = true;
+                return true;
+            } catch (e) {
+                console.error('plans_store schema error:', e.message);
+                pgSchemaReady = false;
+                pgEnabled = false;
+                return false;
+            } finally {
+                client.release();
+                pgSchemaPromise = null;
+            }
+        })();
+        return pgSchemaPromise;
+    }
+
+    async function loadFromPostgres() {
+        const p = getPool();
+        if (!p) return null;
+        const ok = await ensurePgSchema();
+        if (!ok) return null;
+        try {
+            const r = await p.query(
+                `SELECT payload FROM plans_store WHERE id = 'main' LIMIT 1`
+            );
+            if (!r.rows[0]) return null;
+            return normalizeStore(r.rows[0].payload);
+        } catch (e) {
+            console.error('plans_store read error:', e.message);
+            return null;
+        }
+    }
+
+    async function saveToPostgres() {
+        const p = getPool();
+        if (!p) return false;
+        const ok = await ensurePgSchema();
+        if (!ok) return false;
+        try {
+            const payload = JSON.stringify(cache || emptyStore());
+            await p.query(
+                `INSERT INTO plans_store (id, payload, updated_at)
+                 VALUES ('main', $1::jsonb, NOW())
+                 ON CONFLICT (id) DO UPDATE SET
+                   payload = EXCLUDED.payload,
+                   updated_at = NOW()`,
+                [payload]
+            );
+            pgEnabled = true;
+            return true;
+        } catch (e) {
+            console.error('plans_store write error:', e.message);
+            return false;
+        }
+    }
+
+    function schedulePgPersist() {
+        if (pgPersistTimer) return;
+        pgPersistTimer = setTimeout(() => {
+            pgPersistTimer = null;
+            pgPersistPromise = saveToPostgres().catch((e) => {
+                console.error('plans_store persist:', e.message);
+            }).finally(() => {
+                pgPersistPromise = null;
+            });
+        }, 25);
+        if (typeof pgPersistTimer.unref === 'function') pgPersistTimer.unref();
+    }
+
+    async function flushAsync() {
+        if (writeTimer) {
+            clearTimeout(writeTimer);
+            writeTimer = null;
+        }
+        if (pgPersistTimer) {
+            clearTimeout(pgPersistTimer);
+            pgPersistTimer = null;
+        }
+        writeFileSync();
+        if (pgPersistPromise) {
+            try { await pgPersistPromise; } catch (_) {}
+        }
+        await saveToPostgres();
+    }
+
+    /**
+     * Boot: prefer Postgres; if empty, migrate existing JSON; always mirror to JSON.
+     */
+    async function initPersistence() {
+        let pgStore = null;
+        try {
+            pgStore = await loadFromPostgres();
+        } catch (e) {
+            console.error('plans init PG load:', e.message);
+        }
+
+        if (pgStore && storeHasData(pgStore)) {
+            cache = pgStore;
+            persistenceSource = 'postgres';
+            writeFileSync();
+            return { source: 'postgres', migrated: 0, pg: true };
+        }
+
+        const fileStore = readFromFile();
+        cache = fileStore;
+
+        if (storeHasData(fileStore)) {
+            const migrated = await saveToPostgres();
+            persistenceSource = migrated ? 'json-migrated' : 'json';
+            if (migrated) {
+                console.log('plans: migrated JSON → Postgres (plans_store)');
+            }
+            return {
+                source: persistenceSource,
+                migrated: migrated ? 1 : 0,
+                pg: !!migrated
+            };
+        }
+
+        // Empty everywhere — seed Postgres row when available so later writes have a target
+        cache = emptyStore();
+        const seeded = await saveToPostgres();
+        persistenceSource = seeded ? 'postgres-empty' : 'json-empty';
+        writeFileSync();
+        return { source: persistenceSource, migrated: 0, pg: !!seeded };
+    }
+
+    function read() {
+        if (cache) return cache;
+        cache = readFromFile();
+        return cache;
+    }
+
+    function flushSync() {
+        if (writeTimer) {
+            clearTimeout(writeTimer);
+            writeTimer = null;
+        }
+        writeFileSync();
+        schedulePgPersist();
     }
 
     function scheduleWrite() {
@@ -939,6 +1110,13 @@ function createPlansStore(dataDir) {
         approvePayment,
         declinePayment,
         flushSync,
+        flushAsync,
+        initPersistence,
+        getPersistenceInfo: () => ({
+            source: persistenceSource,
+            pg: pgEnabled,
+            filePath
+        }),
         filePath
     };
 }

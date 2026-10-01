@@ -10,7 +10,7 @@ Login (email **6-digit OTP** via Resend + Google OAuth) and cross-device chat sy
 | `DATABASE_URL` | Postgres connection (Render Internal DB URL) | Create DB `GoldenSpaceAI2-db`, then **Link** it to each web service (or paste Internal Database URL). |
 | `SESSION_SECRET` | Signs `gsa_session` cookie | Set on Oregon + Frankfurt (random 32+ bytes hex). |
 
-Without these, `/api/auth/*` reports `ready: false`. Chats still work as guest via device id (JSON fallback; Postgres chats when `DATABASE_URL` is linked).
+Without these, `/api/auth/*` reports `ready: false`. Chats still work as guest via device id (JSON fallback; Postgres chats when `DATABASE_URL` is linked). **Plans / subscriptions / usage / OMT payment history** also persist in Postgres (`plans_store`) when `DATABASE_URL` is linked — required so Render redeploys do not reset daily limits or payment history.
 
 ## Google OAuth (optional until you have a Cloud project)
 
@@ -71,7 +71,7 @@ Typical first enable order:
 - **Guest:** no cloud chat memory (session-only on the client). Plans still use device `X-Client-Id`.
 - **Logged in:** chats keyed by `u_<userId>`; list/messages sync across devices via Postgres (JSON merged/migrated as fallback).
 - **On login:** linked device chats + JSON fallback merge into the user; client re-hydrates from GET `/api/chats`.
-- **Plans / OMT / admin / caps:** still device-scoped; not broken by login.
+- **Plans / OMT / admin / caps:** logged-in plans/payments are account-scoped (`u_<userId>`); guests stay device-local. Durable store is Postgres `plans_store` (JSON mirror under `DATA_DIR`).
 - **Email OTP:** codes expire in 10 minutes; max 5 verify attempts per code.
 - **Login alert:** after successful OTP verify or Google OAuth, a separate Resend email (“New login to your GoldenSpaceAI account”) is sent when the user has an email and `RESEND_API_KEY` is set. Reuses `EMAIL_FROM`. Does not change the OTP code email.
 

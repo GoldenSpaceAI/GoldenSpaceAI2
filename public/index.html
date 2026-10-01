@@ -2919,10 +2919,14 @@
             authState.guest = true;
             closeSettingsPanel();
             renderAuthCard();
-            showToast('Logged out — back to guest device chats', 'ok', 2500);
-            await syncFromServer();
+            // Do not leak account chats to guest; guests have no cloud / durable chat memory.
+            clearAccountChatLocalStorage();
+            clearGuestChatSession();
+            chats = {};
+            currentChatId = null;
+            createNewChat();
             renderChatsList();
-            if (currentChatId && chats[currentChatId]) loadChat();
+            showToast('Logged out — guest chats are temporary (not saved)', 'ok', 2800);
         }
         async function handleAuthQueryFlags() {
             try {
@@ -2935,7 +2939,9 @@
                     try {
                         await apiFetch('/api/auth/merge-device', { method: 'POST', body: '{}' });
                     } catch (e) {}
+                    await adoptGuestSessionChatsAfterLogin();
                     await syncFromServer();
+                    saveChatsLocal();
                     renderChatsList();
                     if (Object.keys(chats).length && (!currentChatId || !chats[currentChatId])) {
                         currentChatId = Object.keys(chats)[0];
@@ -2973,11 +2979,15 @@
         async function init() {
             ensureClientId();
             initTheme();
+            await refreshAuthStatus();
+            // Load storage after auth so guests never read account localStorage / cloud.
             loadChats();
             loadGlobalInstructions();
-            await refreshAuthStatus();
             await handleAuthQueryFlags();
-            await syncFromServer();
+            if (isLoggedIn()) {
+                await syncFromServer();
+                clearGuestChatSession();
+            }
             if (Object.keys(chats).length === 0) createNewChat();
             else {
                 if (!currentChatId || !chats[currentChatId]) currentChatId = Object.keys(chats)[0];
@@ -3079,29 +3089,65 @@
             syncWebSearchToggles();
         }
 
+        function isLoggedIn() {
+            return !!(authState && authState.user && authState.user.id);
+        }
+        function clearAccountChatLocalStorage() {
+            try { localStorage.removeItem('goldenspaceai2_chats'); } catch (e) {}
+            try { localStorage.removeItem('goldenspaceai2_current'); } catch (e) {}
+        }
+        function clearGuestChatSession() {
+            try { sessionStorage.removeItem('goldenspaceai2_guest_chats'); } catch (e) {}
+            try { sessionStorage.removeItem('goldenspaceai2_guest_current'); } catch (e) {}
+        }
         function loadChats() {
-            try { chats = JSON.parse(localStorage.getItem('goldenspaceai2_chats')) || {}; }
-            catch(e) { chats = {}; }
-            try { currentChatId = localStorage.getItem('goldenspaceai2_current') || null; } catch(e) {}
+            chats = {};
+            currentChatId = null;
+            if (isLoggedIn()) {
+                try { chats = JSON.parse(localStorage.getItem('goldenspaceai2_chats')) || {}; }
+                catch (e) { chats = {}; }
+                try { currentChatId = localStorage.getItem('goldenspaceai2_current') || null; } catch (e) {}
+                // Keep guest sessionStorage until adoptGuestSessionChatsAfterLogin / init cleanup.
+            } else {
+                // Guests: session-only (no durable localStorage, no cloud). Prevent account leak after logout.
+                clearAccountChatLocalStorage();
+                try { chats = JSON.parse(sessionStorage.getItem('goldenspaceai2_guest_chats')) || {}; }
+                catch (e) { chats = {}; }
+                try { currentChatId = sessionStorage.getItem('goldenspaceai2_guest_current') || null; } catch (e) {}
+            }
         }
         function saveChatsLocal() {
-            try { localStorage.setItem('goldenspaceai2_chats', JSON.stringify(chats)); } catch(e) {}
-            try { if (currentChatId) localStorage.setItem('goldenspaceai2_current', currentChatId); } catch(e) {}
+            if (isLoggedIn()) {
+                try { localStorage.setItem('goldenspaceai2_chats', JSON.stringify(chats)); } catch (e) {}
+                try {
+                    if (currentChatId) localStorage.setItem('goldenspaceai2_current', currentChatId);
+                    else localStorage.removeItem('goldenspaceai2_current');
+                } catch (e) {}
+            } else {
+                clearAccountChatLocalStorage();
+                try { sessionStorage.setItem('goldenspaceai2_guest_chats', JSON.stringify(chats)); } catch (e) {}
+                try {
+                    if (currentChatId) sessionStorage.setItem('goldenspaceai2_guest_current', currentChatId);
+                    else sessionStorage.removeItem('goldenspaceai2_guest_current');
+                } catch (e) {}
+            }
         }
         function saveChats() {
             saveChatsLocal();
-            scheduleSyncToServer();
+            if (isLoggedIn()) scheduleSyncToServer();
         }
         function scheduleSyncToServer() {
+            if (!isLoggedIn()) return;
             if (syncTimer) clearTimeout(syncTimer);
             syncTimer = setTimeout(function() { syncChatToServer(currentChatId); }, 600);
         }
         async function syncFromServer() {
-            if (!navigator.onLine) return;
+            if (!isLoggedIn() || !navigator.onLine) return;
             try {
                 const res = await apiFetch(CHATS_API, { method: 'GET' });
                 if (!res.ok) return;
                 const data = await res.json();
+                if (data.guest) return;
                 const list = data.chats || [];
                 for (let i = 0; i < list.length; i++) {
                     const meta = list[i];
@@ -3130,7 +3176,7 @@
             } catch (e) {}
         }
         async function syncChatToServer(id) {
-            if (!id || !chats[id] || !navigator.onLine) return;
+            if (!isLoggedIn() || !id || !chats[id] || !navigator.onLine) return;
             const chat = chats[id];
             chat.updatedAt = new Date().toISOString();
             try {
@@ -3146,10 +3192,51 @@
             } catch (e) {}
         }
         async function deleteChatOnServer(id) {
-            if (!id || !navigator.onLine) return;
+            if (!isLoggedIn() || !id || !navigator.onLine) return;
             try {
                 await apiFetch(CHATS_API + '/' + encodeURIComponent(id), { method: 'DELETE' });
             } catch (e) {}
+        }
+        /** After login: push any in-session guest chats into the account once, then load cloud. */
+        async function adoptGuestSessionChatsAfterLogin() {
+            if (!isLoggedIn() || !navigator.onLine) return;
+            let guestChats = {};
+            try { guestChats = JSON.parse(sessionStorage.getItem('goldenspaceai2_guest_chats')) || {}; }
+            catch (e) { guestChats = {}; }
+            const guestIds = Object.keys(guestChats);
+            for (let i = 0; i < guestIds.length; i++) {
+                const id = guestIds[i];
+                const incoming = guestChats[id];
+                if (!incoming) continue;
+                const existing = chats[id];
+                if (!existing) {
+                    chats[id] = incoming;
+                } else {
+                    const a = String(incoming.updatedAt || incoming.createdAt || '');
+                    const b = String(existing.updatedAt || existing.createdAt || '');
+                    if (a > b) chats[id] = incoming;
+                }
+            }
+            if (!currentChatId) {
+                try { currentChatId = sessionStorage.getItem('goldenspaceai2_guest_current') || null; } catch (e) {}
+            }
+            const ids = Object.keys(chats || {});
+            for (let i = 0; i < ids.length; i++) {
+                const id = ids[i];
+                if (!chats[id]) continue;
+                try {
+                    const res = await apiFetch(CHATS_API + '/' + encodeURIComponent(id), {
+                        method: 'PUT', body: JSON.stringify(chats[id])
+                    });
+                    if (res.status === 404) {
+                        await apiFetch(CHATS_API, {
+                            method: 'POST',
+                            body: JSON.stringify(Object.assign({ id: id }, chats[id]))
+                        });
+                    }
+                } catch (e) {}
+            }
+            clearGuestChatSession();
         }
 
         function loadGlobalInstructions() {

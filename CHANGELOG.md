@@ -1,3 +1,11 @@
+# GoldenSpaceAI — centered settings modal + plain AI bubbles (2026-10-01)
+
+- **Settings:** gear opens a **centered modal** (overlay backdrop) instead of a side drawer; close via **X**, backdrop click, or **Escape**. Keeps email, username, plan usage, plan requests, upgrade, and sign out.
+- **Assistant messages:** removed golden left border / soft gold glow gradient on AI bubbles — clean plain text block.
+- Service worker cache `goldenspaceai2-v30`. App `2.3.4`.
+
+---
+
 # GoldenSpaceAI — readable chat tables + bottom-bar auth polish (2026-10-01)
 
 - **Chat tables:** clearer header/zebra/borders/padding; cells wrap sensibly (`min-width` + `max-width`) so text stays readable; wide tables still scroll horizontally inside the wrap (touch-friendly, no page overflow). Mobile-tuned cell sizes.

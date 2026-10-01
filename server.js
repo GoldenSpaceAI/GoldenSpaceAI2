@@ -516,6 +516,20 @@ function callResponsesAPI(conversationMessages, config, useWebSearch) {
     });
 }
 
+
+/** Expand stored attachedFile extract into model-facing user text (UI keeps content clean). */
+function expandUserContentForModel(msg) {
+    let text = (msg && typeof msg.content === 'string') ? msg.content : '';
+    const af = msg && msg.attachedFile;
+    if (af && typeof af.text === 'string' && af.text) {
+        const noteLine = af.note ? ('\nNote: ' + af.note) : '';
+        const fileBlock = '\n\n---\nAttached file: ' + (af.name || 'file') + noteLine +
+            '\n```\n' + String(af.text).slice(0, 120000) + '\n```\n';
+        text = (String(text).trim() || 'Please review the attached file.') + fileBlock;
+    }
+    return text;
+}
+
 function buildConversationMessages(body) {
     const { messages, customInstructions, image } = body || {};
     const conversationMessages = [];
@@ -537,8 +551,9 @@ function buildConversationMessages(body) {
 
             if (msg.role === 'user') {
                 const content = [];
-                if (msg.content && msg.content.trim()) {
-                    content.push({ type: 'text', text: msg.content.trim() });
+                const modelText = expandUserContentForModel(msg);
+                if (modelText && modelText.trim()) {
+                    content.push({ type: 'text', text: modelText.trim() });
                 }
                 if (msg.image && !msg.imageTooBig) {
                     content.push({

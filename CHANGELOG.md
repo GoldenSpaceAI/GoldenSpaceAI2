@@ -1,3 +1,14 @@
+# GoldenSpaceAI — chat page SaaS visual polish (2026-10-01)
+
+- **Chat page only** major visual polish for a more professional SaaS look (mobile + desktop). Plans/caps/OMT/admin/auth/PWA behavior unchanged.
+- **Spacing & type:** Inter/system font stack, tighter letter-spacing, antialiased text, clearer hierarchy across header, messages, composer, and sidebar.
+- **Chrome:** frosted top bar refinements, brand mark, pill actions; sidebar gradient surface, rounded new-chat control, hoverable chat rows, stronger search focus ring, cleaner account/install/legal footer.
+- **Messages & empty:** softer bubbles, denser readable AI column, branded empty state with mode pill; tables/modes/web toggle/instructions/settings modal kept.
+- **Composer:** elevated shell, focus ring, refined mode/web/attach/mic/send controls; mobile full-width, desktop centered **~760px** chat column with ~300px sidebar.
+- Service worker cache `goldenspaceai2-v35`. App `2.3.9`.
+
+---
+
 # GoldenSpaceAI — account-scoped plan/payment history (2026-10-01)
 
 - **Cross-device plan history:** upgrade requests (Waiting / Approved / Declined), amounts, plan, status, and dates persist under the **logged-in account** (`userId` + email), not only `X-Client-Id`. Settings, `/my-plan`, and `/upgrade` load the same history on every device.

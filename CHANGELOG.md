@@ -1,3 +1,10 @@
+# GoldenSpaceAI — declined plan email refund notice (2026-10-01)
+
+- **Declined upgrade email:** clearly states that all money sent will be refunded; if fees apply, the refund is the amount sent minus those fees.
+- Service worker cache `goldenspaceai2-v39`. App `2.3.13`.
+
+---
+
 # GoldenSpaceAI — plan stacking on approve/upgrade (2026-10-01)
 
 - **Stacking on admin approve:** when a payment is approved, quotas stack instead of merely replacing the plan tier.

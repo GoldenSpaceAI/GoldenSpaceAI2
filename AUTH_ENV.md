@@ -30,7 +30,7 @@ Authorized redirect URIs to add in Google Cloud Console:
 
 Email login is **soft-disabled** until `RESEND_API_KEY` is set. The UI shows “Send code” / verify disabled; Google can still work independently once its keys + DB/session are ready.
 
-Flow: user enters email → we email a 6-digit code via Resend → user types the code on the site → session cookie.
+UI: primary login is `/login` (chat top bar links there). Flow: user enters email → we email a 6-digit code via Resend → user types the code on the site → session cookie → redirect to chat.
 
 | Name | Purpose |
 |------|---------|

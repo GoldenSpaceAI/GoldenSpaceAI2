@@ -1,3 +1,14 @@
+# GoldenSpaceAI — email 6-digit OTP (Resend) replaces magic link (2026-10-01)
+
+- **Auth:** email login is now OTP: `POST /api/auth/otp/request` → Resend emails a 6-digit code → `POST /api/auth/otp/verify` sets session. Magic-link routes removed.
+- **Soft-disable:** email UI/API stay off until `RESEND_API_KEY`; Google OAuth unchanged.
+- **Postgres:** `email_otps` table (hashed codes, attempts, expiry).
+- **UI:** login modal Send code → enter code → Verify; disabled cleanly without Resend.
+- **Docs:** `AUTH_ENV.md` updated for OTP + soft-disable.
+- Service worker cache `goldenspaceai2-v25`. App `2.2.9`.
+
+---
+
 # GoldenSpaceAI — email magic-link + Google OAuth + cross-device chat sync (2026-10-01)
 
 - **Auth:** `/api/auth/status`, `/api/auth/me`, magic-link request/consume, Google OAuth start/callback, logout, `POST /api/auth/merge-device`.

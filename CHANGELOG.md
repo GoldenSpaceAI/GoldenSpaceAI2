@@ -1,3 +1,12 @@
+# GoldenSpaceAI — hide document extract in chat bubble (2026-10-01)
+
+- **Document uploads:** extracted Word/PDF/txt/etc. text is no longer pasted into the user message bubble.
+- **UI:** bubble shows typed text (if any) plus an attachment chip with the filename; composer file chip unchanged.
+- **Model context:** extract is stored on the message as `attachedFile` (`name`, `note`, `text`) and expanded into the model payload server-side (`expandUserContentForModel` in `buildConversationMessages`). Images and plain text messages unchanged.
+- Service worker cache `goldenspaceai2-v43`. App `2.3.17`.
+
+---
+
 # GoldenSpaceAI — admin users directory (2026-10-01)
 
 - **Admin `/admin-users`:** read-only users table (email, plan, device, location) behind the same **ADMIN_PASSKEY** / `gsa_admin` cookie as `/admin-page`.

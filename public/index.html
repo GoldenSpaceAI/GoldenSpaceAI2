@@ -902,13 +902,15 @@
         .auth-sync-note { font-size: 11px; color: var(--muted, #a89b7a); margin-top: 6px; line-height: 1.35; }
 
 
-        /* ===== Account strip (top bar) + settings panel ===== */
+        /* ===== Account strip (chats panel footer) + settings panel ===== */
         .account-strip {
             display: flex;
             align-items: center;
             gap: 8px;
             flex-shrink: 0;
-            max-width: min(46vw, 280px);
+            width: 100%;
+            max-width: none;
+            min-width: 0;
         }
         .account-login-btn {
             display: inline-flex;
@@ -927,21 +929,25 @@
         }
         .account-login-btn:hover { opacity: 0.92; color: #0a0a0a; }
         .account-login-btn:active { transform: scale(0.96); }
+        .account-strip > .account-login-btn:not([hidden]) { width: 100%; justify-content: center; }
         .account-logged-in {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             min-width: 0;
+            width: 100%;
             max-width: 100%;
         }
         .account-email {
-            font-size: 11.5px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 140px;
+            flex: 1;
+            min-width: 0;
+            max-width: none;
         }
         .account-plan-badge {
             flex-shrink: 0;
@@ -1138,13 +1144,10 @@
         .settings-status-pill.approved { color: #3dcc9a; border-color: rgba(61,204,154,0.4); }
         .settings-status-pill.declined { color: #f07178; border-color: rgba(240,113,120,0.4); }
 
-        @media (max-width: 720px) {
-            .account-email { max-width: 92px; }
-            .account-strip { max-width: min(52vw, 220px); }
-        }
         @media (max-width: 420px) {
-            .account-email { display: none; }
             .account-plan-badge { font-size: 9px; padding: 2px 6px; }
+            .account-login-btn { width: 100%; justify-content: center; }
+            .account-strip { flex-wrap: wrap; }
         }
 
         .chats-panel-footer {
@@ -1441,10 +1444,10 @@
             background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer;
         }
         .katex-display { overflow-x: auto; overflow-y: hidden; }
-        .md-table-wrap { overflow-x: auto; margin: 10px 0 14px; border-radius: 10px; border: 1px solid var(--gold-dark); }
-        .md-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
-        .md-table th, .md-table td { border: 1px solid var(--gold-dark); padding: 8px 10px; text-align: left; vertical-align: top; }
-        .md-table th { background: rgba(184,134,11,0.18); font-weight: 700; }
+        .md-table-wrap { display: block; width: 100%; max-width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; touch-action: pan-x pan-y; margin: 10px 0 14px; border-radius: 10px; border: 1px solid var(--gold-dark); }
+        .md-table { width: max-content; min-width: 100%; max-width: none; border-collapse: collapse; table-layout: auto; font-size: 0.92em; }
+        .md-table th, .md-table td { border: 1px solid var(--gold-dark); padding: 8px 10px; text-align: left; vertical-align: top; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+        .md-table th { background: rgba(184,134,11,0.18); font-weight: 700; white-space: nowrap; }
         .md-table tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
         [data-theme="light"] .md-table tr:nth-child(even) td { background: rgba(0,0,0,0.03); }
         html.light .badge-expert { color: #1a1a1a; }
@@ -1674,6 +1677,7 @@
         .ai-block {
             width: 100%;
             max-width: 100%;
+            min-width: 0;
             color: var(--text);
             font-size: 15px;
             line-height: 1.65;
@@ -1681,11 +1685,18 @@
             border-left: 2px solid var(--ai-accent);
             border-radius: 0 12px 12px 0;
             background: linear-gradient(90deg, var(--gold-soft), transparent 42%);
+            overflow-x: hidden; /* page does not scroll sideways; tables scroll inside wrap */
         }
         .ai-content {
             word-wrap: break-word;
             overflow-wrap: anywhere;
             letter-spacing: 0.005em;
+            min-width: 0;
+            max-width: 100%;
+        }
+        .ai-content .md-table-wrap {
+            /* isolate H-scroll so the page / message list does not shift */
+            overflow-wrap: normal;
         }
         .ai-content .md-p { margin: 0 0 0.75em; }
         .ai-content .md-p:last-child { margin-bottom: 0; }
@@ -2032,18 +2043,27 @@
         .md-code-wrap .md-pre { margin: 0; border: none; border-radius: 0; background: transparent; }
 
         .md-table-wrap {
+            display: block;
+            width: 100%;
+            max-width: 100%;
             overflow-x: auto;
+            overflow-y: hidden;
             margin: 0.75em 0 1.1em;
             border-radius: 14px;
             border: 1px solid var(--gold-line);
             background: var(--black-light);
             -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            touch-action: pan-x pan-y;
+            scrollbar-width: thin;
         }
         .md-table {
-            width: 100%;
+            width: max-content;
+            min-width: 100%;
+            max-width: none;
             border-collapse: collapse;
+            table-layout: auto;
             font-size: 0.93em;
-            min-width: 280px;
         }
         .md-table th, .md-table td {
             border-bottom: 1px solid var(--border);
@@ -2052,6 +2072,9 @@
             text-align: left;
             vertical-align: top;
             line-height: 1.45;
+            white-space: nowrap;
+            overflow-wrap: normal;
+            word-break: normal;
         }
         .md-table th:last-child, .md-table td:last-child { border-right: none; }
         .md-table tr:last-child td { border-bottom: none; }
@@ -2355,19 +2378,6 @@
                 <span class="top-bar-title" id="topBarTitle" contenteditable="false" spellcheck="false" title="Tap to rename chat" role="textbox" aria-label="Chat title">GoldenSpaceAI</span>
                 <span class="top-bar-sub" id="topBarSub">AI assistant</span>
             </div>
-            <div class="account-strip" id="accountStrip" aria-label="Account">
-                <a class="account-login-btn" id="accountLoginBtn" href="/login">Log in</a>
-                <div class="account-logged-in" id="accountLoggedIn" hidden>
-                    <span class="account-email" id="accountEmail" title=""></span>
-                    <span class="account-plan-badge" id="accountPlanBadge">FREE</span>
-                    <button type="button" class="account-gear" id="accountGearBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
             <div class="top-bar-actions">
                 <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button>
                 <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Theme">Theme</button>
@@ -2407,6 +2417,19 @@
                 </div>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
+                    <div class="account-strip" id="accountStrip" aria-label="Account">
+                        <a class="account-login-btn" id="accountLoginBtn" href="/login">Log in</a>
+                        <div class="account-logged-in" id="accountLoggedIn" hidden>
+                            <span class="account-email" id="accountEmail" title=""></span>
+                            <span class="account-plan-badge" id="accountPlanBadge">FREE</span>
+                            <button type="button" class="account-gear" id="accountGearBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                     <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
                     <nav class="footer-legal" aria-label="Legal and upgrade">
                         <a class="upgrade-link" href="/upgrade">Upgrade</a>
@@ -4605,8 +4628,25 @@
             return escapeHtmlRaw(text).replace(/'/g, '&#39;');
         }
 
+        function ensureTableScroll(root) {
+            if (!root || !root.querySelectorAll) return;
+            const tables = root.querySelectorAll('table');
+            for (let i = 0; i < tables.length; i++) {
+                const table = tables[i];
+                table.classList.add('md-table');
+                if (table.closest('.md-table-wrap')) continue;
+                const wrap = document.createElement('div');
+                wrap.className = 'md-table-wrap';
+                if (table.parentNode) {
+                    table.parentNode.insertBefore(wrap, table);
+                    wrap.appendChild(table);
+                }
+            }
+        }
+
         function renderMathIn(el) {
             if (!el) return;
+            ensureTableScroll(el);
             if (window.renderMathInElement) {
                 try {
                     window.renderMathInElement(el, {

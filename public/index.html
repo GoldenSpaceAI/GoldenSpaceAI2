@@ -2244,6 +2244,122 @@
             overflow: auto;
         }
         .thinking-trace.show { display: block; animation: msgIn 0.25s var(--ease-out); }
+
+        /* Activity panel: Searching / Thinking — survives after answer */
+        .activity-panel {
+            margin: 0 0 10px;
+            border-radius: 12px;
+            border: 1px solid var(--gold-line);
+            background: var(--gold-soft);
+            overflow: hidden;
+            max-width: 100%;
+        }
+        .activity-panel > summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 8px 12px;
+            font-size: 12.5px;
+            font-weight: 650;
+            color: var(--gold);
+            user-select: none;
+            line-height: 1.35;
+        }
+        .activity-panel > summary::-webkit-details-marker { display: none; }
+        .activity-panel > summary::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-right: 1.5px solid var(--gold);
+            border-bottom: 1.5px solid var(--gold);
+            transform: rotate(-45deg);
+            transition: transform 0.15s ease;
+            flex-shrink: 0;
+            opacity: 0.85;
+            margin-right: 2px;
+        }
+        .activity-panel[open] > summary::before { transform: rotate(45deg); }
+        .activity-panel.live > summary::before {
+            width: 7px; height: 7px;
+            border: none;
+            border-radius: 50%;
+            background: var(--gold);
+            transform: none;
+            animation: typingPulse 1s infinite;
+        }
+        .activity-panel .activity-summary-text { flex: 1; min-width: 0; }
+        .activity-panel .activity-count {
+            font-weight: 600;
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.9;
+        }
+        .activity-body {
+            padding: 0 12px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .activity-sites {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 160px;
+            overflow: auto;
+        }
+        .activity-sites li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .activity-sites a {
+            color: var(--gold);
+            text-decoration: none;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+        .activity-sites a:hover { text-decoration: underline; }
+        .activity-sites .site-domain {
+            color: var(--text-muted);
+            font-size: 11px;
+            flex-shrink: 0;
+            max-width: 40%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .activity-query {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        .activity-thinking {
+            margin: 0;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.12);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 160px;
+            overflow: auto;
+        }
+        html.light .activity-thinking { background: rgba(0,0,0,0.04); }
+        .thinking-indicator .activity-panel { margin-top: 4px; }
+
         .typing-dot {
             width: 7px; height: 7px;
             background: var(--gold);
@@ -4862,24 +4978,117 @@
             streamAbort = new AbortController();
             let streamedText = '';
             let reasoningBuf = '';
+            let activitySnap = emptyActivity();
             let aiEl = null;
             let contentEl = null;
             let chromeReady = false;
+            let activityMounted = false;
+
+            function mergeActivityFromSnap() {
+                const el = document.getElementById(thinkingId);
+                if (el && el._activity) {
+                    const snap = snapshotThinkingActivity(thinkingId);
+                    // Prefer union of sites
+                    const map = {};
+                    (activitySnap.sites || []).forEach(function(s) { if (s && s.url) map[s.url.toLowerCase()] = s; });
+                    (snap.sites || []).forEach(function(s) { if (s && s.url) map[s.url.toLowerCase()] = s; });
+                    activitySnap = {
+                        sites: Object.keys(map).map(function(k) { return map[k]; }),
+                        thinking: snap.thinking || activitySnap.thinking || reasoningBuf || '',
+                        searchQuery: snap.searchQuery || activitySnap.searchQuery || '',
+                        status: snap.status || activitySnap.status || ''
+                    };
+                }
+                if (reasoningBuf && (!activitySnap.thinking || activitySnap.thinking.length < reasoningBuf.length)) {
+                    activitySnap.thinking = reasoningBuf;
+                }
+                return activitySnap;
+            }
+
+            function recordSite(siteEntry) {
+                const site = normalizeClientSite(siteEntry);
+                if (!site) return;
+                if (!activitySnap.sites) activitySnap.sites = [];
+                const key = site.url.toLowerCase();
+                for (let i = 0; i < activitySnap.sites.length; i++) {
+                    if (String(activitySnap.sites[i].url || '').toLowerCase() === key) return;
+                }
+                activitySnap.sites.push(site);
+                appendThinkingSite(thinkingId, site);
+            }
+
+            function recordReasoning(chunk) {
+                if (!chunk) return;
+                reasoningBuf += chunk;
+                activitySnap.thinking = ((activitySnap.thinking || '') + chunk).slice(-8000);
+                appendThinkingTrace(thinkingId, chunk);
+            }
+
+            function recordSearchQuery(q) {
+                if (!q) return;
+                activitySnap.searchQuery = String(q).slice(0, 240);
+                setThinkingSearchQuery(thinkingId, q);
+            }
+
+            function mountActivityOnAi(forceOpen, asDone) {
+                if (!aiEl) return;
+                const block = aiEl.querySelector('.ai-block');
+                if (!block) return;
+                mergeActivityFromSnap();
+                const has = (activitySnap.sites && activitySnap.sites.length) ||
+                    (activitySnap.thinking && activitySnap.thinking.trim()) ||
+                    activitySnap.searchQuery;
+                let panel = aiEl.querySelector('.activity-panel');
+                if (!has) {
+                    if (panel) panel.remove();
+                    activityMounted = false;
+                    return;
+                }
+                const done = !!asDone;
+                const html = buildActivityPanelHtml(activitySnap, {
+                    live: !done && (!!forceOpen || isSending),
+                    open: done ? false : (!!forceOpen || !chromeReady)
+                });
+                if (panel) {
+                    const wrap = document.createElement('div');
+                    wrap.innerHTML = html;
+                    const next = wrap.firstChild;
+                    panel.replaceWith(next);
+                } else {
+                    const meta = block.querySelector('.message-meta');
+                    const content = block.querySelector('.ai-content');
+                    const wrap = document.createElement('div');
+                    wrap.innerHTML = html;
+                    const node = wrap.firstChild;
+                    if (meta && meta.nextSibling) block.insertBefore(node, meta.nextSibling);
+                    else if (content) block.insertBefore(node, content);
+                    else block.insertBefore(node, block.firstChild);
+                }
+                activityMounted = true;
+            }
 
             function ensureAiChrome(seedText) {
                 if (chromeReady) return;
+                mergeActivityFromSnap();
                 removeThinkingIndicator(thinkingId);
                 const aiMsgPlaceholder = {
                     role: 'ai',
                     content: seedText || '',
                     model: currentModel,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    activity: {
+                        sites: activitySnap.sites.slice(),
+                        thinking: activitySnap.thinking || '',
+                        searchQuery: activitySnap.searchQuery || ''
+                    }
                 };
                 const idx = chats[currentChatId].messages.length;
                 chats[currentChatId].messages.push(aiMsgPlaceholder);
                 aiEl = renderMessage(aiMsgPlaceholder, idx, true);
                 contentEl = aiEl ? aiEl.querySelector('.ai-content') : null;
                 chromeReady = true;
+                // Keep panel expanded while still streaming
+                mountActivityOnAi(true);
                 markLastAiActions();
             }
 
@@ -4894,6 +5103,19 @@
                     renderMathIn(contentEl);
                     scrollToBottom();
                 });
+            }
+
+            function persistActivityOnLastAi() {
+                mergeActivityFromSnap();
+                const msgs = chats[currentChatId] && chats[currentChatId].messages;
+                if (!msgs || !msgs.length) return;
+                const last = msgs[msgs.length - 1];
+                if (!last || last.role !== 'ai') return;
+                last.activity = {
+                    sites: activitySnap.sites.slice(),
+                    thinking: activitySnap.thinking || '',
+                    searchQuery: activitySnap.searchQuery || ''
+                };
             }
 
             try {
@@ -4919,7 +5141,6 @@
                     throw new Error(errText);
                 }
 
-                // Keep thinking UI until real content arrives — do NOT show finished chrome yet
                 setThinkingStatus(thinkingId, webSearchEnabled && String(MODELS[currentModel].apiMode) === 'expert'
                     ? 'searching'
                     : (MODELS[currentModel].apiMode === 'smart' ? 'thinking' : 'listening'));
@@ -4949,11 +5170,27 @@
                         if (obj.error) errMsg = obj.error;
                         if (obj.status) {
                             setThinkingStatus(thinkingId, obj.status);
+                            if (chromeReady) {
+                                activitySnap.status = obj.status;
+                                mountActivityOnAi(true);
+                            }
+                        }
+                        if (obj.site) {
+                            recordSite(obj.site);
+                            if (chromeReady) mountActivityOnAi(true);
+                        }
+                        if (Array.isArray(obj.sites)) {
+                            for (let s = 0; s < obj.sites.length; s++) recordSite(obj.sites[s]);
+                            if (chromeReady) mountActivityOnAi(true);
+                        }
+                        if (obj.searchQuery) {
+                            recordSearchQuery(obj.searchQuery);
+                            if (chromeReady) mountActivityOnAi(true);
                         }
                         if (obj.reasoning) {
-                            reasoningBuf += obj.reasoning;
-                            appendThinkingTrace(thinkingId, obj.reasoning);
+                            recordReasoning(obj.reasoning);
                             if (!chromeReady) setThinkingStatus(thinkingId, 'thinking');
+                            else mountActivityOnAi(true);
                         }
                         if (obj.text) {
                             if (!chromeReady) {
@@ -4966,13 +5203,18 @@
                             paintStream();
                         }
                         if (obj.full) finalFull = obj.full;
-                        if (obj.done) doneFlag = true;
+                        if (obj.done) {
+                            if (Array.isArray(obj.sites)) {
+                                for (let s = 0; s < obj.sites.length; s++) recordSite(obj.sites[s]);
+                            }
+                            if (obj.reasoning) recordReasoning(obj.reasoning);
+                            doneFlag = true;
+                        }
                     }
                 }
 
                 if (errMsg && !streamedText) throw new Error(errMsg);
                 let finalText = (finalFull && !streamedText) ? finalFull : (streamedText || finalFull || '');
-                // Client-side fallback if stream ended empty
                 if (!String(finalText).trim() && !errMsg) {
                     setThinkingStatus(thinkingId, 'waiting');
                     try {
@@ -4991,6 +5233,10 @@
                         const data = await fb.json();
                         if (data && data.reply) finalText = data.reply;
                         else if (data && data.error) throw new Error(data.error);
+                        if (data && Array.isArray(data.sites)) {
+                            for (let s = 0; s < data.sites.length; s++) recordSite(data.sites[s]);
+                        }
+                        if (data && data.reasoning) recordReasoning(data.reasoning);
                     } catch (fbErr) {
                         throw fbErr;
                     }
@@ -5022,6 +5268,7 @@
                         chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
                     }
                     chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
+                    persistActivityOnLastAi();
                     chats[currentChatId].updatedAt = new Date().toISOString();
                     saveChats();
                     if (contentEl) {
@@ -5030,6 +5277,8 @@
                         contentEl.innerHTML = formatMarkdown(finalText);
                         renderMathIn(contentEl);
                     }
+                    // Collapse activity panel for preview (still openable)
+                    mountActivityOnAi(false, true);
                 }
                 removeThinkingIndicator(thinkingId);
                 markLastAiActions();
@@ -5040,11 +5289,13 @@
                         const last = chats[currentChatId].messages[chats[currentChatId].messages.length - 1];
                         if (last && last.role === 'ai') {
                             last.content = streamedText + '\n\n_(stopped)_';
+                            persistActivityOnLastAi();
                             saveChats();
                             if (contentEl) {
                                 contentEl.setAttribute('data-text', last.content);
                                 contentEl.innerHTML = formatMarkdown(last.content);
                             }
+                            mountActivityOnAi(false, true);
                         }
                     } else {
                         const msgs = chats[currentChatId].messages;
@@ -5266,6 +5517,9 @@
                 if (msg.model && !msg.isError) {
                     inner += '<div class="message-meta"><span class="message-mode-badge ' + config.badge + '">' + escapeHtmlRaw(config.desc) + '</span></div>';
                 }
+                if (!msg.isError && msg.activity && ((msg.activity.sites && msg.activity.sites.length) || (msg.activity.thinking && String(msg.activity.thinking).trim()) || msg.activity.searchQuery)) {
+                    inner += buildActivityPanelHtml(msg.activity, { live: false, open: false });
+                }
                 if (msg.image) {
                     inner += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
                 }
@@ -5326,7 +5580,7 @@
             connecting: 'Connecting…',
             listening: 'Receiving…',
             thinking: 'Thinking…',
-            searching: 'Searching the web…',
+            searching: 'Searching…',
             researching: 'Researching…',
             generating: 'Writing…',
             streaming: 'Streaming…',
@@ -5346,10 +5600,90 @@
             if (!key) return STATUS_LABELS.waiting;
             const k = String(key).toLowerCase();
             if (STATUS_LABELS[k]) return STATUS_LABELS[k];
-            // Honest passthrough for short server phrases; never invent CoT
             const s = String(key).trim();
             if (s.length && s.length < 80) return s.charAt(s.length - 1) === '…' || s.charAt(s.length - 1) === '.' ? s : (s + '…');
             return STATUS_LABELS.waiting;
+        }
+
+        function hostnameFromUrl(raw) {
+            try {
+                const u = new URL(String(raw));
+                return (u.hostname || '').replace(/^www\./i, '') || '';
+            } catch (e) { return ''; }
+        }
+
+        function normalizeClientSite(entry) {
+            if (!entry) return null;
+            if (typeof entry === 'string') {
+                const url = entry.trim();
+                if (!/^https?:\/\//i.test(url)) return null;
+                const domain = hostnameFromUrl(url);
+                return domain ? { url: url, domain: domain, title: domain } : null;
+            }
+            const url = String(entry.url || '').trim();
+            if (!/^https?:\/\//i.test(url)) return null;
+            const domain = hostnameFromUrl(url) || String(entry.domain || '').trim();
+            if (!domain) return null;
+            const title = String(entry.title || domain).trim() || domain;
+            return { url: url, domain: domain, title: title };
+        }
+
+        function activitySummaryLabel(activity, liveStatus) {
+            const sites = (activity && Array.isArray(activity.sites)) ? activity.sites : [];
+            const thinking = !!(activity && activity.thinking && String(activity.thinking).trim());
+            const n = sites.length;
+            if (liveStatus) {
+                const base = statusLabel(liveStatus);
+                if (n > 0) return base.replace(/…$/, '') + ' · ' + n + ' site' + (n === 1 ? '' : 's') + '…';
+                return base;
+            }
+            const parts = [];
+            if (n > 0) parts.push('Searched ' + n + ' site' + (n === 1 ? '' : 's'));
+            if (thinking) parts.push('Thinking');
+            if (!parts.length) return 'Activity';
+            return parts.join(' · ');
+        }
+
+        function buildActivityPanelHtml(activity, opts) {
+            const o = opts || {};
+            const live = !!o.live;
+            const open = o.open === true || live;
+            const sites = (activity && Array.isArray(activity.sites)) ? activity.sites : [];
+            const thinking = (activity && activity.thinking) ? String(activity.thinking) : '';
+            const query = (activity && activity.searchQuery) ? String(activity.searchQuery) : '';
+            const statusKey = (activity && activity.status) || o.statusKey || '';
+            const summary = escapeHtmlRaw(activitySummaryLabel(activity, live ? (statusKey || 'searching') : null));
+            let sitesHtml = '';
+            if (sites.length) {
+                sitesHtml = '<ul class="activity-sites">';
+                for (let i = 0; i < sites.length; i++) {
+                    const s = sites[i];
+                    if (!s || !s.url) continue;
+                    const label = escapeHtmlRaw(s.title || s.domain || s.url);
+                    const dom = escapeHtmlRaw(s.domain || hostnameFromUrl(s.url));
+                    sitesHtml += '<li><a href="' + escapeAttr(s.url) + '" target="_blank" rel="noopener noreferrer" title="' + escapeAttr(s.url) + '">' + label + '</a>' +
+                        (dom ? '<span class="site-domain">' + dom + '</span>' : '') + '</li>';
+                }
+                sitesHtml += '</ul>';
+            }
+            let body = '<div class="activity-body">';
+            if (query) body += '<div class="activity-query">Query: ' + escapeHtmlRaw(query) + '</div>';
+            body += sitesHtml;
+            if (thinking.trim()) {
+                const shown = thinking.length > 2500 ? ('…' + thinking.slice(-2500)) : thinking;
+                body += '<div class="activity-thinking" aria-label="Model reasoning">' + escapeHtmlRaw(shown) + '</div>';
+            }
+            if (!sites.length && !thinking.trim() && !query) {
+                body += '<div class="activity-query">' + (live ? 'Working…' : 'No details captured') + '</div>';
+            }
+            body += '</div>';
+            return '<details class="activity-panel' + (live ? ' live' : '') + '"' + (open ? ' open' : '') + '>' +
+                '<summary><span class="activity-summary-text">' + summary + '</span></summary>' +
+                body + '</details>';
+        }
+
+        function emptyActivity() {
+            return { sites: [], thinking: '', searchQuery: '', status: '' };
         }
 
         function showThinkingIndicator(statusKey) {
@@ -5362,41 +5696,95 @@
             div.className = 'message ai thinking';
             div.setAttribute('aria-live', 'polite');
             const modeLabel = (MODELS[currentModel] || MODELS.normal).label;
+            const act = emptyActivity();
+            act.status = statusKey || initialThinkingStatus();
+            div._activity = act;
             div.innerHTML = '<div class="ai-block"><div class="thinking-indicator" id="' + id + '_ind">' +
                 '<div class="thinking-row">' +
                 '<div class="thinking-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>' +
-                '<div class="thinking-status">' + escapeHtmlRaw(statusLabel(statusKey || initialThinkingStatus())) + '</div>' +
+                '<div class="thinking-status">' + escapeHtmlRaw(statusLabel(act.status)) + '</div>' +
                 '<span class="thinking-mode-pill">' + escapeHtmlRaw(modeLabel) + '</span>' +
                 '</div>' +
                 '<div class="thinking-shimmer" aria-hidden="true"></div>' +
-                '<div class="thinking-trace" aria-label="Model reasoning"></div>' +
+                '<div class="thinking-activity-slot" id="' + id + '_act"></div>' +
                 '</div></div>';
             container.appendChild(div);
+            refreshThinkingActivity(id);
             stickToBottom = true;
             scrollToBottom(true);
             return id;
         }
 
+        function getThinkingActivity(id) {
+            const el = document.getElementById(id);
+            if (!el) return emptyActivity();
+            if (!el._activity) el._activity = emptyActivity();
+            return el._activity;
+        }
+
+        function refreshThinkingActivity(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const slot = document.getElementById(id + '_act') || el.querySelector('.thinking-activity-slot');
+            if (!slot) return;
+            const act = getThinkingActivity(id);
+            const has = (act.sites && act.sites.length) || (act.thinking && act.thinking.trim()) || act.searchQuery;
+            if (!has) {
+                slot.innerHTML = '';
+                return;
+            }
+            slot.innerHTML = buildActivityPanelHtml(act, { live: true, open: true, statusKey: act.status });
+        }
+
         function setThinkingStatus(id, statusKey) {
             const el = document.getElementById(id);
             if (!el) return;
+            const act = getThinkingActivity(id);
+            act.status = statusKey;
             const label = el.querySelector('.thinking-status');
             if (label) label.textContent = statusLabel(statusKey);
+            refreshThinkingActivity(id);
         }
 
         function appendThinkingTrace(id, chunk) {
             if (!chunk) return;
-            const el = document.getElementById(id);
-            if (!el) return;
-            const trace = el.querySelector('.thinking-trace');
-            if (!trace) return;
-            const prev = trace.getAttribute('data-raw') || '';
-            const next = (prev + chunk).slice(-4000);
-            trace.setAttribute('data-raw', next);
-            const shown = next.length > 600 ? ('…' + next.slice(-600)) : next;
-            trace.textContent = shown;
-            trace.classList.add('show');
+            const act = getThinkingActivity(id);
+            act.thinking = ((act.thinking || '') + chunk).slice(-8000);
+            if (!act.status || act.status === 'connecting' || act.status === 'listening') act.status = 'thinking';
+            refreshThinkingActivity(id);
             scrollToBottom();
+        }
+
+        function appendThinkingSite(id, siteEntry) {
+            const site = normalizeClientSite(siteEntry);
+            if (!site) return;
+            const act = getThinkingActivity(id);
+            if (!act.sites) act.sites = [];
+            const key = site.url.toLowerCase();
+            for (let i = 0; i < act.sites.length; i++) {
+                if (String(act.sites[i].url || '').toLowerCase() === key) return;
+            }
+            act.sites.push(site);
+            if (!act.status || act.status === 'connecting') act.status = 'searching';
+            refreshThinkingActivity(id);
+            scrollToBottom();
+        }
+
+        function setThinkingSearchQuery(id, query) {
+            if (!query) return;
+            const act = getThinkingActivity(id);
+            act.searchQuery = String(query).slice(0, 240);
+            refreshThinkingActivity(id);
+        }
+
+        function snapshotThinkingActivity(id) {
+            const act = getThinkingActivity(id);
+            return {
+                sites: Array.isArray(act.sites) ? act.sites.slice() : [],
+                thinking: act.thinking ? String(act.thinking) : '',
+                searchQuery: act.searchQuery ? String(act.searchQuery) : '',
+                status: act.status || ''
+            };
         }
 
         function removeThinkingIndicator(id) {
@@ -5404,7 +5792,7 @@
             if (el) el.remove();
         }
 
-        // Back-compat aliases used nowhere else after refactor
+        // Back-compat aliases
         function showTypingIndicator() { return showThinkingIndicator(initialThinkingStatus()); }
         function removeTypingIndicator(id) { removeThinkingIndicator(id); }
 

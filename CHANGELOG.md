@@ -1,3 +1,13 @@
+# GoldenSpaceAI — search / thinking activity panel (2026-10-01)
+
+- **Searching panel:** during Expert web search (and when the provider emits tool events), the assistant message shows a collapsible **Searching…** panel with real site/domain URLs as SSE `site` / `sites` events arrive — never faked.
+- **Thinking:** reasoning/thinking snippets from the backend (`reasoning` SSE, Responses reasoning fields) appear in the same panel.
+- **Post-answer preview:** when the reply finishes, the panel stays on the message (collapsed by default: “Searched N sites · Thinking”) and can be expanded to review sources and thinking.
+- **Server:** Expert Responses API prefers streaming and forwards web_search / citation / reasoning events; non-stream fallback still extracts `citations`, `url_citation` annotations, and `web_search_call` URLs.
+- Service worker cache `goldenspaceai2-v45`. App `2.3.19`.
+
+---
+
 # GoldenSpaceAI — landing, plan funnel, chat reliability, settings (2026-10-01)
 
 - **Landing / empty chat:** professional first screen with short value line, clear Start CTA (focuses composer), mode pills, and soft plan hint linking to `/upgrade`.

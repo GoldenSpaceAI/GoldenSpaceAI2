@@ -1,3 +1,14 @@
+# GoldenSpaceAI — stepped email OTP login UX (2026-10-01)
+
+- **/login:** email OTP is a **two-step** flow — enter email → dedicated code step (not cramped on the same form).
+- **OTP boxes:** six separate digit inputs with auto-advance, paste support, and backspace to previous box.
+- **Sign in** verifies the code; wrong code clears the boxes, shows an error, and allows retype.
+- **Resend:** available only after a **2-minute** countdown; then Resend code is enabled.
+- Google Continue unchanged. Same professional /login look (light/dark).
+- Service worker cache `goldenspaceai2-v31`. App `2.3.5`.
+
+---
+
 # GoldenSpaceAI — centered settings modal + plain AI bubbles (2026-10-01)
 
 - **Settings:** gear opens a **centered modal** (overlay backdrop) instead of a side drawer; close via **X**, backdrop click, or **Escape**. Keeps email, username, plan usage, plan requests, upgrade, and sign out.

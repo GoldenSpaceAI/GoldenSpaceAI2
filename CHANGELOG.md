@@ -1,3 +1,11 @@
+# GoldenSpaceAI — persist plans/payments across Render deploys (2026-10-01)
+
+- **Root cause:** plan usage, subscriptions, and OMT payment history lived in `data/plans.json` on the Render ephemeral filesystem, so every deploy/restart wiped daily limits and Waiting/Approved/Declined history.
+- **Fix:** store the plans blob in Postgres table `plans_store` (same `DATABASE_URL` / `GoldenSpaceAI2-db` Oregon). Boot loads Postgres first; if empty, migrates existing JSON → PG; JSON remains a local mirror/fallback when DB is unavailable.
+- Upgrade request / admin approve & decline await a durable Postgres flush. Service worker `goldenspaceai2-v36`. App `2.3.10`.
+
+---
+
 # GoldenSpaceAI — chat page SaaS visual polish (2026-10-01)
 
 - **Chat page only** major visual polish for a more professional SaaS look (mobile + desktop). Plans/caps/OMT/admin/auth/PWA behavior unchanged.

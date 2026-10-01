@@ -26,7 +26,10 @@ const PORT = process.env.PORT || 3000;
 const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS) || 60000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const CHATS_FILE = path.join(DATA_DIR, 'chats.json');
-const plansStore = createPlansStore(DATA_DIR);
+const plansStore = createPlansStore(DATA_DIR, {
+    // Lazy: auth is assigned below; pool appears once DATABASE_URL is set.
+    getPool: () => (auth && typeof auth.getPool === 'function' ? auth.getPool() : null)
+});
 const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || '';
 
 // Auth + Postgres chat store (email OTP / Google). Live login needs keys — see AUTH_ENV.md.
@@ -1498,6 +1501,9 @@ app.post('/api/upgrade/request', async (req, res) => {
     if (!result.ok) {
         return res.status(400).json(result);
     }
+    try { await plansStore.flushAsync(); } catch (e) {
+        console.error('plans flush after upgrade request:', e.message);
+    }
     // Notify on new waiting requests, or when an existing waiting request first receives an email.
     if (result.payment && result.payment.email && (!result.already || result.emailAttached)) {
         sendPlanRequestReceivedEmail(result.payment).catch((e) =>
@@ -1559,6 +1565,9 @@ app.post('/api/admin/payments/:id/approve', async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const result = plansStore.approvePayment(req.params.id);
     if (!result.ok) return res.status(404).json(result);
+    try { await plansStore.flushAsync(); } catch (e) {
+        console.error('plans flush after approve:', e.message);
+    }
     if (!result.already && result.payment) {
         sendPlanApprovedEmail(result.payment).catch((e) =>
             console.error('plan approved email:', e.message)
@@ -1571,6 +1580,9 @@ app.post('/api/admin/payments/:id/decline', async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const result = plansStore.declinePayment(req.params.id);
     if (!result.ok) return res.status(404).json(result);
+    try { await plansStore.flushAsync(); } catch (e) {
+        console.error('plans flush after decline:', e.message);
+    }
     if (!result.already && result.payment) {
         sendPlanDeclinedEmail(result.payment).catch((e) =>
             console.error('plan declined email:', e.message)
@@ -1685,22 +1697,42 @@ app.use((err, req, res, next) => {
 
 // ==================== START SERVER ====================
 ensureDataDir();
-app.listen(PORT, () => {
-    console.log('═══════════════════════════════');
-    console.log('🚀 GoldenSpaceAI Server');
-    console.log(`📡 Port: ${PORT}`);
-    console.log(`⚡ Fast: pref=${FAST_PROVIDER_PREF || 'grok-default'} | OpenAI ${OPENAI_FAST_MODEL} (${process.env.OPENAI_API_KEY ? 'key ✅' : 'key ❌'}) | Grok ${GROK_FAST_MODEL} (${process.env.GROK_API_KEY ? 'key ✅' : 'key ❌'})`);
-    console.log(`🧠 Thinking/Expert: Grok (key ${process.env.GROK_API_KEY ? '✅' : '❌'})`);
-    console.log(`📜 History window: ${HISTORY_WINDOW} messages`);
-    console.log(`📐 Math Cleaner: ✅`);
-    console.log(`📡 Streaming: ✅ /api/chat/stream`);
-    console.log(`💾 Persistence: ✅ ${CHATS_FILE}`);
-    console.log(`💳 Plans store: ✅ ${plansStore.filePath} (daily Fast reset: UTC)`);
-    console.log(`🔐 Admin passkey: ${ADMIN_PASSKEY ? '✅ set' : '❌ missing ADMIN_PASSKEY'}`);
-    const _as = auth.authStatus();
-    console.log(`👤 Auth: db=${_as.database ? '✅' : '❌'} session=${_as.sessionSecret ? '✅' : '❌'} google=${_as.googleOAuth ? '✅' : '❌'} emailOtp=${_as.emailOtp ? '✅' : '❌'}`);
-    console.log(`⏱️ Timeout: ${UPSTREAM_TIMEOUT_MS}ms`);
-    console.log(`🛡️ Rate limit: ${RATE_LIMIT}/min per IP on /api/chat*`);
-    console.log(`📱 PWA Support: ✅ Ready`);
-    console.log('═══════════════════════════════');
+
+async function startServer() {
+    let plansPersist = { source: 'pending', pg: false };
+    try {
+        if (auth && typeof auth.ensureSchema === 'function') {
+            await auth.ensureSchema();
+        }
+        plansPersist = await plansStore.initPersistence();
+        console.log('💳 Plans persistence:', plansPersist);
+    } catch (e) {
+        console.error('Plans persistence init failed (JSON fallback):', e.message);
+    }
+
+    app.listen(PORT, () => {
+        const pi = plansStore.getPersistenceInfo ? plansStore.getPersistenceInfo() : {};
+        console.log('═══════════════════════════════');
+        console.log('🚀 GoldenSpaceAI Server');
+        console.log(`📡 Port: ${PORT}`);
+        console.log(`⚡ Fast: pref=${FAST_PROVIDER_PREF || 'grok-default'} | OpenAI ${OPENAI_FAST_MODEL} (${process.env.OPENAI_API_KEY ? 'key ✅' : 'key ❌'}) | Grok ${GROK_FAST_MODEL} (${process.env.GROK_API_KEY ? 'key ✅' : 'key ❌'})`);
+        console.log(`🧠 Thinking/Expert: Grok (key ${process.env.GROK_API_KEY ? '✅' : '❌'})`);
+        console.log(`📜 History window: ${HISTORY_WINDOW} messages`);
+        console.log(`📐 Math Cleaner: ✅`);
+        console.log(`📡 Streaming: ✅ /api/chat/stream`);
+        console.log(`💾 Persistence: ✅ ${CHATS_FILE}`);
+        console.log(`💳 Plans store: ✅ ${pi.pg ? 'postgres' : 'json'} (${pi.source || plansPersist.source}) + ${plansStore.filePath} (daily Fast reset: UTC)`);
+        console.log(`🔐 Admin passkey: ${ADMIN_PASSKEY ? '✅ set' : '❌ missing ADMIN_PASSKEY'}`);
+        const _as = auth.authStatus();
+        console.log(`👤 Auth: db=${_as.database ? '✅' : '❌'} session=${_as.sessionSecret ? '✅' : '❌'} google=${_as.googleOAuth ? '✅' : '❌'} emailOtp=${_as.emailOtp ? '✅' : '❌'}`);
+        console.log(`⏱️ Timeout: ${UPSTREAM_TIMEOUT_MS}ms`);
+        console.log(`🛡️ Rate limit: ${RATE_LIMIT}/min per IP on /api/chat*`);
+        console.log(`📱 PWA Support: ✅ Ready`);
+        console.log('═══════════════════════════════');
+    });
+}
+
+startServer().catch((e) => {
+    console.error('Failed to start server:', e);
+    process.exit(1);
 });

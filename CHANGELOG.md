@@ -1,10 +1,11 @@
-# GoldenSpaceAI — account strip in chats bottom bar (2026-10-01)
+# GoldenSpaceAI — account in bottom bar + scrollable chat tables (2026-10-01)
 
 - **Top bar:** removed account strip; top stays clean (menu, brand, title, export, theme).
 - **Chats footer:** Log in → `/login` when guest; when signed in shows **email**, **plan badge**, and **gear** → settings drawer. Instructions + Install App stay as before.
 - **Install App:** unchanged one-press `beforeinstallprompt` only (hidden when unavailable / Safari-Mac / standalone; no force to `/app-install.html`).
+- **Chat tables:** Markdown/HTML tables use `overflow-x: auto` wrappers (`width: max-content`), touch-friendly pan, no page-wide horizontal scroll.
 - Keeps dedicated `/login` page and settings panel from 2.3.0.
-- Service worker cache `goldenspaceai2-v27`. App `2.3.1`.
+- Service worker cache `goldenspaceai2-v28`. App `2.3.2`.
 
 ---
 

@@ -195,7 +195,12 @@ function emptyStore() {
         phoneIndex: {},
         usage: {},
         payments: [],
-        geoCache: {}
+        geoCache: {},
+        settings: {
+            paused: false,
+            pausedAt: null,
+            pausedBy: null
+        }
     };
 }
 
@@ -211,6 +216,15 @@ function createPlansStore(dataDir, options = {}) {
     let persistenceSource = 'uninitialized';
     let pgEnabled = false;
 
+    function normalizeSettings(src) {
+        const s = src && typeof src === 'object' ? src : {};
+        return {
+            paused: !!s.paused,
+            pausedAt: s.pausedAt ? String(s.pausedAt) : null,
+            pausedBy: s.pausedBy ? String(s.pausedBy) : null
+        };
+    }
+
     function normalizeStore(parsed) {
         const src = parsed && typeof parsed === 'object' ? parsed : {};
         return {
@@ -218,16 +232,20 @@ function createPlansStore(dataDir, options = {}) {
             phoneIndex: src.phoneIndex && typeof src.phoneIndex === 'object' ? src.phoneIndex : {},
             usage: src.usage && typeof src.usage === 'object' ? src.usage : {},
             payments: Array.isArray(src.payments) ? src.payments : [],
-            geoCache: src.geoCache && typeof src.geoCache === 'object' ? src.geoCache : {}
+            geoCache: src.geoCache && typeof src.geoCache === 'object' ? src.geoCache : {},
+            settings: normalizeSettings(src.settings)
         };
     }
 
     function storeHasData(store) {
         if (!store) return false;
+        const settings = store.settings || {};
         return Object.keys(store.subscriptions || {}).length > 0 ||
             Object.keys(store.usage || {}).length > 0 ||
             Object.keys(store.phoneIndex || {}).length > 0 ||
-            (Array.isArray(store.payments) && store.payments.length > 0);
+            (Array.isArray(store.payments) && store.payments.length > 0) ||
+            !!settings.paused ||
+            !!settings.pausedAt;
     }
 
     function ensureDir() {
@@ -1380,6 +1398,33 @@ function createPlansStore(dataDir, options = {}) {
         return { ok: true, payment };
     }
 
+    function getPauseState() {
+        const store = read();
+        const settings = normalizeSettings(store.settings);
+        return {
+            paused: !!settings.paused,
+            pausedAt: settings.pausedAt,
+            pausedBy: settings.pausedBy
+        };
+    }
+
+    function isPaused() {
+        return getPauseState().paused;
+    }
+
+    function setPaused(paused, opts) {
+        const store = read();
+        const next = !!paused;
+        const by = opts && opts.by ? String(opts.by).slice(0, 200) : null;
+        store.settings = normalizeSettings(store.settings);
+        store.settings.paused = next;
+        store.settings.pausedAt = next ? new Date().toISOString() : null;
+        store.settings.pausedBy = next ? by : null;
+        save();
+        flushSync();
+        return getPauseState();
+    }
+
     return {
         PLAN_DEFS,
         PLAN_RANK,
@@ -1411,6 +1456,9 @@ function createPlansStore(dataDir, options = {}) {
         getPayment,
         approvePayment,
         declinePayment,
+        getPauseState,
+        isPaused,
+        setPaused,
         flushSync,
         flushAsync,
         initPersistence,

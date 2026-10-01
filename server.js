@@ -60,6 +60,73 @@ if (corsOptions && typeof corsOptions === 'object') {
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
+
+// Pause gate: block non-admin pages/APIs while site is paused (admin stays reachable).
+const PAUSE_ASSET_EXEMPT = new Set([
+    '/theme.css',
+    '/theme.js',
+    '/logo.png',
+    '/manifest.json',
+    '/sw.js',
+    '/offline.html',
+    '/updating.html',
+    '/favicon.ico'
+]);
+
+function isPauseExemptPath(pathname) {
+    const p = String(pathname || '');
+    if (p === '/admin-page' || p === '/admin-page.html') return true;
+    if (p.startsWith('/api/admin/')) return true;
+    if (PAUSE_ASSET_EXEMPT.has(p)) return true;
+    return false;
+}
+
+function wantsHtmlPage(req) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+    const accept = String(req.headers.accept || '');
+    if (accept.includes('text/html')) return true;
+    const p = req.path || '';
+    if (p === '/' || p.endsWith('.html')) return true;
+    // Pretty routes that map to HTML pages
+    const pretty = [
+        '/login', '/upgrade', '/my-plan', '/terms', '/privacy', '/refund',
+        '/install', '/app-install'
+    ];
+    return pretty.includes(p);
+}
+
+function sendPausedPage(res) {
+    res.status(503);
+    res.setHeader('Retry-After', '120');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.sendFile(path.join(__dirname, 'public', 'updating.html'));
+}
+
+app.use((req, res, next) => {
+    try {
+        if (!plansStore.isPaused()) return next();
+    } catch (_) {
+        return next();
+    }
+    if (isPauseExemptPath(req.path)) return next();
+    if (wantsHtmlPage(req)) return sendPausedPage(res);
+    if (req.path.startsWith('/api/')) {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(503).json({
+            error: 'paused',
+            message: 'Updating GoldenSpaceAI. Please wait and come back later.'
+        });
+    }
+    // Non-API, non-HTML static assets for public pages stay blocked except exempt list
+    if (req.method === 'GET' || req.method === 'HEAD') {
+        return sendPausedPage(res);
+    }
+    return res.status(503).json({
+        error: 'paused',
+        message: 'Updating GoldenSpaceAI. Please wait and come back later.'
+    });
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==================== DIY RATE LIMIT (/api/chat*) ====================
@@ -1721,6 +1788,22 @@ app.post('/api/admin/payments/:id/decline', async (req, res) => {
         );
     }
     res.json(result);
+});
+
+app.get('/api/admin/pause', (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    res.json({ ok: true, ...plansStore.getPauseState() });
+});
+
+app.post('/api/admin/pause', async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const body = req.body || {};
+    const paused = body.paused === true || body.paused === 'true' || body.paused === 1;
+    const state = plansStore.setPaused(paused, { by: 'admin' });
+    try { await plansStore.flushAsync(); } catch (e) {
+        console.error('plans flush after pause toggle:', e.message);
+    }
+    res.json({ ok: true, ...state });
 });
 
 app.get('/terms', (req, res) => {

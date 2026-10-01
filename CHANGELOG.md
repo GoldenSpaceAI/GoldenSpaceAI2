@@ -1,3 +1,13 @@
+# GoldenSpaceAI — pause / unpause site (2026-10-01)
+
+- **Admin Pause:** `/admin-page` control to Pause / Unpause GoldenSpaceAI.
+- **When paused:** chat and all non-admin pages show a full-page message: “Updating GoldenSpaceAI. Please wait and come back later.”
+- **Admin stays up:** `/admin-page` and `/api/admin/*` remain reachable so you can unpause.
+- **Persistence:** `settings.paused` stored in the plans Postgres/`plans.json` store (same durable path as payments).
+- Service worker cache `goldenspaceai2-v41`. App `2.3.15`.
+
+---
+
 # GoldenSpaceAI — admin decline reason in email (2026-10-01)
 
 - **Admin Decline:** clicking Decline opens a dialog to type a non-empty reason; Cancel aborts; OK sends the reason to the decline API.

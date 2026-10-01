@@ -211,6 +211,19 @@
   html.light .plan-pill { background:#fff8e6; }
   html.light .badge.waiting { color:#1a1200; }
 
+  .pause-bar {
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    margin:0 0 18px; padding:14px 16px; border-radius:14px;
+    border:1px solid var(--border); background:rgba(212,175,55,0.06);
+  }
+  .pause-bar .pause-status { color:var(--muted); font-size:0.92rem; line-height:1.4; }
+  .pause-bar .pause-status b { color:var(--text); }
+  .pause-bar .pause-status.on b { color:#e8b84a; }
+  .pause-bar .pause-status.off b { color:#5dcea0; }
+  button.btn.warn {
+    background:linear-gradient(135deg,#c9a227,#8a6a12); color:#0a0a0a; font-weight:700;
+  }
+
   /* Decline reason dialog */
   .modal-backdrop {
     position: fixed; inset: 0; z-index: 100;
@@ -300,6 +313,11 @@
       <p>Review OMT payment requests. Approve or decline with your admin session.</p>
     </div>
 
+    <div class="pause-bar" id="pauseBar">
+      <div class="pause-status off" id="pauseStatus">Site status: <b>Running</b></div>
+      <button class="btn warn" type="button" id="pauseToggleBtn">Pause GoldenSpaceAI</button>
+    </div>
+
     <div class="toolbar">
       <h2>Inbox</h2>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -352,11 +370,42 @@
     return { res, data };
   }
 
+  let pauseState = { paused: false, pausedAt: null };
+
+  function renderPause() {
+    const statusEl = document.getElementById('pauseStatus');
+    const btn = document.getElementById('pauseToggleBtn');
+    if (!statusEl || !btn) return;
+    const on = !!pauseState.paused;
+    statusEl.className = 'pause-status ' + (on ? 'on' : 'off');
+    if (on) {
+      const when = pauseState.pausedAt ? (' since ' + fmtDate(pauseState.pausedAt)) : '';
+      statusEl.innerHTML = 'Site status: <b>Paused</b>' + (when ? ('<br><span style="font-size:0.85em">Paused' + when + '</span>') : '');
+      btn.textContent = 'Unpause GoldenSpaceAI';
+      btn.className = 'btn ok';
+    } else {
+      statusEl.innerHTML = 'Site status: <b>Running</b>';
+      btn.textContent = 'Pause GoldenSpaceAI';
+      btn.className = 'btn warn';
+    }
+  }
+
+  async function loadPause() {
+    const { res, data } = await api('/api/admin/pause');
+    if (!res.ok) return;
+    pauseState = {
+      paused: !!data.paused,
+      pausedAt: data.pausedAt || null,
+      pausedBy: data.pausedBy || null
+    };
+    renderPause();
+  }
+
   async function checkSession() {
     const { res } = await api('/api/admin/payments');
     if (res.ok) {
       showApp(true);
-      await loadPayments();
+      await Promise.all([loadPayments(), loadPause()]);
       return true;
     }
     showApp(false);
@@ -484,7 +533,39 @@
     showApp(false);
   });
 
-  document.getElementById('refreshBtn').addEventListener('click', loadPayments);
+  document.getElementById('refreshBtn').addEventListener('click', () => {
+    loadPayments();
+    loadPause();
+  });
+
+  document.getElementById('pauseToggleBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('pauseToggleBtn');
+    const next = !pauseState.paused;
+    const label = next
+      ? 'Pause GoldenSpaceAI? Chat and all non-admin pages will show an updating message until you unpause.'
+      : 'Unpause GoldenSpaceAI and restore public access?';
+    if (!window.confirm(label)) return;
+    btn.disabled = true;
+    try {
+      const { res, data } = await api('/api/admin/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paused: next })
+      });
+      if (!res.ok) {
+        alert((data && data.error) || 'Failed to update pause state');
+        return;
+      }
+      pauseState = {
+        paused: !!data.paused,
+        pausedAt: data.pausedAt || null,
+        pausedBy: data.pausedBy || null
+      };
+      renderPause();
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   document.getElementById('filters').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-filter]');

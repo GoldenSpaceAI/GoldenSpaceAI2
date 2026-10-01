@@ -1,3 +1,13 @@
+# GoldenSpaceAI — admin users directory (2026-10-01)
+
+- **Admin `/admin-users`:** read-only users table (email, plan, device, location) behind the same **ADMIN_PASSKEY** / `gsa_admin` cookie as `/admin-page`.
+- **API:** `GET /api/admin/users` (admin session required). No approve/decline/pause actions on this page.
+- **Data:** Postgres `users` + `device_links`; plan from plans subscriptions (`u_<userId>`); location/device fallbacks from last payment request IP geo / deviceId when login metadata is not stored.
+- Pause-exempt so the page stays reachable while the site is paused. Link from `/admin-page` ↔ `/admin-users`.
+- Service worker cache `goldenspaceai2-v42`. App `2.3.16`.
+
+---
+
 # GoldenSpaceAI — pause / unpause site (2026-10-01)
 
 - **Admin Pause:** `/admin-page` control to Pause / Unpause GoldenSpaceAI.

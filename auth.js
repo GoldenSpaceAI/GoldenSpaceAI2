@@ -696,6 +696,49 @@ function createAuth(options = {}) {
         return deviceId || null;
     }
 
+    /**
+     * Admin read-only: accounts + linked devices from Postgres.
+     * No last-login IP/UA is stored on users today.
+     */
+    async function listUsersForAdmin() {
+        const p = getPool();
+        if (!p || !(await ensureSchema())) {
+            return { ok: false, users: [], error: 'Auth database unavailable' };
+        }
+        const usersRes = await p.query(`
+            SELECT id, email, name, google_id, created_at, updated_at
+            FROM users
+            ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST
+        `);
+        const linksRes = await p.query(`
+            SELECT device_id, user_id, linked_at
+            FROM device_links
+            ORDER BY linked_at DESC NULLS LAST
+        `);
+        const devicesByUser = new Map();
+        for (const row of linksRes.rows) {
+            const uid = String(row.user_id);
+            if (!devicesByUser.has(uid)) devicesByUser.set(uid, []);
+            devicesByUser.get(uid).push({
+                deviceId: row.device_id,
+                linkedAt: row.linked_at ? new Date(row.linked_at).toISOString() : null
+            });
+        }
+        const users = usersRes.rows.map((row) => {
+            const id = String(row.id);
+            return {
+                id,
+                email: row.email || null,
+                name: row.name || null,
+                googleId: row.google_id || null,
+                createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+                updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+                devices: devicesByUser.get(id) || []
+            };
+        });
+        return { ok: true, users };
+    }
+
     return {
         SESSION_COOKIE,
         authStatus,
@@ -718,7 +761,8 @@ function createAuth(options = {}) {
         upsertChat,
         deleteChat,
         ownerKeyForRequest,
-        getPublicBaseUrl
+        getPublicBaseUrl,
+        listUsersForAdmin
     };
 }
 

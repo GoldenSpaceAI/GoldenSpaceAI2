@@ -1425,6 +1425,120 @@ function createPlansStore(dataDir, options = {}) {
         return getPauseState();
     }
 
+    function paymentTimeMs(p) {
+        const t = Date.parse((p && (p.createdAt || p.decidedAt)) || '');
+        return Number.isFinite(t) ? t : 0;
+    }
+
+    /**
+     * Admin read-only user directory rows.
+     * Merges auth accounts with plan subscriptions + best payment IP geo / device signals.
+     * @param {{ accounts?: Array }} opts
+     */
+    function listUsersAdmin(opts) {
+        const accounts = (opts && Array.isArray(opts.accounts)) ? opts.accounts : [];
+        const store = read();
+        const seen = new Set();
+        const rows = [];
+
+        function pickBestPayment(userId, email) {
+            const uid = userId != null ? String(userId) : '';
+            const emailNorm = normalizeEmail(email);
+            const matched = store.payments.filter((p) => {
+                if (uid && p.userId != null && String(p.userId) === uid) return true;
+                if (emailNorm && p.email && p.email === emailNorm) return true;
+                return false;
+            });
+            matched.sort((a, b) => paymentTimeMs(b) - paymentTimeMs(a));
+            return matched[0] || null;
+        }
+
+        function buildRow({ userId, email, name, createdAt, updatedAt, devices }) {
+            const uid = userId != null ? String(userId) : null;
+            const emailNorm = normalizeEmail(email) || (email ? String(email).trim().toLowerCase() : null);
+            const ownerKey = uid ? accountOwnerKey(uid) : null;
+            const effective = ownerKey ? getEffectivePlan(ownerKey) : { plan: 'free' };
+            const pay = pickBestPayment(uid, emailNorm);
+            const deviceList = Array.isArray(devices) ? devices : [];
+            const latestLink = deviceList[0] || null;
+            const deviceId = (latestLink && latestLink.deviceId) || (pay && pay.deviceId) || null;
+            const deviceSource = latestLink
+                ? 'device_links'
+                : (pay && pay.deviceId ? 'payment' : null);
+            const geo = (pay && (pay.geo || (pay.ip && getCachedGeo(pay.ip)))) || null;
+            const location = formatGeoLabel(geo) || null;
+            const locationSource = location
+                ? (pay && pay.geo ? 'payment_geo' : (pay && pay.ip ? 'geo_cache' : null))
+                : null;
+
+            return {
+                id: uid || null,
+                email: emailNorm || null,
+                name: name || null,
+                plan: (effective && effective.plan) || 'free',
+                device: deviceId || null,
+                deviceSource: deviceSource,
+                deviceLinkedAt: (latestLink && latestLink.linkedAt) || null,
+                deviceCount: deviceList.length,
+                location: location,
+                locationLabel: location || (pay && pay.ip ? ('IP ' + pay.ip) : '—'),
+                locationSource: locationSource || (pay && pay.ip ? 'payment_ip' : null),
+                ip: (pay && pay.ip) || null,
+                geo: geo,
+                createdAt: createdAt || null,
+                updatedAt: updatedAt || null,
+                lastPaymentAt: (pay && pay.createdAt) || null
+            };
+        }
+
+        for (const acc of accounts) {
+            const uid = acc && acc.id != null ? String(acc.id) : '';
+            if (!uid) continue;
+            seen.add('u:' + uid);
+            const emailNorm = normalizeEmail(acc.email) || (acc.email ? String(acc.email).trim().toLowerCase() : null);
+            if (emailNorm) seen.add('e:' + emailNorm);
+            rows.push(buildRow({
+                userId: uid,
+                email: acc.email,
+                name: acc.name,
+                createdAt: acc.createdAt,
+                updatedAt: acc.updatedAt,
+                devices: acc.devices
+            }));
+        }
+
+        // Payment-only emails (no auth row yet) — still durable customer signals.
+        const payEmails = new Map();
+        for (const p of store.payments) {
+            const emailNorm = normalizeEmail(p.email);
+            if (!emailNorm) continue;
+            if (seen.has('e:' + emailNorm)) continue;
+            if (p.userId != null && seen.has('u:' + String(p.userId))) continue;
+            const prev = payEmails.get(emailNorm);
+            if (!prev || paymentTimeMs(p) > paymentTimeMs(prev)) {
+                payEmails.set(emailNorm, p);
+            }
+        }
+        for (const [emailNorm, p] of payEmails) {
+            seen.add('e:' + emailNorm);
+            rows.push(buildRow({
+                userId: p.userId || null,
+                email: emailNorm,
+                name: null,
+                createdAt: p.createdAt || null,
+                updatedAt: p.decidedAt || p.createdAt || null,
+                devices: p.deviceId ? [{ deviceId: p.deviceId, linkedAt: p.createdAt || null }] : []
+            }));
+        }
+
+        rows.sort((a, b) => {
+            const ta = Date.parse(a.updatedAt || a.createdAt || a.lastPaymentAt || '') || 0;
+            const tb = Date.parse(b.updatedAt || b.createdAt || b.lastPaymentAt || '') || 0;
+            return tb - ta;
+        });
+        return rows;
+    }
+
     return {
         PLAN_DEFS,
         PLAN_RANK,
@@ -1459,6 +1573,7 @@ function createPlansStore(dataDir, options = {}) {
         getPauseState,
         isPaused,
         setPaused,
+        listUsersAdmin,
         flushSync,
         flushAsync,
         initPersistence,

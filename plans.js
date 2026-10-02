@@ -1050,7 +1050,7 @@ function createPlansStore(dataDir, options = {}) {
         // thinkShare
         const percent = pctUsed(thinkUsed, thinkShareCap);
         const shareLabel = modes.expert4
-            ? 'Thinking & Expert 4 share this pool'
+            ? 'Thinking & Expert 4 share this allowance'
             : 'Thinking allowance';
         return {
             status: 429,
@@ -1288,10 +1288,10 @@ function createPlansStore(dataDir, options = {}) {
             modes,
             timezoneNote: effective.plan === 'free'
                 ? 'Free Fast allowance and daily image cap reset at UTC midnight. Thinking/Expert require a paid plan. Document uploads are unlimited.'
-                : 'Paid Fast / Thinking+Expert4 / Expert16 allowances are per 30-day period from admin confirmation (no auto-renew). Daily image caps reset at UTC midnight. When all usable buckets are used, you move to Free. Document uploads are unlimited.',
+                : 'Paid Fast / Thinking+Expert4 / Expert16 allowances are per 30-day period from admin confirmation (no auto-renew). Daily image caps reset at UTC midnight. When all usable mode allowances are used, you move to Free. Document uploads are unlimited.',
             omtDestination: OMT_DESTINATION,
             pricing: {
-                note: 'Spend uses real provider token costs (prompt + completion). Images also count toward the daily image cap.',
+                note: 'Internal provider rates (not shown to end users).',
                 models: Object.keys(MODEL_PRICING).map((id) => {
                     const r = MODEL_PRICING[id];
                     return {
@@ -1311,10 +1311,10 @@ function createPlansStore(dataDir, options = {}) {
                 caps: effective.caps || capsFromPlanId(effective.plan),
                 baseCaps: capsFromPlanId(effective.plan),
                 rules: [
-                    'Free → paid: grant full Fast / ThinkShare / Expert16 allowances for that plan.',
-                    'Upgrade to a higher plan: keep current capacity and ADD the difference vs the lower plan (per bucket).',
-                    'Buy the same plan again: ADD another full allotment per bucket (doubles from a single allotment).',
-                    'Buckets never borrow from each other. Retained $ is not usable API budget.'
+                    'Free → paid: grant full Fast / Thinking / Expert16 allowances for that plan.',
+                    'Upgrade to a higher plan: keep current capacity and ADD the difference vs the lower plan (per mode).',
+                    'Buy the same plan again: ADD another full allotment per mode (doubles from a single allotment).',
+                    'Modes never borrow from each other.'
                 ]
             },
             usage: {
@@ -1429,7 +1429,7 @@ function createPlansStore(dataDir, options = {}) {
                 u.thinkShareSpendUsd || 0,
                 u.thinkShareCapUsd || 0,
                 modes.expert4
-                    ? 'Thinking and Expert 4 share this bucket — no borrowing from Fast or Expert 16'
+                    ? 'Thinking and Expert 4 share this allowance — no borrowing from Fast or Expert 16'
                     : 'Thinking only on Plus — Expert 4/16 not included'
             ));
         }
@@ -1441,7 +1441,7 @@ function createPlansStore(dataDir, options = {}) {
                 'monthly',
                 u.expert16SpendUsd || 0,
                 u.expert16CapUsd || 0,
-                'Expert 16 has its own bucket — no borrowing from Thinking/Expert 4'
+                'Expert 16 has its own allowance — no borrowing from Thinking/Expert 4'
             ));
         }
 
@@ -1452,7 +1452,7 @@ function createPlansStore(dataDir, options = {}) {
                 'daily',
                 u.imagesToday || 0,
                 u.imagesCap || 0,
-                'Daily image count (UTC). Images also spend from the Fast $ bucket. Documents/files are unlimited.'
+                'Daily image count (UTC). Documents/files are unlimited.'
             ));
         }
 

@@ -1,3 +1,12 @@
+# GoldenSpaceAI — Live voice chat (2026-10-02)
+
+- **Live chat:** When the composer is empty, Send becomes a Grok-like **Live** button. With text (or an attachment), Send stays as now.
+- **Live loop:** Controllable mic (open/close). Speech→text reuses Dictate STT. On listen stop, message sends as **Fast only** (`mode: normal`) and bills tokens/$ like normal Fast. Reply is spoken with existing TTS. Loop until Exit (or Escape).
+- **Normal chat:** Dictate, modes, typing, and Send behavior unchanged outside Live.
+- Service worker cache `goldenspaceai2-v61`. App `2.3.35`.
+
+---
+
 # GoldenSpaceAI — speed, landing, upgrade cards, dictate UX (2026-10-02)
 
 - **Speed:** Stream SSE opens + status before context-pack cold path; skip `getChat` when client already sent rolling summary; gpt-5 empty-stream goes straight to minimal-reasoning retry (skip slow high-effort round-trip); leaner empty-retry token bump; client skips redundant `/api/chat` when stream already `done`. Timing logs: `sse_open`, `pack_ready`, `stream_open`, `first_delta`, `empty_*`, total ms.

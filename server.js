@@ -19,6 +19,16 @@ const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const { extractUploadedFile, MAX_FILE_BYTES } = require('./fileExtract');
 const { createAuth } = require('./auth');
+const contextPack = require('./contextPack');
+const {
+    RECENT_WINDOW,
+    buildPackedMessages,
+    updateRollingSummary,
+    shouldRefreshSummary,
+    extractDurableFactsFromMessages,
+    normalizeFacts,
+    factsToList
+} = contextPack;
 const {
     sendPlanRequestReceivedEmail,
     sendPlanApprovedEmail,
@@ -190,7 +200,8 @@ if (process.env.OPENAI_API_KEY) {
     }
 }
 
-const HISTORY_WINDOW = 40;
+// Recent raw turns sent to the model (summary + account memory cover older context).
+const HISTORY_WINDOW = RECENT_WINDOW;
 const OPENAI_FAST_MODEL = process.env.OPENAI_FAST_MODEL || 'gpt-4o-mini';
 const GROK_FAST_MODEL = 'grok-4.3';
 // Fast defaults to Grok. Set FAST_PROVIDER=openai to try OpenAI first (Grok fallback on connection/auth failure).
@@ -809,80 +820,146 @@ function expandUserContentForModel(msg) {
     return text;
 }
 
-function buildConversationMessages(body) {
-    const { messages, customInstructions, image } = body || {};
-    const conversationMessages = [];
+/**
+ * ChatGPT-style pack:
+ *   [system customInstructions?]
+ *   [system accountMemory?]      — logged-in only
+ *   [system rollingSummary?]     — older turns compressed
+ *   [... last RECENT_WINDOW raw messages]
+ * Guests: no account memory; summary only if client/body provides one or chat exists.
+ */
+async function resolveContextPack(req) {
+    const body = req.body || {};
+    const user = auth && auth.readUserFromReq(req);
+    const chatId = body.chatId ? String(body.chatId) : '';
+    let accountMemory = {};
+    let rollingSummary = typeof body.rollingSummary === 'string' ? body.rollingSummary : '';
+    let summaryMessageCount = Math.max(0, Number(body.summaryMessageCount) || 0);
+    let ownerKey = null;
+    let storedChat = null;
 
-    if (customInstructions && customInstructions.trim()) {
-        conversationMessages.push({
-            role: 'system',
-            content: customInstructions.trim()
-        });
-    }
-
-    const recentMessages = Array.isArray(messages)
-        ? messages.slice(-HISTORY_WINDOW)
-        : [];
-
-    if (recentMessages.length) {
-        recentMessages.forEach(msg => {
-            if (!msg || !msg.role) return;
-
-            if (msg.role === 'user') {
-                const content = [];
-                const modelText = expandUserContentForModel(msg);
-                if (modelText && modelText.trim()) {
-                    content.push({ type: 'text', text: modelText.trim() });
+    if (user && user.id) {
+        ownerKey = 'u_' + user.id;
+        try {
+            const mem = await auth.getUserMemory(user.id);
+            accountMemory = normalizeFacts(mem && mem.facts);
+        } catch (e) {
+            console.error('getUserMemory:', e.message);
+        }
+        if (chatId) {
+            try {
+                storedChat = await auth.getChat(ownerKey, chatId);
+                if (storedChat) {
+                    if (!rollingSummary && storedChat.rollingSummary) {
+                        rollingSummary = storedChat.rollingSummary;
+                    }
+                    if (!summaryMessageCount && storedChat.summaryMessageCount) {
+                        summaryMessageCount = Number(storedChat.summaryMessageCount) || 0;
+                    }
                 }
-                if (msg.image && !msg.imageTooBig) {
-                    content.push({
-                        type: 'image_url',
-                        image_url: { url: msg.image, detail: 'auto' }
-                    });
-                }
-                if (content.length > 0) {
-                    conversationMessages.push({
-                        role: 'user',
-                        content: content.length === 1 && content[0].type === 'text'
-                            ? content[0].text
-                            : content
-                    });
-                }
-            } else if (msg.role === 'ai' || msg.role === 'assistant') {
-                if (msg.content && msg.content.trim()) {
-                    conversationMessages.push({
-                        role: 'assistant',
-                        content: msg.content.trim()
-                    });
-                }
+            } catch (e) {
+                console.error('getChat for pack:', e.message);
             }
-        });
-    }
-
-    if (image && !messages?.some(m => m.image === image)) {
-        const lastMsg = conversationMessages[conversationMessages.length - 1];
-        if (lastMsg && lastMsg.role === 'user') {
-            if (typeof lastMsg.content === 'string') {
-                lastMsg.content = [
-                    { type: 'text', text: lastMsg.content },
-                    { type: 'image_url', image_url: { url: image, detail: 'auto' } }
-                ];
-            } else if (Array.isArray(lastMsg.content)) {
-                lastMsg.content.push({ type: 'image_url', image_url: { url: image, detail: 'auto' } });
-            }
-        } else {
-            conversationMessages.push({
-                role: 'user',
-                content: [{ type: 'image_url', image_url: { url: image, detail: 'auto' } }]
-            });
         }
     }
 
-    if (conversationMessages.length === 0) {
-        conversationMessages.push({ role: 'user', content: 'Hello' });
+    // Prefer fuller history for summary refresh: stored chat messages, else request body.
+    const bodyMessages = Array.isArray(body.messages) ? body.messages : [];
+    const historyForSummary = (storedChat && Array.isArray(storedChat.messages) && storedChat.messages.length >= bodyMessages.length)
+        ? storedChat.messages
+        : bodyMessages;
+
+    if (shouldRefreshSummary(historyForSummary.length, summaryMessageCount) ||
+        (historyForSummary.length > RECENT_WINDOW && !rollingSummary)) {
+        const updated = updateRollingSummary(historyForSummary, rollingSummary, summaryMessageCount);
+        rollingSummary = updated.summary;
+        summaryMessageCount = updated.summarizedCount;
     }
 
-    return conversationMessages;
+    const packed = buildPackedMessages({
+        messages: bodyMessages.length ? bodyMessages : historyForSummary,
+        customInstructions: body.customInstructions,
+        accountMemory: user && user.id ? accountMemory : {},
+        rollingSummary,
+        image: body.image,
+        expandUserContent: expandUserContentForModel
+    });
+
+    return {
+        conversationMessages: packed.messages,
+        meta: packed.meta,
+        accountMemory,
+        rollingSummary,
+        summaryMessageCount,
+        ownerKey,
+        chatId,
+        user,
+        historyForSummary
+    };
+}
+
+/** Sync fallback used only if async pack is unavailable (should not happen). */
+function buildConversationMessages(body) {
+    const packed = buildPackedMessages({
+        messages: body && body.messages,
+        customInstructions: body && body.customInstructions,
+        accountMemory: {},
+        rollingSummary: body && body.rollingSummary,
+        image: body && body.image,
+        expandUserContent: expandUserContentForModel
+    });
+    return packed.messages;
+}
+
+/**
+ * After a successful reply: persist rolling summary on the chat + extract sticky account facts.
+ * Fire-and-forget; never blocks the response path.
+ */
+function afterChatPackMaintenance(pack, reqBody) {
+    if (!pack || !auth) return;
+    setImmediate(async () => {
+        try {
+            const bodyMessages = Array.isArray(reqBody && reqBody.messages) ? reqBody.messages : [];
+            const history = (pack.historyForSummary && pack.historyForSummary.length >= bodyMessages.length)
+                ? pack.historyForSummary
+                : bodyMessages;
+
+            if (pack.ownerKey && pack.chatId) {
+                const updated = updateRollingSummary(
+                    history,
+                    pack.rollingSummary || '',
+                    pack.summaryMessageCount || 0
+                );
+                if (updated.changed || updated.summary !== (pack.rollingSummary || '')) {
+                    try {
+                        await auth.updateChatSummary(
+                            pack.ownerKey,
+                            pack.chatId,
+                            updated.summary,
+                            updated.summarizedCount
+                        );
+                    } catch (e) {
+                        console.error('updateChatSummary:', e.message);
+                    }
+                }
+            }
+
+            // Account memory: logged-in only; durable facts from recent user turns.
+            if (pack.user && pack.user.id) {
+                const extracted = extractDurableFactsFromMessages(bodyMessages, pack.accountMemory || {});
+                if (extracted.changed) {
+                    try {
+                        await auth.setUserMemory(pack.user.id, extracted.facts);
+                        console.log('Account memory updated for', pack.user.email || pack.user.id, Object.keys(extracted.updates || {}));
+                    } catch (e) {
+                        console.error('setUserMemory:', e.message);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('afterChatPackMaintenance:', e.message);
+        }
+    });
 }
 
 function mapApiError(error, provider) {
@@ -1159,7 +1236,20 @@ app.post('/api/chat', async (req, res) => {
             console.log(`Spend: ${spend.costUsd.toFixed(6)} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
         }
         keepUsage = true;
-        const chatPayload = { reply, model: safeMode, provider: result.provider };
+        afterChatPackMaintenance(pack, req.body);
+        const chatPayload = {
+            reply,
+            model: safeMode,
+            provider: result.provider,
+            contextPack: {
+                recentWindow: pack.meta.recentWindow,
+                packSize: pack.meta.packSize,
+                hasAccountMemory: pack.meta.hasAccountMemory,
+                hasRollingSummary: pack.meta.hasRollingSummary,
+                rollingSummary: pack.rollingSummary || '',
+                summaryMessageCount: pack.summaryMessageCount || 0
+            }
+        };
         if (result.activity && (result.activity.sites?.length || result.activity.reasoning)) {
             chatPayload.sites = result.activity.sites || [];
             if (result.activity.reasoning) chatPayload.reasoning = result.activity.reasoning;
@@ -1206,10 +1296,11 @@ app.post('/api/chat/stream', async (req, res) => {
         }
 
         let { safeMode, config, client, provider, allowGrokFallback } = target;
-        const conversationMessages = buildConversationMessages(req.body);
+        const pack = await resolveContextPack(req);
+        const conversationMessages = pack.conversationMessages;
         const useWebSearch = webSearch === true;
 
-        console.log(`Stream: ${safeMode} | Provider: ${provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length} | planKind=${usageKind}`);
+        console.log(`Stream: ${safeMode} | Provider: ${provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | pack=${conversationMessages.length} (raw≈${pack.meta.recentRawCount}+sys${pack.meta.systemBlocks}) mem=${pack.meta.hasAccountMemory} sum=${pack.meta.hasRollingSummary} | planKind=${usageKind}`);
 
         res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -1323,15 +1414,24 @@ app.post('/api/chat/stream', async (req, res) => {
                     }
                     keepUsage = true;
                 }
+                afterChatPackMaintenance(pack, req.body);
                 sendSse({
                     done: true,
                     model: safeMode,
                     provider,
                     full: reply,
                     sites: collectedSites.slice(),
-                    reasoning: reasoningAcc ? reasoningAcc.slice(0, 8000) : undefined
+                    reasoning: reasoningAcc ? reasoningAcc.slice(0, 8000) : undefined,
+                    contextPack: {
+                        recentWindow: pack.meta.recentWindow,
+                        packSize: pack.meta.packSize,
+                        hasAccountMemory: pack.meta.hasAccountMemory,
+                        hasRollingSummary: pack.meta.hasRollingSummary,
+                        rollingSummary: pack.rollingSummary || '',
+                        summaryMessageCount: pack.summaryMessageCount || 0
+                    }
                 });
-                console.log(`Stream done (expert): ${String(reply).length} chars | sites=${collectedSites.length}`);
+                console.log(`Stream done (expert): ${String(reply).length} chars | sites=${collectedSites.length} | pack=${pack.meta.packSize}`);
                 return res.end();
             } catch (err) {
                 sendSse({ error: mapApiError(err, provider) });
@@ -1384,6 +1484,17 @@ app.post('/api/chat/stream', async (req, res) => {
             };
         }
 
+        function contextPackPayload() {
+            return {
+                recentWindow: pack.meta.recentWindow,
+                packSize: pack.meta.packSize,
+                hasAccountMemory: pack.meta.hasAccountMemory,
+                hasRollingSummary: pack.meta.hasRollingSummary,
+                rollingSummary: pack.rollingSummary || '',
+                summaryMessageCount: pack.summaryMessageCount || 0
+            };
+        }
+
         function commitStreamSpend(modelName, usage, replyText) {
             if (!usageHold || isAutoTitleRequest(req.body)) return;
             const spend = spendFromUsageOrEstimate(
@@ -1394,6 +1505,7 @@ app.post('/api/chat/stream', async (req, res) => {
             );
             const recorded = usageHold.commit(spend);
             console.log(`Spend: ${spend.costUsd.toFixed(6)} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
+            afterChatPackMaintenance(pack, req.body);
         }
 
         try {
@@ -1482,8 +1594,8 @@ app.post('/api/chat/stream', async (req, res) => {
                     commitStreamSpend(config.model, streamUsage, cleaned);
                     keepUsage = true;
                 }
-                sendSse({ done: true, model: safeMode, provider, full: cleaned });
-                console.log(`Stream done: ${cleaned.length} chars | provider=${provider}`);
+                sendSse({ done: true, model: safeMode, provider, full: cleaned, contextPack: contextPackPayload() });
+                console.log(`Stream done: ${cleaned.length} chars | provider=${provider} | pack=${pack.meta.packSize}`);
             }
             return res.end();
         } catch (err) {
@@ -1500,7 +1612,7 @@ app.post('/api/chat/stream', async (req, res) => {
                             commitStreamSpend(config.model, recovered.usage, cleanedAbort);
                             keepUsage = true;
                         }
-                        sendSse({ done: true, model: safeMode, provider, full: cleanedAbort });
+                        sendSse({ done: true, model: safeMode, provider, full: cleanedAbort, contextPack: contextPackPayload() });
                         return res.end();
                     }
                 } catch (e) {}
@@ -1526,7 +1638,7 @@ app.post('/api/chat/stream', async (req, res) => {
                             commitStreamSpend(config.model, rescued.usage, cleanedRescue);
                             keepUsage = true;
                         }
-                        sendSse({ done: true, model: safeMode, provider, full: cleanedRescue });
+                        sendSse({ done: true, model: safeMode, provider, full: cleanedRescue, contextPack: contextPackPayload() });
                         return res.end();
                     }
                 } catch (rescueErr) {
@@ -1814,7 +1926,9 @@ async function migrateJsonChatsToPostgres(ownerKey) {
                 updatedAt: chat.updatedAt || chat.createdAt || new Date().toISOString(),
                 named: !!chat.named,
                 customInstructions: chat.customInstructions || '',
-                systemPrompt: chat.systemPrompt || ''
+                systemPrompt: chat.systemPrompt || '',
+                rollingSummary: chat.rollingSummary || '',
+                summaryMessageCount: Number(chat.summaryMessageCount) || 0
             });
             if (ok) migrated += 1;
         } catch (e) {
@@ -1892,7 +2006,9 @@ app.get('/api/chats/:id', async (req, res) => {
             updatedAt: chat.updatedAt || chat.createdAt || new Date().toISOString(),
             named: !!chat.named,
             customInstructions: chat.customInstructions || '',
-            systemPrompt: chat.systemPrompt || ''
+            systemPrompt: chat.systemPrompt || '',
+            rollingSummary: chat.rollingSummary || '',
+            summaryMessageCount: Number(chat.summaryMessageCount) || 0
         });
     } catch (_) {}
     res.json({ id: req.params.id, ...chat });
@@ -1911,7 +2027,9 @@ app.post('/api/chats', async (req, res) => {
         updatedAt: now,
         named: !!body.named,
         customInstructions: body.customInstructions || '',
-        systemPrompt: body.systemPrompt || ''
+        systemPrompt: body.systemPrompt || '',
+        rollingSummary: body.rollingSummary || '',
+        summaryMessageCount: Number(body.summaryMessageCount) || 0
     };
     try {
         const ok = await auth.upsertChat(ownerKey, id, chat);
@@ -1951,7 +2069,11 @@ app.put('/api/chats/:id', async (req, res) => {
         updatedAt: now,
         named: body.named !== undefined ? !!body.named : !!existing.named,
         customInstructions: body.customInstructions !== undefined ? body.customInstructions : (existing.customInstructions || ''),
-        systemPrompt: body.systemPrompt !== undefined ? body.systemPrompt : (existing.systemPrompt || '')
+        systemPrompt: body.systemPrompt !== undefined ? body.systemPrompt : (existing.systemPrompt || ''),
+        rollingSummary: body.rollingSummary !== undefined ? (body.rollingSummary || '') : (existing.rollingSummary || ''),
+        summaryMessageCount: body.summaryMessageCount !== undefined
+            ? Math.max(0, Number(body.summaryMessageCount) || 0)
+            : (Number(existing.summaryMessageCount) || 0)
     };
     try {
         const ok = await auth.upsertChat(ownerKey, req.params.id, chat);
@@ -2116,6 +2238,90 @@ app.post('/api/auth/merge-device', async (req, res) => {
 });
 
 // ==================== PLANS / UPGRADE / ADMIN ====================
+
+// ==================== ACCOUNT MEMORY (logged-in sticky facts) ====================
+app.get('/api/memory', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) {
+        return res.status(401).json({ error: 'Login required', guest: true, facts: [], memory: {} });
+    }
+    try {
+        const mem = await auth.getUserMemory(user.id);
+        const factsObj = normalizeFacts(mem && mem.facts);
+        return res.json({
+            facts: factsToList(factsObj),
+            memory: factsObj,
+            updatedAt: mem && mem.updatedAt || null
+        });
+    } catch (e) {
+        console.error('GET /api/memory:', e.message);
+        return res.status(500).json({ error: 'Failed to load memory' });
+    }
+});
+
+app.put('/api/memory', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) {
+        return res.status(401).json({ error: 'Login required', guest: true });
+    }
+    try {
+        const body = req.body || {};
+        let facts;
+        if (body.memory && typeof body.memory === 'object' && !Array.isArray(body.memory)) {
+            facts = normalizeFacts(body.memory);
+        } else if (Array.isArray(body.facts)) {
+            const obj = {};
+            for (const f of body.facts) {
+                if (!f || !f.key) continue;
+                obj[String(f.key)] = f.value;
+            }
+            facts = normalizeFacts(obj);
+        } else {
+            facts = normalizeFacts(body);
+        }
+        await auth.setUserMemory(user.id, facts);
+        return res.json({ ok: true, facts: factsToList(facts), memory: facts });
+    } catch (e) {
+        console.error('PUT /api/memory:', e.message);
+        return res.status(500).json({ error: 'Failed to save memory' });
+    }
+});
+
+app.patch('/api/memory', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) {
+        return res.status(401).json({ error: 'Login required', guest: true });
+    }
+    try {
+        const result = await auth.patchUserMemory(user.id, req.body || {});
+        const facts = normalizeFacts(result && result.facts);
+        return res.json({ ok: true, facts: factsToList(facts), memory: facts });
+    } catch (e) {
+        console.error('PATCH /api/memory:', e.message);
+        return res.status(500).json({ error: 'Failed to update memory' });
+    }
+});
+
+app.delete('/api/memory', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) {
+        return res.status(401).json({ error: 'Login required', guest: true });
+    }
+    try {
+        const key = (req.query && req.query.key) || (req.body && req.body.key);
+        if (key) {
+            const result = await auth.patchUserMemory(user.id, { [String(key)]: null });
+            const facts = normalizeFacts(result && result.facts);
+            return res.json({ ok: true, facts: factsToList(facts), memory: facts });
+        }
+        await auth.clearUserMemory(user.id);
+        return res.json({ ok: true, facts: [], memory: {} });
+    } catch (e) {
+        console.error('DELETE /api/memory:', e.message);
+        return res.status(500).json({ error: 'Failed to clear memory' });
+    }
+});
+
 app.get('/api/plan', (req, res) => {
     const ownerKey = resolvePlanOwnerKey(req);
     // Public payload: percent quotas only (no $ spend / token counts for end users)
@@ -2462,6 +2668,9 @@ app.get('/health', (req, res) => {
         plans: true,
         dailyResetTimezone: 'UTC',
         historyWindow: HISTORY_WINDOW,
+        recentWindow: RECENT_WINDOW,
+        contextPack: true,
+        accountMemory: true,
         pwaReady: true,
         fastProviderPref: FAST_PROVIDER_PREF || 'auto',
         grokKeyConfigured: !!process.env.GROK_API_KEY,
@@ -2506,7 +2715,7 @@ async function startServer() {
         console.log(`📡 Port: ${PORT}`);
         console.log(`⚡ Fast: pref=${FAST_PROVIDER_PREF || 'grok-default'} | OpenAI ${OPENAI_FAST_MODEL} (${process.env.OPENAI_API_KEY ? 'key ✅' : 'key ❌'}) | Grok ${GROK_FAST_MODEL} (${process.env.GROK_API_KEY ? 'key ✅' : 'key ❌'})`);
         console.log(`🧠 Thinking/Expert: Grok (key ${process.env.GROK_API_KEY ? '✅' : '❌'})`);
-        console.log(`📜 History window: ${HISTORY_WINDOW} messages`);
+        console.log(`📜 Context pack: recent=${RECENT_WINDOW} raw + rolling summary + account memory (was full ${40} window)`);
         console.log(`📐 Math Cleaner: ✅`);
         console.log(`📡 Streaming: ✅ /api/chat/stream`);
         console.log(`🔊 TTS: ${openaiTtsReady() ? 'OpenAI tts-1-hd ✅' : 'browser fallback (no OPENAI_API_KEY)'}`);

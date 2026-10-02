@@ -3518,6 +3518,16 @@
                             <button type="button" class="settings-instr-save" id="instrSaveBtn" onclick="saveInstructionsEdit()">Save instructions</button>
                         </div>
                     </div>
+                    <div class="settings-card" aria-label="Remembered about you" id="settingsMemoryCard" hidden>
+                        <h3>Remembered about you</h3>
+                        <p class="settings-instr-hint">Sticky facts used across chats when you are logged in (name, preferences, stable personal details). Guests have no cross-chat memory.</p>
+                        <div class="settings-loading" id="settingsMemoryLoading" hidden>Loading…</div>
+                        <div id="settingsMemoryList"></div>
+                        <div class="settings-instr-actions" style="margin-top:12px; justify-content:space-between;">
+                            <button type="button" class="settings-theme-btn" id="settingsMemoryRefreshBtn" onclick="loadAccountMemory()">Refresh</button>
+                            <button type="button" class="danger" id="settingsMemoryClearBtn" onclick="clearAccountMemory()">Clear all</button>
+                        </div>
+                    </div>
                     <div class="settings-card" aria-label="Plan usage">
                         <h3>Plan usage</h3>
                         <div class="settings-loading" id="settingsUsageLoading">Loading usage…</div>
@@ -3596,7 +3606,7 @@
             edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>'
         };
 
-        const HISTORY_WINDOW = 40;
+        const HISTORY_WINDOW = 10; // recent raw turns; older covered by rolling summary + account memory
         const MODELS = {
             'normal': { label: 'Fast', apiMode: 'normal', badge: 'badge-normal', desc: 'Fast' },
             'smart': { label: 'Thinking', apiMode: 'smart', badge: 'badge-smart', desc: 'Grok 4.3 Thinking' },
@@ -3838,6 +3848,8 @@
             const actions = document.querySelector('.settings-actions');
             if (accountCard) accountCard.style.display = loggedIn ? '' : 'none';
             if (reqCard) reqCard.style.display = loggedIn ? '' : 'none';
+            const memCard = document.getElementById('settingsMemoryCard');
+            if (memCard) memCard.hidden = !loggedIn;
             if (actions) {
                 actions.style.display = '';
                 const logoutBtn = document.getElementById('settingsLogoutBtn');
@@ -3858,12 +3870,145 @@
                     loginLink.style.display = 'none';
                 }
             }
-            if (loggedIn) loadSettingsRequests();
+            if (loggedIn) {
+                loadSettingsRequests();
+                loadAccountMemory();
+            }
         }
         function closeSettingsPanel() {
             const overlay = document.getElementById('settingsOverlay');
             if (overlay) overlay.classList.remove('open');
         }
+        function escapeMemoryHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        function renderAccountMemoryList(facts) {
+            const box = document.getElementById('settingsMemoryList');
+            if (!box) return;
+            const list = Array.isArray(facts) ? facts : [];
+            if (!list.length) {
+                box.innerHTML = '<p class="settings-req-meta">Nothing remembered yet. Mention durable facts (e.g. “My name is …”) while logged in.</p>';
+                return;
+            }
+            box.innerHTML = '';
+            for (let i = 0; i < list.length; i++) {
+                const f = list[i] || {};
+                const row = document.createElement('div');
+                row.className = 'settings-row';
+                row.style.alignItems = 'flex-start';
+                row.style.gap = '10px';
+                const kEl = document.createElement('span');
+                kEl.className = 'settings-k';
+                kEl.textContent = f.key || '';
+                const vEl = document.createElement('span');
+                vEl.className = 'settings-v';
+                vEl.style.flex = '1';
+                vEl.style.textAlign = 'right';
+                vEl.style.wordBreak = 'break-word';
+                vEl.textContent = f.value || '';
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'settings-theme-btn';
+                btn.style.flexShrink = '0';
+                btn.style.padding = '4px 10px';
+                btn.textContent = 'Remove';
+                btn.setAttribute('aria-label', 'Remove ' + (f.key || ''));
+                (function(factKey) {
+                    btn.addEventListener('click', function() { clearAccountMemoryKey(factKey); });
+                })(f.key);
+                row.appendChild(kEl);
+                row.appendChild(vEl);
+                row.appendChild(btn);
+                box.appendChild(row);
+            }
+        }
+        async function loadAccountMemory() {
+            const loading = document.getElementById('settingsMemoryLoading');
+            const box = document.getElementById('settingsMemoryList');
+            if (!isLoggedIn()) {
+                if (box) box.innerHTML = '';
+                return;
+            }
+            if (loading) { loading.hidden = false; loading.textContent = 'Loading…'; }
+            try {
+                const res = await apiFetch('/api/memory', { method: 'GET', cache: 'no-store' });
+                const data = await res.json().catch(function() { return {}; });
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                renderAccountMemoryList(data.facts || []);
+            } catch (e) {
+                if (box) box.innerHTML = '<p class="settings-req-meta">Could not load memory.</p>';
+            } finally {
+                if (loading) loading.hidden = true;
+            }
+        }
+        async function clearAccountMemory() {
+            if (!isLoggedIn()) return;
+            if (!confirm('Clear all remembered facts about you?')) return;
+            try {
+                const res = await apiFetch('/api/memory', { method: 'DELETE' });
+                const data = await res.json().catch(function() { return {}; });
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                renderAccountMemoryList([]);
+                try { showToast('Remembered facts cleared'); } catch (e) {}
+            } catch (e) {
+                try { showToast('Could not clear memory'); } catch (err) {}
+            }
+        }
+        async function clearAccountMemoryKey(key) {
+            if (!isLoggedIn() || !key) return;
+            try {
+                const res = await apiFetch('/api/memory?key=' + encodeURIComponent(key), { method: 'DELETE' });
+                const data = await res.json().catch(function() { return {}; });
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                renderAccountMemoryList(data.facts || []);
+            } catch (e) {
+                try { showToast('Could not remove fact'); } catch (err) {}
+            }
+        }
+        function applyContextPackToChat(chatId, contextPack) {
+            if (!chatId || !chats[chatId] || !contextPack) return;
+            if (typeof contextPack.rollingSummary === 'string') {
+                chats[chatId].rollingSummary = contextPack.rollingSummary;
+            }
+            if (contextPack.summaryMessageCount != null) {
+                chats[chatId].summaryMessageCount = Number(contextPack.summaryMessageCount) || 0;
+            }
+        }
+        function refreshLocalRollingSummary(chatId) {
+            if (!chatId || !chats[chatId] || !Array.isArray(chats[chatId].messages)) return;
+            const msgs = chats[chatId].messages;
+            const keepFrom = Math.max(0, msgs.length - HISTORY_WINDOW);
+            if (keepFrom <= 0) {
+                chats[chatId].rollingSummary = '';
+                chats[chatId].summaryMessageCount = 0;
+                return;
+            }
+            const prevCount = Math.max(0, Number(chats[chatId].summaryMessageCount) || 0);
+            let summary = String(chats[chatId].rollingSummary || '').trim();
+            if (keepFrom <= prevCount && summary) return;
+            const toFold = msgs.slice(prevCount, keepFrom);
+            const lines = [];
+            for (let i = 0; i < toFold.length; i++) {
+                const m = toFold[i];
+                if (!m || !m.content) continue;
+                const role = (m.role === 'ai' || m.role === 'assistant') ? 'Assistant' : 'User';
+                let t = String(m.content).replace(/\s+/g, ' ').trim();
+                if (!t) continue;
+                if (t.length > 280) t = t.slice(0, 277) + '…';
+                lines.push(role + ': ' + t);
+            }
+            if (lines.length) summary = summary ? (summary + '\n' + lines.join('\n')) : lines.join('\n');
+            if (summary.length > 2200) {
+                const head = Math.floor(2200 * 0.35);
+                const tail = 2200 - head - 5;
+                summary = summary.slice(0, head).trimEnd() + '\n…\n' + summary.slice(-tail).trimStart();
+            }
+            chats[chatId].rollingSummary = summary;
+            chats[chatId].summaryMessageCount = keepFrom;
+        }
+
         function fmtSettingsDate(iso) {
             if (!iso) return '—';
             try {
@@ -4227,7 +4372,9 @@
                                 updatedAt: chat.updatedAt || chat.createdAt || new Date().toISOString(),
                                 named: !!chat.named,
                                 systemPrompt: chat.systemPrompt || '',
-                                customInstructions: chat.customInstructions || ''
+                                customInstructions: chat.customInstructions || '',
+                                rollingSummary: chat.rollingSummary || '',
+                                summaryMessageCount: Number(chat.summaryMessageCount) || 0
                             };
                             pulled += 1;
                         } catch (e) {}
@@ -4460,7 +4607,7 @@
 
         function createNewChat() {
             const id = 'chat_' + Date.now();
-            chats[id] = { name: 'New Chat', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), systemPrompt: '' };
+            chats[id] = { name: 'New Chat', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), systemPrompt: '', rollingSummary: '', summaryMessageCount: 0 };
             currentChatId = id;
             saveChats();
             loadChat();
@@ -5183,14 +5330,21 @@
                     method: 'POST',
                     headers: clientHeaders(),
                     signal: streamAbort.signal,
-                    body: JSON.stringify({
-                        messages: chats[currentChatId].messages.slice(-HISTORY_WINDOW),
-                        customInstructions: combinedInstructions(),
-                        mode: MODELS[currentModel].apiMode,
-                        agents: MODELS[currentModel].agents || 4,
-                        webSearch: webSearchEnabled,
-                        image: imgToSend || undefined
-                    })
+                    body: JSON.stringify((function() {
+                        refreshLocalRollingSummary(currentChatId);
+                        const c = chats[currentChatId];
+                        return {
+                            messages: c.messages.slice(-HISTORY_WINDOW),
+                            chatId: currentChatId,
+                            rollingSummary: c.rollingSummary || '',
+                            summaryMessageCount: Number(c.summaryMessageCount) || 0,
+                            customInstructions: combinedInstructions(),
+                            mode: MODELS[currentModel].apiMode,
+                            agents: MODELS[currentModel].agents || 4,
+                            webSearch: webSearchEnabled,
+                            image: imgToSend || undefined
+                        };
+                    })())
                 });
 
                 if (!res.ok || !res.body) {
@@ -5267,6 +5421,7 @@
                                 for (let s = 0; s < obj.sites.length; s++) recordSite(obj.sites[s]);
                             }
                             if (obj.reasoning) recordReasoning(obj.reasoning);
+                            if (obj.contextPack) applyContextPackToChat(currentChatId, obj.contextPack);
                             doneFlag = true;
                         }
                     }
@@ -5280,14 +5435,21 @@
                         const fb = await fetch('/api/chat', {
                             method: 'POST',
                             headers: clientHeaders(),
-                            body: JSON.stringify({
-                                messages: chats[currentChatId].messages.filter(m => m.role !== 'ai' || m.content).slice(-HISTORY_WINDOW),
-                                customInstructions: combinedInstructions(),
-                                mode: MODELS[currentModel].apiMode,
-                                agents: MODELS[currentModel].agents || 4,
-                                webSearch: webSearchEnabled,
-                                image: imgToSend || undefined
-                            })
+                            body: JSON.stringify((function() {
+                                refreshLocalRollingSummary(currentChatId);
+                                const c = chats[currentChatId];
+                                return {
+                                    messages: c.messages.filter(m => m.role !== 'ai' || m.content).slice(-HISTORY_WINDOW),
+                                    chatId: currentChatId,
+                                    rollingSummary: c.rollingSummary || '',
+                                    summaryMessageCount: Number(c.summaryMessageCount) || 0,
+                                    customInstructions: combinedInstructions(),
+                                    mode: MODELS[currentModel].apiMode,
+                                    agents: MODELS[currentModel].agents || 4,
+                                    webSearch: webSearchEnabled,
+                                    image: imgToSend || undefined
+                                };
+                            })())
                         });
                         const data = await fb.json();
                         if (data && data.reply) finalText = data.reply;
@@ -5296,6 +5458,7 @@
                             for (let s = 0; s < data.sites.length; s++) recordSite(data.sites[s]);
                         }
                         if (data && data.reasoning) recordReasoning(data.reasoning);
+                        if (data && data.contextPack) applyContextPackToChat(currentChatId, data.contextPack);
                     } catch (fbErr) {
                         throw fbErr;
                     }

@@ -864,17 +864,16 @@
             z-index: 5200;
             flex-direction: column;
             background:
-                radial-gradient(ellipse 80% 50% at 50% 18%, rgba(212,175,55,0.14), transparent 55%),
-                radial-gradient(ellipse 60% 40% at 50% 100%, rgba(212,175,55,0.06), transparent 50%),
-                #0a0a0a;
+                radial-gradient(ellipse 90% 55% at 50% -10%, rgba(212,175,55,0.16), transparent 52%),
+                radial-gradient(ellipse 50% 35% at 85% 80%, rgba(212,175,55,0.05), transparent 55%),
+                linear-gradient(180deg, #0c0c0e 0%, #080809 100%);
             color: var(--text);
-            padding: calc(12px + var(--safe-top, 0px)) 16px calc(16px + var(--safe-bottom, 0px));
+            padding: calc(14px + var(--safe-top, 0px)) 18px calc(18px + var(--safe-bottom, 0px));
             box-sizing: border-box;
+            font-feature-settings: "ss01" 1, "kern" 1;
         }
         .live-page.show { display: flex; }
-        body.live-chat-on {
-            overflow: hidden;
-        }
+        body.live-chat-on { overflow: hidden; }
         body.live-chat-on .mic-dictate { opacity: 0.35; pointer-events: none; }
         .live-page-top {
             display: flex;
@@ -882,42 +881,79 @@
             justify-content: space-between;
             gap: 12px;
             flex-shrink: 0;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
+            padding: 4px 2px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
         .live-page-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             min-width: 0;
         }
+        .live-brand-mark {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background:
+                radial-gradient(circle at 30% 28%, rgba(255,236,180,0.95), rgba(212,175,55,0.75) 48%, #8a6d12 100%);
+            box-shadow: 0 0 0 1px rgba(212,175,55,0.35), 0 8px 20px rgba(0,0,0,0.35);
+            flex-shrink: 0;
+            position: relative;
+        }
+        .live-brand-mark::after {
+            content: '';
+            position: absolute;
+            inset: 9px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(10,10,10,0.35);
+            box-shadow: inset 0 0 0 3px rgba(255,255,255,0.12);
+        }
+        .live-brand-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .live-page-brand .live-title {
-            font-size: 16px;
-            font-weight: 750;
-            letter-spacing: 0.01em;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
             white-space: nowrap;
+            line-height: 1.15;
+        }
+        .live-page-brand .live-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .live-fast-badge {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.06em;
+            font-size: 9.5px;
+            font-weight: 750;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: #0a0a0a;
-            background: var(--gold);
+            background: linear-gradient(135deg, #f0d678, var(--gold) 55%, #c9a227);
             border-radius: 999px;
-            padding: 3px 8px;
+            padding: 4px 9px;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset;
+            flex-shrink: 0;
         }
         .live-page-exit {
             font-family: inherit;
-            border: 1px solid rgba(255,255,255,0.14);
-            background: rgba(255,255,255,0.06);
-            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04);
+            color: var(--text-muted);
             border-radius: 999px;
             padding: 8px 14px;
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 650;
             cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
-        .live-page-exit:hover { background: rgba(255,255,255,0.1); }
+        .live-page-exit:hover {
+            background: rgba(255,255,255,0.09);
+            color: var(--text);
+            border-color: rgba(255,255,255,0.18);
+        }
         .live-page-center {
             flex: 1;
             display: flex;
@@ -925,37 +961,81 @@
             align-items: center;
             justify-content: center;
             min-height: 0;
-            gap: 10px;
-            padding: 8px 0 4px;
+            gap: 14px;
+            padding: 16px 0 8px;
+        }
+        .live-orb-wrap {
+            position: relative;
+            width: 148px;
+            height: 148px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .live-orb-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 1px solid rgba(212,175,55,0.18);
+            pointer-events: none;
+        }
+        .live-orb-ring.r2 {
+            inset: -10px;
+            border-color: rgba(212,175,55,0.08);
+        }
+        .live-orb.listening ~ .live-orb-ring,
+        .live-orb-wrap:has(.live-orb.listening) .live-orb-ring {
+            animation: liveRingPulse 1.4s ease-in-out infinite;
+            border-color: rgba(220,70,70,0.35);
+        }
+        .live-orb-wrap:has(.live-orb.speaking) .live-orb-ring {
+            animation: liveRingPulse 1.6s ease-in-out infinite;
+            border-color: rgba(212,175,55,0.4);
+        }
+        @keyframes liveRingPulse {
+            0%, 100% { transform: scale(1); opacity: 0.85; }
+            50% { transform: scale(1.04); opacity: 1; }
         }
         .live-orb {
-            width: 120px;
-            height: 120px;
+            width: 112px;
+            height: 112px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             background:
-                radial-gradient(circle at 35% 30%, rgba(255,230,150,0.55), rgba(212,175,55,0.18) 45%, transparent 70%),
-                linear-gradient(160deg, #2e2818, #12100c 70%);
-            border: 1px solid rgba(212,175,55,0.55);
-            box-shadow: 0 0 0 10px rgba(212,175,55,0.05), 0 20px 50px rgba(0,0,0,0.45);
-            transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+                radial-gradient(circle at 32% 28%, rgba(255,236,180,0.5), rgba(212,175,55,0.16) 42%, transparent 68%),
+                linear-gradient(165deg, #2a2416 0%, #12100c 72%);
+            border: 1px solid rgba(212,175,55,0.5);
+            box-shadow:
+                0 0 0 1px rgba(0,0,0,0.35) inset,
+                0 18px 40px rgba(0,0,0,0.5),
+                0 0 48px rgba(212,175,55,0.08);
+            transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s, opacity 0.25s;
+            position: relative;
+            z-index: 1;
         }
         .live-orb.listening {
             animation: liveOrbPulse 1.15s ease-in-out infinite;
-            border-color: rgba(220,70,70,0.8);
-            box-shadow: 0 0 0 12px rgba(220,60,60,0.1), 0 20px 50px rgba(0,0,0,0.45);
+            border-color: rgba(220,70,70,0.85);
+            box-shadow:
+                0 0 0 1px rgba(0,0,0,0.35) inset,
+                0 0 0 12px rgba(220,60,60,0.08),
+                0 18px 40px rgba(0,0,0,0.5);
         }
-        .live-orb.thinking { opacity: 0.88; }
+        .live-orb.thinking { opacity: 0.9; }
         .live-orb.speaking {
             animation: liveOrbPulse 1.5s ease-in-out infinite;
             border-color: rgba(212,175,55,0.95);
-            box-shadow: 0 0 0 14px rgba(212,175,55,0.12), 0 20px 50px rgba(0,0,0,0.45);
+            box-shadow:
+                0 0 0 1px rgba(0,0,0,0.35) inset,
+                0 0 0 14px rgba(212,175,55,0.1),
+                0 18px 40px rgba(0,0,0,0.5),
+                0 0 56px rgba(212,175,55,0.14);
         }
         @keyframes liveOrbPulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.04); }
         }
         .live-orb .live-bars {
             display: inline-flex;
@@ -967,7 +1047,7 @@
         .live-orb.listening .live-bars { color: #fff; }
         .live-orb .live-bars i {
             display: block;
-            width: 4px;
+            width: 3.5px;
             border-radius: 3px;
             background: currentColor;
             height: 10px;
@@ -978,59 +1058,104 @@
         .live-orb .live-bars i:nth-child(4) { animation-delay: 0.3s; height: 14px; }
         .live-orb .live-bars i:nth-child(5) { animation-delay: 0.4s; height: 18px; }
         .live-status {
-            font-size: 15px;
+            font-size: 14px;
             color: var(--gold);
             font-weight: 650;
             min-height: 22px;
             text-align: center;
+            letter-spacing: -0.01em;
+        }
+        .live-phase-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .live-phase-pill {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            border-radius: 999px;
+            padding: 4px 10px;
+            transition: color 0.2s, border-color 0.2s, background 0.2s;
+        }
+        .live-phase-pill.on {
+            color: #0a0a0a;
+            background: var(--gold);
+            border-color: transparent;
+        }
+        .live-phase-pill.on.listen {
+            color: #fff;
+            background: rgba(200,55,55,0.92);
         }
         .live-hint {
             margin: 0;
-            font-size: 12.5px;
+            font-size: 12px;
             color: var(--text-muted);
-            line-height: 1.4;
+            line-height: 1.45;
             text-align: center;
-            max-width: 360px;
+            max-width: 340px;
+            opacity: 0.92;
         }
         .live-transcript {
-            width: min(640px, 100%);
-            flex: 0 1 34vh;
-            max-height: 34vh;
+            width: min(560px, 100%);
+            flex: 0 1 32vh;
+            max-height: 32vh;
             overflow: auto;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            padding: 4px 2px 8px;
+            padding: 14px 14px 12px;
             margin: 0 auto;
             scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 18px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .live-transcript:empty::before {
+            content: 'Conversation appears here';
+            display: block;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12.5px;
+            padding: 18px 8px;
+            opacity: 0.7;
         }
         .live-bubble {
-            max-width: 92%;
+            max-width: 90%;
             padding: 10px 14px;
-            border-radius: 16px;
-            font-size: 14px;
+            border-radius: 14px;
+            font-size: 13.5px;
             line-height: 1.45;
             word-break: break-word;
             white-space: pre-wrap;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
         }
         .live-bubble.user {
             align-self: flex-end;
-            background: rgba(212,175,55,0.16);
-            border: 1px solid rgba(212,175,55,0.35);
+            background: linear-gradient(160deg, rgba(212,175,55,0.22), rgba(212,175,55,0.1));
+            border: 1px solid rgba(212,175,55,0.32);
             color: var(--text);
-            border-bottom-right-radius: 6px;
+            border-bottom-right-radius: 5px;
         }
         .live-bubble.ai {
             align-self: flex-start;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.09);
             color: var(--text);
-            border-bottom-left-radius: 6px;
+            border-bottom-left-radius: 5px;
         }
         .live-bubble.interim {
             align-self: flex-end;
-            opacity: 0.7;
+            opacity: 0.65;
             font-style: italic;
             border-style: dashed;
         }
@@ -1039,60 +1164,90 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
-            padding-top: 8px;
+            gap: 14px;
+            padding-top: 14px;
         }
         .live-actions {
             display: flex;
-            gap: 10px;
+            gap: 14px;
             justify-content: center;
+            align-items: center;
             flex-wrap: wrap;
         }
         .live-btn {
             font-family: inherit;
             border-radius: 999px;
-            padding: 12px 20px;
-            font-size: 13.5px;
+            padding: 13px 22px;
+            font-size: 13px;
             font-weight: 650;
             cursor: pointer;
-            border: 1px solid var(--gold-dark);
-            background: var(--gold);
+            border: 1px solid transparent;
+            background: linear-gradient(145deg, #f0d678, var(--gold) 50%, #b8922a);
             color: var(--black);
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            min-width: 120px;
+            gap: 8px;
+            min-width: 148px;
             justify-content: center;
+            box-shadow: 0 8px 22px rgba(212,175,55,0.22);
+            transition: transform 0.12s, filter 0.15s, box-shadow 0.15s;
         }
-        .live-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .live-btn:hover:not(:disabled) { filter: brightness(1.05); }
+        .live-btn:active:not(:disabled) { transform: scale(0.98); }
+        .live-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
         .live-btn.secondary {
-            background: transparent;
+            background: rgba(255,255,255,0.05);
             color: var(--text-muted);
-            border-color: #444;
+            border-color: rgba(255,255,255,0.12);
+            box-shadow: none;
+            min-width: 108px;
+        }
+        .live-btn.secondary:hover:not(:disabled) {
+            background: rgba(255,255,255,0.09);
+            color: var(--text);
+            filter: none;
         }
         .live-btn.mic-open {
-            background: rgba(220, 60, 60, 0.92);
-            border-color: rgba(220, 60, 60, 0.95);
+            background: linear-gradient(145deg, #e05555, #c43a3a);
+            border-color: transparent;
             color: #fff;
+            box-shadow: 0 8px 22px rgba(200,55,55,0.28);
         }
         .live-btn.muted {
-            background: rgba(255,255,255,0.08);
-            border-color: #555;
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.14);
             color: var(--text-muted);
+            box-shadow: none;
         }
         html.light .live-page {
             background:
-                radial-gradient(ellipse 80% 50% at 50% 18%, rgba(212,175,55,0.18), transparent 55%),
-                #fffcf5;
+                radial-gradient(ellipse 90% 55% at 50% -10%, rgba(212,175,55,0.2), transparent 52%),
+                linear-gradient(180deg, #fffdf8 0%, #f7f2e8 100%);
         }
+        html.light .live-page-top { border-bottom-color: rgba(0,0,0,0.06); }
         html.light .live-page-exit {
-            border-color: rgba(0,0,0,0.12);
-            background: rgba(0,0,0,0.04);
-            color: #222;
+            border-color: rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.03);
+            color: #555;
+        }
+        html.light .live-page-exit:hover { color: #222; background: rgba(0,0,0,0.06); }
+        html.light .live-transcript {
+            background: rgba(255,255,255,0.72);
+            border-color: rgba(0,0,0,0.07);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.06);
         }
         html.light .live-bubble.ai {
-            background: rgba(0,0,0,0.04);
+            background: rgba(0,0,0,0.035);
+            border-color: rgba(0,0,0,0.07);
+        }
+        html.light .live-phase-pill {
             border-color: rgba(0,0,0,0.08);
+            background: rgba(0,0,0,0.03);
+        }
+        html.light .live-btn.secondary {
+            background: rgba(0,0,0,0.03);
+            border-color: rgba(0,0,0,0.1);
+            color: #555;
         }
         html.light .send-btn.live-chat-btn {
             background: linear-gradient(145deg, #fff8e8, #f3e6c4);
@@ -4205,15 +4360,28 @@
         <div class="live-page" id="livePage" role="dialog" aria-modal="true" aria-label="Live voice chat" hidden>
             <div class="live-page-top">
                 <div class="live-page-brand">
-                    <span class="live-title">Live</span>
+                    <div class="live-brand-mark" aria-hidden="true"></div>
+                    <div class="live-brand-copy">
+                        <span class="live-title">Live Voice</span>
+                        <span class="live-subtitle">Short Fast replies · hands-free</span>
+                    </div>
                     <span class="live-fast-badge" title="Fast mode — billed as normal Fast">Fast</span>
                 </div>
                 <button type="button" class="live-page-exit" id="liveExitBtn" onclick="exitLiveMode()">Exit</button>
             </div>
             <div class="live-page-center">
-                <div class="live-orb" id="liveOrb" aria-hidden="true"><span class="live-bars"><i></i><i></i><i></i><i></i><i></i></span></div>
+                <div class="live-orb-wrap" aria-hidden="true">
+                    <div class="live-orb" id="liveOrb"><span class="live-bars"><i></i><i></i><i></i><i></i><i></i></span></div>
+                    <div class="live-orb-ring"></div>
+                    <div class="live-orb-ring r2"></div>
+                </div>
                 <div class="live-status" id="liveStatus">Ready</div>
-                <p class="live-hint" id="liveHint">Speak naturally — when you pause, your message sends as Fast. Reply text appears instantly; audio plays as soon as it is ready.</p>
+                <div class="live-phase-pills" id="livePhasePills" aria-hidden="true">
+                    <span class="live-phase-pill" data-phase="listening">Listen</span>
+                    <span class="live-phase-pill" data-phase="thinking">Think</span>
+                    <span class="live-phase-pill" data-phase="speaking">Speak</span>
+                </div>
+                <p class="live-hint" id="liveHint">Speak naturally. Pause to send — Fast replies stay short for voice. Text streams immediately; audio follows.</p>
             </div>
             <div class="live-transcript" id="liveTranscript" aria-live="polite"></div>
             <div class="live-page-bottom">
@@ -5887,6 +6055,31 @@
             return s;
         }
 
+        const LIVE_VOICE_INSTRUCTIONS = 'LIVE VOICE MODE: Keep every reply short and speakable — 1 to 3 sentences, under ~60 words. No markdown, bullets, code, or headings. Conversational only.';
+        function liveAwareInstructions() {
+            let s = combinedInstructions();
+            if (liveModeActive) s = (s ? s + '\n\n' : '') + LIVE_VOICE_INSTRUCTIONS;
+            return s;
+        }
+        function chatRequestPayload(extra) {
+            refreshLocalRollingSummary(currentChatId);
+            const c = chats[currentChatId];
+            const body = {
+                messages: (extra && extra.messages) ? extra.messages : c.messages.slice(-HISTORY_WINDOW),
+                chatId: currentChatId,
+                rollingSummary: c.rollingSummary || '',
+                summaryMessageCount: Number(c.summaryMessageCount) || 0,
+                customInstructions: liveAwareInstructions(),
+                mode: MODELS[currentModel].apiMode,
+                agents: MODELS[currentModel].agents || 4,
+                webSearch: webSearchEnabled,
+                image: (extra && extra.image !== undefined) ? extra.image : undefined
+            };
+            if (liveModeActive) body.live = true;
+            return body;
+        }
+
+
         function cleanTwoWords(raw) {
             const words = String(raw || '').replace(/["'`#*_]/g, ' ').trim().split(/\s+/).filter(Boolean);
             if (words.length < 2) return '';
@@ -6168,21 +6361,7 @@
                     method: 'POST',
                     headers: clientHeaders(),
                     signal: streamAbort.signal,
-                    body: JSON.stringify((function() {
-                        refreshLocalRollingSummary(currentChatId);
-                        const c = chats[currentChatId];
-                        return {
-                            messages: c.messages.slice(-HISTORY_WINDOW),
-                            chatId: currentChatId,
-                            rollingSummary: c.rollingSummary || '',
-                            summaryMessageCount: Number(c.summaryMessageCount) || 0,
-                            customInstructions: combinedInstructions(),
-                            mode: MODELS[currentModel].apiMode,
-                            agents: MODELS[currentModel].agents || 4,
-                            webSearch: webSearchEnabled,
-                            image: imgToSend || undefined
-                        };
-                    })())
+                    body: JSON.stringify(chatRequestPayload({ image: imgToSend || undefined }))
                 });
 
                 if (!res.ok || !res.body) {
@@ -6276,21 +6455,10 @@
                         const fb = await fetch('/api/chat', {
                             method: 'POST',
                             headers: clientHeaders(),
-                            body: JSON.stringify((function() {
-                                refreshLocalRollingSummary(currentChatId);
-                                const c = chats[currentChatId];
-                                return {
-                                    messages: c.messages.filter(m => m.role !== 'ai' || m.content).slice(-HISTORY_WINDOW),
-                                    chatId: currentChatId,
-                                    rollingSummary: c.rollingSummary || '',
-                                    summaryMessageCount: Number(c.summaryMessageCount) || 0,
-                                    customInstructions: combinedInstructions(),
-                                    mode: MODELS[currentModel].apiMode,
-                                    agents: MODELS[currentModel].agents || 4,
-                                    webSearch: webSearchEnabled,
-                                    image: imgToSend || undefined
-                                };
-                            })())
+                            body: JSON.stringify(chatRequestPayload({
+                                messages: chats[currentChatId].messages.filter(m => m.role !== 'ai' || m.content).slice(-HISTORY_WINDOW),
+                                image: imgToSend || undefined
+                            }))
                         });
                         const data = await fb.json();
                         if (data && data.reply) finalText = softCleanLatexClient(data.reply);
@@ -7045,12 +7213,19 @@
                 else if (phase === 'thinking') orb.classList.add('thinking');
                 else if (phase === 'speaking') orb.classList.add('speaking');
             }
+            const pills = document.querySelectorAll('#livePhasePills .live-phase-pill');
+            for (let i = 0; i < pills.length; i++) {
+                const p = pills[i];
+                const on = p.getAttribute('data-phase') === phase;
+                p.classList.toggle('on', on);
+                p.classList.toggle('listen', on && phase === 'listening');
+            }
             if (!status) return;
             const map = {
-                ready: liveMuted ? 'Muted — tap Unmute to speak' : 'Ready — listening starts automatically',
+                ready: liveMuted ? 'Muted — tap Unmute when ready' : 'Ready',
                 listening: 'Listening… pause to send',
-                thinking: 'Thinking (Fast)…',
-                speaking: 'Speaking reply…'
+                thinking: 'Generating short reply…',
+                speaking: 'Speaking…'
             };
             status.textContent = map[phase] || phase;
         }
@@ -7685,7 +7860,7 @@
                 return;
             }
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1;
+            utterance.rate = 1.15;
             utterance.pitch = 1;
             utterance.volume = 1;
             const voices = speechSynthesis.getVoices();
@@ -7724,7 +7899,7 @@
                     method: 'POST',
                     headers: Object.assign({ 'Content-Type': 'application/json' }, clientHeaders()),
                     signal: ttsFetchAbort ? ttsFetchAbort.signal : undefined,
-                    body: JSON.stringify({ text: text, voice: ttsVoice || 'nova' })
+                    body: JSON.stringify({ text: text, voice: ttsVoice || 'nova', speed: 1.15 })
                 });
                 const ctype = (res.headers.get('content-type') || '').toLowerCase();
                 if (!res.ok || ctype.indexOf('audio') === -1) {

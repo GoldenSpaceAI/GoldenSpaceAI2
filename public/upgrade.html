@@ -76,6 +76,34 @@
     background: rgba(212,175,55,0.08);
     color: var(--gold); font-size: 13px; font-weight: 600;
   }
+  .free-ref {
+    margin: 16px auto 0;
+    max-width: 560px;
+    display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; justify-content: center;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 1px dashed var(--border);
+    background: rgba(255,255,255,0.02);
+    font-size: 13px; color: var(--muted); line-height: 1.45; text-align: left;
+  }
+  .free-ref strong { color: var(--text); font-weight: 800; letter-spacing: -0.01em; }
+  .plan-card .mode-row {
+    display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px;
+  }
+  .plan-card .mode-pill {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+    padding: 4px 9px; border-radius: 999px;
+    border: 1px solid rgba(212,175,55,0.35);
+    background: rgba(212,175,55,0.1);
+    color: var(--gold);
+  }
+  .plan-card .mode-pill.off {
+    border-color: var(--border);
+    background: transparent;
+    color: #666;
+    text-decoration: line-through;
+    text-decoration-color: #555;
+  }
 
   .step-rail {
     display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
@@ -303,9 +331,13 @@
 
 <main>
   <section class="hero">
-    <h1>Simple plans. Clear limits.</h1>
-    <p class="sub">Pay once for 30 days via OMT Pay. No auto-renew. Confirmation usually within 1–2 working days.</p>
+    <h1>Choose your plan</h1>
+    <p class="sub">What each plan <strong>offers</strong> — modes, daily image caps, unlimited documents. Usage shown as % only. Pay once for 30 days via OMT Pay. No auto-renew.</p>
     <div class="current-pill" id="currentPlan">Loading your plan…</div>
+    <div class="free-ref" id="freeRef" aria-label="Free plan">
+      <strong>Free</strong>
+      <span>Fast only · 5 images/day (UTC) · docs unlimited · Thinking &amp; Expert not included</span>
+    </div>
     <div class="stack-note" id="stackNote" role="note" aria-live="polite">
       <strong>Already on a paid plan?</strong> Buying again <strong>stacks</strong> your mode allowances (Fast / Thinking+Expert4 / Expert16):
       <ul>
@@ -330,7 +362,7 @@
     <div class="actions" style="justify-content:center;margin-top:24px;">
       <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
     </div>
-    <p class="footnote">Free: Fast only + 5 images/day (UTC). Paid plans: separate mode allowances (Fast / Thinking+Expert4 / Expert16) with no borrowing. Usage is % only. Documents unlimited. See <a href="/terms">Terms</a>.</p>
+    <p class="footnote">Offers match <a href="/terms">Terms §3</a>: modes, daily image caps, unlimited docs. Separate mode allowances — no borrowing. Usage shown as % only. No internal cost budgets on this page.</p>
   </section>
 
   <section class="step" id="step2">
@@ -399,34 +431,55 @@
     {
       id: 'plus', label: 'Plus', price: 5, tagline: 'Fast + Thinking · 10 images/day',
       featured: false,
+      modes: [
+        { text: 'Fast', on: true },
+        { text: 'Thinking', on: true },
+        { text: 'Expert 4', on: false },
+        { text: 'Expert 16', on: false }
+      ],
       bullets: [
-        { text: 'Fast for 30 days', ok: true },
+        { text: 'Fast', ok: true },
         { text: 'Thinking', ok: true },
-        { text: 'No Expert 4 / Expert 16', ok: false },
-        { text: '10 images/day (UTC) · docs unlimited', ok: true },
-        { text: 'Usage as % only · no auto-renew', ok: true }
+        { text: 'Expert 4 / Expert 16: not included', ok: false },
+        { text: 'Images: 10 per UTC calendar day', ok: true },
+        { text: 'Documents: unlimited', ok: true },
+        { text: 'Usage as % only · 30 days · no auto-renew', ok: true }
       ]
     },
     {
       id: 'pro', label: 'Pro', price: 10, tagline: 'Fast + Thinking + Expert 4 · 20 images/day',
       featured: true,
+      modes: [
+        { text: 'Fast', on: true },
+        { text: 'Thinking', on: true },
+        { text: 'Expert 4', on: true },
+        { text: 'Expert 16', on: false }
+      ],
       bullets: [
-        { text: 'Fast for 30 days', ok: true },
+        { text: 'Fast', ok: true },
         { text: 'Thinking + Expert 4', ok: true },
-        { text: 'No Expert 16', ok: false },
-        { text: '20 images/day (UTC) · docs unlimited', ok: true },
-        { text: 'Usage as % only · no auto-renew', ok: true }
+        { text: 'Expert 16: not included', ok: false },
+        { text: 'Images: 20 per UTC calendar day', ok: true },
+        { text: 'Documents: unlimited', ok: true },
+        { text: 'Usage as % only · 30 days · no auto-renew', ok: true }
       ]
     },
     {
       id: 'max', label: 'Max', price: 15, tagline: 'Fast + Thinking + Expert 4 + Expert 16 · 30 images/day',
       featured: false,
+      modes: [
+        { text: 'Fast', on: true },
+        { text: 'Thinking', on: true },
+        { text: 'Expert 4', on: true },
+        { text: 'Expert 16', on: true }
+      ],
       bullets: [
-        { text: 'Fast for 30 days', ok: true },
+        { text: 'Fast', ok: true },
         { text: 'Thinking + Expert 4', ok: true },
         { text: 'Expert 16', ok: true },
-        { text: '30 images/day (UTC) · docs unlimited', ok: true },
-        { text: 'Usage as % only · no auto-renew', ok: true }
+        { text: 'Images: 30 per UTC calendar day', ok: true },
+        { text: 'Documents: unlimited', ok: true },
+        { text: 'Usage as % only · 30 days · no auto-renew', ok: true }
       ]
     }
   ];
@@ -509,15 +562,19 @@ function stackModeLabel(fromPlan, toPlan) {
   function renderPlans() {
     const root = document.getElementById('plans');
     root.innerHTML = PLANS.map(p => {
+      const modes = (p.modes || []).map(m =>
+        '<span class="mode-pill' + (m.on ? '' : ' off') + '">' + m.text + '</span>'
+      ).join('');
       const lis = p.bullets.map(b =>
         '<li class="' + (b.ok ? '' : 'muted') + '">' + b.text + '</li>'
       ).join('');
       return (
-        '<button type="button" class="plan-card' + (p.featured ? ' featured' : '') + '" data-id="' + p.id + '">' +
+        '<button type="button" class="plan-card' + (p.featured ? ' featured' : '') + '" data-id="' + p.id + '" aria-label="' + p.label + ' plan $' + p.price + '">' +
           '<h3>' + p.label + '</h3>' +
           '<div class="tagline">' + p.tagline + '</div>' +
           '<div class="price"><span class="amt">$' + p.price + '</span><span class="per">USD</span></div>' +
-          '<div class="billing">per 30 days · no auto-renew</div>' +
+          '<div class="billing">per 30 days · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
           '<ul>' + lis + '</ul>' +
         '</button>'
       );

@@ -1,3 +1,14 @@
+# GoldenSpaceAI — speed, landing, upgrade cards, dictate UX (2026-10-02)
+
+- **Speed:** Stream SSE opens + status before context-pack cold path; skip `getChat` when client already sent rolling summary; gpt-5 empty-stream goes straight to minimal-reasoning retry (skip slow high-effort round-trip); leaner empty-retry token bump; client skips redundant `/api/chat` when stream already `done`. Timing logs: `sse_open`, `pack_ready`, `stream_open`, `first_delta`, `empty_*`, total ms.
+- **Empty chat / landing:** Professional first screen — logo, “How can I help?”, starter chips, quieter CTA; modes + plan hint retained.
+- **Upgrade:** Offer cards aligned with Terms §3 (modes, image caps, unlimited docs, % usage). Free reference strip. Mode pills on cards. No internal $ budgets.
+- **Mic UX:** Composer control labeled **Dictate** with clear press/listening states; overlay copy separates dictate from speak-aloud TTS.
+- **Ops:** Verify Render deploy of latest `main` after merge. `support@goldenspaceai.space` is mailto only — inbound forwarding is user-side DNS/mail.
+- Service worker cache `goldenspaceai2-v60`. App `2.3.34`.
+
+---
+
 # GoldenSpaceAI — plan copy: offers only, no cost internals (2026-10-02)
 
 - **Terms §3** rewritten so users see what each plan **offers** only (modes, image caps, unlimited docs). Removed model-cost USD budgets, retained/margin $, bucket dollar amounts, and provider model pricing language. List prices $5/$10/$15, 30-day period, OMT, % usage, hard-stop, no mode borrowing kept.

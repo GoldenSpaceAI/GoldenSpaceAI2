@@ -767,6 +767,7 @@ function createPlansStore(dataDir, options = {}) {
             imageDay: d,
             talkSecondsUsed: 0,
             talkPeriodKey: null,
+            todayTalkSeconds: 0,
             fastHalved: false
         };
     }
@@ -784,6 +785,7 @@ function createPlansStore(dataDir, options = {}) {
         if (u.todayOpenaiSpendUsd == null) u.todayOpenaiSpendUsd = 0;
         if (u.totalGrokSpendUsd == null) u.totalGrokSpendUsd = 0;
         if (u.totalOpenaiSpendUsd == null) u.totalOpenaiSpendUsd = 0;
+        if (u.todayTalkSeconds == null) u.todayTalkSeconds = 0;
         if (!u.spendDay) u.spendDay = u.day || day || utcDayKey();
         return u;
     }
@@ -796,6 +798,7 @@ function createPlansStore(dataDir, options = {}) {
             u.todayTokens = 0;
             u.todayGrokSpendUsd = 0;
             u.todayOpenaiSpendUsd = 0;
+            u.todayTalkSeconds = 0;
         }
         return u;
     }
@@ -818,11 +821,30 @@ function createPlansStore(dataDir, options = {}) {
                 periodFastSpendUsd: 0,
                 periodThinkShareSpendUsd: 0,
                 periodExpert16SpendUsd: 0,
-                periodOtherSpendUsd: 0
+                periodOtherSpendUsd: 0,
+                todayTalkSeconds: 0,
+                talkSecondsUsed: 0,
+                talkCapSeconds: 0,
+                talkMinutesCap: 0,
+                talkPeriod: 'weekly'
             };
         }
         const spendDay = u.spendDay || u.day || null;
         const todayActive = spendDay === day;
+        let talkCapSeconds = 0;
+        let talkMinutesCap = 0;
+        let talkPeriod = 'weekly';
+        let talkSecondsUsed = Number(u.talkSecondsUsed) || 0;
+        try {
+            if (ownerKey) {
+                const effective = getEffectivePlan(ownerKey);
+                rollTalkPeriod(u, effective.plan, effective.startsAt || null);
+                talkSecondsUsed = Number(u.talkSecondsUsed) || 0;
+                talkMinutesCap = Number(effective.def.talkMinutes) || 0;
+                talkCapSeconds = Math.max(0, talkMinutesCap) * 60;
+                talkPeriod = effective.def.talkPeriod || (effective.plan === 'free' ? 'weekly' : 'period');
+            }
+        } catch (_) {}
         return {
             todayTokens: todayActive ? (Number(u.todayTokens) || 0) : 0,
             todaySpendUsd: todayActive ? roundUsd(Number(u.todaySpendUsd) || 0) : 0,
@@ -839,7 +861,12 @@ function createPlansStore(dataDir, options = {}) {
             periodFastSpendUsd: roundUsd(Number(u.fastSpendUsd) || 0),
             periodThinkShareSpendUsd: thinkShareUsed(u),
             periodExpert16SpendUsd: expert16Used(u),
-            periodOtherSpendUsd: roundUsd(thinkShareUsed(u) + expert16Used(u))
+            periodOtherSpendUsd: roundUsd(thinkShareUsed(u) + expert16Used(u)),
+            todayTalkSeconds: todayActive ? (Number(u.todayTalkSeconds) || 0) : 0,
+            talkSecondsUsed,
+            talkCapSeconds,
+            talkMinutesCap,
+            talkPeriod
         };
     }
 
@@ -1275,7 +1302,9 @@ function createPlansStore(dataDir, options = {}) {
         const effective = getEffectivePlan(deviceId);
         const u = ensureUsage(deviceId);
         rollTalkPeriod(u, effective.plan, effective.startsAt || null);
+        rollDailySpendCounters(u, utcDayKey());
         u.talkSecondsUsed = Math.round(((Number(u.talkSecondsUsed) || 0) + sec) * 100) / 100;
+        u.todayTalkSeconds = Math.round(((Number(u.todayTalkSeconds) || 0) + sec) * 100) / 100;
         flushSync();
         const capSec = talkCapSeconds(effective.def);
         return {
@@ -2285,7 +2314,12 @@ function createPlansStore(dataDir, options = {}) {
                 grokSpendToday: usage.todayGrokSpendUsd,
                 openaiSpendToday: usage.todayOpenaiSpendUsd,
                 grokSpendTotal: usage.totalGrokSpendUsd,
-                openaiSpendTotal: usage.totalOpenaiSpendUsd
+                openaiSpendTotal: usage.totalOpenaiSpendUsd,
+                todayTalkSeconds: usage.todayTalkSeconds || 0,
+                talkSecondsUsed: usage.talkSecondsUsed || 0,
+                talkCapSeconds: usage.talkCapSeconds || 0,
+                talkMinutesCap: usage.talkMinutesCap || 0,
+                talkPeriod: usage.talkPeriod || 'weekly'
             };
         }
 

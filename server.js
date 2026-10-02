@@ -1389,10 +1389,20 @@ app.post('/api/chat', async (req, res) => {
         activeProvider = target.provider;
         const { safeMode } = target;
         target.config = applyLiveFastConfig(req.body, target.config);
-        const conversationMessages = injectLiveVoiceSystem(buildConversationMessages(req.body), req.body);
+        const autoTitle = isAutoTitleRequest(req.body);
+        // Auto-title calls must not trip on context-pack maintenance (pack was previously undefined here,
+        // which returned "⚠️ pack is not defined" and the client titled chats "⚠️ pack").
+        let pack = null;
+        if (!autoTitle) {
+            pack = await resolveContextPack(req);
+        }
+        const conversationMessages = injectLiveVoiceSystem(
+            pack ? pack.conversationMessages : buildConversationMessages(req.body),
+            req.body
+        );
         const useWebSearch = webSearch === true;
 
-        console.log(`Mode: ${safeMode} | Provider: ${target.provider} | Model: ${target.config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length} | planKind=${usageKind}`);
+        console.log(`Mode: ${safeMode} | Provider: ${target.provider} | Model: ${target.config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length} | planKind=${usageKind}${autoTitle ? ' | autoTitle' : ''}`);
 
         const result = await runWithProviderFallback(target, async (client, config, provider) => {
             activeProvider = provider;
@@ -1491,20 +1501,22 @@ app.post('/api/chat', async (req, res) => {
             console.log(`Spend: ${spend.costUsd.toFixed(6)} provider=${spend.provider} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
         }
         keepUsage = true;
-        afterChatPackMaintenance(pack, req.body);
+        if (pack) afterChatPackMaintenance(pack, req.body);
         const chatPayload = {
             reply,
             model: safeMode,
-            provider: result.provider,
-            contextPack: {
+            provider: result.provider
+        };
+        if (pack) {
+            chatPayload.contextPack = {
                 recentWindow: pack.meta.recentWindow,
                 packSize: pack.meta.packSize,
                 hasAccountMemory: pack.meta.hasAccountMemory,
                 hasRollingSummary: pack.meta.hasRollingSummary,
                 rollingSummary: pack.rollingSummary || '',
                 summaryMessageCount: pack.summaryMessageCount || 0
-            }
-        };
+            };
+        }
         if (result.activity && (result.activity.sites?.length || result.activity.reasoning)) {
             chatPayload.sites = result.activity.sites || [];
             if (result.activity.reasoning) chatPayload.reasoning = result.activity.reasoning;
@@ -2891,7 +2903,8 @@ app.get('/api/admin/users', async (req, res) => {
                 'Location from last payment request IP geo (or cached IP) when available',
                 'Device from device_links (most recent) else last payment deviceId',
                 'Today/total tokens+$ from persisted usage (UTC day); totals seeded from period spend for older rows',
-                'Grok vs OpenAI $ split tracked from recordSpend provider (historical rows may show $0 until new usage)'
+                'Grok vs OpenAI $ split tracked from recordSpend provider (historical rows may show $0 until new usage)',
+                'Talk minutes: today (UTC day) + period used/cap (Free=UTC week, paid=30-day period)'
             ]
         }
     });

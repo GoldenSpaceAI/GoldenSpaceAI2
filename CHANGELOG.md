@@ -1,3 +1,10 @@
+# GoldenSpaceAI — admin users dashboard polish (2026-10-02)
+
+- **`/admin-users` redesign:** clearer header, summary stat cards (user count, paid/free, tokens/$ today + total), email/name search + plan filter, sortable columns with sticky header, plan badges, muted empty states, responsive layout. Same ADMIN_PASSKEY auth and columns (email, plan, device, location, tokens/$ today + total). Nav link to `/admin-page`.
+- Service worker cache `goldenspaceai2-v50`. App `2.3.24`.
+
+---
+
 # GoldenSpaceAI — Free Fast daily $0.05 (2026-10-02)
 
 - **Free Fast daily budget:** lowered from **$0.25** to **$0.05** (5 cents) model-cost USD per UTC calendar day. Free Other remains **$0**.

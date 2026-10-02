@@ -1,3 +1,11 @@
+# GoldenSpaceAI — Live TTS seamless + calmer Live UI (2026-10-02)
+
+- **TTS gap fix:** Live sentence queue prefetches the next OpenAI TTS chunk while the current one plays, so playback handoff has no network wait between sentences.
+- **Live UI:** Cleaner, less flashy `/live` — quieter background, flatter controls, subtler orb/phase states, refined typography and transcript.
+- Service worker cache `goldenspaceai2-v65`. App `2.3.39`.
+
+---
+
 # GoldenSpaceAI — Live e2e latency cut (2026-10-02)
 
 - **Faster Live loop:** Silence before auto-send ~650ms (was ~1.1s); shorter waits for STT flush, enter, and re-listen so the stream starts sooner.

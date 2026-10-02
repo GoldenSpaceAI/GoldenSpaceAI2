@@ -1,3 +1,12 @@
+# GoldenSpaceAI — admin provider spend split (2026-10-02)
+
+- **`/admin-users`:** per-user spend split by provider — **$ Grok** and **$ OpenAI** for **today** (UTC) and **total** (all-time). Summary cards show Grok vs OpenAI under $ today / $ total.
+- **Usage tracking:** `recordSpend` stores provider (`openai` | `grok`) with each token-cost commit; daily + lifetime counters `todayGrokSpendUsd` / `todayOpenaiSpendUsd` / `totalGrokSpendUsd` / `totalOpenaiSpendUsd`. Provider inferred from model when omitted.
+- Historical rows may show $0 for provider splits until new usage is recorded (overall today/total unchanged).
+- Service worker cache `goldenspaceai2-v52`. App `2.3.26`.
+
+---
+
 # GoldenSpaceAI — ChatGPT-style context packing + account memory (2026-10-02)
 
 - **Context pack (token savings):** model prompts now use last **10** raw messages + optional **rolling summary** of older turns + **account memory** — not the full ~40 history every request. Plan usage / spend still meters the **actual tokens of this smaller pack**.

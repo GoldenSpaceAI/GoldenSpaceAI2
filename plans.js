@@ -29,6 +29,7 @@ const crypto = require('crypto');
 const {
     costFromProviderUsage,
     estimateCostFromTexts,
+    normalizeProvider,
     MODEL_PRICING,
     DEFAULT_PRICING
 } = require('./pricing');
@@ -609,8 +610,12 @@ function createPlansStore(dataDir, options = {}) {
             spendDay: d,
             todaySpendUsd: 0,
             todayTokens: 0,
+            todayGrokSpendUsd: 0,
+            todayOpenaiSpendUsd: 0,
             totalSpendUsd: 0,
             totalTokens: 0,
+            totalGrokSpendUsd: 0,
+            totalOpenaiSpendUsd: 0,
             // legacy counters kept for migration / admin visibility
             fast: 0,
             thinking: 0,
@@ -629,6 +634,10 @@ function createPlansStore(dataDir, options = {}) {
         if (u.totalTokens == null) u.totalTokens = 0;
         if (u.todaySpendUsd == null) u.todaySpendUsd = 0;
         if (u.todayTokens == null) u.todayTokens = 0;
+        if (u.todayGrokSpendUsd == null) u.todayGrokSpendUsd = 0;
+        if (u.todayOpenaiSpendUsd == null) u.todayOpenaiSpendUsd = 0;
+        if (u.totalGrokSpendUsd == null) u.totalGrokSpendUsd = 0;
+        if (u.totalOpenaiSpendUsd == null) u.totalOpenaiSpendUsd = 0;
         if (!u.spendDay) u.spendDay = u.day || day || utcDayKey();
         return u;
     }
@@ -639,6 +648,8 @@ function createPlansStore(dataDir, options = {}) {
             u.spendDay = day;
             u.todaySpendUsd = 0;
             u.todayTokens = 0;
+            u.todayGrokSpendUsd = 0;
+            u.todayOpenaiSpendUsd = 0;
         }
         return u;
     }
@@ -652,8 +663,12 @@ function createPlansStore(dataDir, options = {}) {
             return {
                 todayTokens: 0,
                 todaySpendUsd: 0,
+                todayGrokSpendUsd: 0,
+                todayOpenaiSpendUsd: 0,
                 totalTokens: 0,
                 totalSpendUsd: 0,
+                totalGrokSpendUsd: 0,
+                totalOpenaiSpendUsd: 0,
                 periodFastSpendUsd: 0,
                 periodOtherSpendUsd: 0
             };
@@ -663,12 +678,16 @@ function createPlansStore(dataDir, options = {}) {
         return {
             todayTokens: todayActive ? (Number(u.todayTokens) || 0) : 0,
             todaySpendUsd: todayActive ? roundUsd(Number(u.todaySpendUsd) || 0) : 0,
+            todayGrokSpendUsd: todayActive ? roundUsd(Number(u.todayGrokSpendUsd) || 0) : 0,
+            todayOpenaiSpendUsd: todayActive ? roundUsd(Number(u.todayOpenaiSpendUsd) || 0) : 0,
             totalTokens: Number(u.totalTokens) || 0,
             totalSpendUsd: roundUsd(
                 u.totalSpendUsd != null
                     ? Number(u.totalSpendUsd) || 0
                     : (Number(u.fastSpendUsd) || 0) + (Number(u.otherSpendUsd) || 0)
             ),
+            totalGrokSpendUsd: roundUsd(Number(u.totalGrokSpendUsd) || 0),
+            totalOpenaiSpendUsd: roundUsd(Number(u.totalOpenaiSpendUsd) || 0),
             periodFastSpendUsd: roundUsd(Number(u.fastSpendUsd) || 0),
             periodOtherSpendUsd: roundUsd(Number(u.otherSpendUsd) || 0)
         };
@@ -933,7 +952,7 @@ function createPlansStore(dataDir, options = {}) {
      * Record actual $ spend after a successful model call.
      * @param {string} deviceId
      * @param {string} kind - fast | thinking | expert4 | expert16
-     * @param {{ costUsd: number, model?: string, promptTokens?: number, completionTokens?: number }} spend
+     * @param {{ costUsd: number, model?: string, provider?: string, promptTokens?: number, completionTokens?: number }} spend
      */
     function recordSpend(deviceId, kind, spend) {
         if (!deviceId || !kind) return null;
@@ -959,12 +978,24 @@ function createPlansStore(dataDir, options = {}) {
         u.todayTokens = (Number(u.todayTokens) || 0) + tokens;
         u.totalSpendUsd = roundUsd((Number(u.totalSpendUsd) || 0) + cost);
         u.totalTokens = (Number(u.totalTokens) || 0) + tokens;
+        const provider = normalizeProvider(
+            spend && spend.provider,
+            spend && spend.model
+        );
+        if (provider === 'grok') {
+            u.todayGrokSpendUsd = roundUsd((Number(u.todayGrokSpendUsd) || 0) + cost);
+            u.totalGrokSpendUsd = roundUsd((Number(u.totalGrokSpendUsd) || 0) + cost);
+        } else if (provider === 'openai') {
+            u.todayOpenaiSpendUsd = roundUsd((Number(u.todayOpenaiSpendUsd) || 0) + cost);
+            u.totalOpenaiSpendUsd = roundUsd((Number(u.totalOpenaiSpendUsd) || 0) + cost);
+        }
         u.lastSpend = {
             at: new Date().toISOString(),
             kind,
             pool,
             costUsd: cost,
             model: spend && spend.model ? String(spend.model) : null,
+            provider: provider !== 'unknown' ? provider : null,
             promptTokens: spend && spend.promptTokens != null ? Number(spend.promptTokens) : null,
             completionTokens: spend && spend.completionTokens != null ? Number(spend.completionTokens) : null
         };
@@ -1751,12 +1782,20 @@ function createPlansStore(dataDir, options = {}) {
                 lastPaymentAt: (pay && pay.createdAt) || null,
                 todayTokens: usage.todayTokens,
                 todaySpendUsd: usage.todaySpendUsd,
+                todayGrokSpendUsd: usage.todayGrokSpendUsd,
+                todayOpenaiSpendUsd: usage.todayOpenaiSpendUsd,
                 totalTokens: usage.totalTokens,
                 totalSpendUsd: usage.totalSpendUsd,
+                totalGrokSpendUsd: usage.totalGrokSpendUsd,
+                totalOpenaiSpendUsd: usage.totalOpenaiSpendUsd,
                 tokensToday: usage.todayTokens,
                 dollarsToday: usage.todaySpendUsd,
                 tokensTotal: usage.totalTokens,
-                dollarsTotal: usage.totalSpendUsd
+                dollarsTotal: usage.totalSpendUsd,
+                grokSpendToday: usage.todayGrokSpendUsd,
+                openaiSpendToday: usage.todayOpenaiSpendUsd,
+                grokSpendTotal: usage.totalGrokSpendUsd,
+                openaiSpendTotal: usage.totalOpenaiSpendUsd
             };
         }
 
@@ -1833,6 +1872,7 @@ function createPlansStore(dataDir, options = {}) {
         maybeDemoteIfExhausted,
         costFromProviderUsage,
         estimateCostFromTexts,
+        normalizeProvider,
         createPaymentRequest,
         listPayments,
         listPaymentsAdmin,
@@ -1910,6 +1950,7 @@ module.exports = {
     OMT_DESTINATION,
     costFromProviderUsage,
     estimateCostFromTexts,
+    normalizeProvider,
     MODEL_PRICING,
     DEFAULT_PRICING
 };

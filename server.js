@@ -2118,7 +2118,8 @@ app.post('/api/auth/merge-device', async (req, res) => {
 // ==================== PLANS / UPGRADE / ADMIN ====================
 app.get('/api/plan', (req, res) => {
     const ownerKey = resolvePlanOwnerKey(req);
-    sendFreshJson(res, plansStore.getStatus(ownerKey));
+    // Public payload: percent quotas only (no $ spend / token counts for end users)
+    sendFreshJson(res, plansStore.getPlanPublic(ownerKey));
 });
 
 app.get('/api/plan-status', (req, res) => {
@@ -2364,7 +2365,8 @@ app.get('/api/admin/users', async (req, res) => {
             gaps: [
                 'No dedicated last-login IP / user-agent on users table',
                 'Location from last payment request IP geo (or cached IP) when available',
-                'Device from device_links (most recent) else last payment deviceId'
+                'Device from device_links (most recent) else last payment deviceId',
+                'Today/total tokens+$ from persisted usage (UTC day); totals seeded from period spend for older rows'
             ]
         }
     });

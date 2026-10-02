@@ -227,6 +227,20 @@ function chatTokenLimitParams(provider, maxTokens) {
     return { max_tokens: maxTokens };
 }
 
+/** OpenAI gpt-5-* chat models reject non-default temperature (400); only default 1 is allowed.
+ *  Omit temperature for that family. Grok/xAI and other OpenAI models keep the configured value. */
+function chatTemperatureParams(provider, model, temperature) {
+    if (provider === 'openai') {
+        const m = String(model || '').toLowerCase();
+        if (m.startsWith('gpt-5') || m.includes('gpt-5-')) {
+            return {};
+        }
+    }
+    if (temperature === undefined || temperature === null) return {};
+    return { temperature };
+}
+
+
 function resolveMode(mode) {
     const key = mode === 'fast' ? 'normal' : (mode || 'normal');
     const safeMode = MODELS[key] ? key : 'normal';
@@ -461,7 +475,9 @@ function softCleanLatex(text) {
         .replace(/\\boxed\{([^}]+)\}/g, function (_, inner) { return '$$' + inner + '$$'; })
         .replace(/\\displaystyle\b/g, '')
         .replace(/\\left\b/g, '')
-        .replace(/\\right\b/g, '');
+        .replace(/\\right\b/g, '')
+        // KaTeX often fails on unicode en/em dashes inside math; use ASCII hyphen.
+        .replace(/\u2013|\u2014/g, '-');
 }
 
 function cleanLatex(text) {
@@ -1219,7 +1235,7 @@ app.post('/api/chat', async (req, res) => {
                         model: config.model,
                         messages: conversationMessages,
                         ...chatTokenLimitParams(provider, config.maxTokens),
-                        temperature: config.temperature,
+                        ...chatTemperatureParams(provider, config.model, config.temperature),
                         reasoning_effort: 'high',
                     }),
                     UPSTREAM_TIMEOUT_MS,
@@ -1234,7 +1250,7 @@ app.post('/api/chat', async (req, res) => {
                         model: config.model,
                         messages: conversationMessages,
                         ...chatTokenLimitParams(provider, config.maxTokens),
-                        temperature: config.temperature,
+                        ...chatTemperatureParams(provider, config.model, config.temperature),
                     }),
                     UPSTREAM_TIMEOUT_MS,
                     'Fast request'
@@ -1486,7 +1502,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 model: activeConfig.model,
                 messages: conversationMessages,
                 ...chatTokenLimitParams(activeConfig.provider || provider, activeConfig.maxTokens),
-                temperature: activeConfig.temperature,
+                ...chatTemperatureParams(activeConfig.provider || provider, activeConfig.model, activeConfig.temperature),
                 stream: true,
                 stream_options: { include_usage: true }
             };
@@ -1499,7 +1515,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 model: activeConfig.model,
                 messages: conversationMessages,
                 ...chatTokenLimitParams(activeConfig.provider || provider, activeConfig.maxTokens),
-                temperature: activeConfig.temperature,
+                ...chatTemperatureParams(activeConfig.provider || provider, activeConfig.model, activeConfig.temperature),
             };
             if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
             const completion = await withTimeout(

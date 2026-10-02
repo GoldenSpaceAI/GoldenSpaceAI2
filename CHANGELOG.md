@@ -1,3 +1,12 @@
+# GoldenSpaceAI — OpenAI gpt-5 temperature + KaTeX dash (2026-10-02)
+
+- **Fix OpenAI 400** on Fast (`gpt-5-nano` / gpt-5 family): omit `temperature` (API only allows default `1`). Configured `0.7` was rejected.
+- Helper `chatTemperatureParams` on non-stream, stream, and non-stream fallback chat/completions paths. Grok/xAI and non–gpt-5 OpenAI models still send configured temperature.
+- **KaTeX:** soft-clean normalizes unicode en/em dashes (`–`/`—`) to ASCII `-` so math renders more reliably.
+- Service worker cache `goldenspaceai2-v55`. App `2.3.29`.
+
+---
+
 # GoldenSpaceAI — OpenAI max_completion_tokens for gpt-5-nano (2026-10-02)
 
 - **Fix OpenAI 400** on Fast (`gpt-5-nano` / newer chat completions): send `max_completion_tokens` instead of deprecated `max_tokens`.

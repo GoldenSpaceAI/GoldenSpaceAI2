@@ -213,48 +213,42 @@
 <p>GoldenSpaceAI provides AI-assisted chat. Output is generated automatically and may be inaccurate or incomplete. The Service is not professional legal, medical, or financial advice. You are responsible for your use of any output.</p>
 
 <h2 id="plans">3. Plans and usage limits</h2>
-<p>Access is provided under the following plans. Limits are hard limits. When a limit is reached, the relevant mode is stopped until the next period. The Service will display a notice to upgrade or to wait until the limit resets.</p>
+<p>Access is provided under the following plans. Limits are hard <strong>model-cost USD budgets</strong> based on actual provider token usage (prompt + completion), not message counts. When a pool is exhausted, that mode is blocked with a notice to upgrade. When a paid plan’s Fast and Other pools are both exhausted, the account is moved to Free.</p>
+<p>Spend is split into two pools: <strong>Fast</strong> (Fast/normal mode only) and <strong>Other models</strong> (Thinking, Expert 4, Expert 16 / multi-AI share one pool).</p>
 
 <div class="plan-block">
   <strong>Free</strong>
   <ul>
-    <li>Basic chat: fifty (50) messages per day</li>
-    <li>Thinking and multi-agent modes are not included</li>
+    <li>Fast pool: USD 0.25 model cost per UTC calendar day</li>
+    <li>Other models pool: not included</li>
   </ul>
 </div>
 
 <div class="plan-block">
   <strong>Plus — USD 5 per thirty (30) days</strong>
   <ul>
-    <li>Basic chat: one hundred twenty (120) messages per day</li>
-    <li>Thinking: forty (40) messages per thirty-day period</li>
-    <li>Four-agent mode: fifteen (15) messages per thirty-day period</li>
-    <li>Sixteen-agent mode is not included</li>
+    <li>Fast pool: USD 2 model cost per thirty-day period</li>
+    <li>Other models pool: USD 1 model cost per thirty-day period</li>
   </ul>
 </div>
 
 <div class="plan-block">
   <strong>Pro — USD 10 per thirty (30) days</strong>
   <ul>
-    <li>Basic chat: two hundred (200) messages per day</li>
-    <li>Thinking: eighty (80) messages per thirty-day period</li>
-    <li>Four-agent mode: forty (40) messages per thirty-day period</li>
-    <li>Sixteen-agent mode: eight (8) messages per thirty-day period</li>
+    <li>Fast pool: USD 5 model cost per thirty-day period</li>
+    <li>Other models pool: USD 3 model cost per thirty-day period</li>
   </ul>
 </div>
 
 <div class="plan-block">
   <strong>Max — USD 15 per thirty (30) days</strong>
   <ul>
-    <li>Basic chat: three hundred (300) messages per day</li>
-    <li>Thinking: one hundred twenty (120) messages per thirty-day period</li>
-    <li>Four-agent mode: sixty (60) messages per thirty-day period</li>
-    <li>Sixteen-agent mode: fifteen (15) messages per thirty-day period</li>
+    <li>Fast pool: USD 8 model cost per thirty-day period</li>
+    <li>Other models pool: USD 4 model cost per thirty-day period</li>
   </ul>
 </div>
 
-<p>Daily limits reset at the start of each calendar day as determined by the Service. Period limits reset when a new paid period is confirmed, or when a Free day limit resets, as applicable.</p>
-<p>The thirty-day paid period begins on the date we <strong>confirm</strong> payment, not on the date a request is submitted.</p>
+<p>Free Fast budgets reset at the start of each UTC calendar day. Paid Fast and Other budgets apply to the thirty-day paid period that begins on the date we <strong>confirm</strong> payment (not the date a request is submitted). Buying again while paid stacks another full Fast/Other allotment (or the upgrade difference), as shown in the Service.</p>
 
 <h2 id="fees">4. Fees and payment</h2>
 <p>Paid plans are payable only by OMT Pay wallet-to-wallet transfer in the exact amount of the selected plan. The destination wallet is shown on the Upgrade page only after you accept these Terms, the Privacy Policy, and the Refund Policy.</p>

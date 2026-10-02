@@ -329,7 +329,7 @@
     <div class="actions" style="justify-content:center;margin-top:24px;">
       <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
     </div>
-    <p class="footnote">Free includes Fast chat only. Thinking &amp; Expert modes require a paid plan. Paid users who buy again stack quotas (same plan doubles; higher plan adds the difference). See <a href="/terms">Terms</a> for base caps.</p>
+    <p class="footnote">Free includes a small daily Fast $ allowance. Thinking &amp; Expert share the Other $ pool on paid plans. Budgets are real model-cost USD (token spend), not message counts. Stacking adds another full Fast/Other allotment. See <a href="/terms">Terms</a>.</p>
   </section>
 
   <section class="step" id="step2">
@@ -396,33 +396,33 @@
 (function() {
   const PLANS = [
     {
-      id: 'plus', label: 'Plus', price: 5, tagline: 'More Fast + Thinking',
+      id: 'plus', label: 'Plus', price: 5, tagline: 'Fast $2 + Other $1 model cost',
       featured: false,
       bullets: [
-        { text: 'Fast 120 messages / day', ok: true },
-        { text: 'Thinking 40 / 30 days', ok: true },
-        { text: 'Expert 4: 15 / 30 days', ok: true },
-        { text: 'Expert 16 not included', ok: false }
+        { text: 'Fast pool: $2 model cost / 30 days', ok: true },
+        { text: 'Other models pool: $1 (Thinking + Expert)', ok: true },
+        { text: 'Real token $ spend (not message counts)', ok: true },
+        { text: 'When both pools are used → Free', ok: true }
       ]
     },
     {
-      id: 'pro', label: 'Pro', price: 10, tagline: 'Best balance for power users',
+      id: 'pro', label: 'Pro', price: 10, tagline: 'Fast $5 + Other $3 model cost',
       featured: true,
       bullets: [
-        { text: 'Fast 200 messages / day', ok: true },
-        { text: 'Thinking 80 / 30 days', ok: true },
-        { text: 'Expert 4: 40 / 30 days', ok: true },
-        { text: 'Expert 16: 8 / 30 days', ok: true }
+        { text: 'Fast pool: $5 model cost / 30 days', ok: true },
+        { text: 'Other models pool: $3 (Thinking + Expert)', ok: true },
+        { text: 'Real token $ spend (not message counts)', ok: true },
+        { text: 'When both pools are used → Free', ok: true }
       ]
     },
     {
-      id: 'max', label: 'Max', price: 15, tagline: 'Highest caps',
+      id: 'max', label: 'Max', price: 15, tagline: 'Fast $8 + Other $4 model cost',
       featured: false,
       bullets: [
-        { text: 'Fast 300 messages / day', ok: true },
-        { text: 'Thinking 120 / 30 days', ok: true },
-        { text: 'Expert 4: 60 / 30 days', ok: true },
-        { text: 'Expert 16: 15 / 30 days', ok: true }
+        { text: 'Fast pool: $8 model cost / 30 days', ok: true },
+        { text: 'Other models pool: $4 (Thinking + Expert)', ok: true },
+        { text: 'Real token $ spend (not message counts)', ok: true },
+        { text: 'When both pools are used → Free', ok: true }
       ]
     }
   ];
@@ -431,16 +431,17 @@
   let planStatus = null;
   const PLAN_RANK = { free: 0, plus: 1, pro: 2, max: 3 };
   const BASE_CAPS = {
-    free: { fastPerDay: 50, thinkingPerPeriod: 0, expert4PerPeriod: 0, expert16PerPeriod: 0 },
-    plus: { fastPerDay: 120, thinkingPerPeriod: 40, expert4PerPeriod: 15, expert16PerPeriod: 0 },
-    pro: { fastPerDay: 200, thinkingPerPeriod: 80, expert4PerPeriod: 40, expert16PerPeriod: 8 },
-    max: { fastPerDay: 300, thinkingPerPeriod: 120, expert4PerPeriod: 60, expert16PerPeriod: 15 }
+    free: { fastUsd: 0.25, otherUsd: 0 },
+    plus: { fastUsd: 2, otherUsd: 1 },
+    pro: { fastUsd: 5, otherUsd: 3 },
+    max: { fastUsd: 8, otherUsd: 4 }
   };
 
   function fmtCaps(c) {
     if (!c) return '—';
-    return 'Fast ' + c.fastPerDay + '/day · Thinking ' + c.thinkingPerPeriod +
-      ' · 4-AI ' + c.expert4PerPeriod + ' · 16-AI ' + c.expert16PerPeriod + ' / 30 days';
+    const f = Number(c.fastUsd != null ? c.fastUsd : c.fastCapUsd) || 0;
+    const o = Number(c.otherUsd != null ? c.otherUsd : c.otherCapUsd) || 0;
+    return 'Fast $' + f.toFixed(2) + ' · Other $' + o.toFixed(2);
   }
 
   function previewStack(fromPlan, currentCaps, toPlan) {
@@ -454,10 +455,8 @@
     let mode, after, delta;
     function add(a, b) {
       return {
-        fastPerDay: a.fastPerDay + b.fastPerDay,
-        thinkingPerPeriod: a.thinkingPerPeriod + b.thinkingPerPeriod,
-        expert4PerPeriod: a.expert4PerPeriod + b.expert4PerPeriod,
-        expert16PerPeriod: a.expert16PerPeriod + b.expert16PerPeriod
+        fastUsd: (Number(a.fastUsd) || 0) + (Number(b.fastUsd) || 0),
+        otherUsd: (Number(a.otherUsd) || 0) + (Number(b.otherUsd) || 0)
       };
     }
     if (from === 'free' || fromRank === 0) {
@@ -472,10 +471,8 @@
       mode = 'upgrade_delta';
       const oldBase = BASE_CAPS[from];
       delta = {
-        fastPerDay: Math.max(0, newBase.fastPerDay - oldBase.fastPerDay),
-        thinkingPerPeriod: Math.max(0, newBase.thinkingPerPeriod - oldBase.thinkingPerPeriod),
-        expert4PerPeriod: Math.max(0, newBase.expert4PerPeriod - oldBase.expert4PerPeriod),
-        expert16PerPeriod: Math.max(0, newBase.expert16PerPeriod - oldBase.expert16PerPeriod)
+        fastUsd: Math.max(0, newBase.fastUsd - oldBase.fastUsd),
+        otherUsd: Math.max(0, newBase.otherUsd - oldBase.otherUsd)
       };
       after = add(before, delta);
     } else {
@@ -498,16 +495,14 @@
       return;
     }
     const caps = (planStatus.stacking && planStatus.stacking.caps) || {
-      fastPerDay: (planStatus.usage && planStatus.usage.fastPlanCap) || BASE_CAPS[plan].fastPerDay,
-      thinkingPerPeriod: (planStatus.usage && planStatus.usage.thinkingCap) || BASE_CAPS[plan].thinkingPerPeriod,
-      expert4PerPeriod: (planStatus.usage && planStatus.usage.expert4Cap) || BASE_CAPS[plan].expert4PerPeriod,
-      expert16PerPeriod: (planStatus.usage && planStatus.usage.expert16Cap) || BASE_CAPS[plan].expert16PerPeriod
+      fastUsd: (planStatus.usage && planStatus.usage.fastCapUsd) || BASE_CAPS[plan].fastUsd,
+      otherUsd: (planStatus.usage && planStatus.usage.otherCapUsd) || BASE_CAPS[plan].otherUsd
     };
-    let html = 'Your effective caps now: <em>' + fmtCaps(caps) + '</em>';
+    let html = 'Your effective $ budgets now: <em>' + fmtCaps(caps) + '</em>';
     if (selected) {
       const p = previewStack(plan, caps, selected.id);
       if (p) {
-        const modeLabel = p.mode === 'same_stack' ? 'same-plan stack (+ full allotment)'
+        const modeLabel = p.mode === 'same_stack' ? 'same-plan stack (+ full Fast/Other allotment)'
           : p.mode === 'upgrade_delta' ? 'upgrade (+ difference)'
           : p.mode === 'lower_stack' ? 'add purchased allotment (keep higher tier)'
           : 'full grant';

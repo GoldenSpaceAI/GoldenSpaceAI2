@@ -1,3 +1,16 @@
+# GoldenSpaceAI — token $ spend budgets (2026-10-02)
+
+- **Budgets are real model-cost USD** (not message counts / not plan list price).
+- **Pools:** Fast (Fast/normal only) vs Other (Thinking + Expert 4/16 / multi-AI share one pool).
+- **Allotments:** Plus Fast $2 / Other $1 · Pro Fast $5 / Other $3 · Max Fast $8 / Other $4 · Free Fast $0.25/day (UTC), Other $0.
+- **Pricing table in code** (`pricing.js`): gpt-4o-mini $0.15/$0.60 per 1M; grok-4.3 & multi-agent $1.25/$2.50 (<200k prompt), $2.50/$5.00 (≥200k). Spend = prompt+completion tokens × rates.
+- **Exhaustion:** mode blocked with “Plan used — please upgrade”; when both paid pools are used → demote to Free.
+- **Stacking:** Free→paid full budgets; same-plan / upgrade stacking adds Fast/Other $ allotments (persisted in Postgres `plans_store`).
+- **UI:** plan strip + settings + My Plan + Upgrade show $ left (Fast vs Other).
+- Service worker cache `goldenspaceai2-v47`. App `2.3.21`.
+
+---
+
 # GoldenSpaceAI — premium speak-aloud TTS (2026-10-01)
 
 - **Speak aloud:** each assistant reply has a speaker button that reads the answer aloud.

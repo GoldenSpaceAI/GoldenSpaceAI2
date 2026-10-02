@@ -773,6 +773,50 @@
         }
         .input-btn:active { color: var(--gold-light); transform: scale(0.9); }
         .input-btn.recording { color: var(--red); animation: pulse 1s infinite; }
+        .input-btn.mic-dictate {
+            gap: 5px;
+            padding: 0 10px;
+            min-width: auto;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            border: 1px solid transparent;
+            color: var(--gold);
+        }
+        .input-btn.mic-dictate .mic-dictate-label {
+            display: none;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        @media (min-width: 520px) {
+            .input-btn.mic-dictate .mic-dictate-label { display: inline; }
+        }
+        .input-btn.mic-dictate:hover {
+            background: rgba(212,175,55,0.12);
+            border-color: rgba(212,175,55,0.35);
+        }
+        .input-btn.mic-dictate:active,
+        .input-btn.mic-dictate.pressed {
+            background: rgba(212,175,55,0.2);
+            border-color: var(--gold-dark);
+            transform: scale(0.96);
+        }
+        .input-btn.mic-dictate.recording {
+            color: #fff;
+            background: rgba(220, 60, 60, 0.92);
+            border-color: rgba(220, 60, 60, 0.95);
+            animation: pulse 1s infinite;
+        }
+        .listening-hint {
+            margin: 0 0 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            max-width: 280px;
+            margin-left: auto;
+            margin-right: auto;
+        }
 
         .plan-status-card {
             border: 1px solid rgba(212,175,55,0.28);
@@ -1970,6 +2014,11 @@
             background: rgba(231,76,60,0.1);
             animation: pulse 1s infinite;
         }
+        .input-btn.mic-dictate.recording {
+            color: #fff;
+            background: rgba(220, 60, 60, 0.92);
+            border-color: rgba(220, 60, 60, 0.95);
+        }
         .input-btn.image-attached {
             color: var(--green);
             border-color: rgba(74,222,128,0.4);
@@ -3061,6 +3110,43 @@
             text-decoration: none;
         }
         .empty-state .empty-plan-hint a:hover { text-decoration: underline; }
+        .empty-state .empty-logo {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            object-fit: cover;
+            box-shadow: 0 12px 28px rgba(212,175,55,0.22);
+            margin-bottom: 4px;
+        }
+        .empty-state .empty-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            max-width: 420px;
+            margin: 4px 0 2px;
+        }
+        .empty-state .empty-chip {
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--text);
+            background: rgba(212,175,55,0.07);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 8px 14px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, transform 0.12s;
+        }
+        .empty-state .empty-chip:hover {
+            border-color: rgba(212,175,55,0.55);
+            background: rgba(212,175,55,0.14);
+            color: var(--gold);
+        }
+        .empty-state .empty-chip:active { transform: scale(0.97); }
+        html.light .empty-state .empty-chip {
+            background: rgba(255,255,255,0.85);
+        }
 
         .plan-strip {
             margin: 0 0 10px;
@@ -3721,7 +3807,7 @@
                                 <div class="plus-menu-item" onclick="openFileAttach()">File (Word / PPT / PDF / txt)</div>
                             </div>
 
-                            <button class="input-btn" id="micBtn" onclick="toggleVoiceInput()" aria-label="Voice" title="Voice"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg></button>
+                            <button class="input-btn mic-dictate" id="micBtn" type="button" onclick="toggleVoiceInput()" aria-label="Dictate" title="Dictate" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg><span class="mic-dictate-label">Dictate</span></button>
                         </div>
                         
                         <textarea class="message-input" id="messageInput" placeholder="Message GoldenSpaceAI…" rows="1" onkeydown="handleKeyPress(event)" oninput="autoGrow(this)"></textarea>
@@ -3813,14 +3899,15 @@
         </div>
         <div class="toast-host" id="toastHost" aria-live="polite"></div>
         <div class="overlay" id="overlay" onclick="toggleChatsPanel()"></div>
-        <div class="listening-overlay" id="listeningOverlay" role="dialog" aria-modal="true" aria-label="Listening">
+        <div class="listening-overlay" id="listeningOverlay" role="dialog" aria-modal="true" aria-label="Dictating">
             <div class="listening-card">
                 <div class="listening-wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
-                <div class="listening-label">Listening…</div>
+                <div class="listening-label" id="listeningLabel">Dictating…</div>
+                <p class="listening-hint" id="listeningHint">Speak clearly — text appears in the composer. Speak-aloud (TTS) is separate.</p>
                 <div class="listening-interim" id="listeningInterim"></div>
                 <div class="listening-actions">
                     <button type="button" class="listening-btn secondary" onclick="cancelVoiceInput()">Cancel</button>
-                    <button type="button" class="listening-btn" onclick="stopRecording()">Done</button>
+                    <button type="button" class="listening-btn" onclick="stopRecording()">Use text</button>
                 </div>
             </div>
         </div>
@@ -5071,14 +5158,38 @@
         }
         function renderEmptyStateHtml() {
             const hint = emptyPlanHintHtml(cachedPlan);
+            const starters = [
+                { label: 'Explain a concept', prompt: 'Explain quantum entanglement like I\'m a careful beginner, with one concrete analogy.' },
+                { label: 'Debug / review code', prompt: 'Review this code for bugs and clarity:\n\n' },
+                { label: 'Draft professional writing', prompt: 'Draft a clear, professional email that…' },
+                { label: 'Plan a project', prompt: 'Help me outline a practical plan for…' }
+            ];
+            const chips = starters.map(function(s) {
+                return '<button type="button" class="empty-chip" data-prompt="' +
+                    String(s.prompt).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;') +
+                    '" onclick="useEmptyStarter(this)">' + s.label + '</button>';
+            }).join('');
             return '<div class="empty-state">' +
-                '<div class="empty-mark" aria-hidden="true">G</div>' +
-                '<div class="empty-title">GoldenSpaceAI</div>' +
-                '<div class="empty-value">Professional answers for research, code, writing, and analysis.</div>' +
-                '<button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Start a conversation</button>' +
+                '<img class="empty-logo" src="/logo.png" width="56" height="56" alt="" />' +
+                '<div class="empty-title">How can I help?</div>' +
+                '<div class="empty-value">Research, code, writing, and analysis — pick a mode, then ask.</div>' +
+                '<div class="empty-chips" role="list">' + chips + '</div>' +
+                '<button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Or type your own message</button>' +
                 '<div class="empty-meta"><span>Fast</span><span class="empty-dot" aria-hidden="true">·</span><span>Thinking</span><span class="empty-dot" aria-hidden="true">·</span><span>Expert</span></div>' +
                 '<p class="empty-plan-hint" id="emptyPlanHint">' + hint + '</p>' +
                 '</div>';
+        }
+        function useEmptyStarter(btn) {
+            const prompt = (btn && btn.getAttribute('data-prompt')) || '';
+            const input = document.getElementById('messageInput');
+            if (!input) return;
+            input.value = prompt;
+            autoGrow(input);
+            input.focus();
+            try {
+                const len = input.value.length;
+                input.setSelectionRange(len, len);
+            } catch (e) {}
         }
 
         function loadChat() {
@@ -5764,7 +5875,9 @@
                 if (errMsg && !streamedText) throw new Error(errMsg);
                 // Prefer server soft-cleaned `full` when present (KaTeX dash normalize); else stream.
                 let finalText = softCleanLatexClient(finalFull || streamedText || '');
-                if (!String(finalText).trim() && !errMsg) {
+                // Only non-stream rescue when the SSE connection died without a done frame.
+                // If doneFlag is set, the server already ran empty-fallback — don't double-wait.
+                if (!String(finalText).trim() && !errMsg && !doneFlag) {
                     setThinkingStatus(thinkingId, 'waiting');
                     try {
                         const fb = await fetch('/api/chat', {
@@ -6432,7 +6545,7 @@
             recognition.onstart = function() { 
                 isRecording = true;
                 voiceSessionActive = true;
-                document.getElementById('micBtn').classList.add('recording');
+                setMicDictateState(true);
                 showListeningOverlay(true);
             };
             
@@ -6445,7 +6558,7 @@
                 }
                 const display = (voiceFinalTranscript + ' ' + interim).trim();
                 const interimEl = document.getElementById('listeningInterim');
-                if (interimEl) interimEl.textContent = display || 'Say something…';
+                if (interimEl) interimEl.textContent = display || 'Listening for speech…';
                 const input = document.getElementById('messageInput');
                 if (input) {
                     const base = voicePrefill ? (voicePrefill + (display ? ' ' + display : '')) : display;
@@ -6497,6 +6610,17 @@
             }
         }
 
+        function setMicDictateState(on) {
+            const micBtn = document.getElementById('micBtn');
+            if (!micBtn) return;
+            micBtn.classList.toggle('recording', !!on);
+            micBtn.classList.toggle('pressed', !!on);
+            micBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            micBtn.title = on ? 'Dictating — tap to finish' : 'Dictate';
+            micBtn.setAttribute('aria-label', on ? 'Stop dictating' : 'Dictate');
+            const lab = micBtn.querySelector('.mic-dictate-label');
+            if (lab) lab.textContent = on ? 'Listening' : 'Dictate';
+        }
         function startRecording() {
             voiceCancelled = false;
             voiceFinalTranscript = '';
@@ -6504,7 +6628,10 @@
             const input = document.getElementById('messageInput');
             voicePrefill = input ? String(input.value || '').trim() : '';
             const interimEl = document.getElementById('listeningInterim');
-            if (interimEl) interimEl.textContent = 'Say something…';
+            if (interimEl) interimEl.textContent = 'Listening for speech…';
+            const label = document.getElementById('listeningLabel');
+            if (label) label.textContent = 'Dictating…';
+            setMicDictateState(true);
             showListeningOverlay(true);
             try { recognition.start(); } catch(e) { voiceSessionActive = false; finishVoiceSession(); }
         }
@@ -6514,8 +6641,7 @@
             voiceCancelled = false;
             voiceSessionActive = false;
             isRecording = false;
-            const micBtn = document.getElementById('micBtn');
-            if (micBtn) micBtn.classList.remove('recording');
+            setMicDictateState(false);
             if (recognition) try { recognition.stop(); } catch(e) {}
             finishVoiceSession();
         }
@@ -6525,8 +6651,7 @@
             voiceSessionActive = false;
             voiceFinalTranscript = '';
             isRecording = false;
-            const micBtn = document.getElementById('micBtn');
-            if (micBtn) micBtn.classList.remove('recording');
+            setMicDictateState(false);
             if (recognition) try { recognition.abort(); } catch(e) { try { recognition.stop(); } catch(e2) {} }
             const input = document.getElementById('messageInput');
             if (input) {
@@ -6539,8 +6664,7 @@
         function finishVoiceSession() {
             isRecording = false;
             voiceSessionActive = false;
-            const micBtn = document.getElementById('micBtn');
-            if (micBtn) micBtn.classList.remove('recording');
+            setMicDictateState(false);
             showListeningOverlay(false);
             const input = document.getElementById('messageInput');
             if (!input || voiceCancelled) return;

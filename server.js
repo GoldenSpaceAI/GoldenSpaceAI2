@@ -327,13 +327,15 @@ function extractChatCompletionText(completion) {
  */
 async function openaiEmptyContentRetry(client, baseArgs, label) {
     const model = baseArgs && baseArgs.model;
-    const bumped = Math.max(
+    const baseTok = Math.max(
         Number(baseArgs.max_completion_tokens) || 0,
         Number(baseArgs.max_tokens) || 0,
-        2048
-    ) * 2;
+        1536
+    );
+    // Modest bump (not 2×) — enough for visible text after minimal reasoning, less latency
+    const bumped = Math.min(Math.max(baseTok + 1024, 2048), 4096);
     const retryArgs = Object.assign({}, baseArgs, {
-        max_completion_tokens: Math.min(bumped, 8192),
+        max_completion_tokens: bumped,
         reasoning_effort: 'minimal'
     });
     delete retryArgs.max_tokens;
@@ -994,18 +996,23 @@ async function resolveContextPack(req) {
             console.error('getUserMemory:', e.message);
         }
         if (chatId) {
-            try {
-                storedChat = await auth.getChat(ownerKey, chatId);
-                if (storedChat) {
-                    if (!rollingSummary && storedChat.rollingSummary) {
-                        rollingSummary = storedChat.rollingSummary;
+            // Skip DB getChat when the client already shipped a usable rolling summary —
+            // avoids cold-path latency on every reply for logged-in users.
+            const clientHasSummary = !!(String(rollingSummary || '').trim() && summaryMessageCount > 0);
+            if (!clientHasSummary) {
+                try {
+                    storedChat = await auth.getChat(ownerKey, chatId);
+                    if (storedChat) {
+                        if (!rollingSummary && storedChat.rollingSummary) {
+                            rollingSummary = storedChat.rollingSummary;
+                        }
+                        if (!summaryMessageCount && storedChat.summaryMessageCount) {
+                            summaryMessageCount = Number(storedChat.summaryMessageCount) || 0;
+                        }
                     }
-                    if (!summaryMessageCount && storedChat.summaryMessageCount) {
-                        summaryMessageCount = Number(storedChat.summaryMessageCount) || 0;
-                    }
+                } catch (e) {
+                    console.error('getChat for pack:', e.message);
                 }
-            } catch (e) {
-                console.error('getChat for pack:', e.message);
             }
         }
     }
@@ -1468,12 +1475,15 @@ app.post('/api/chat/stream', async (req, res) => {
         }
 
         let { safeMode, config, client, provider, allowGrokFallback } = target;
-        const pack = await resolveContextPack(req);
-        const conversationMessages = pack.conversationMessages;
         const useWebSearch = webSearch === true;
+        const streamT0 = Date.now();
+        const streamMark = (label) => {
+            const ms = Date.now() - streamT0;
+            console.log(`Stream timing [${safeMode}/${provider}]: ${label} +${ms}ms`);
+            return ms;
+        };
 
-        console.log(`Stream: ${safeMode} | Provider: ${provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | pack=${conversationMessages.length} (raw≈${pack.meta.recentRawCount}+sys${pack.meta.systemBlocks}) mem=${pack.meta.hasAccountMemory} sum=${pack.meta.hasRollingSummary} | planKind=${usageKind}`);
-
+        // Flush SSE + status immediately so the client is not blocked on cold-path pack work
         res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
@@ -1489,6 +1499,13 @@ app.post('/api/chat/stream', async (req, res) => {
                     ? 'thinking'
                     : 'generating';
         sendSse({ status: initialStatus, mode: safeMode, provider, webSearch: useWebSearch });
+        streamMark('sse_open');
+
+        const pack = await resolveContextPack(req);
+        streamMark('pack_ready');
+        const conversationMessages = pack.conversationMessages;
+
+        console.log(`Stream: ${safeMode} | Provider: ${provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | pack=${conversationMessages.length} (raw≈${pack.meta.recentRawCount}+sys${pack.meta.systemBlocks}) mem=${pack.meta.hasAccountMemory} sum=${pack.meta.hasRollingSummary} | planKind=${usageKind}`);
 
         // Expert: Responses API (prefer stream so search/thinking events surface live)
         if (safeMode === 'expert') {
@@ -1703,6 +1720,7 @@ app.post('/api/chat/stream', async (req, res) => {
             let stream;
             try {
                 stream = await openStream(client, config);
+                streamMark('stream_open');
             } catch (openErr) {
                 if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(openErr)) {
                     const cause = openErr?.cause?.code || openErr?.cause?.message || '';
@@ -1713,6 +1731,7 @@ app.post('/api/chat/stream', async (req, res) => {
                     allowGrokFallback = false;
                     usedGrokFallback = true;
                     stream = await openStream(client, config);
+                    streamMark('stream_open_grok_fallback');
                 } else {
                     throw openErr;
                 }
@@ -1721,6 +1740,7 @@ app.post('/api/chat/stream', async (req, res) => {
             let full = '';
             let emittedGenerating = false;
             let streamUsage = null;
+            let firstDeltaLogged = false;
             for await (const chunk of stream) {
                 if (clientClosed) break;
                 if (chunk && chunk.usage) streamUsage = chunk.usage;
@@ -1732,12 +1752,14 @@ app.post('/api/chat/stream', async (req, res) => {
                     || (typeof deltaObj.reasoning_text === 'string' ? deltaObj.reasoning_text : '')
                     || '';
                 if (reasoningDelta) {
+                    if (!firstDeltaLogged) { firstDeltaLogged = true; streamMark('first_delta'); }
                     sendSse({ reasoning: reasoningDelta, status: 'thinking' });
                 }
                 const delta = extractChatDeltaText(deltaObj)
                     || (typeof choice?.delta === 'string' ? choice.delta : '')
                     || '';
                 if (delta) {
+                    if (!firstDeltaLogged) { firstDeltaLogged = true; streamMark('first_delta'); }
                     if (!emittedGenerating) {
                         emittedGenerating = true;
                         sendSse({ status: 'generating' });
@@ -1753,12 +1775,35 @@ app.post('/api/chat/stream', async (req, res) => {
             // If streaming returned nothing (common with reasoning / proxy abort), fall back once
             if (!clientClosed && !full.trim()) {
                 sendSse({ status: safeMode === 'smart' ? 'thinking' : 'waiting' });
-                console.warn('Stream empty — falling back to non-stream completion');
+                streamMark('empty_stream');
+                console.warn('Stream empty — falling back (prefer fast empty-retry for gpt-5)');
                 try {
-                    const fb = await nonStreamCompletion(client, config, 'Stream fallback');
+                    let fb;
+                    // gpt-5 empty streams usually burned tokens on reasoning — skip a slow
+                    // high-effort non-stream round-trip and go straight to minimal retry.
+                    if (isOpenAIGpt5Family(provider, config.model)) {
+                        const fallbackArgs = {
+                            model: config.model,
+                            messages: conversationMessages,
+                            ...chatTokenLimitParams(config.provider || provider, config.maxTokens),
+                            ...chatTemperatureParams(config.provider || provider, config.model, config.temperature),
+                        };
+                        const retry = await withTimeout(
+                            openaiEmptyContentRetry(client, fallbackArgs, 'Stream empty'),
+                            UPSTREAM_TIMEOUT_MS,
+                            'Stream empty retry'
+                        );
+                        fb = {
+                            text: extractChatCompletionText(retry) || '',
+                            usage: retry?.usage || null
+                        };
+                    } else {
+                        fb = await nonStreamCompletion(client, config, 'Stream fallback');
+                    }
                     full = softCleanLatex(fb.text || '') || '';
                     if (fb.usage) streamUsage = fb.usage;
                     if (full) sendSse({ text: full });
+                    streamMark('empty_fallback_ok');
                 } catch (fbErr) {
                     if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(fbErr)) {
                         console.warn('OpenAI empty-stream fallback failed — trying Grok');
@@ -1770,7 +1815,9 @@ app.post('/api/chat/stream', async (req, res) => {
                         full = softCleanLatex(fb2.text || '') || '';
                         if (fb2.usage) streamUsage = fb2.usage;
                         if (full) sendSse({ text: full });
+                        streamMark('empty_fallback_grok');
                     } else {
+                        streamMark('empty_fallback_fail');
                         sendSse({ error: mapApiError(fbErr, provider) });
                         sendSse({ done: true });
                         return res.end();
@@ -1789,7 +1836,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 }
                 // Always send soft-cleaned full so clients prefer it over raw stream text.
                 sendSse({ done: true, model: safeMode, provider, full: cleaned, contextPack: contextPackPayload() });
-                console.log(`Stream done: ${cleaned.length} chars | provider=${provider} | pack=${pack.meta.packSize}`);
+                console.log(`Stream done: ${cleaned.length} chars | provider=${provider} | pack=${pack.meta.packSize} | total=${Date.now() - streamT0}ms`);
             }
             return res.end();
         } catch (err) {

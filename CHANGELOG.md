@@ -1,3 +1,12 @@
+# GoldenSpaceAI — plan copy: offers only, no cost internals (2026-10-02)
+
+- **Terms §3** rewritten so users see what each plan **offers** only (modes, image caps, unlimited docs). Removed model-cost USD budgets, retained/margin $, bucket dollar amounts, and provider model pricing language. List prices $5/$10/$15, 30-day period, OMT, % usage, hard-stop, no mode borrowing kept.
+- **Upgrade / My Plan / chat settings** copy cleaned: no gpt/grok model ids, no “bucket/$” allotment language; stacking & footnotes say mode allowances.
+- Public API notes (`timezoneNote`, stacking rules, quota notes) no longer mention retained $ or Fast $ spend.
+- Service worker cache `goldenspaceai2-v59`. App `2.3.33`.
+
+---
+
 # GoldenSpaceAI — contact help + Thinking disclosure (2026-10-02)
 
 - **Need help / Contact us:** `mailto:support@goldenspaceai.space` on upgrade, login, terms, privacy, refund, my-plan, and updating (not main chat; admin skipped).

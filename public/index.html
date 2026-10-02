@@ -3899,8 +3899,8 @@
         function planPeriodNote(data) {
             if (!data) return '';
             if (data.plan === 'free') return 'Free Fast + image caps reset at UTC midnight. Documents unlimited.';
-            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Buckets do not borrow. Images reset daily (UTC).';
-            return 'Paid buckets reset each paid period; images reset daily (UTC).';
+            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Modes do not borrow. Images reset daily (UTC).';
+            return 'Paid mode allowances reset each paid period; images reset daily (UTC).';
         }
         function updateAccountPlanBadge(data) {
             const badge = document.getElementById('accountPlanBadge');
@@ -3910,7 +3910,7 @@
         }
         const NEXT_TIER = {
             free: { id: 'plus', label: 'Plus', benefit: 'Thinking + 10 images/day' },
-            plus: { id: 'pro', label: 'Pro', benefit: 'Expert 4 shared + 20 images/day' },
+            plus: { id: 'pro', label: 'Pro', benefit: 'Expert 4 + 20 images/day' },
             pro: { id: 'max', label: 'Max', benefit: 'Expert 16 + 30 images/day' },
             max: { id: 'max', label: 'Max', benefit: 'Renew or stack for more capacity' }
         };

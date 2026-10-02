@@ -38,6 +38,33 @@ function lookupPricing(model) {
     return DEFAULT_PRICING;
 }
 
+
+/**
+ * Normalize spend provider to `openai` | `grok` (infer from model when omitted).
+ * @param {string|null|undefined} provider
+ * @param {string|null|undefined} model
+ * @returns {'openai'|'grok'|'unknown'}
+ */
+function normalizeProvider(provider, model) {
+    const p = String(provider || '').trim().toLowerCase();
+    if (p === 'openai') return 'openai';
+    if (p === 'grok' || p === 'xai') return 'grok';
+    const id = normalizeModelId(model);
+    if (!id) return p || 'unknown';
+    if (
+        id.startsWith('gpt-') ||
+        id.startsWith('o1') ||
+        id.startsWith('o3') ||
+        id.startsWith('o4') ||
+        id.includes('chatgpt') ||
+        id.includes('openai')
+    ) {
+        return 'openai';
+    }
+    if (id.startsWith('grok') || id.startsWith('xai')) return 'grok';
+    return p || 'unknown';
+}
+
 /**
  * Compute USD cost from provider usage token counts.
  * @returns {{ costUsd: number, promptTokens: number, completionTokens: number, model: string, rates: object, longContext: boolean }}
@@ -122,5 +149,6 @@ module.exports = {
     extractTokenCounts,
     costFromProviderUsage,
     estimateTokensFromText,
-    estimateCostFromTexts
+    estimateCostFromTexts,
+    normalizeProvider
 };

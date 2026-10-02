@@ -45,7 +45,7 @@
   .brand img { width:28px; height:28px; border-radius:8px; object-fit:cover; }
   .topnav-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
-  main { max-width:1280px; margin:0 auto; padding:28px 20px 80px; }
+  main { max-width:1480px; margin:0 auto; padding:28px 20px 80px; }
 
   .hero { margin-bottom:22px; }
   .hero-row {
@@ -218,6 +218,12 @@
     max-height: min(70vh, 820px);
     -webkit-overflow-scrolling: touch;
   }
+
+  .spend-split { display:flex; flex-direction:column; gap:2px; align-items:flex-end; line-height:1.25; }
+  .spend-split .prov-row { display:flex; gap:6px; align-items:baseline; justify-content:flex-end; white-space:nowrap; }
+  .spend-split .prov { color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; min-width:3.6em; text-align:left; }
+  .spend-split .amt { font-variant-numeric: tabular-nums; }
+  .stat-sub.prov-split { font-size:11px; }
   table.users {
     width:100%;
     border-collapse:separate;
@@ -362,7 +368,7 @@
       <div class="hero-row">
         <div>
           <h1>Users directory</h1>
-          <p>Read-only accounts, plans, devices, locations, and token/$ spend (today + all-time). Approve / decline / pause live on Upgrade requests.</p>
+          <p>Read-only accounts, plans, devices, locations, and token/$ spend by provider (Grok vs OpenAI, today + all-time). Approve / decline / pause live on Upgrade requests.</p>
         </div>
         <span class="hero-badge" id="liveBadge" title="Session active"><span class="dot"></span> Live · read-only</span>
       </div>
@@ -387,7 +393,7 @@
       <div class="stat-card">
         <div class="stat-label">$ today</div>
         <div class="stat-value gold" id="statUsdToday">—</div>
-        <div class="stat-sub">model cost USD</div>
+        <div class="stat-sub prov-split" id="statUsdTodaySplit">Grok — · OpenAI —</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Tokens total</div>
@@ -397,7 +403,7 @@
       <div class="stat-card">
         <div class="stat-label">$ total</div>
         <div class="stat-value gold" id="statUsdTotal">—</div>
-        <div class="stat-sub">all-time spend</div>
+        <div class="stat-sub prov-split" id="statUsdTotalSplit">Grok — · OpenAI —</div>
       </div>
     </div>
 
@@ -438,9 +444,11 @@
               <th class="sortable" data-sort="device">Device <span class="sort-ind">▼</span></th>
               <th class="sortable" data-sort="location">Location <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayTokens">Tokens today <span class="sort-ind">▼</span></th>
-              <th class="sortable num" data-sort="todaySpendUsd">$ today <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="todayGrokSpendUsd">$ Grok today <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="todayOpenaiSpendUsd">$ OpenAI today <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="totalTokens">Tokens total <span class="sort-ind">▼</span></th>
-              <th class="sortable num" data-sort="totalSpendUsd">$ total <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="totalGrokSpendUsd">$ Grok total <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="totalOpenaiSpendUsd">$ OpenAI total <span class="sort-ind">▼</span></th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -520,11 +528,21 @@
   }
 
   function spendFields(u) {
+    const todayGrok = u.todayGrokSpendUsd != null ? u.todayGrokSpendUsd : (u.grokSpendToday || 0);
+    const todayOpenai = u.todayOpenaiSpendUsd != null ? u.todayOpenaiSpendUsd : (u.openaiSpendToday || 0);
+    const totalGrok = u.totalGrokSpendUsd != null ? u.totalGrokSpendUsd : (u.grokSpendTotal || 0);
+    const totalOpenai = u.totalOpenaiSpendUsd != null ? u.totalOpenaiSpendUsd : (u.openaiSpendTotal || 0);
+    const todaySpendUsd = u.todaySpendUsd != null ? u.todaySpendUsd : (u.dollarsToday != null ? u.dollarsToday : (Number(todayGrok) || 0) + (Number(todayOpenai) || 0));
+    const totalSpendUsd = u.totalSpendUsd != null ? u.totalSpendUsd : (u.dollarsTotal != null ? u.dollarsTotal : (Number(totalGrok) || 0) + (Number(totalOpenai) || 0));
     return {
       todayTokens: u.todayTokens != null ? u.todayTokens : (u.tokensToday || 0),
-      todaySpendUsd: u.todaySpendUsd != null ? u.todaySpendUsd : (u.dollarsToday || 0),
+      todaySpendUsd: todaySpendUsd,
+      todayGrokSpendUsd: todayGrok,
+      todayOpenaiSpendUsd: todayOpenai,
       totalTokens: u.totalTokens != null ? u.totalTokens : (u.tokensTotal || 0),
-      totalSpendUsd: u.totalSpendUsd != null ? u.totalSpendUsd : (u.dollarsTotal || 0)
+      totalSpendUsd: totalSpendUsd,
+      totalGrokSpendUsd: totalGrok,
+      totalOpenaiSpendUsd: totalOpenai
     };
   }
 
@@ -542,11 +560,16 @@
   function renderStats(list) {
     const paid = list.filter(u => u._plan !== 'free').length;
     let tokToday = 0, usdToday = 0, tokTotal = 0, usdTotal = 0;
+    let grokToday = 0, openaiToday = 0, grokTotal = 0, openaiTotal = 0;
     list.forEach(u => {
       tokToday += Number(u.todayTokens) || 0;
       usdToday += Number(u.todaySpendUsd) || 0;
       tokTotal += Number(u.totalTokens) || 0;
       usdTotal += Number(u.totalSpendUsd) || 0;
+      grokToday += Number(u.todayGrokSpendUsd) || 0;
+      openaiToday += Number(u.todayOpenaiSpendUsd) || 0;
+      grokTotal += Number(u.totalGrokSpendUsd) || 0;
+      openaiTotal += Number(u.totalOpenaiSpendUsd) || 0;
     });
     document.getElementById('statUsers').textContent = String(list.length);
     document.getElementById('statUsersSub').textContent =
@@ -555,8 +578,12 @@
     document.getElementById('statFree').textContent = (list.length - paid) + ' free';
     document.getElementById('statTokToday').textContent = fmtTokens(tokToday);
     document.getElementById('statUsdToday').textContent = fmtUsd(usdToday);
+    document.getElementById('statUsdTodaySplit').textContent =
+      'Grok ' + fmtUsd(grokToday) + ' · OpenAI ' + fmtUsd(openaiToday);
     document.getElementById('statTokTotal').textContent = fmtTokens(tokTotal);
     document.getElementById('statUsdTotal').textContent = fmtUsd(usdTotal);
+    document.getElementById('statUsdTotalSplit').textContent =
+      'Grok ' + fmtUsd(grokTotal) + ' · OpenAI ' + fmtUsd(openaiTotal);
   }
 
   function renderGaps(meta) {
@@ -593,8 +620,12 @@
     if (key === 'location') return String(u._location || '').toLowerCase();
     if (key === 'todayTokens') return Number(u.todayTokens) || 0;
     if (key === 'todaySpendUsd') return Number(u.todaySpendUsd) || 0;
+    if (key === 'todayGrokSpendUsd') return Number(u.todayGrokSpendUsd) || 0;
+    if (key === 'todayOpenaiSpendUsd') return Number(u.todayOpenaiSpendUsd) || 0;
     if (key === 'totalTokens') return Number(u.totalTokens) || 0;
     if (key === 'totalSpendUsd') return Number(u.totalSpendUsd) || 0;
+    if (key === 'totalGrokSpendUsd') return Number(u.totalGrokSpendUsd) || 0;
+    if (key === 'totalOpenaiSpendUsd') return Number(u.totalOpenaiSpendUsd) || 0;
     return '';
   }
 
@@ -679,9 +710,11 @@
           '<td><span class="mono">' + escapeHtml(u._device) + '</span>' + deviceMeta + '</td>' +
           '<td>' + escapeHtml(u._location) + locMeta + '</td>' +
           '<td class="mono num">' + escapeHtml(fmtTokens(u.todayTokens)) + '</td>' +
-          '<td class="mono num">' + escapeHtml(fmtUsd(u.todaySpendUsd)) + '</td>' +
+          '<td class="mono num">' + escapeHtml(fmtUsd(u.todayGrokSpendUsd)) + '</td>' +
+          '<td class="mono num">' + escapeHtml(fmtUsd(u.todayOpenaiSpendUsd)) + '</td>' +
           '<td class="mono num">' + escapeHtml(fmtTokens(u.totalTokens)) + '</td>' +
-          '<td class="mono num">' + escapeHtml(fmtUsd(u.totalSpendUsd)) + '</td>' +
+          '<td class="mono num">' + escapeHtml(fmtUsd(u.totalGrokSpendUsd)) + '</td>' +
+          '<td class="mono num">' + escapeHtml(fmtUsd(u.totalOpenaiSpendUsd)) + '</td>' +
         '</tr>'
       );
     }).join('');

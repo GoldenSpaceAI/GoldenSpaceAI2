@@ -13,7 +13,8 @@ const {
 const {
     costFromProviderUsage,
     estimateCostFromTexts,
-    extractTokenCounts
+    extractTokenCounts,
+    normalizeProvider
 } = require('./pricing');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
@@ -410,12 +411,13 @@ function messagesTextForEstimate(messages) {
     }).join('\n');
 }
 
-function spendFromUsageOrEstimate(model, usage, promptMessages, replyText) {
+function spendFromUsageOrEstimate(model, usage, promptMessages, replyText, provider) {
     const counts = extractTokenCounts(usage);
-    if (counts.promptTokens > 0 || counts.completionTokens > 0) {
-        return costFromProviderUsage(model, usage);
-    }
-    return estimateCostFromTexts(model, messagesTextForEstimate(promptMessages), replyText || '');
+    const base = (counts.promptTokens > 0 || counts.completionTokens > 0)
+        ? costFromProviderUsage(model, usage)
+        : estimateCostFromTexts(model, messagesTextForEstimate(promptMessages), replyText || '');
+    const prov = normalizeProvider(provider, model || (base && base.model));
+    return Object.assign({}, base, { provider: prov });
 }
 
 function sendFreshJson(res, body) {
@@ -1230,10 +1232,11 @@ app.post('/api/chat', async (req, res) => {
                 result.modelName || target.config.model,
                 result.usage,
                 conversationMessages,
-                reply
+                reply,
+                result.provider
             );
             const recorded = usageHold.commit(spend);
-            console.log(`Spend: ${spend.costUsd.toFixed(6)} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
+            console.log(`Spend: ${spend.costUsd.toFixed(6)} provider=${spend.provider} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
         }
         keepUsage = true;
         afterChatPackMaintenance(pack, req.body);
@@ -1407,10 +1410,11 @@ app.post('/api/chat/stream', async (req, res) => {
                             config.model,
                             responseData.usage,
                             conversationMessages,
-                            reply
+                            reply,
+                            provider
                         );
                         const recorded = usageHold.commit(spend);
-                        console.log(`Spend: ${spend.costUsd.toFixed(6)} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
+                        console.log(`Spend: ${spend.costUsd.toFixed(6)} provider=${spend.provider} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
                     }
                     keepUsage = true;
                 }
@@ -1501,10 +1505,11 @@ app.post('/api/chat/stream', async (req, res) => {
                 modelName || config.model,
                 usage,
                 conversationMessages,
-                replyText || ''
+                replyText || '',
+                provider
             );
             const recorded = usageHold.commit(spend);
-            console.log(`Spend: ${spend.costUsd.toFixed(6)} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
+            console.log(`Spend: ${spend.costUsd.toFixed(6)} provider=${spend.provider} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
             afterChatPackMaintenance(pack, req.body);
         }
 
@@ -2572,7 +2577,8 @@ app.get('/api/admin/users', async (req, res) => {
                 'No dedicated last-login IP / user-agent on users table',
                 'Location from last payment request IP geo (or cached IP) when available',
                 'Device from device_links (most recent) else last payment deviceId',
-                'Today/total tokens+$ from persisted usage (UTC day); totals seeded from period spend for older rows'
+                'Today/total tokens+$ from persisted usage (UTC day); totals seeded from period spend for older rows',
+                'Grok vs OpenAI $ split tracked from recordSpend provider (historical rows may show $0 until new usage)'
             ]
         }
     });

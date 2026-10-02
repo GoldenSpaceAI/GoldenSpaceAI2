@@ -332,11 +332,11 @@
 <main>
   <section class="hero">
     <h1>Choose your plan</h1>
-    <p class="sub">What each plan <strong>offers</strong> — modes, daily image caps, unlimited documents. Usage shown as % only. Pay once for 30 days via OMT Pay. No auto-renew.</p>
+    <p class="sub">What each plan <strong>offers</strong> — modes, Talk (Live/speak-aloud) time, daily image caps, unlimited documents. Usage shown as % only. Pay once for 30 days via OMT Pay. No auto-renew.</p>
     <div class="current-pill" id="currentPlan">Loading your plan…</div>
     <div class="free-ref" id="freeRef" aria-label="Free plan">
       <strong>Free</strong>
-      <span>Fast only · 5 images/day (UTC) · docs unlimited · Thinking &amp; Expert not included</span>
+      <span>Fast only · Talk 1 min/week · 5 images/day (UTC) · docs unlimited · Thinking &amp; Expert not included</span>
     </div>
     <div class="stack-note" id="stackNote" role="note" aria-live="polite">
       <strong>Already on a paid plan?</strong> Buying again <strong>stacks</strong> your mode allowances (Fast / Thinking+Expert4 / Expert16):
@@ -362,7 +362,7 @@
     <div class="actions" style="justify-content:center;margin-top:24px;">
       <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
     </div>
-    <p class="footnote">Offers match <a href="/terms">Terms §3</a>: modes, daily image caps, unlimited docs. Separate mode allowances — no borrowing. Usage shown as % only. No internal cost budgets on this page.</p>
+    <p class="footnote">Offers match <a href="/terms">Terms §3</a>: modes, Talk minutes, daily image caps, unlimited docs. Separate allowances — no borrowing. Usage shown as % only. No internal cost budgets on this page.</p>
   </section>
 
   <section class="step" id="step2">
@@ -429,7 +429,7 @@
 (function() {
   const PLANS = [
     {
-      id: 'plus', label: 'Plus', price: 5, tagline: 'Fast + Thinking · 10 images/day',
+      id: 'plus', label: 'Plus', price: 5, tagline: 'Fast + Thinking · Talk 5 min · 10 images/day',
       featured: false,
       modes: [
         { text: 'Fast', on: true },
@@ -441,13 +441,14 @@
         { text: 'Fast', ok: true },
         { text: 'Thinking', ok: true },
         { text: 'Expert 4 / Expert 16: not included', ok: false },
+        { text: 'Talk (Live / speak-aloud): 5 minutes / 30 days', ok: true },
         { text: 'Images: 10 per UTC calendar day', ok: true },
         { text: 'Documents: unlimited', ok: true },
         { text: 'Usage as % only · 30 days · no auto-renew', ok: true }
       ]
     },
     {
-      id: 'pro', label: 'Pro', price: 10, tagline: 'Fast + Thinking + Expert 4 · 20 images/day',
+      id: 'pro', label: 'Pro', price: 10, tagline: 'Fast + Thinking + Expert 4 · Talk 10 min · 20 images/day',
       featured: true,
       modes: [
         { text: 'Fast', on: true },
@@ -459,13 +460,14 @@
         { text: 'Fast', ok: true },
         { text: 'Thinking + Expert 4', ok: true },
         { text: 'Expert 16: not included', ok: false },
+        { text: 'Talk (Live / speak-aloud): 10 minutes / 30 days', ok: true },
         { text: 'Images: 20 per UTC calendar day', ok: true },
         { text: 'Documents: unlimited', ok: true },
         { text: 'Usage as % only · 30 days · no auto-renew', ok: true }
       ]
     },
     {
-      id: 'max', label: 'Max', price: 15, tagline: 'Fast + Thinking + Expert 4 + Expert 16 · 30 images/day',
+      id: 'max', label: 'Max', price: 15, tagline: 'Fast + Thinking + Expert 4 + Expert 16 · Talk 20 min · 30 images/day',
       featured: false,
       modes: [
         { text: 'Fast', on: true },
@@ -477,6 +479,7 @@
         { text: 'Fast', ok: true },
         { text: 'Thinking + Expert 4', ok: true },
         { text: 'Expert 16', ok: true },
+        { text: 'Talk (Live / speak-aloud): 20 minutes / 30 days', ok: true },
         { text: 'Images: 30 per UTC calendar day', ok: true },
         { text: 'Documents: unlimited', ok: true },
         { text: 'Usage as % only · 30 days · no auto-renew', ok: true }

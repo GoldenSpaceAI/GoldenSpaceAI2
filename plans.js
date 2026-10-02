@@ -13,6 +13,8 @@
  * Retained $ on paid plans is margin (not usable as API budget).
  * Paid allotments are per 30-day period from admin approve (no auto-renew).
  * Free Fast is $0.05/day UTC midnight reset. Images count toward the same Fast bucket.
+ * Talk minutes (Live / TTS voice time) are separate hard-stops: Free 1 min/UTC week;
+ * paid Talk is per 30-day period. Hard-stop per bucket — no borrowing across modes/Talk.
  * When all usable paid buckets are exhausted, the account is demoted to Free.
  *
  * Logged-in users: subscriptions, usage, and payment history are keyed by u_<userId>
@@ -46,6 +48,7 @@ const PAID_PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
  * Plan defs — priceUsd is what the user pays via OMT (wallet-to-wallet).
  * fastUsd / thinkShareUsd / expert16Usd are included model-cost budgets (USD).
  * retainedUsd is platform margin (not usable). Mode flags gate Thinking / Expert.
+ * talkMinutes is Live/TTS voice time (hard-stop; users see % only).
  * Free Fast is a small daily allowance; paid buckets are per 30-day period.
  */
 const PLAN_DEFS = {
@@ -58,6 +61,8 @@ const PLAN_DEFS = {
         expert16Usd: 0,
         retainedUsd: 0,
         imagesPerDay: 5,
+        talkMinutes: 1,
+        talkPeriod: 'weekly',
         fastPeriod: 'daily',
         allowThinking: false,
         allowExpert4: false,
@@ -67,11 +72,13 @@ const PLAN_DEFS = {
         id: 'plus',
         label: 'Plus',
         priceUsd: 5,
-        fastUsd: 2,
-        thinkShareUsd: 1,
+        fastUsd: 1.30,
+        thinkShareUsd: 0.60,
         expert16Usd: 0,
-        retainedUsd: 2,
+        retainedUsd: 3,
         imagesPerDay: 10,
+        talkMinutes: 5,
+        talkPeriod: 'period',
         fastPeriod: 'period',
         allowThinking: true,
         allowExpert4: false,
@@ -81,11 +88,13 @@ const PLAN_DEFS = {
         id: 'pro',
         label: 'Pro',
         priceUsd: 10,
-        fastUsd: 4,
+        fastUsd: 3.80,
         thinkShareUsd: 3,
         expert16Usd: 0,
         retainedUsd: 3,
         imagesPerDay: 20,
+        talkMinutes: 10,
+        talkPeriod: 'period',
         fastPeriod: 'period',
         allowThinking: true,
         allowExpert4: true,
@@ -95,11 +104,13 @@ const PLAN_DEFS = {
         id: 'max',
         label: 'Max',
         priceUsd: 15,
-        fastUsd: 6,
+        fastUsd: 5.60,
         thinkShareUsd: 3,
         expert16Usd: 3,
         retainedUsd: 3,
         imagesPerDay: 30,
+        talkMinutes: 20,
+        talkPeriod: 'period',
         fastPeriod: 'period',
         allowThinking: true,
         allowExpert4: true,
@@ -181,6 +192,8 @@ function defWithCaps(planId, caps) {
         expert16Usd: c.expert16Usd,
         retainedUsd: base.retainedUsd || 0,
         imagesPerDay: Number(base.imagesPerDay) || 0,
+        talkMinutes: Number(base.talkMinutes) || 0,
+        talkPeriod: base.talkPeriod || (base.id === 'free' ? 'weekly' : 'period'),
         fastPeriod: base.fastPeriod,
         allowThinking: !!base.allowThinking,
         allowExpert4: !!base.allowExpert4,
@@ -314,6 +327,29 @@ function utcDayKey(d = new Date()) {
     return d.toISOString().slice(0, 10);
 }
 
+/** ISO-like UTC week key (YYYY-Www) for Free Talk reset. */
+function utcWeekKey(d = new Date()) {
+    const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    return date.getUTCFullYear() + '-W' + String(weekNo).padStart(2, '0');
+}
+
+/**
+ * Estimate spoken seconds for Live/TTS from text + playback speed.
+ * ~15 chars/sec at speed 1.0 (≈150 wpm). Minimum 0.5s.
+ */
+function estimateTalkSeconds(text, speed) {
+    const s = Number(speed);
+    const spd = Number.isFinite(s) && s > 0 ? Math.max(0.25, Math.min(4, s)) : 1;
+    const chars = String(text || '').length;
+    if (chars <= 0) return 0;
+    const raw = chars / 15 / spd;
+    return Math.max(0.5, Math.round(raw * 100) / 100);
+}
+
 function emptyStore() {
     return {
         subscriptions: {},
@@ -355,6 +391,24 @@ function rollImageDay(u, day) {
     if (!u.imageDay || u.imageDay !== day) {
         u.imageDay = day;
         u.imagesToday = 0;
+    }
+    return u;
+}
+
+/**
+ * Roll Talk seconds for Free (UTC week) or paid (30-day period key).
+ * Talk is Live/TTS voice time — hard-stop, no borrow from mode $ buckets.
+ */
+function rollTalkPeriod(u, planId, periodStartsAt) {
+    if (!u || typeof u !== 'object') return u;
+    if (u.talkSecondsUsed == null) u.talkSecondsUsed = 0;
+    const isFree = !planId || planId === 'free';
+    const key = isFree
+        ? ('week:' + utcWeekKey())
+        : ('period:' + (periodStartsAt || 'none'));
+    if (!u.talkPeriodKey || u.talkPeriodKey !== key) {
+        u.talkPeriodKey = key;
+        u.talkSecondsUsed = 0;
     }
     return u;
 }
@@ -711,6 +765,8 @@ function createPlansStore(dataDir, options = {}) {
             expert16: 0,
             imagesToday: 0,
             imageDay: d,
+            talkSecondsUsed: 0,
+            talkPeriodKey: null,
             fastHalved: false
         };
     }
@@ -807,6 +863,8 @@ function createPlansStore(dataDir, options = {}) {
         if (u.otherSpendUsd == null) u.otherSpendUsd = roundUsd(thinkShareUsed(u) + expert16Used(u));
         rollDailySpendCounters(u, day);
         rollImageDay(u, day);
+        if (u.talkSecondsUsed == null) u.talkSecondsUsed = 0;
+        rollTalkPeriod(u, effective.plan, effective.startsAt || null);
 
         if (effective.plan === 'free') {
             // Free Fast: small daily $ allowance resets at UTC midnight
@@ -839,6 +897,8 @@ function createPlansStore(dataDir, options = {}) {
             if (effective.plan !== 'free') {
                 u.fast = 0;
             }
+            // Re-key Talk for the new paid period (or Free week)
+            rollTalkPeriod(u, effective.plan, periodKey);
             save();
         }
         return u;
@@ -921,6 +981,7 @@ function createPlansStore(dataDir, options = {}) {
         u.thinking = 0;
         u.expert4 = 0;
         u.expert16 = 0;
+        rollTalkPeriod(u, 'free', null);
         store.usage[deviceId] = u;
         save();
         flushSync();
@@ -1132,6 +1193,98 @@ function createPlansStore(dataDir, options = {}) {
         return { imagesToday: u.imagesToday, imagesCap: Number(getEffectivePlan(deviceId).def.imagesPerDay) || 0 };
     }
 
+    function talkCapSeconds(def) {
+        const mins = Number(def && def.talkMinutes) || 0;
+        return Math.max(0, mins) * 60;
+    }
+
+    function buildTalkLimitError(deviceId) {
+        const effective = getEffectivePlan(deviceId);
+        const u = ensureUsage(deviceId);
+        const capSec = talkCapSeconds(effective.def);
+        const used = Number(u.talkSecondsUsed) || 0;
+        const percent = capSec <= 0 ? 100 : Math.max(0, Math.min(100, Math.round(used / capSec * 100)));
+        const period = (effective.def.talkPeriod === 'weekly') ? 'weekly' : 'period';
+        const resetHint = period === 'weekly'
+            ? 'Resets each UTC week.'
+            : 'Resets with your paid period.';
+        return {
+            status: 429,
+            code: 'talk_limit_reached',
+            reply: 'Talk (Live / speak-aloud) limit reached (' + percent + '% used). ' + resetHint,
+            upgradeUrl: '/upgrade',
+            limit: {
+                kind: 'talk',
+                pool: 'talk',
+                percent,
+                percentLeft: Math.max(0, 100 - percent),
+                unit: 'percent',
+                plan: effective.plan,
+                period,
+                resets: period === 'weekly' ? 'utc_week' : 'paid_period'
+            }
+        };
+    }
+
+    /**
+     * Check Talk (Live/TTS voice time) allowance. Does not consume.
+     * @param {string} deviceId
+     * @param {number} [secondsNeeded=0] - estimated seconds for this utterance
+     */
+    function checkTalkAllowed(deviceId, secondsNeeded) {
+        if (!deviceId) {
+            return {
+                ok: false,
+                error: {
+                    status: 400,
+                    code: 'missing_client',
+                    reply: 'Missing device id. Refresh and try again.',
+                    upgradeUrl: '/upgrade'
+                }
+            };
+        }
+        const effective = getEffectivePlan(deviceId);
+        const u = ensureUsage(deviceId);
+        const capSec = talkCapSeconds(effective.def);
+        const used = Number(u.talkSecondsUsed) || 0;
+        const need = Math.max(0, Number(secondsNeeded) || 0);
+        if (capSec <= 0) {
+            return { ok: false, error: buildTalkLimitError(deviceId), leftSec: 0, capSec: 0, used };
+        }
+        if (used >= capSec - 1e-9) {
+            return { ok: false, error: buildTalkLimitError(deviceId), leftSec: 0, capSec, used };
+        }
+        // Hard-stop: do not start an utterance that would fully exhaust leftover under need
+        // Still allow if any time remains (last clip may slightly overrun).
+        return {
+            ok: true,
+            leftSec: Math.max(0, capSec - used),
+            capSec,
+            used,
+            need
+        };
+    }
+
+    /**
+     * Record Talk seconds (Live / TTS). Hard-stop pool — never borrows from mode $.
+     */
+    function recordTalk(deviceId, seconds) {
+        if (!deviceId) return null;
+        const sec = Math.max(0, Number(seconds) || 0);
+        if (sec <= 0) return null;
+        const effective = getEffectivePlan(deviceId);
+        const u = ensureUsage(deviceId);
+        rollTalkPeriod(u, effective.plan, effective.startsAt || null);
+        u.talkSecondsUsed = Math.round(((Number(u.talkSecondsUsed) || 0) + sec) * 100) / 100;
+        flushSync();
+        const capSec = talkCapSeconds(effective.def);
+        return {
+            talkSecondsUsed: u.talkSecondsUsed,
+            talkCapSeconds: capSec,
+            talkMinutes: Number(effective.def.talkMinutes) || 0
+        };
+    }
+
     function checkChatAllowed(deviceId, mode, agents, opts) {
         if (!deviceId) {
             return {
@@ -1263,6 +1416,9 @@ function createPlansStore(dataDir, options = {}) {
         const thinkShareCap = roundUsd(effective.def.thinkShareUsd);
         const expert16Cap = roundUsd(effective.def.expert16Usd);
         const imagesCap = Number(effective.def.imagesPerDay) || 0;
+        rollTalkPeriod(u, effective.plan, effective.startsAt || null);
+        const talkCapSec = Math.max(0, (Number(effective.def.talkMinutes) || 0) * 60);
+        const talkUsed = Number(u.talkSecondsUsed) || 0;
         const fastUsed = roundUsd(u.fastSpendUsd || 0);
         const thinkUsed = thinkShareUsed(u);
         const e16Used = expert16Used(u);
@@ -1285,10 +1441,12 @@ function createPlansStore(dataDir, options = {}) {
             endsAt: effective.endsAt,
             retainedUsd: effective.def.retainedUsd || 0,
             imagesPerDay: imagesCap,
+            talkMinutes: Number(effective.def.talkMinutes) || 0,
+            talkPeriod: effective.def.talkPeriod || (effective.plan === 'free' ? 'weekly' : 'period'),
             modes,
             timezoneNote: effective.plan === 'free'
-                ? 'Free Fast allowance and daily image cap reset at UTC midnight. Thinking/Expert require a paid plan. Document uploads are unlimited.'
-                : 'Paid Fast / Thinking+Expert4 / Expert16 allowances are per 30-day period from admin confirmation (no auto-renew). Daily image caps reset at UTC midnight. When all usable mode allowances are used, you move to Free. Document uploads are unlimited.',
+                ? 'Free Fast allowance and daily image cap reset at UTC midnight. Talk (Live/speak-aloud) resets each UTC week. Thinking/Expert require a paid plan. Document uploads are unlimited.'
+                : 'Paid Fast / Thinking+Expert4 / Expert16 allowances are per 30-day period from admin confirmation (no auto-renew). Daily image caps reset at UTC midnight. Talk (Live/speak-aloud) is per paid period. When all usable mode allowances are used, you move to Free. Document uploads are unlimited.',
             omtDestination: OMT_DESTINATION,
             pricing: {
                 note: 'Internal provider rates (not shown to end users).',
@@ -1336,6 +1494,11 @@ function createPlansStore(dataDir, options = {}) {
                 imagesToday: imagesUsed,
                 imagesCap,
                 imagesLeft: Math.max(0, imagesCap - imagesUsed),
+                talkSecondsUsed: talkUsed,
+                talkCapSeconds: talkCapSec,
+                talkLeftSeconds: Math.max(0, talkCapSec - talkUsed),
+                talkMinutes: Number(effective.def.talkMinutes) || 0,
+                talkPeriod: effective.def.talkPeriod || (effective.plan === 'free' ? 'weekly' : 'period'),
                 // Back-compat aliases for older UI that expected message counts:
                 fast: fastUsed,
                 fastCap: fastCap,
@@ -1364,6 +1527,8 @@ function createPlansStore(dataDir, options = {}) {
                 expert16Usd: p.expert16Usd,
                 retainedUsd: p.retainedUsd || 0,
                 imagesPerDay: p.imagesPerDay || 0,
+                talkMinutes: p.talkMinutes || 0,
+                talkPeriod: p.talkPeriod || (p.id === 'free' ? 'weekly' : 'period'),
                 // legacy alias
                 otherUsd: roundUsd((p.thinkShareUsd || 0) + (p.expert16Usd || 0)),
                 fastPeriod: p.fastPeriod,
@@ -1378,6 +1543,7 @@ function createPlansStore(dataDir, options = {}) {
      * UI-friendly plan status: plan name + percent-used quotas.
      * End users never see dollar amounts or token counts here — budgets stay $ under the hood.
      * Image quota is also percent of the daily image cap.
+     * Talk quota is percent of Live/TTS voice-time minutes (week or paid period).
      */
     function getPlanStatusUi(deviceId) {
         const status = getStatus(deviceId);
@@ -1456,6 +1622,20 @@ function createPlansStore(dataDir, options = {}) {
             ));
         }
 
+        if ((u.talkCapSeconds || 0) > 0 || (status.talkMinutes || 0) > 0) {
+            const talkPeriod = (u.talkPeriod === 'weekly' || status.talkPeriod === 'weekly') ? 'weekly' : 'monthly';
+            quotas.push(quotaRow(
+                'talk',
+                'Talk',
+                talkPeriod,
+                u.talkSecondsUsed || 0,
+                u.talkCapSeconds || 0,
+                talkPeriod === 'weekly'
+                    ? 'Live / speak-aloud voice time this UTC week'
+                    : 'Live / speak-aloud voice time this paid period'
+            ));
+        }
+
         return {
             ok: true,
             plan: status.plan,
@@ -1466,6 +1646,8 @@ function createPlansStore(dataDir, options = {}) {
             timezoneNote: status.timezoneNote,
             modes,
             imagesPerDay: status.imagesPerDay || 0,
+            talkMinutes: status.talkMinutes || 0,
+            talkPeriod: status.talkPeriod || (status.plan === 'free' ? 'weekly' : 'period'),
             quotas,
             upgradeUrl: '/upgrade'
         };
@@ -1496,6 +1678,8 @@ function createPlansStore(dataDir, options = {}) {
             quotas: ui.quotas,
             modes: ui.modes || modesForPlan(status.plan),
             imagesPerDay: ui.imagesPerDay || 0,
+            talkMinutes: ui.talkMinutes || 0,
+            talkPeriod: ui.talkPeriod || (status.plan === 'free' ? 'weekly' : 'period'),
             plans: (status.plans || []).map((p) => ({
                 id: p.id,
                 label: p.label,
@@ -1925,6 +2109,9 @@ function createPlansStore(dataDir, options = {}) {
         u.expert16 = 0;
         // Daily image cap is UTC-day based — do not reset mid-day on approve
         rollImageDay(u, utcDayKey());
+        // Talk minutes reset with the new paid period
+        u.talkPeriodKey = null;
+        rollTalkPeriod(u, stack.plan, startsAt.toISOString());
         u.fastHalved = false;
         store.usage[ownerKey] = u;
 
@@ -2155,6 +2342,8 @@ function createPlansStore(dataDir, options = {}) {
         PLAN_RANK,
         OMT_DESTINATION,
         utcDayKey,
+        utcWeekKey,
+        estimateTalkSeconds,
         normalizePhone,
         isValidOmtPhone,
         computeStackOnApprove,
@@ -2166,6 +2355,8 @@ function createPlansStore(dataDir, options = {}) {
         checkChatAllowed,
         checkImageAllowed,
         recordImage,
+        checkTalkAllowed,
+        recordTalk,
         recordSpend,
         recordUsage,
         releaseUsage,
@@ -2247,6 +2438,9 @@ module.exports = {
     isAdminAuthed,
     PLAN_DEFS,
     PLAN_RANK,
+    utcDayKey,
+    utcWeekKey,
+    estimateTalkSeconds,
     computeStackOnApprove,
     capsFromPlanId,
     deltaCaps,

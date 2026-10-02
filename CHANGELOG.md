@@ -1,3 +1,12 @@
+# GoldenSpaceAI — plan limits + Talk minutes (2026-10-02)
+
+- **Plan $ budgets (internal):** Plus Fast $1.30 / Thinking $0.60 / Kept $3; Pro Fast $3.80 / Thinking+Expert4 $3 shared / Kept $3; Max Fast $5.60 / Thinking+Expert4 $3 shared / Expert16 $3 / Kept $3. Free Fast $0.05/UTC day unchanged. Hard-stop, no borrow. Users still see **% only**.
+- **Talk minutes** (Live / speak-aloud TTS voice time): Free **1 min/UTC week**; Plus **5** / Pro **10** / Max **20** min per 30-day period. Wired into `/api/tts` with hard-stop (no browser bypass when exhausted).
+- **Terms §3 / Upgrade** offer copy updated (Talk + modes + images + docs). Plan list prices OK; no internal cost/$ budgets shown to users.
+- Service worker cache `goldenspaceai2-v66`. App `2.3.40`.
+
+---
+
 # GoldenSpaceAI — Live TTS seamless + calmer Live UI (2026-10-02)
 
 - **TTS gap fix:** Live sentence queue prefetches the next OpenAI TTS chunk while the current one plays, so playback handoff has no network wait between sentences.

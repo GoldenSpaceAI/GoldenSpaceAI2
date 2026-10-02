@@ -1278,13 +1278,6 @@ app.get('/api/tts/status', (req, res) => {
 app.post('/api/tts', async (req, res) => {
     try {
         if (!ttsRateLimit(req, res)) return;
-        if (!openaiTtsReady()) {
-            return res.status(503).json({
-                error: 'OpenAI TTS not configured',
-                fallback: true,
-                provider: 'browser'
-            });
-        }
         const raw = String(req.body?.text || '').trim();
         if (!raw) return res.status(400).json({ error: 'Missing text', fallback: true });
         const text = raw.length > TTS_MAX_CHARS ? raw.slice(0, TTS_MAX_CHARS) : raw;
@@ -1295,19 +1288,67 @@ app.post('/api/tts', async (req, res) => {
         if (!Number.isFinite(speed)) speed = TTS_DEFAULT_SPEED;
         speed = Math.max(0.25, Math.min(4, speed));
 
-        const speech = await openaiClient.audio.speech.create({
-            model: 'tts-1',
-            voice,
-            input: text,
-            speed,
-            response_format: 'mp3'
-        });
-        const buf = Buffer.from(await speech.arrayBuffer());
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Cache-Control', 'no-store');
-        res.setHeader('X-TTS-Provider', 'openai');
-        res.setHeader('X-TTS-Voice', voice);
-        return res.send(buf);
+        // Talk minutes: Live / speak-aloud voice time (hard-stop, % only in UI)
+        const deviceId = resolvePlanOwnerKey(req) || getClientId(req);
+        const estSec = plansStore.estimateTalkSeconds(text, speed);
+        const talkGate = plansStore.checkTalkAllowed(deviceId, estSec);
+        if (!talkGate.ok) {
+            const err = talkGate.error || {};
+            return res.status(err.status || 429).json({
+                error: err.code || 'talk_limit_reached',
+                code: err.code || 'talk_limit_reached',
+                reply: err.reply || 'Talk limit reached.',
+                upgradeUrl: err.upgradeUrl || '/upgrade',
+                limit: err.limit || null,
+                fallback: false
+            });
+        }
+
+        const recordTalkSafe = () => {
+            try {
+                plansStore.recordTalk(deviceId, estSec);
+            } catch (e) {
+                console.error('recordTalk failed:', e.message || e);
+            }
+        };
+
+        if (!openaiTtsReady()) {
+            // Browser fallback still counts as Talk (Live/TTS voice time)
+            recordTalkSafe();
+            return res.status(503).json({
+                error: 'OpenAI TTS not configured',
+                fallback: true,
+                provider: 'browser'
+            });
+        }
+
+        try {
+            const speech = await openaiClient.audio.speech.create({
+                model: 'tts-1',
+                voice,
+                input: text,
+                speed,
+                response_format: 'mp3'
+            });
+            const buf = Buffer.from(await speech.arrayBuffer());
+            recordTalkSafe();
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'no-store');
+            res.setHeader('X-TTS-Provider', 'openai');
+            res.setHeader('X-TTS-Voice', voice);
+            res.setHeader('X-Talk-Seconds', String(estSec));
+            return res.send(buf);
+        } catch (e) {
+            console.error('TTS error:', e.message || e);
+            // Count Talk even when falling back to browser speech
+            recordTalkSafe();
+            return res.status(502).json({
+                error: 'TTS failed',
+                fallback: true,
+                provider: 'browser',
+                detail: String(e.message || e).slice(0, 200)
+            });
+        }
     } catch (e) {
         console.error('TTS error:', e.message || e);
         return res.status(502).json({

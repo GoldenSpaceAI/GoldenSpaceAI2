@@ -306,7 +306,7 @@
     return list.map(function(q) {
       var pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
       var fillClass = pct >= 90 ? 'crit' : (pct >= 70 ? 'warn' : '');
-      var period = q.period === 'daily' ? 'today' : 'this period';
+      var period = q.period === 'daily' ? 'today' : (q.period === 'weekly' ? 'this week' : 'this period');
       var leftPct = Math.max(0, 100 - pct);
       return (
         '<div class="quota">' +

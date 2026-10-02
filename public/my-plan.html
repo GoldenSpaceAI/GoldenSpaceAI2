@@ -306,14 +306,12 @@
       var pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
       var fillClass = pct >= 90 ? 'crit' : (pct >= 70 ? 'warn' : '');
       var period = q.period === 'daily' ? 'today' : 'this period';
-      var usedLbl = q.displayUsed || ('$' + Number(q.used || 0).toFixed(2));
-      var limLbl = q.displayLimit || ('$' + Number(q.limit || 0).toFixed(2));
-      var leftLbl = q.displayLeft || ('$' + Math.max(0, Number(q.limit || 0) - Number(q.used || 0)).toFixed(2));
+      var leftPct = Math.max(0, 100 - pct);
       return (
         '<div class="quota">' +
           '<div class="quota-row">' +
             '<span class="quota-label">' + (q.label || q.id) + '</span>' +
-            '<span class="quota-meta">' + leftLbl + ' left · ' + usedLbl + ' / ' + limLbl + ' · ' + pct + '% · ' + period + '</span>' +
+            '<span class="quota-meta">' + pct + '% used · ' + leftPct + '% left · ' + period + '</span>' +
           '</div>' +
           '<div class="bar"><div class="fill ' + fillClass + '" style="width:' + pct + '%"></div></div>' +
         '</div>'

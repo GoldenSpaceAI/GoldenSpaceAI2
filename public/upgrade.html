@@ -329,7 +329,7 @@
     <div class="actions" style="justify-content:center;margin-top:24px;">
       <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
     </div>
-    <p class="footnote">Free includes a small daily Fast $ allowance. Thinking &amp; Expert share the Other $ pool on paid plans. Budgets are real model-cost USD (token spend), not message counts. Stacking adds another full Fast/Other allotment. See <a href="/terms">Terms</a>.</p>
+    <p class="footnote">Free includes a daily Fast allowance. Thinking &amp; Expert share the Other pool on paid plans. Usage is shown as % used. Stacking adds another full Fast/Other allotment. See <a href="/terms">Terms</a>.</p>
   </section>
 
   <section class="step" id="step2">
@@ -396,32 +396,32 @@
 (function() {
   const PLANS = [
     {
-      id: 'plus', label: 'Plus', price: 5, tagline: 'Fast $2 + Other $1 model cost',
+      id: 'plus', label: 'Plus', price: 5, tagline: 'More Fast + Thinking & Expert',
       featured: false,
       bullets: [
-        { text: 'Fast pool: $2 model cost / 30 days', ok: true },
-        { text: 'Other models pool: $1 (Thinking + Expert)', ok: true },
-        { text: 'Real token $ spend (not message counts)', ok: true },
+        { text: 'Fast allowance for 30 days', ok: true },
+        { text: 'Other-models pool (Thinking + Expert)', ok: true },
+        { text: 'Usage shown as % used', ok: true },
         { text: 'When both pools are used → Free', ok: true }
       ]
     },
     {
-      id: 'pro', label: 'Pro', price: 10, tagline: 'Fast $5 + Other $3 model cost',
+      id: 'pro', label: 'Pro', price: 10, tagline: 'Larger Fast & Other allowances',
       featured: true,
       bullets: [
-        { text: 'Fast pool: $5 model cost / 30 days', ok: true },
-        { text: 'Other models pool: $3 (Thinking + Expert)', ok: true },
-        { text: 'Real token $ spend (not message counts)', ok: true },
+        { text: 'Larger Fast allowance / 30 days', ok: true },
+        { text: 'Larger Other-models pool (Thinking + Expert)', ok: true },
+        { text: 'Usage shown as % used', ok: true },
         { text: 'When both pools are used → Free', ok: true }
       ]
     },
     {
-      id: 'max', label: 'Max', price: 15, tagline: 'Fast $8 + Other $4 model cost',
+      id: 'max', label: 'Max', price: 15, tagline: 'Highest Fast & Other allowances',
       featured: false,
       bullets: [
-        { text: 'Fast pool: $8 model cost / 30 days', ok: true },
-        { text: 'Other models pool: $4 (Thinking + Expert)', ok: true },
-        { text: 'Real token $ spend (not message counts)', ok: true },
+        { text: 'Highest Fast allowance / 30 days', ok: true },
+        { text: 'Highest Other-models pool (Thinking + Expert)', ok: true },
+        { text: 'Usage shown as % used', ok: true },
         { text: 'When both pools are used → Free', ok: true }
       ]
     }
@@ -430,57 +430,15 @@
   let clientId = null;
   let planStatus = null;
   const PLAN_RANK = { free: 0, plus: 1, pro: 2, max: 3 };
-  const BASE_CAPS = {
-    free: { fastUsd: 0.25, otherUsd: 0 },
-    plus: { fastUsd: 2, otherUsd: 1 },
-    pro: { fastUsd: 5, otherUsd: 3 },
-    max: { fastUsd: 8, otherUsd: 4 }
-  };
-
-  function fmtCaps(c) {
-    if (!c) return '—';
-    const f = Number(c.fastUsd != null ? c.fastUsd : c.fastCapUsd) || 0;
-    const o = Number(c.otherUsd != null ? c.otherUsd : c.otherCapUsd) || 0;
-    return 'Fast $' + f.toFixed(2) + ' · Other $' + o.toFixed(2);
-  }
-
-  function previewStack(fromPlan, currentCaps, toPlan) {
+function stackModeLabel(fromPlan, toPlan) {
     const from = fromPlan || 'free';
     const to = toPlan;
-    const before = currentCaps || BASE_CAPS[from] || BASE_CAPS.free;
-    const newBase = BASE_CAPS[to];
-    if (!newBase) return null;
     const fromRank = PLAN_RANK[from] || 0;
     const toRank = PLAN_RANK[to] || 0;
-    let mode, after, delta;
-    function add(a, b) {
-      return {
-        fastUsd: (Number(a.fastUsd) || 0) + (Number(b.fastUsd) || 0),
-        otherUsd: (Number(a.otherUsd) || 0) + (Number(b.otherUsd) || 0)
-      };
-    }
-    if (from === 'free' || fromRank === 0) {
-      mode = 'grant_full';
-      delta = newBase;
-      after = newBase;
-    } else if (to === from) {
-      mode = 'same_stack';
-      delta = newBase;
-      after = add(before, newBase);
-    } else if (toRank > fromRank) {
-      mode = 'upgrade_delta';
-      const oldBase = BASE_CAPS[from];
-      delta = {
-        fastUsd: Math.max(0, newBase.fastUsd - oldBase.fastUsd),
-        otherUsd: Math.max(0, newBase.otherUsd - oldBase.otherUsd)
-      };
-      after = add(before, delta);
-    } else {
-      mode = 'lower_stack';
-      delta = newBase;
-      after = add(before, newBase);
-    }
-    return { mode, before, delta, after, from, to };
+    if (from === 'free' || fromRank === 0) return 'full grant of that plan’s Fast & Other allowances';
+    if (to === from) return 'same-plan stack (+ another full Fast/Other allotment)';
+    if (toRank > fromRank) return 'upgrade (+ the difference in allowances)';
+    return 'add purchased allotment (keep higher tier)';
   }
 
   function updateStackPreview() {
@@ -494,21 +452,17 @@
       prev.textContent = '';
       return;
     }
-    const caps = (planStatus.stacking && planStatus.stacking.caps) || {
-      fastUsd: (planStatus.usage && planStatus.usage.fastCapUsd) || BASE_CAPS[plan].fastUsd,
-      otherUsd: (planStatus.usage && planStatus.usage.otherCapUsd) || BASE_CAPS[plan].otherUsd
-    };
-    let html = 'Your effective $ budgets now: <em>' + fmtCaps(caps) + '</em>';
+    let html = 'Buying again <em>stacks</em> another Fast &amp; Other allotment on your current plan.';
     if (selected) {
-      const p = previewStack(plan, caps, selected.id);
-      if (p) {
-        const modeLabel = p.mode === 'same_stack' ? 'same-plan stack (+ full Fast/Other allotment)'
-          : p.mode === 'upgrade_delta' ? 'upgrade (+ difference)'
-          : p.mode === 'lower_stack' ? 'add purchased allotment (keep higher tier)'
-          : 'full grant';
-        html += '<br>If you buy <em>' + selected.label + '</em> (' + modeLabel + '): <em>' + fmtCaps(p.after) + '</em>';
-        html += '<br>Math: ' + fmtCaps(p.before) + ' + Δ(' + fmtCaps(p.delta) + ')';
-      }
+      html += '<br>If you buy <em>' + selected.label + '</em>: ' + stackModeLabel(plan, selected.id) + '.';
+    }
+    // Show current % used when available (no $ / tokens)
+    const quotas = (planStatus && planStatus.quotas) || [];
+    if (quotas.length) {
+      html += '<br>Current usage: ' + quotas.map(function(q) {
+        const pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
+        return (q.label || q.id) + ' ' + pct + '% used';
+      }).join(' · ') + '.';
     }
     prev.innerHTML = html;
   }

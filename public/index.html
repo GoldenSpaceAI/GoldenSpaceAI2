@@ -3611,13 +3611,11 @@
                 const pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
                 const fillClass = pct >= 90 ? 'crit' : (pct >= 70 ? 'warn' : '');
                 const period = q.period === 'daily' ? 'today' : 'this period';
-                const usedLbl = q.displayUsed || ('$' + Number(q.used || 0).toFixed(2));
-                const limLbl = q.displayLimit || ('$' + Number(q.limit || 0).toFixed(2));
-                const leftLbl = q.displayLeft || ('$' + Math.max(0, Number(q.limit || 0) - Number(q.used || 0)).toFixed(2));
+                const leftPct = Math.max(0, 100 - pct);
                 return '<div class="plan-quota">' +
                     '<div class="plan-quota-row">' +
                     '<span class="plan-quota-label">' + (q.label || q.id) + '</span>' +
-                    '<span class="plan-quota-meta">' + leftLbl + ' left · ' + usedLbl + ' / ' + limLbl + ' · ' + pct + '% · ' + period + '</span>' +
+                    '<span class="plan-quota-meta">' + pct + '% used · ' + leftPct + '% left · ' + period + '</span>' +
                     '</div>' +
                     '<div class="plan-quota-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + (q.label || q.id) + ' usage">' +
                     '<div class="plan-quota-fill ' + fillClass + '" style="width:' + pct + '%"></div>' +
@@ -3626,9 +3624,9 @@
         }
         function planPeriodNote(data) {
             if (!data) return '';
-            if (data.plan === 'free') return 'Free Fast $ allowance resets at UTC midnight.';
-            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Fast & Other $ budgets are per paid period.';
-            return 'Fast and Other-model $ budgets reset each paid period.';
+            if (data.plan === 'free') return 'Free Fast allowance resets at UTC midnight.';
+            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Fast & Other allowances are per paid period.';
+            return 'Fast and Other-model allowances reset each paid period.';
         }
         function updateAccountPlanBadge(data) {
             const badge = document.getElementById('accountPlanBadge');
@@ -3637,10 +3635,10 @@
             badge.title = data.label || data.plan || 'Plan';
         }
         const NEXT_TIER = {
-            free: { id: 'plus', label: 'Plus', benefit: 'Fast $2 + Other $1 model-cost budget' },
-            plus: { id: 'pro', label: 'Pro', benefit: 'Fast $5 + Other $3 model-cost budget' },
-            pro: { id: 'max', label: 'Max', benefit: 'Fast $8 + Other $4 model-cost budget' },
-            max: { id: 'max', label: 'Max', benefit: 'Renew or stack for more $ capacity' }
+            free: { id: 'plus', label: 'Plus', benefit: 'More Fast capacity + Thinking & Expert' },
+            plus: { id: 'pro', label: 'Pro', benefit: 'Larger Fast & Other-model allowances' },
+            pro: { id: 'max', label: 'Max', benefit: 'Highest Fast & Other-model allowances' },
+            max: { id: 'max', label: 'Max', benefit: 'Renew or stack for more capacity' }
         };
         function primaryQuota(data) {
             const list = (data && Array.isArray(data.quotas)) ? data.quotas : [];
@@ -3674,15 +3672,10 @@
             if (badgeEl) badgeEl.textContent = String(plan).toUpperCase();
             const q = primaryQuota(data);
             if (q) {
-                const used = Number(q.used) || 0;
-                const limit = Number(q.limit) || 0;
-                const left = Math.max(0, limit - used);
                 const pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
+                const leftPct = Math.max(0, 100 - pct);
                 const period = q.period === 'daily' ? 'today' : 'this period';
-                const leftLbl = q.displayLeft || ('$' + Number(left).toFixed(2));
-                const usedLbl = q.displayUsed || ('$' + Number(used).toFixed(2));
-                const limLbl = q.displayLimit || ('$' + Number(limit).toFixed(2));
-                usageEl.textContent = leftLbl + ' ' + (q.label || q.id) + ' left · ' + usedLbl + '/' + limLbl + ' ' + period;
+                usageEl.textContent = (q.label || q.id) + ' · ' + pct + '% used · ' + leftPct + '% left · ' + period;
                 if (fillEl) {
                     fillEl.style.width = pct + '%';
                     fillEl.className = 'plan-quota-fill' + (pct >= 90 ? ' crit' : (pct >= 70 ? ' warn' : ''));
@@ -3707,7 +3700,7 @@
         function emptyPlanHintHtml(data) {
             const plan = (data && data.plan) || 'free';
             if (plan === 'free') {
-                return 'Free includes a small Fast $ allowance. <a href="/upgrade">Upgrade</a> for Thinking & Expert.';
+                return 'Free includes a daily Fast allowance. <a href="/upgrade">Upgrade</a> for Thinking & Expert.';
             }
             if (plan === 'max') {
                 return 'You are on Max. <a href="/upgrade">Renew or stack</a> when you need more.';

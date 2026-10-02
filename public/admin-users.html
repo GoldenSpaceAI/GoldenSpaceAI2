@@ -126,7 +126,7 @@
   table.users {
     width:100%;
     border-collapse:collapse;
-    min-width:720px;
+    min-width:980px;
   }
   table.users th, table.users td {
     text-align:left;
@@ -205,7 +205,7 @@
   <section id="app">
     <div class="hero">
       <h1>Users</h1>
-      <p>Read-only directory of accounts and plan signals. No approve / decline / pause here.</p>
+      <p>Read-only directory of accounts, plan signals, and token/$ spend (today + all-time). No approve / decline / pause here.</p>
     </div>
 
     <div class="toolbar">
@@ -224,6 +224,10 @@
           <tr>
             <th>Email</th>
             <th>Plan</th>
+            <th>Tokens today</th>
+            <th>$ today</th>
+            <th>Tokens total</th>
+            <th>$ total</th>
             <th>Device</th>
             <th>Location</th>
           </tr>
@@ -275,6 +279,30 @@
     return u.device;
   }
 
+  function fmtTokens(n) {
+    const v = Number(n);
+    if (!isFinite(v) || v <= 0) return '0';
+    if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+    if (v >= 1e3) return (v / 1e3).toFixed(1) + 'k';
+    return String(Math.round(v));
+  }
+
+  function fmtUsd(n) {
+    const v = Number(n);
+    if (!isFinite(v) || v <= 0) return '$0.00';
+    if (v < 0.01) return '$' + v.toFixed(4);
+    return '$' + v.toFixed(2);
+  }
+
+  function spendFields(u) {
+    return {
+      todayTokens: u.todayTokens != null ? u.todayTokens : (u.tokensToday || 0),
+      todaySpendUsd: u.todaySpendUsd != null ? u.todaySpendUsd : (u.dollarsToday || 0),
+      totalTokens: u.totalTokens != null ? u.totalTokens : (u.tokensTotal || 0),
+      totalSpendUsd: u.totalSpendUsd != null ? u.totalSpendUsd : (u.dollarsTotal || 0)
+    };
+  }
+
   function renderStats(list) {
     const paid = list.filter(u => String(u.plan || 'free').toLowerCase() !== 'free').length;
     document.getElementById('stats').innerHTML =
@@ -308,6 +336,7 @@
     tbody.innerHTML = list.map(u => {
       const plan = String(u.plan || 'free').toLowerCase();
       const pillClass = plan === 'free' ? 'plan-pill free' : 'plan-pill';
+      const spend = spendFields(u);
       const deviceMeta = u.deviceSource
         ? ('<div class="muted">' + escapeHtml(u.deviceSource) +
            (u.deviceCount > 1 ? (' · ' + u.deviceCount + ' devices') : '') + '</div>')
@@ -321,6 +350,10 @@
             (u.name ? ('<div class="muted">' + escapeHtml(u.name) + '</div>') : '') +
           '</td>' +
           '<td><span class="' + pillClass + '">' + escapeHtml(planLabel(plan)) + '</span></td>' +
+          '<td class="mono">' + escapeHtml(fmtTokens(spend.todayTokens)) + '</td>' +
+          '<td class="mono">' + escapeHtml(fmtUsd(spend.todaySpendUsd)) + '</td>' +
+          '<td class="mono">' + escapeHtml(fmtTokens(spend.totalTokens)) + '</td>' +
+          '<td class="mono">' + escapeHtml(fmtUsd(spend.totalSpendUsd)) + '</td>' +
           '<td><span class="mono">' + escapeHtml(deviceText(u)) + '</span>' + deviceMeta + '</td>' +
           '<td>' + escapeHtml(locationText(u)) + locMeta + '</td>' +
         '</tr>'

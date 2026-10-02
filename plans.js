@@ -599,17 +599,78 @@ function createPlansStore(dataDir, options = {}) {
     }
 
     function emptyUsageRow(day, periodStartsAt) {
+        const d = day || utcDayKey();
         return {
-            day: day || utcDayKey(),
+            day: d,
             periodStartsAt: periodStartsAt || null,
             fastSpendUsd: 0,
             otherSpendUsd: 0,
+            // Admin / analytics: daily + lifetime (not reset by plan period)
+            spendDay: d,
+            todaySpendUsd: 0,
+            todayTokens: 0,
+            totalSpendUsd: 0,
+            totalTokens: 0,
             // legacy counters kept for migration / admin visibility
             fast: 0,
             thinking: 0,
             expert4: 0,
             expert16: 0,
             fastHalved: false
+        };
+    }
+
+    function migrateUsageTotals(u, day) {
+        if (!u || typeof u !== 'object') return u;
+        if (u.totalSpendUsd == null) {
+            // Seed lifetime from current period pools (best-effort for pre-existing rows)
+            u.totalSpendUsd = roundUsd((Number(u.fastSpendUsd) || 0) + (Number(u.otherSpendUsd) || 0));
+        }
+        if (u.totalTokens == null) u.totalTokens = 0;
+        if (u.todaySpendUsd == null) u.todaySpendUsd = 0;
+        if (u.todayTokens == null) u.todayTokens = 0;
+        if (!u.spendDay) u.spendDay = u.day || day || utcDayKey();
+        return u;
+    }
+
+    function rollDailySpendCounters(u, day) {
+        migrateUsageTotals(u, day);
+        if (u.spendDay !== day) {
+            u.spendDay = day;
+            u.todaySpendUsd = 0;
+            u.todayTokens = 0;
+        }
+        return u;
+    }
+
+    /** Read-only admin snapshot of today + lifetime spend (tokens + USD). */
+    function adminUsageSnapshot(ownerKey) {
+        const store = read();
+        const day = utcDayKey();
+        const u = (ownerKey && store.usage[ownerKey]) || null;
+        if (!u) {
+            return {
+                todayTokens: 0,
+                todaySpendUsd: 0,
+                totalTokens: 0,
+                totalSpendUsd: 0,
+                periodFastSpendUsd: 0,
+                periodOtherSpendUsd: 0
+            };
+        }
+        const spendDay = u.spendDay || u.day || null;
+        const todayActive = spendDay === day;
+        return {
+            todayTokens: todayActive ? (Number(u.todayTokens) || 0) : 0,
+            todaySpendUsd: todayActive ? roundUsd(Number(u.todaySpendUsd) || 0) : 0,
+            totalTokens: Number(u.totalTokens) || 0,
+            totalSpendUsd: roundUsd(
+                u.totalSpendUsd != null
+                    ? Number(u.totalSpendUsd) || 0
+                    : (Number(u.fastSpendUsd) || 0) + (Number(u.otherSpendUsd) || 0)
+            ),
+            periodFastSpendUsd: roundUsd(Number(u.fastSpendUsd) || 0),
+            periodOtherSpendUsd: roundUsd(Number(u.otherSpendUsd) || 0)
         };
     }
 
@@ -627,6 +688,7 @@ function createPlansStore(dataDir, options = {}) {
         // Migrate legacy-only rows
         if (u.fastSpendUsd == null) u.fastSpendUsd = 0;
         if (u.otherSpendUsd == null) u.otherSpendUsd = 0;
+        rollDailySpendCounters(u, day);
 
         if (effective.plan === 'free') {
             // Free Fast: small daily $ allowance resets at UTC midnight
@@ -764,21 +826,25 @@ function createPlansStore(dataDir, options = {}) {
         const fastUsed = roundUsd(u.fastSpendUsd || 0);
         const otherUsed = roundUsd(u.otherSpendUsd || 0);
 
+        function pctUsed(used, cap) {
+            const lim = Number(cap) || 0;
+            if (lim <= 0) return 100;
+            return Math.max(0, Math.min(100, Math.round((Number(used) || 0) / lim * 100)));
+        }
+
         if (pool === 'fast') {
-            const left = roundUsd(Math.max(0, fastCap - fastUsed));
+            const percent = pctUsed(fastUsed, fastCap);
             return {
                 status: 429,
                 code: 'limit_reached',
-                reply: 'Plan used — please upgrade. Fast budget exhausted ($' +
-                    fastUsed.toFixed(2) + ' / $' + fastCap.toFixed(2) + ').',
+                reply: 'Plan used — please upgrade. Fast allowance is ' + percent + '% used.',
                 upgradeUrl,
                 limit: {
                     kind: 'fast',
                     pool: 'fast',
-                    usedUsd: fastUsed,
-                    capUsd: fastCap,
-                    leftUsd: left,
-                    unit: 'usd',
+                    percent,
+                    percentLeft: Math.max(0, 100 - percent),
+                    unit: 'percent',
                     plan: effective.plan,
                     resets: effective.plan === 'free' ? 'utc_midnight' : 'period'
                 }
@@ -801,29 +867,27 @@ function createPlansStore(dataDir, options = {}) {
                 limit: {
                     kind,
                     pool: 'other',
-                    usedUsd: otherUsed,
-                    capUsd: 0,
-                    leftUsd: 0,
-                    unit: 'usd',
+                    percent: 100,
+                    percentLeft: 0,
+                    unit: 'percent',
                     plan: 'free'
                 }
             };
         }
 
+        const percent = pctUsed(otherUsed, otherCap);
         return {
             status: 429,
             code: 'limit_reached',
-            reply: 'Plan used — please upgrade. Other-models budget exhausted ($' +
-                otherUsed.toFixed(2) + ' / $' + otherCap.toFixed(2) +
-                '). Thinking & Expert share this pool.',
+            reply: 'Plan used — please upgrade. Other-models allowance is ' + percent +
+                '% used. Thinking & Expert share this pool.',
             upgradeUrl,
             limit: {
                 kind,
                 pool: 'other',
-                usedUsd: otherUsed,
-                capUsd: otherCap,
-                leftUsd: roundUsd(Math.max(0, otherCap - otherUsed)),
-                unit: 'usd',
+                percent,
+                percentLeft: Math.max(0, 100 - percent),
+                unit: 'percent',
                 plan: effective.plan,
                 resets: 'period'
             }
@@ -878,6 +942,10 @@ function createPlansStore(dataDir, options = {}) {
         const cost = roundUsd(spend && spend.costUsd);
         if (cost <= 0) return ensureUsage(deviceId);
         const u = ensureUsage(deviceId);
+        const promptTokens = spend && spend.promptTokens != null ? Math.max(0, Number(spend.promptTokens) || 0) : 0;
+        const completionTokens = spend && spend.completionTokens != null ? Math.max(0, Number(spend.completionTokens) || 0) : 0;
+        const tokens = promptTokens + completionTokens;
+        rollDailySpendCounters(u, utcDayKey());
         if (pool === 'fast') {
             u.fastSpendUsd = roundUsd((Number(u.fastSpendUsd) || 0) + cost);
             u.fast = (Number(u.fast) || 0) + 1;
@@ -887,6 +955,10 @@ function createPlansStore(dataDir, options = {}) {
             else if (kind === 'expert4') u.expert4 = (Number(u.expert4) || 0) + 1;
             else if (kind === 'expert16') u.expert16 = (Number(u.expert16) || 0) + 1;
         }
+        u.todaySpendUsd = roundUsd((Number(u.todaySpendUsd) || 0) + cost);
+        u.todayTokens = (Number(u.todayTokens) || 0) + tokens;
+        u.totalSpendUsd = roundUsd((Number(u.totalSpendUsd) || 0) + cost);
+        u.totalTokens = (Number(u.totalTokens) || 0) + tokens;
         u.lastSpend = {
             at: new Date().toISOString(),
             kind,
@@ -935,8 +1007,8 @@ function createPlansStore(dataDir, options = {}) {
             startsAt: effective.startsAt,
             endsAt: effective.endsAt,
             timezoneNote: effective.plan === 'free'
-                ? 'Free Fast $ allowance resets at UTC midnight. Thinking/Expert require a paid plan.'
-                : 'Paid Fast and Other-model $ budgets are per 30-day period from payment confirmation. When both are used, you move to Free.',
+                ? 'Free Fast allowance resets at UTC midnight. Thinking/Expert require a paid plan.'
+                : 'Paid Fast and Other-model allowances are per 30-day period from payment confirmation. When both are used, you move to Free.',
             omtDestination: OMT_DESTINATION,
             pricing: {
                 note: 'Spend uses real provider token costs (prompt + completion).',
@@ -959,8 +1031,8 @@ function createPlansStore(dataDir, options = {}) {
                 caps: effective.caps || capsFromPlanId(effective.plan),
                 baseCaps: capsFromPlanId(effective.plan),
                 rules: [
-                    'Free → paid: grant full Fast $ and Other $ budgets.',
-                    'Upgrade to a higher plan: keep current caps and ADD the difference (newBase − oldBase).',
+                    'Free → paid: grant full Fast and Other allowances.',
+                    'Upgrade to a higher plan: keep current capacity and ADD the difference vs the lower plan.',
                     'Buy the same plan again: ADD another full Fast/Other allotment (doubles from a single allotment).'
                 ]
             },
@@ -1003,7 +1075,8 @@ function createPlansStore(dataDir, options = {}) {
     }
 
     /**
-     * UI-friendly plan status: plan name + $ quotas (Fast vs Other).
+     * UI-friendly plan status: plan name + percent-used quotas (Fast vs Other).
+     * End users never see dollar amounts or token counts here — budgets stay $ under the hood.
      */
     function getPlanStatusUi(deviceId) {
         const status = getStatus(deviceId);
@@ -1017,36 +1090,44 @@ function createPlansStore(dataDir, options = {}) {
             return Math.max(0, Math.min(100, p));
         }
 
-        quotas.push({
-            id: 'fast',
-            label: 'Fast',
-            period: status.plan === 'free' ? 'daily' : 'monthly',
-            unit: 'usd',
-            used: u.fastSpendUsd || 0,
-            limit: u.fastCapUsd || 0,
-            left: u.fastLeftUsd || 0,
-            planLimit: u.fastCapUsd || 0,
-            percent: pct(u.fastSpendUsd, u.fastCapUsd),
-            displayUsed: '$' + Number(u.fastSpendUsd || 0).toFixed(2),
-            displayLimit: '$' + Number(u.fastCapUsd || 0).toFixed(2),
-            displayLeft: '$' + Number(u.fastLeftUsd || 0).toFixed(2)
-        });
+        function quotaRow(id, label, period, used, limit, note) {
+            const percent = pct(used, limit);
+            const leftPct = Math.max(0, 100 - percent);
+            const row = {
+                id,
+                label,
+                period,
+                unit: 'percent',
+                used: percent,
+                limit: 100,
+                left: leftPct,
+                planLimit: 100,
+                percent,
+                displayUsed: percent + '% used',
+                displayLimit: '100%',
+                displayLeft: leftPct + '% left'
+            };
+            if (note) row.note = note;
+            return row;
+        }
+
+        quotas.push(quotaRow(
+            'fast',
+            'Fast',
+            status.plan === 'free' ? 'daily' : 'monthly',
+            u.fastSpendUsd || 0,
+            u.fastCapUsd || 0
+        ));
 
         if ((u.otherCapUsd || 0) > 0 || status.plan !== 'free') {
-            quotas.push({
-                id: 'other',
-                label: 'Other models',
-                period: 'monthly',
-                unit: 'usd',
-                used: u.otherSpendUsd || 0,
-                limit: u.otherCapUsd || 0,
-                left: u.otherLeftUsd || 0,
-                percent: pct(u.otherSpendUsd, u.otherCapUsd),
-                displayUsed: '$' + Number(u.otherSpendUsd || 0).toFixed(2),
-                displayLimit: '$' + Number(u.otherCapUsd || 0).toFixed(2),
-                displayLeft: '$' + Number(u.otherLeftUsd || 0).toFixed(2),
-                note: 'Thinking, Expert 4 & Expert 16 share this pool'
-            });
+            quotas.push(quotaRow(
+                'other',
+                'Other models',
+                'monthly',
+                u.otherSpendUsd || 0,
+                u.otherCapUsd || 0,
+                'Thinking, Expert 4 & Expert 16 share this pool'
+            ));
         }
 
         return {
@@ -1058,6 +1139,38 @@ function createPlansStore(dataDir, options = {}) {
             endsAt: status.endsAt,
             timezoneNote: status.timezoneNote,
             quotas,
+            upgradeUrl: '/upgrade'
+        };
+    }
+
+    /**
+     * Public /api/plan payload: plan + stacking hints without exposing $ spend / token counts.
+     */
+    function getPlanPublic(deviceId) {
+        const status = getStatus(deviceId);
+        const ui = getPlanStatusUi(deviceId);
+        const stacking = status.stacking || {};
+        return {
+            plan: status.plan,
+            label: status.label,
+            priceUsd: status.priceUsd,
+            phone: status.phone,
+            startsAt: status.startsAt,
+            endsAt: status.endsAt,
+            timezoneNote: status.timezoneNote,
+            omtDestination: status.omtDestination,
+            stacking: {
+                active: !!stacking.active,
+                stacked: !!stacking.stacked,
+                stackMode: stacking.stackMode || null,
+                rules: stacking.rules || []
+            },
+            quotas: ui.quotas,
+            plans: (status.plans || []).map((p) => ({
+                id: p.id,
+                label: p.label,
+                priceUsd: p.priceUsd
+            })),
             upgradeUrl: '/upgrade'
         };
     }
@@ -1618,6 +1731,7 @@ function createPlansStore(dataDir, options = {}) {
                 ? (pay && pay.geo ? 'payment_geo' : (pay && pay.ip ? 'geo_cache' : null))
                 : null;
 
+            const usage = adminUsageSnapshot(ownerKey);
             return {
                 id: uid || null,
                 email: emailNorm || null,
@@ -1634,7 +1748,15 @@ function createPlansStore(dataDir, options = {}) {
                 geo: geo,
                 createdAt: createdAt || null,
                 updatedAt: updatedAt || null,
-                lastPaymentAt: (pay && pay.createdAt) || null
+                lastPaymentAt: (pay && pay.createdAt) || null,
+                todayTokens: usage.todayTokens,
+                todaySpendUsd: usage.todaySpendUsd,
+                totalTokens: usage.totalTokens,
+                totalSpendUsd: usage.totalSpendUsd,
+                tokensToday: usage.todayTokens,
+                dollarsToday: usage.todaySpendUsd,
+                tokensTotal: usage.totalTokens,
+                dollarsTotal: usage.totalSpendUsd
             };
         }
 
@@ -1696,7 +1818,9 @@ function createPlansStore(dataDir, options = {}) {
         computeStackOnApprove,
         getEffectivePlan,
         getStatus,
+        getPlanPublic,
         getPlanStatusUi,
+        adminUsageSnapshot,
         checkChatAllowed,
         recordSpend,
         recordUsage,

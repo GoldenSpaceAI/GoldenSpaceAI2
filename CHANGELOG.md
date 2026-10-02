@@ -1,3 +1,13 @@
+# GoldenSpaceAI — percent usage UI + admin spend (2026-10-02)
+
+- **User-facing usage:** plan strip, Settings, My Plan, upgrade hints, and chat limit messages show **% used / % left only** — no dollar amounts or token counts for end users. Real $ budgets still enforced server-side.
+- **APIs:** `GET /api/plan-status` / `GET /api/my-plan` quota displays are percent-only; `GET /api/plan` returns a public payload without $ spend / token counters.
+- **Limit replies:** “Plan used — please upgrade” includes percent used (not `$used / $cap`).
+- **/admin-users:** each user shows **tokens spent** and **dollars spent** for **today** (UTC) and **total** (all-time), persisted on every `recordSpend`.
+- Service worker cache `goldenspaceai2-v48`. App `2.3.22`.
+
+---
+
 # GoldenSpaceAI — token $ spend budgets (2026-10-02)
 
 - **Budgets are real model-cost USD** (not message counts / not plan list price).

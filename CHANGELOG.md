@@ -1,3 +1,12 @@
+# GoldenSpaceAI — OpenAI max_completion_tokens for gpt-5-nano (2026-10-02)
+
+- **Fix OpenAI 400** on Fast (`gpt-5-nano` / newer chat completions): send `max_completion_tokens` instead of deprecated `max_tokens`.
+- Applies to non-stream, stream, and non-stream fallback chat/completions paths when provider is OpenAI.
+- **Grok/xAI unchanged:** still use `max_tokens` (and Responses `max_output_tokens` for Expert).
+- Service worker cache `goldenspaceai2-v54`. App `2.3.28`.
+
+---
+
 # GoldenSpaceAI — cost-bucket plan policy + daily image caps (2026-10-02)
 
 - **Budgets by estimated API $ cost** (not message count). Users see **% only** — never $ or tokens in public UI.

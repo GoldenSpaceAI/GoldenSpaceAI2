@@ -1,3 +1,12 @@
+# GoldenSpaceAI — Upgrade page redesign (2026-10-02)
+
+- **/upgrade:** Cleaner, more professional SaaS pricing layout — quieter hero, flat offer cards (list price + modes + Talk + images + docs), solid gold CTA, calmer step rail and panels.
+- **Offer-only cards:** No internal $ budgets / cost buckets / retained-margin language. List prices $5/$10/$15 and OMT Pay flow unchanged (Choose → Accept → Verify → Pay).
+- **Stack note** moved under cards (paid users only); Free strip kept as quiet reference.
+- Service worker cache `goldenspaceai2-v67`. App `2.3.41`.
+
+---
+
 # GoldenSpaceAI — plan limits + Talk minutes (2026-10-02)
 
 - **Plan $ budgets (internal):** Plus Fast $1.30 / Thinking $0.60 / Kept $3; Pro Fast $3.80 / Thinking+Expert4 $3 shared / Kept $3; Max Fast $5.60 / Thinking+Expert4 $3 shared / Expert16 $3 / Kept $3. Free Fast $0.05/UTC day unchanged. Hard-stop, no borrow. Users still see **% only**.

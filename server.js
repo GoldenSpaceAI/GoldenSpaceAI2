@@ -203,14 +203,14 @@ if (process.env.OPENAI_API_KEY) {
 
 // Recent raw turns sent to the model (summary + account memory cover older context).
 const HISTORY_WINDOW = RECENT_WINDOW;
-const OPENAI_FAST_MODEL = process.env.OPENAI_FAST_MODEL || 'gpt-4o-mini';
+const OPENAI_FAST_MODEL = process.env.OPENAI_FAST_MODEL || 'gpt-5-nano';
 const GROK_FAST_MODEL = 'grok-4.3';
 // Fast defaults to Grok. Set FAST_PROVIDER=openai to try OpenAI first (Grok fallback on connection/auth failure).
 // Set FAST_PROVIDER=openai and we still fall back to Grok unless you also need hard-fail — fallback stays on for openai pref.
 const FAST_PROVIDER_PREF = String(process.env.FAST_PROVIDER || '').trim().toLowerCase();
 
 const MODELS = {
-    // Fast prefers OpenAI gpt-4o-mini when reachable; otherwise Grok. Thinking/expert stay on Grok.
+    // Fast prefers OpenAI gpt-5-nano when reachable; otherwise Grok. Thinking/expert stay on Grok.
     normal: { model: OPENAI_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'openai' },
     fast: { model: OPENAI_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'openai' },
     smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3, provider: 'grok' },
@@ -350,13 +350,22 @@ function sendPlanLimitSse(res, sendSse, limitError) {
     return res.end();
 }
 
+function requestHasImage(body) {
+    if (!body || typeof body !== 'object') return false;
+    const img = body.image;
+    if (typeof img === 'string' && img.trim()) return true;
+    if (img && typeof img === 'object') return true;
+    return false;
+}
+
 function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
     const deviceId = resolvePlanOwnerKey(req) || getClientId(req);
     const mode = req.body?.mode;
     const agents = req.body?.agents;
-    const check = plansStore.checkChatAllowed(deviceId, mode, agents);
+    const hasImage = requestHasImage(req.body);
+    const check = plansStore.checkChatAllowed(deviceId, mode, agents, { hasImage });
     if (check.ok) {
-        return { ok: true, deviceId, kind: check.kind, plan: check.plan };
+        return { ok: true, deviceId, kind: check.kind, plan: check.plan, hasImage };
     }
     if (sse) {
         sendPlanLimitSse(res, sendSse, check.error);
@@ -380,14 +389,21 @@ function isAutoTitleRequest(body) {
  * Budget is checked up-front via enforceChatCaps; actual USD is committed after
  * provider usage arrives (or estimated from text if usage is missing).
  */
-function holdUsage(deviceId, kind) {
+function holdUsage(deviceId, kind, opts) {
     let committed = false;
+    const hasImage = !!(opts && opts.hasImage);
     return {
         commit(spend) {
             if (committed || !deviceId || !kind) return null;
             committed = true;
             try {
-                return plansStore.recordSpend(deviceId, kind, spend || {});
+                const recorded = plansStore.recordSpend(deviceId, kind, spend || {});
+                if (hasImage) {
+                    try { plansStore.recordImage(deviceId); } catch (e) {
+                        console.error('recordImage failed:', e.message);
+                    }
+                }
+                return recorded;
             } catch (e) {
                 console.error('recordSpend failed:', e.message);
                 return null;
@@ -1146,7 +1162,7 @@ app.post('/api/chat', async (req, res) => {
         const deviceId = capGate.deviceId;
         // Reserve before the model call so parallel sends cannot bypass the cap.
         // Rolled back in finally unless the reply is a real success.
-        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind);
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage });
 
         activeProvider = resolveMode(mode).config.provider;
         let target;
@@ -1283,7 +1299,7 @@ app.post('/api/chat/stream', async (req, res) => {
         const usageKind = capGate.kind;
         const deviceId = capGate.deviceId;
         let usedGrokFallback = false;
-        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind);
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage });
 
         let target;
         try {

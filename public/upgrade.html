@@ -306,7 +306,7 @@
     <p class="sub">Pay once for 30 days via OMT Pay. No auto-renew. Confirmation usually within 1–2 working days.</p>
     <div class="current-pill" id="currentPlan">Loading your plan…</div>
     <div class="stack-note" id="stackNote" role="note" aria-live="polite">
-      <strong>Already on a paid plan?</strong> Buying again <strong>stacks</strong> your Fast / Thinking / 4-AI / 16-AI limits:
+      <strong>Already on a paid plan?</strong> Buying again <strong>stacks</strong> your Fast / Thinking(+Expert4) / Expert16 buckets:
       <ul>
         <li><strong>Same plan again</strong> (e.g. Max → Max): adds another full allotment (doubles from a single allotment).</li>
         <li><strong>Higher plan</strong> (e.g. Plus → Pro): keep your current caps and add the difference (newBase − oldBase).</li>
@@ -329,7 +329,7 @@
     <div class="actions" style="justify-content:center;margin-top:24px;">
       <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
     </div>
-    <p class="footnote">Free includes a daily Fast allowance. Thinking &amp; Expert share the Other pool on paid plans. Usage is shown as % used. Stacking adds another full Fast/Other allotment. See <a href="/terms">Terms</a>.</p>
+    <p class="footnote">Free: Fast only + 5 images/day (UTC). Paid plans use separate buckets (Fast / Thinking±Expert4 / Expert16) with no borrowing. Usage is % only. Documents unlimited. See <a href="/terms">Terms</a>.</p>
   </section>
 
   <section class="step" id="step2">
@@ -396,33 +396,36 @@
 (function() {
   const PLANS = [
     {
-      id: 'plus', label: 'Plus', price: 5, tagline: 'More Fast + Thinking & Expert',
+      id: 'plus', label: 'Plus', price: 5, tagline: 'Fast + Thinking · 10 images/day',
       featured: false,
       bullets: [
-        { text: 'Fast allowance for 30 days', ok: true },
-        { text: 'Other-models pool (Thinking + Expert)', ok: true },
-        { text: 'Usage shown as % used', ok: true },
-        { text: 'When both pools are used → Free', ok: true }
+        { text: 'Fast (gpt-5-nano) for 30 days', ok: true },
+        { text: 'Thinking (grok-4.3) — own bucket', ok: true },
+        { text: 'No Expert 4 / Expert 16', ok: false },
+        { text: '10 images/day (UTC) · docs unlimited', ok: true },
+        { text: 'Usage as % only · no auto-renew', ok: true }
       ]
     },
     {
-      id: 'pro', label: 'Pro', price: 10, tagline: 'Larger Fast & Other allowances',
+      id: 'pro', label: 'Pro', price: 10, tagline: 'Fast + Thinking/Expert 4 · 20 images/day',
       featured: true,
       bullets: [
-        { text: 'Larger Fast allowance / 30 days', ok: true },
-        { text: 'Larger Other-models pool (Thinking + Expert)', ok: true },
-        { text: 'Usage shown as % used', ok: true },
-        { text: 'When both pools are used → Free', ok: true }
+        { text: 'Larger Fast (gpt-5-nano) / 30 days', ok: true },
+        { text: 'Thinking + Expert 4 share one bucket', ok: true },
+        { text: 'No Expert 16', ok: false },
+        { text: '20 images/day (UTC) · docs unlimited', ok: true },
+        { text: 'Usage as % only · no auto-renew', ok: true }
       ]
     },
     {
-      id: 'max', label: 'Max', price: 15, tagline: 'Highest Fast & Other allowances',
+      id: 'max', label: 'Max', price: 15, tagline: 'All modes · Expert 16 · 30 images/day',
       featured: false,
       bullets: [
-        { text: 'Highest Fast allowance / 30 days', ok: true },
-        { text: 'Highest Other-models pool (Thinking + Expert)', ok: true },
-        { text: 'Usage shown as % used', ok: true },
-        { text: 'When both pools are used → Free', ok: true }
+        { text: 'Highest Fast (gpt-5-nano) / 30 days', ok: true },
+        { text: 'Thinking + Expert 4 shared bucket', ok: true },
+        { text: 'Expert 16 — separate bucket', ok: true },
+        { text: '30 images/day (UTC) · docs unlimited', ok: true },
+        { text: 'Usage as % only · no auto-renew', ok: true }
       ]
     }
   ];
@@ -435,8 +438,8 @@ function stackModeLabel(fromPlan, toPlan) {
     const to = toPlan;
     const fromRank = PLAN_RANK[from] || 0;
     const toRank = PLAN_RANK[to] || 0;
-    if (from === 'free' || fromRank === 0) return 'full grant of that plan’s Fast & Other allowances';
-    if (to === from) return 'same-plan stack (+ another full Fast/Other allotment)';
+    if (from === 'free' || fromRank === 0) return 'full grant of that plan’s Fast / Thinking / Expert16 buckets';
+    if (to === from) return 'same-plan stack (+ another full allotment per bucket)';
     if (toRank > fromRank) return 'upgrade (+ the difference in allowances)';
     return 'add purchased allotment (keep higher tier)';
   }
@@ -452,7 +455,7 @@ function stackModeLabel(fromPlan, toPlan) {
       prev.textContent = '';
       return;
     }
-    let html = 'Buying again <em>stacks</em> another Fast &amp; Other allotment on your current plan.';
+    let html = 'Buying again <em>stacks</em> another allotment per bucket on your current plan.';
     if (selected) {
       html += '<br>If you buy <em>' + selected.label + '</em>: ' + stackModeLabel(plan, selected.id) + '.';
     }

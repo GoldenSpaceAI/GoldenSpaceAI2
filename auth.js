@@ -157,12 +157,22 @@ function createAuth(options = {}) {
                         named BOOLEAN NOT NULL DEFAULT FALSE,
                         custom_instructions TEXT DEFAULT '',
                         system_prompt TEXT DEFAULT '',
+                        rolling_summary TEXT DEFAULT '',
+                        summary_message_count INT NOT NULL DEFAULT 0,
                         PRIMARY KEY (owner_key, chat_id)
+                    );
+                    CREATE TABLE IF NOT EXISTS user_memory (
+                        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                        facts JSONB NOT NULL DEFAULT '{}'::jsonb,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     );
                     CREATE INDEX IF NOT EXISTS idx_chats_owner_updated ON chats (owner_key, updated_at DESC);
                     CREATE INDEX IF NOT EXISTS idx_magic_links_email ON magic_links (email);
                     CREATE INDEX IF NOT EXISTS idx_email_otps_email ON email_otps (email);
                 `);
+                // Additive migrations for existing DBs
+                try { await client.query(`ALTER TABLE chats ADD COLUMN IF NOT EXISTS rolling_summary TEXT DEFAULT ''`); } catch (_) {}
+                try { await client.query(`ALTER TABLE chats ADD COLUMN IF NOT EXISTS summary_message_count INT NOT NULL DEFAULT 0`); } catch (_) {}
                 schemaReady = true;
                 console.log('Auth/Postgres schema ready');
                 return true;
@@ -327,9 +337,9 @@ function createAuth(options = {}) {
                 );
                 if (!existing.rows[0]) {
                     await client.query(
-                        `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt)
-                         VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9)`,
-                        [userKey, row.chat_id, row.name, messagesJson, row.created_at, row.updated_at, row.named, row.custom_instructions, row.system_prompt]
+                        `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt, rolling_summary, summary_message_count)
+                         VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11)`,
+                        [userKey, row.chat_id, row.name, messagesJson, row.created_at, row.updated_at, row.named, row.custom_instructions, row.system_prompt, row.rolling_summary || '', Number(row.summary_message_count) || 0]
                     );
                     merged += 1;
                 } else {
@@ -338,9 +348,9 @@ function createAuth(options = {}) {
                     if (remoteTs > localTs) {
                         await client.query(
                             `UPDATE chats SET name=$3, messages=$4::jsonb, created_at=$5, updated_at=$6, named=$7,
-                              custom_instructions=$8, system_prompt=$9
+                              custom_instructions=$8, system_prompt=$9, rolling_summary=$10, summary_message_count=$11
                              WHERE owner_key=$1 AND chat_id=$2`,
-                            [userKey, row.chat_id, row.name, messagesJson, row.created_at, row.updated_at, row.named, row.custom_instructions, row.system_prompt]
+                            [userKey, row.chat_id, row.name, messagesJson, row.created_at, row.updated_at, row.named, row.custom_instructions, row.system_prompt, row.rolling_summary || '', Number(row.summary_message_count) || 0]
                         );
                         merged += 1;
                     }
@@ -636,7 +646,8 @@ function createAuth(options = {}) {
         if (!p || !(await ensureSchema())) return null;
         const r = await p.query(
             `SELECT chat_id AS id, name, messages, created_at AS "createdAt", updated_at AS "updatedAt",
-                    named, custom_instructions AS "customInstructions", system_prompt AS "systemPrompt"
+                    named, custom_instructions AS "customInstructions", system_prompt AS "systemPrompt",
+                    rolling_summary AS "rollingSummary", summary_message_count AS "summaryMessageCount"
              FROM chats WHERE owner_key = $1 AND chat_id = $2`,
             [ownerKey, chatId]
         );
@@ -650,16 +661,20 @@ function createAuth(options = {}) {
             updatedAt: tsIso(row.updatedAt),
             named: !!row.named,
             customInstructions: row.customInstructions || '',
-            systemPrompt: row.systemPrompt || ''
+            systemPrompt: row.systemPrompt || '',
+            rollingSummary: row.rollingSummary || '',
+            summaryMessageCount: Number(row.summaryMessageCount) || 0
         };
     }
 
     async function upsertChat(ownerKey, chatId, chat) {
         const p = getPool();
         if (!p || !(await ensureSchema())) return false;
+        const rollingSummary = chat.rollingSummary != null ? String(chat.rollingSummary) : '';
+        const summaryMessageCount = Math.max(0, Number(chat.summaryMessageCount) || 0);
         await p.query(
-            `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt)
-             VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9)
+            `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt, rolling_summary, summary_message_count)
+             VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11)
              ON CONFLICT (owner_key, chat_id) DO UPDATE SET
                name = EXCLUDED.name,
                messages = EXCLUDED.messages,
@@ -667,6 +682,8 @@ function createAuth(options = {}) {
                named = EXCLUDED.named,
                custom_instructions = EXCLUDED.custom_instructions,
                system_prompt = EXCLUDED.system_prompt,
+               rolling_summary = EXCLUDED.rolling_summary,
+               summary_message_count = EXCLUDED.summary_message_count,
                created_at = COALESCE(chats.created_at, EXCLUDED.created_at)`,
             [
                 ownerKey,
@@ -677,7 +694,9 @@ function createAuth(options = {}) {
                 chat.updatedAt || new Date().toISOString(),
                 !!chat.named,
                 chat.customInstructions || '',
-                chat.systemPrompt || ''
+                chat.systemPrompt || '',
+                rollingSummary,
+                summaryMessageCount
             ]
         );
         return true;
@@ -694,6 +713,67 @@ function createAuth(options = {}) {
         const user = readUserFromReq(req);
         if (user && user.id) return 'u_' + user.id;
         return deviceId || null;
+    }
+
+
+    async function getUserMemory(userId) {
+        const p = getPool();
+        if (!p || !userId || !(await ensureSchema())) return { facts: {}, updatedAt: null };
+        const r = await p.query(
+            `SELECT facts, updated_at AS "updatedAt" FROM user_memory WHERE user_id = $1`,
+            [userId]
+        );
+        if (!r.rows[0]) return { facts: {}, updatedAt: null };
+        const facts = r.rows[0].facts && typeof r.rows[0].facts === 'object' && !Array.isArray(r.rows[0].facts)
+            ? r.rows[0].facts
+            : {};
+        return { facts, updatedAt: tsIso(r.rows[0].updatedAt) };
+    }
+
+    async function setUserMemory(userId, facts) {
+        const p = getPool();
+        if (!p || !userId || !(await ensureSchema())) return false;
+        const clean = facts && typeof facts === 'object' && !Array.isArray(facts) ? facts : {};
+        await p.query(
+            `INSERT INTO user_memory (user_id, facts, updated_at)
+             VALUES ($1, $2::jsonb, NOW())
+             ON CONFLICT (user_id) DO UPDATE SET facts = EXCLUDED.facts, updated_at = NOW()`,
+            [userId, JSON.stringify(clean)]
+        );
+        return true;
+    }
+
+    async function clearUserMemory(userId) {
+        const p = getPool();
+        if (!p || !userId || !(await ensureSchema())) return false;
+        await p.query('DELETE FROM user_memory WHERE user_id = $1', [userId]);
+        return true;
+    }
+
+    async function patchUserMemory(userId, patch) {
+        const current = await getUserMemory(userId);
+        const facts = Object.assign({}, current.facts || {});
+        if (patch && typeof patch === 'object') {
+            for (const [k, v] of Object.entries(patch)) {
+                const key = String(k || '').trim().slice(0, 64);
+                if (!key) continue;
+                if (v == null || v === '') delete facts[key];
+                else facts[key] = String(v).trim().slice(0, 160);
+            }
+        }
+        await setUserMemory(userId, facts);
+        return { facts };
+    }
+
+    async function updateChatSummary(ownerKey, chatId, summary, summarizedCount) {
+        const p = getPool();
+        if (!p || !ownerKey || !chatId || !(await ensureSchema())) return false;
+        await p.query(
+            `UPDATE chats SET rolling_summary = $3, summary_message_count = $4, updated_at = COALESCE(updated_at, NOW())
+             WHERE owner_key = $1 AND chat_id = $2`,
+            [ownerKey, chatId, String(summary || ''), Math.max(0, Number(summarizedCount) || 0)]
+        );
+        return true;
     }
 
     /**
@@ -760,6 +840,11 @@ function createAuth(options = {}) {
         getChat,
         upsertChat,
         deleteChat,
+        updateChatSummary,
+        getUserMemory,
+        setUserMemory,
+        clearUserMemory,
+        patchUserMemory,
         ownerKeyForRequest,
         getPublicBaseUrl,
         listUsersForAdmin

@@ -1,3 +1,17 @@
+# GoldenSpaceAI — ChatGPT-style context packing + account memory (2026-10-02)
+
+- **Context pack (token savings):** model prompts now use last **10** raw messages + optional **rolling summary** of older turns + **account memory** — not the full ~40 history every request. Plan usage / spend still meters the **actual tokens of this smaller pack**.
+- **Account memory (logged-in only):** sticky facts (name, prefs, stable personal details) in Postgres `user_memory`, injected into every chat’s system pack. Guests: no cross-chat memory.
+- **Per-chat rolling summary:** stored on `chats.rolling_summary` / `summary_message_count`; refreshed as history ages out of the recent window.
+- **Extraction:** durable facts pulled heuristically from user turns (e.g. “My name is …”); ephemeral task details are not stored across chats.
+- **API:** `GET/PUT/PATCH/DELETE /api/memory` (auth required). Settings → **Remembered about you** to view / clear.
+- **Pack structure (exact order):**
+  1. `system` — custom instructions (if any)
+  2. `system` — account memory block (logged-in, if facts exist)
+  3. `system` — rolling summary of earlier turns (if any)
+  4. recent raw user/assistant messages (last `RECENT_WINDOW`, default 10)
+- Service worker cache `goldenspaceai2-v51`. App `2.3.25`.
+
 # GoldenSpaceAI — admin users dashboard polish (2026-10-02)
 
 - **`/admin-users` redesign:** clearer header, summary stat cards (user count, paid/free, tokens/$ today + total), email/name search + plan filter, sortable columns with sticky header, plan badges, muted empty states, responsive layout. Same ADMIN_PASSKEY auth and columns (email, plan, device, location, tokens/$ today + total). Nav link to `/admin-page`.

@@ -1,3 +1,11 @@
+# GoldenSpaceAI — professional mode selector (2026-10-02)
+
+- **Mode selector redesign:** Fast / Thinking / Expert dropdown looks like ChatGPT/Claude product UI — clean trigger + chevron, quiet panel, stacked name/description, checkmark for selected, muted Upgrade hint — not arcade pills or NEW/BEST badges.
+- Light/dark theme tokens preserved (gold line, soft surfaces, Inter).
+- Service worker cache `goldenspaceai2-v57`. App `2.3.31`.
+
+---
+
 # GoldenSpaceAI — OpenAI empty content extract + KaTeX softClean (2026-10-02)
 
 - **Cause:** Fast `gpt-5-nano` (and other gpt-5 chat models) are reasoning models. Visible reply text is not always in `choices[0].message.content` as a plain string — it can be a **content-parts array**, `refusal`, or other fields. Streaming deltas can use the same shapes. Separately, reasoning can consume the entire `max_completion_tokens` budget so `content` is genuinely empty (`finish_reason=length`).

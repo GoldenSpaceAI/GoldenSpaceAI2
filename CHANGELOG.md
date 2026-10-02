@@ -1,3 +1,12 @@
+# GoldenSpaceAI — auto-title PACK fix + admin users redesign (2026-10-02)
+
+- **Chat auto-title:** `/api/chat` no longer referenced an undefined `pack` after a successful reply (that returned `⚠️ pack is not defined`, and the client titled new chats **⚠️ pack** with the error icon). Auto-title skips context-pack maintenance; stream path unchanged.
+- **Client title:** Rejects error/Error-model replies; provisional + fallback title from the first user message (or AI two-word title when healthy).
+- **/admin-users:** Grouped columns — Identity | Plan | Usage | Grok/OpenAI spend. Talk minutes (today + period/cap), tokens, and $ spent shown clearly; provider today/total stacks.
+- Service worker cache `goldenspaceai2-v68`. App `2.3.42`.
+
+---
+
 # GoldenSpaceAI — Upgrade page redesign (2026-10-02)
 
 - **/upgrade:** Cleaner, more professional SaaS pricing layout — quieter hero, flat offer cards (list price + modes + Talk + images + docs), solid gold CTA, calmer step rail and panels.

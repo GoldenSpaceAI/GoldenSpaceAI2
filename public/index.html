@@ -6100,16 +6100,52 @@
         }
 
 
+        /** Truncate first user message into a readable chat title (fallback / provisional). */
+        function titleFromSeed(seed) {
+            let s = String(seed || '').replace(/\s+/g, ' ').trim();
+            if (!s) return '';
+            // Strip leading emoji / punctuation noise
+            s = s.replace(/^[^\w\u00c0-\u024f]+/u, '').trim() || s;
+            const words = s.split(/\s+/).filter(Boolean).slice(0, 6);
+            let t = words.join(' ');
+            if (t.length > 42) {
+                t = t.slice(0, 42).replace(/\s+\S*$/, '').trim();
+            }
+            return t || s.slice(0, 42);
+        }
+
         function cleanTwoWords(raw) {
-            const words = String(raw || '').replace(/["'`#*_]/g, ' ').trim().split(/\s+/).filter(Boolean);
-            if (words.length < 2) return '';
-            return (words[0] + ' ' + words[1]).slice(0, 28);
+            const words = String(raw || '')
+                .replace(/[⚠️🔑⏳💰⏰🔧❌]/gu, ' ')
+                .replace(/["'`#*_.,:;!?()\[\]{}]/g, ' ')
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean)
+                .filter((w) => !/^(pack|error|undefined|null|warning|something|went|wrong)$/i.test(w));
+            if (words.length >= 2) return (words[0] + ' ' + words[1]).slice(0, 28);
+            if (words.length === 1) return words[0].slice(0, 28);
+            return '';
+        }
+
+        function applyChatTitle(name, markNamed) {
+            if (!name || !currentChatId || !chats[currentChatId]) return;
+            if (chats[currentChatId].named) return;
+            chats[currentChatId].name = name;
+            if (markNamed) chats[currentChatId].named = true;
+            saveChats();
+            renderChatsList();
+            updateTopTitle();
         }
 
         async function autoNameChat(seed) {
             if (!currentChatId || !chats[currentChatId]) return;
             if (chats[currentChatId].named) return;
             if (!seed) return;
+            // Provisional title from the first user message so the sidebar never shows PACK/Error
+            const provisional = titleFromSeed(seed);
+            if (provisional && (chats[currentChatId].name === 'New Chat' || !chats[currentChatId].name)) {
+                applyChatTitle(provisional, false);
+            }
             try {
                 const res = await fetch(API_URL, {
                     method: 'POST',
@@ -6122,15 +6158,21 @@
                         webSearch: false
                     })
                 });
-                const data = await res.json();
-                const name = cleanTwoWords(data.reply || '');
-                if (name && chats[currentChatId]) {
-                    chats[currentChatId].name = name;
-                    chats[currentChatId].named = true;
-                    saveChats();
-                    renderChatsList();
-                }
-            } catch (e) {}
+                let data = null;
+                try { data = await res.json(); } catch (e) { data = null; }
+                const reply = data && typeof data.reply === 'string' ? data.reply.trim() : '';
+                const looksError = !res.ok
+                    || (data && data.model === 'Error')
+                    || /^[⚠️🔑⏳💰⏰🔧❌]/.test(reply)
+                    || /\bpack is not defined\b/i.test(reply)
+                    || /\bsomething went wrong\b/i.test(reply);
+                let name = (!looksError && reply) ? cleanTwoWords(reply) : '';
+                if (!name) name = provisional || titleFromSeed(seed);
+                if (name) applyChatTitle(name, true);
+            } catch (e) {
+                const name = provisional || titleFromSeed(seed);
+                if (name) applyChatTitle(name, true);
+            }
         }
 
         /** Build model-facing user text from display content + optional attachedFile extract. */

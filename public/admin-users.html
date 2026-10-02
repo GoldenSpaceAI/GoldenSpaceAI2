@@ -224,18 +224,47 @@
   .spend-split .prov { color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; min-width:3.6em; text-align:left; }
   .spend-split .amt { font-variant-numeric: tabular-nums; }
   .stat-sub.prov-split { font-size:11px; }
+  .metric-stack { display:flex; flex-direction:column; gap:2px; line-height:1.3; }
+  .metric-stack .primary { font-weight:700; font-variant-numeric: tabular-nums; }
+  .metric-stack .secondary { color:var(--muted); font-size:11px; font-weight:600; font-variant-numeric: tabular-nums; }
+  .metric-stack.align-end { align-items:flex-end; text-align:right; }
+  .group-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:2px 8px; border-radius:6px;
+    background: rgba(212,175,55,0.08);
+    border:1px solid rgba(212,175,55,0.18);
+    color:var(--gold); font-size:10px; font-weight:800;
+    letter-spacing:0.08em; text-transform:uppercase;
+  }
   table.users {
     width:100%;
     border-collapse:separate;
     border-spacing:0;
-    min-width:980px;
+    min-width:1180px;
   }
   table.users th, table.users td {
     text-align:left;
-    padding:12px 14px;
+    padding:11px 12px;
     border-bottom:1px solid var(--border);
-    vertical-align:middle;
+    vertical-align:top;
     font-size:13px;
+  }
+  table.users thead tr.col-groups th {
+    top:0; z-index:3;
+    padding:8px 12px;
+    font-size:10px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--gold);
+    background: #121212;
+    border-bottom:1px solid rgba(212,175,55,0.22);
+    text-align:center;
+  }
+  table.users thead tr.col-groups th.g-identity { border-right:1px solid var(--border); }
+  table.users thead tr.col-groups th.g-plan { border-right:1px solid var(--border); }
+  table.users thead tr.col-groups th.g-usage { border-right:1px solid var(--border); }
+  table.users thead tr.col-labels th {
+    top:34px; z-index:2;
   }
   table.users th {
     position:sticky; top:0; z-index:2;
@@ -249,6 +278,8 @@
     white-space:nowrap;
     user-select:none;
   }
+  table.users td.group-end,
+  table.users th.group-end { border-right:1px solid var(--border); }
   table.users th.sortable {
     cursor:pointer;
   }
@@ -330,6 +361,8 @@
   html.light .stat-card,
   html.light .panel { background: linear-gradient(180deg, #fffdf8, #ffffff); }
   html.light table.users th { background: #faf6eb; }
+  html.light table.users thead tr.col-groups th { background:#f3eee0; color:#8a7020; }
+
   html.light .plan-pill.free { background:#fff8e6; color:#6a5a30; }
   html.light input[type="password"],
   html.light input[type="search"],
@@ -368,7 +401,7 @@
       <div class="hero-row">
         <div>
           <h1>Users directory</h1>
-          <p>Read-only accounts, plans, devices, locations, and token/$ spend by provider (Grok vs OpenAI, today + all-time). Approve / decline / pause live on Upgrade requests.</p>
+          <p>Organized by identity, plan, usage (Talk + tokens + $), and provider spend (Grok vs OpenAI). Approve / decline / pause live on Upgrade requests.</p>
         </div>
         <span class="hero-badge" id="liveBadge" title="Session active"><span class="dot"></span> Live · read-only</span>
       </div>
@@ -386,6 +419,11 @@
         <div class="stat-sub" id="statFree">— free</div>
       </div>
       <div class="stat-card">
+        <div class="stat-label">Talk today</div>
+        <div class="stat-value" id="statTalkToday">—</div>
+        <div class="stat-sub" id="statTalkPeriod">period —</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-label">Tokens today</div>
         <div class="stat-value" id="statTokToday">—</div>
         <div class="stat-sub">UTC calendar day</div>
@@ -394,11 +432,6 @@
         <div class="stat-label">$ today</div>
         <div class="stat-value gold" id="statUsdToday">—</div>
         <div class="stat-sub prov-split" id="statUsdTodaySplit">Grok — · OpenAI —</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Tokens total</div>
-        <div class="stat-value" id="statTokTotal">—</div>
-        <div class="stat-sub">all-time</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">$ total</div>
@@ -438,17 +471,22 @@
       <div class="table-wrap" id="tableWrap" hidden>
         <table class="users">
           <thead>
-            <tr>
-              <th class="sortable sorted" data-sort="email" data-dir="asc">Email <span class="sort-ind">▲</span></th>
-              <th class="sortable" data-sort="plan">Plan <span class="sort-ind">▼</span></th>
-              <th class="sortable" data-sort="device">Device <span class="sort-ind">▼</span></th>
-              <th class="sortable" data-sort="location">Location <span class="sort-ind">▼</span></th>
-              <th class="sortable num" data-sort="todayTokens">Tokens today <span class="sort-ind">▼</span></th>
-              <th class="sortable num" data-sort="todayGrokSpendUsd">$ Grok today <span class="sort-ind">▼</span></th>
-              <th class="sortable num" data-sort="todayOpenaiSpendUsd">$ OpenAI today <span class="sort-ind">▼</span></th>
-              <th class="sortable num" data-sort="totalTokens">Tokens total <span class="sort-ind">▼</span></th>
-              <th class="sortable num" data-sort="totalGrokSpendUsd">$ Grok total <span class="sort-ind">▼</span></th>
-              <th class="sortable num" data-sort="totalOpenaiSpendUsd">$ OpenAI total <span class="sort-ind">▼</span></th>
+            <tr class="col-groups">
+              <th class="g-identity" colspan="2">Identity</th>
+              <th class="g-plan" colspan="1">Plan</th>
+              <th class="g-usage" colspan="3">Usage</th>
+              <th class="g-spend" colspan="3">Grok / OpenAI spend</th>
+            </tr>
+            <tr class="col-labels">
+              <th class="sortable sorted" data-sort="email" data-dir="asc">Account <span class="sort-ind">▲</span></th>
+              <th class="sortable group-end" data-sort="device">Device · location <span class="sort-ind">▼</span></th>
+              <th class="sortable group-end" data-sort="plan">Plan <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="talkSecondsUsed">Talk min <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="todayTokens">Tokens <span class="sort-ind">▼</span></th>
+              <th class="sortable num group-end" data-sort="todaySpendUsd">$ spent <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="todayGrokSpendUsd">Grok $ <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="todayOpenaiSpendUsd">OpenAI $ <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="totalSpendUsd">$ total <span class="sort-ind">▼</span></th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -527,6 +565,15 @@
     return '$' + v.toFixed(2);
   }
 
+  function fmtTalkMin(sec) {
+    const s = Number(sec);
+    if (!isFinite(s) || s <= 0) return '0m';
+    const m = s / 60;
+    if (m < 0.1) return '<0.1m';
+    if (m < 10) return m.toFixed(1) + 'm';
+    return Math.round(m) + 'm';
+  }
+
   function spendFields(u) {
     const todayGrok = u.todayGrokSpendUsd != null ? u.todayGrokSpendUsd : (u.grokSpendToday || 0);
     const todayOpenai = u.todayOpenaiSpendUsd != null ? u.todayOpenaiSpendUsd : (u.openaiSpendToday || 0);
@@ -542,7 +589,12 @@
       totalTokens: u.totalTokens != null ? u.totalTokens : (u.tokensTotal || 0),
       totalSpendUsd: totalSpendUsd,
       totalGrokSpendUsd: totalGrok,
-      totalOpenaiSpendUsd: totalOpenai
+      totalOpenaiSpendUsd: totalOpenai,
+      todayTalkSeconds: Number(u.todayTalkSeconds) || 0,
+      talkSecondsUsed: Number(u.talkSecondsUsed) || 0,
+      talkCapSeconds: Number(u.talkCapSeconds) || 0,
+      talkMinutesCap: Number(u.talkMinutesCap) || 0,
+      talkPeriod: u.talkPeriod || 'weekly'
     };
   }
 
@@ -559,28 +611,34 @@
 
   function renderStats(list) {
     const paid = list.filter(u => u._plan !== 'free').length;
-    let tokToday = 0, usdToday = 0, tokTotal = 0, usdTotal = 0;
+    const free = list.length - paid;
+    let tokToday = 0, usdToday = 0, usdTotal = 0;
     let grokToday = 0, openaiToday = 0, grokTotal = 0, openaiTotal = 0;
+    let talkToday = 0, talkPeriod = 0;
     list.forEach(u => {
       tokToday += Number(u.todayTokens) || 0;
       usdToday += Number(u.todaySpendUsd) || 0;
-      tokTotal += Number(u.totalTokens) || 0;
       usdTotal += Number(u.totalSpendUsd) || 0;
       grokToday += Number(u.todayGrokSpendUsd) || 0;
       openaiToday += Number(u.todayOpenaiSpendUsd) || 0;
       grokTotal += Number(u.totalGrokSpendUsd) || 0;
       openaiTotal += Number(u.totalOpenaiSpendUsd) || 0;
+      talkToday += Number(u.todayTalkSeconds) || 0;
+      talkPeriod += Number(u.talkSecondsUsed) || 0;
     });
     document.getElementById('statUsers').textContent = String(list.length);
     document.getElementById('statUsersSub').textContent =
       list.length === 1 ? '1 account' : list.length + ' accounts';
     document.getElementById('statPaid').textContent = String(paid);
-    document.getElementById('statFree').textContent = (list.length - paid) + ' free';
+    document.getElementById('statFree').textContent = free + ' free';
+    const talkTodayEl = document.getElementById('statTalkToday');
+    if (talkTodayEl) talkTodayEl.textContent = fmtTalkMin(talkToday);
+    const talkPeriodEl = document.getElementById('statTalkPeriod');
+    if (talkPeriodEl) talkPeriodEl.textContent = 'period ' + fmtTalkMin(talkPeriod);
     document.getElementById('statTokToday').textContent = fmtTokens(tokToday);
     document.getElementById('statUsdToday').textContent = fmtUsd(usdToday);
     document.getElementById('statUsdTodaySplit').textContent =
       'Grok ' + fmtUsd(grokToday) + ' · OpenAI ' + fmtUsd(openaiToday);
-    document.getElementById('statTokTotal').textContent = fmtTokens(tokTotal);
     document.getElementById('statUsdTotal').textContent = fmtUsd(usdTotal);
     document.getElementById('statUsdTotalSplit').textContent =
       'Grok ' + fmtUsd(grokTotal) + ' · OpenAI ' + fmtUsd(openaiTotal);
@@ -618,6 +676,8 @@
     if (key === 'plan') return u._plan;
     if (key === 'device') return String(u._device || '').toLowerCase();
     if (key === 'location') return String(u._location || '').toLowerCase();
+    if (key === 'talkSecondsUsed') return Number(u.talkSecondsUsed) || 0;
+    if (key === 'todayTalkSeconds') return Number(u.todayTalkSeconds) || 0;
     if (key === 'todayTokens') return Number(u.todayTokens) || 0;
     if (key === 'todaySpendUsd') return Number(u.todaySpendUsd) || 0;
     if (key === 'todayGrokSpendUsd') return Number(u.todayGrokSpendUsd) || 0;
@@ -632,7 +692,7 @@
   function getSorted(list) {
     const key = sortKey;
     const dir = sortDir === 'asc' ? 1 : -1;
-    const numeric = /Tokens|SpendUsd/.test(key);
+    const numeric = /Tokens|SpendUsd|TalkSeconds|talkSeconds/.test(key);
     return list.slice().sort((a, b) => {
       const av = sortValue(a, key);
       const bv = sortValue(b, key);
@@ -697,24 +757,54 @@
         ? ('<div class="muted">' + escapeHtml(u.deviceSource) +
            (u.deviceCount > 1 ? (' · ' + u.deviceCount + ' devices') : '') + '</div>')
         : '';
-      const locMeta = u.locationSource
-        ? ('<div class="muted">' + escapeHtml(u.locationSource) + '</div>')
+      const locLine = u._location && u._location !== '—'
+        ? ('<div class="muted">' + escapeHtml(u._location) + '</div>')
         : '';
+      const talkCapLabel = u.talkMinutesCap
+        ? (fmtTalkMin(u.talkSecondsUsed) + ' / ' + u.talkMinutesCap + 'm')
+        : fmtTalkMin(u.talkSecondsUsed);
+      const talkPeriodLabel = (u.talkPeriod === 'weekly') ? 'week' : 'period';
       return (
         '<tr>' +
           '<td class="email-cell">' +
             '<div class="email-main">' + escapeHtml(u.email || '—') + '</div>' +
             (u.name ? ('<div class="muted">' + escapeHtml(u.name) + '</div>') : '') +
           '</td>' +
-          '<td><span class="' + planPillClass(u._plan) + '">' + escapeHtml(planLabel(u._plan)) + '</span></td>' +
-          '<td><span class="mono">' + escapeHtml(u._device) + '</span>' + deviceMeta + '</td>' +
-          '<td>' + escapeHtml(u._location) + locMeta + '</td>' +
-          '<td class="mono num">' + escapeHtml(fmtTokens(u.todayTokens)) + '</td>' +
-          '<td class="mono num">' + escapeHtml(fmtUsd(u.todayGrokSpendUsd)) + '</td>' +
-          '<td class="mono num">' + escapeHtml(fmtUsd(u.todayOpenaiSpendUsd)) + '</td>' +
-          '<td class="mono num">' + escapeHtml(fmtTokens(u.totalTokens)) + '</td>' +
-          '<td class="mono num">' + escapeHtml(fmtUsd(u.totalGrokSpendUsd)) + '</td>' +
-          '<td class="mono num">' + escapeHtml(fmtUsd(u.totalOpenaiSpendUsd)) + '</td>' +
+          '<td class="group-end">' +
+            '<span class="mono">' + escapeHtml(u._device) + '</span>' + deviceMeta + locLine +
+          '</td>' +
+          '<td class="group-end"><span class="' + planPillClass(u._plan) + '">' + escapeHtml(planLabel(u._plan)) + '</span></td>' +
+          '<td class="num">' +
+            '<div class="metric-stack align-end">' +
+              '<span class="primary">' + escapeHtml(fmtTalkMin(u.todayTalkSeconds)) + ' today</span>' +
+              '<span class="secondary">' + escapeHtml(talkCapLabel) + ' · ' + escapeHtml(talkPeriodLabel) + '</span>' +
+            '</div>' +
+          '</td>' +
+          '<td class="num">' +
+            '<div class="metric-stack align-end">' +
+              '<span class="primary">' + escapeHtml(fmtTokens(u.todayTokens)) + ' today</span>' +
+              '<span class="secondary">' + escapeHtml(fmtTokens(u.totalTokens)) + ' total</span>' +
+            '</div>' +
+          '</td>' +
+          '<td class="num group-end">' +
+            '<div class="metric-stack align-end">' +
+              '<span class="primary">' + escapeHtml(fmtUsd(u.todaySpendUsd)) + ' today</span>' +
+              '<span class="secondary">' + escapeHtml(fmtUsd(u.totalSpendUsd)) + ' total</span>' +
+            '</div>' +
+          '</td>' +
+          '<td class="num">' +
+            '<div class="metric-stack align-end">' +
+              '<span class="primary">' + escapeHtml(fmtUsd(u.todayGrokSpendUsd)) + '</span>' +
+              '<span class="secondary">' + escapeHtml(fmtUsd(u.totalGrokSpendUsd)) + ' total</span>' +
+            '</div>' +
+          '</td>' +
+          '<td class="num">' +
+            '<div class="metric-stack align-end">' +
+              '<span class="primary">' + escapeHtml(fmtUsd(u.todayOpenaiSpendUsd)) + '</span>' +
+              '<span class="secondary">' + escapeHtml(fmtUsd(u.totalOpenaiSpendUsd)) + ' total</span>' +
+            '</div>' +
+          '</td>' +
+          '<td class="num mono">' + escapeHtml(fmtUsd(u.totalSpendUsd)) + '</td>' +
         '</tr>'
       );
     }).join('');
@@ -784,7 +874,7 @@
         sortDir = sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         sortKey = key;
-        sortDir = /Tokens|SpendUsd/.test(key) ? 'desc' : 'asc';
+        sortDir = /Tokens|SpendUsd|TalkSeconds|talkSeconds/.test(key) ? 'desc' : 'asc';
       }
       renderRows();
     });

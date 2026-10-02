@@ -217,6 +217,16 @@ const MODELS = {
     expert: { model: 'grok-4.20-multi-agent-0309', maxTokens: 4096, temperature: 0.5, provider: 'grok' }
 };
 
+
+/** OpenAI gpt-5-* / newer chat models reject legacy `max_tokens` (400). Use `max_completion_tokens`.
+ *  xAI/Grok chat completions still expect `max_tokens`. */
+function chatTokenLimitParams(provider, maxTokens) {
+    if (provider === 'openai') {
+        return { max_completion_tokens: maxTokens };
+    }
+    return { max_tokens: maxTokens };
+}
+
 function resolveMode(mode) {
     const key = mode === 'fast' ? 'normal' : (mode || 'normal');
     const safeMode = MODELS[key] ? key : 'normal';
@@ -1208,7 +1218,7 @@ app.post('/api/chat', async (req, res) => {
                     client.chat.completions.create({
                         model: config.model,
                         messages: conversationMessages,
-                        max_tokens: config.maxTokens,
+                        ...chatTokenLimitParams(provider, config.maxTokens),
                         temperature: config.temperature,
                         reasoning_effort: 'high',
                     }),
@@ -1223,7 +1233,7 @@ app.post('/api/chat', async (req, res) => {
                     client.chat.completions.create({
                         model: config.model,
                         messages: conversationMessages,
-                        max_tokens: config.maxTokens,
+                        ...chatTokenLimitParams(provider, config.maxTokens),
                         temperature: config.temperature,
                     }),
                     UPSTREAM_TIMEOUT_MS,
@@ -1475,7 +1485,7 @@ app.post('/api/chat/stream', async (req, res) => {
             const createArgs = {
                 model: activeConfig.model,
                 messages: conversationMessages,
-                max_tokens: activeConfig.maxTokens,
+                ...chatTokenLimitParams(activeConfig.provider || provider, activeConfig.maxTokens),
                 temperature: activeConfig.temperature,
                 stream: true,
                 stream_options: { include_usage: true }
@@ -1488,7 +1498,7 @@ app.post('/api/chat/stream', async (req, res) => {
             const fallbackArgs = {
                 model: activeConfig.model,
                 messages: conversationMessages,
-                max_tokens: activeConfig.maxTokens,
+                ...chatTokenLimitParams(activeConfig.provider || provider, activeConfig.maxTokens),
                 temperature: activeConfig.temperature,
             };
             if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';

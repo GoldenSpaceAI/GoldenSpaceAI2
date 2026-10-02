@@ -1,3 +1,12 @@
+# GoldenSpaceAI — OpenAI empty content extract + KaTeX softClean (2026-10-02)
+
+- **Cause:** Fast `gpt-5-nano` (and other gpt-5 chat models) are reasoning models. Visible reply text is not always in `choices[0].message.content` as a plain string — it can be a **content-parts array**, `refusal`, or other fields. Streaming deltas can use the same shapes. Separately, reasoning can consume the entire `max_completion_tokens` budget so `content` is genuinely empty (`finish_reason=length`).
+- **Fix:** Shared extractors for chat Completions **stream + non-stream** (`extractChatCompletionText` / `extractChatDeltaText` / `extractChatMessageText`) so real text is pulled from string or parts. Empty OpenAI gpt-5 replies get **one retry** with `reasoning_effort: minimal` and a higher `max_completion_tokens`.
+- **KaTeX en-dash:** softClean always runs on stream chunks, fallbacks, and `done.full`; client prefers cleaned `full` and also normalizes en/em/minus dashes before render.
+- Service worker cache `goldenspaceai2-v56`. App `2.3.30`.
+
+---
+
 # GoldenSpaceAI — OpenAI gpt-5 temperature + KaTeX dash (2026-10-02)
 
 - **Fix OpenAI 400** on Fast (`gpt-5-nano` / gpt-5 family): omit `temperature` (API only allows default `1`). Configured `0.7` was rejected.

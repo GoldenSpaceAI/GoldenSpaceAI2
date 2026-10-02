@@ -4483,7 +4483,7 @@
             return list.map(function(q) {
                 const pct = Math.max(0, Math.min(100, Number(q.percent) || 0));
                 const fillClass = pct >= 90 ? 'crit' : (pct >= 70 ? 'warn' : '');
-                const period = q.period === 'daily' ? 'today' : 'this period';
+                const period = q.period === 'daily' ? 'today' : (q.period === 'weekly' ? 'this week' : 'this period');
                 const leftPct = Math.max(0, 100 - pct);
                 return '<div class="plan-quota">' +
                     '<div class="plan-quota-row">' +
@@ -4497,9 +4497,9 @@
         }
         function planPeriodNote(data) {
             if (!data) return '';
-            if (data.plan === 'free') return 'Free Fast + image caps reset at UTC midnight. Documents unlimited.';
-            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Modes do not borrow. Images reset daily (UTC).';
-            return 'Paid mode allowances reset each paid period; images reset daily (UTC).';
+            if (data.plan === 'free') return 'Free Fast + images reset at UTC midnight. Talk (Live/speak-aloud) resets each UTC week. Documents unlimited.';
+            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Modes do not borrow. Images reset daily (UTC). Talk is per paid period.';
+            return 'Paid mode allowances reset each paid period; images reset daily (UTC); Talk is per paid period.';
         }
         function updateAccountPlanBadge(data) {
             const badge = document.getElementById('accountPlanBadge');
@@ -4508,9 +4508,9 @@
             badge.title = data.label || data.plan || 'Plan';
         }
         const NEXT_TIER = {
-            free: { id: 'plus', label: 'Plus', benefit: 'Thinking + 10 images/day' },
-            plus: { id: 'pro', label: 'Pro', benefit: 'Expert 4 + 20 images/day' },
-            pro: { id: 'max', label: 'Max', benefit: 'Expert 16 + 30 images/day' },
+            free: { id: 'plus', label: 'Plus', benefit: 'Thinking + Talk 5 min + 10 images/day' },
+            plus: { id: 'pro', label: 'Pro', benefit: 'Expert 4 + Talk 10 min + 20 images/day' },
+            pro: { id: 'max', label: 'Max', benefit: 'Expert 16 + Talk 20 min + 30 images/day' },
             max: { id: 'max', label: 'Max', benefit: 'Renew or stack for more capacity' }
         };
         let planModes = { fast: true, thinking: false, expert4: false, expert16: false };
@@ -7571,10 +7571,20 @@
                     const ctype = (res.headers.get('content-type') || '').toLowerCase();
                     if (!res.ok || ctype.indexOf('audio') === -1) {
                         let fallback = true;
+                        let errCode = '';
+                        let errReply = '';
                         try {
                             const err = await res.json();
                             fallback = !!(err && err.fallback);
+                            errCode = (err && (err.code || err.error)) || '';
+                            errReply = (err && err.reply) || '';
                         } catch (e) {}
+                        if (errCode === 'talk_limit_reached' || fallback === false) {
+                            entry.talkLimited = true;
+                            entry.talkReply = errReply || 'Talk limit reached.';
+                            entry.fallback = false;
+                            throw new Error(entry.talkReply);
+                        }
                         entry.fallback = true;
                         if (!fallback) throw new Error('TTS unavailable');
                         return entry;
@@ -7584,6 +7594,10 @@
                     return entry;
                 } catch (e) {
                     if (e && e.name === 'AbortError') throw e;
+                    if (entry.talkLimited) {
+                        entry.fallback = false;
+                        return entry;
+                    }
                     entry.fallback = true;
                     return entry;
                 }
@@ -7633,6 +7647,14 @@
                     if (settled) return;
                     if (btn) btn.classList.remove('tts-loading');
                     if (!liveModeActive) { done(); return; }
+                    if (entry.talkLimited) {
+                        if (typeof showToast === 'function') {
+                            showToast(entry.talkReply || 'Talk (Live / speak-aloud) limit reached. Upgrade for more.');
+                        }
+                        try { if (typeof loadPlanStatus === 'function') loadPlanStatus(); } catch (e0) {}
+                        done();
+                        return;
+                    }
                     if (entry.fallback || !entry.url) {
                         speakBrowserFallback(entry.text, btn);
                         setTimeout(function() { if (!settled) done(); }, 120000);
@@ -7646,6 +7668,14 @@
                     });
                 }).catch(function(e) {
                     if (e && e.name === 'AbortError') { done(); return; }
+                    if (entry && entry.talkLimited) {
+                        if (typeof showToast === 'function') {
+                            showToast(entry.talkReply || 'Talk (Live / speak-aloud) limit reached. Upgrade for more.');
+                        }
+                        try { if (typeof loadPlanStatus === 'function') loadPlanStatus(); } catch (e1) {}
+                        done();
+                        return;
+                    }
                     speakBrowserFallback(entry.text, btn);
                     setTimeout(function() { if (!settled) done(); }, 120000);
                 });
@@ -8130,10 +8160,26 @@
                 const ctype = (res.headers.get('content-type') || '').toLowerCase();
                 if (!res.ok || ctype.indexOf('audio') === -1) {
                     let fallback = true;
+                    let errCode = '';
+                    let errReply = '';
                     try {
                         const err = await res.json();
                         fallback = !!(err && err.fallback);
+                        errCode = (err && (err.code || err.error)) || '';
+                        errReply = (err && err.reply) || '';
                     } catch (e) {}
+                    if (errCode === 'talk_limit_reached') {
+                        speaking = false;
+                        clearTtsButtonState();
+                        if (typeof showToast === 'function') {
+                            showToast(errReply || 'Talk (Live / speak-aloud) limit reached. Upgrade for more.');
+                        } else if (typeof window !== 'undefined') {
+                            try { console.warn(errReply || 'Talk limit reached'); } catch (e2) {}
+                        }
+                        if (typeof window.__liveTtsOnDone === 'function') window.__liveTtsOnDone();
+                        try { if (typeof loadPlanStatus === 'function') loadPlanStatus(); } catch (e3) {}
+                        return;
+                    }
                     if (fallback) {
                         speakBrowserFallback(text, btn);
                         return;

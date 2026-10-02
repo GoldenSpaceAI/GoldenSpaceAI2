@@ -213,42 +213,53 @@
 <p>GoldenSpaceAI provides AI-assisted chat. Output is generated automatically and may be inaccurate or incomplete. The Service is not professional legal, medical, or financial advice. You are responsible for your use of any output.</p>
 
 <h2 id="plans">3. Plans and usage limits</h2>
-<p>Access is provided under the following plans. Limits are hard <strong>model-cost USD budgets</strong> based on actual provider token usage (prompt + completion), not message counts. When a pool is exhausted, that mode is blocked with a notice to upgrade. When a paid plan’s Fast and Other pools are both exhausted, the account is moved to Free.</p>
-<p>Spend is split into two pools: <strong>Fast</strong> (Fast/normal mode only) and <strong>Other models</strong> (Thinking, Expert 4, Expert 16 / multi-AI share one pool).</p>
+<p>Access is provided under the following plans. Limits are hard <strong>model-cost USD budgets</strong> based on estimated/actual provider token usage (prompt + completion), not message counts. Users see usage as a <strong>percent</strong> only. When a bucket is exhausted, that mode is hard-stopped; buckets do <strong>not</strong> borrow from each other. When all usable paid buckets are exhausted, the account is moved to Free. Paid periods start when an admin confirms payment, last thirty (30) days, and do not auto-renew. Payment is OMT Pay wallet-to-wallet.</p>
+<p>Spend buckets: <strong>Fast</strong> (Fast/normal, gpt-5-nano); <strong>ThinkShare</strong> (Thinking alone on Plus; Thinking + Expert 4 shared on Pro/Max); <strong>Expert 16</strong> (Max only, separate). Retained amounts on paid plans are platform margin and are not usable as API budget. Images count toward the Fast $ budget where applicable and also toward a separate daily image count cap. Document/file uploads (text extract path) are unlimited.</p>
 
 <div class="plan-block">
   <strong>Free</strong>
   <ul>
-    <li>Fast pool: USD 0.05 model cost per UTC calendar day</li>
-    <li>Other models pool: not included</li>
+    <li>Fast only (gpt-5-nano): USD 0.05 model cost per UTC calendar day</li>
+    <li>Thinking, Expert 4, Expert 16: not included</li>
+    <li>Images: 5 per UTC calendar day (also spend from Fast)</li>
+    <li>Documents/files: unlimited</li>
   </ul>
 </div>
 
 <div class="plan-block">
   <strong>Plus — USD 5 per thirty (30) days</strong>
   <ul>
-    <li>Fast pool: USD 2 model cost per thirty-day period</li>
-    <li>Other models pool: USD 1 model cost per thirty-day period</li>
+    <li>Fast (gpt-5-nano): USD 2 model cost per thirty-day period</li>
+    <li>Thinking (grok-4.3): USD 1 model cost per thirty-day period</li>
+    <li>Expert 4 / Expert 16: not included</li>
+    <li>Retained (not usable): USD 2</li>
+    <li>Images: 10 per UTC calendar day</li>
   </ul>
 </div>
 
 <div class="plan-block">
   <strong>Pro — USD 10 per thirty (30) days</strong>
   <ul>
-    <li>Fast pool: USD 5 model cost per thirty-day period</li>
-    <li>Other models pool: USD 3 model cost per thirty-day period</li>
+    <li>Fast (gpt-5-nano): USD 4 model cost per thirty-day period</li>
+    <li>Thinking (grok-4.3) + Expert 4 (grok-4.20-multi-agent-0309, 4 agents): USD 3 shared</li>
+    <li>Expert 16: not included</li>
+    <li>Retained (not usable): USD 3</li>
+    <li>Images: 20 per UTC calendar day</li>
   </ul>
 </div>
 
 <div class="plan-block">
   <strong>Max — USD 15 per thirty (30) days</strong>
   <ul>
-    <li>Fast pool: USD 8 model cost per thirty-day period</li>
-    <li>Other models pool: USD 4 model cost per thirty-day period</li>
+    <li>Fast (gpt-5-nano): USD 6 model cost per thirty-day period</li>
+    <li>Thinking + Expert 4: USD 3 shared</li>
+    <li>Expert 16 (same multi-agent, 16 agents): USD 3 alone</li>
+    <li>Retained (not usable): USD 3</li>
+    <li>Images: 30 per UTC calendar day</li>
   </ul>
 </div>
 
-<p>Free Fast budgets reset at the start of each UTC calendar day. Paid Fast and Other budgets apply to the thirty-day paid period that begins on the date we <strong>confirm</strong> payment (not the date a request is submitted). Buying again while paid stacks another full Fast/Other allotment (or the upgrade difference), as shown in the Service.</p>
+<p>Free Fast budgets and all daily image caps reset at the start of each UTC calendar day. Paid Fast / ThinkShare / Expert 16 budgets apply to the thirty-day paid period that begins on the date we <strong>confirm</strong> (approve) payment (not the date a request is submitted). Buying again while paid stacks another full allotment per bucket (or the upgrade difference), as shown in the Service. Buckets never borrow across each other.</p>
 
 <h2 id="fees">4. Fees and payment</h2>
 <p>Paid plans are payable only by OMT Pay wallet-to-wallet transfer in the exact amount of the selected plan. The destination wallet is shown on the Upgrade page only after you accept these Terms, the Privacy Policy, and the Refund Policy.</p>

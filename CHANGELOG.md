@@ -1,3 +1,21 @@
+# GoldenSpaceAI — cost-bucket plan policy + daily image caps (2026-10-02)
+
+- **Budgets by estimated API $ cost** (not message count). Users see **% only** — never $ or tokens in public UI.
+- **Hard-stop per bucket; no borrowing** across buckets. Retained $ on paid plans is margin (not usable).
+- **Models:** Fast = `gpt-5-nano`; Thinking = `grok-4.3`; Expert 4/16 = `grok-4.20-multi-agent-0309` (4 / 16 agents).
+- **Buckets**
+  - **Free:** Fast $0.05/day UTC midnight · no Thinking/Expert · **5 images/day**
+  - **Plus $5 / 30d:** Fast $2 · Thinking $1 · no Expert · retained $2 · **10 images/day**
+  - **Pro $10 / 30d:** Fast $4 · Thinking+Expert4 **shared $3** · no Expert16 · retained $3 · **20 images/day**
+  - **Max $15 / 30d:** Fast $6 · Thinking+Expert4 **shared $3** · Expert16 **$3 alone** · retained $3 · **30 images/day**
+- Images count toward Fast $ **and** the daily image count hard-stop. Document/file uploads (text path) are **unlimited**.
+- Paid starts on **admin approve**, 30 days, **no auto-renew**, OMT wallet-to-wallet. Decline still requires a visible reason.
+- Context pack unchanged: person memory + chat summary + last few messages (no full history).
+- UI: plan cards, Terms, mode menu locks by plan, quota bars for Fast / ThinkShare / Expert16 / Images.
+- Service worker cache `goldenspaceai2-v53`. App `2.3.27`.
+
+---
+
 # GoldenSpaceAI — admin provider spend split (2026-10-02)
 
 - **`/admin-users`:** per-user spend split by provider — **$ Grok** and **$ OpenAI** for **today** (UTC) and **total** (all-time). Summary cards show Grok vs OpenAI under $ today / $ total.

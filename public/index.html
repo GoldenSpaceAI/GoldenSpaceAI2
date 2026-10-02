@@ -720,6 +720,22 @@
         .model-menu-item:last-child { border-bottom: none; }
         .model-menu-item:active { background: var(--gold-dark); color: var(--black); }
         .model-menu-item.selected { background: rgba(212,175,55,0.2); }
+        .model-menu-item.plan-locked {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .model-menu-item .plan-lock-hint {
+            margin-left: auto;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--gold, #c9a227);
+            border: 1px solid rgba(201,162,39,0.35);
+            border-radius: 999px;
+            padding: 1px 6px;
+        }
+
         .model-menu-item.expert { color: #fff; }
         .model-menu-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: var(--gold); color: var(--black); margin-left: auto; }
         .model-menu-desc { font-size: 10px; color: var(--gray); display: block; }
@@ -3634,9 +3650,9 @@
         }
         function planPeriodNote(data) {
             if (!data) return '';
-            if (data.plan === 'free') return 'Free Fast allowance resets at UTC midnight.';
-            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Fast & Other allowances are per paid period.';
-            return 'Fast and Other-model allowances reset each paid period.';
+            if (data.plan === 'free') return 'Free Fast + image caps reset at UTC midnight. Documents unlimited.';
+            if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Buckets do not borrow. Images reset daily (UTC).';
+            return 'Paid buckets reset each paid period; images reset daily (UTC).';
         }
         function updateAccountPlanBadge(data) {
             const badge = document.getElementById('accountPlanBadge');
@@ -3645,11 +3661,13 @@
             badge.title = data.label || data.plan || 'Plan';
         }
         const NEXT_TIER = {
-            free: { id: 'plus', label: 'Plus', benefit: 'More Fast capacity + Thinking & Expert' },
-            plus: { id: 'pro', label: 'Pro', benefit: 'Larger Fast & Other-model allowances' },
-            pro: { id: 'max', label: 'Max', benefit: 'Highest Fast & Other-model allowances' },
+            free: { id: 'plus', label: 'Plus', benefit: 'Thinking + 10 images/day' },
+            plus: { id: 'pro', label: 'Pro', benefit: 'Expert 4 shared + 20 images/day' },
+            pro: { id: 'max', label: 'Max', benefit: 'Expert 16 + 30 images/day' },
             max: { id: 'max', label: 'Max', benefit: 'Renew or stack for more capacity' }
         };
+        let planModes = { fast: true, thinking: false, expert4: false, expert16: false };
+        let lastPlanStatus = null;
         function primaryQuota(data) {
             const list = (data && Array.isArray(data.quotas)) ? data.quotas : [];
             if (!list.length) return null;
@@ -3710,7 +3728,7 @@
         function emptyPlanHintHtml(data) {
             const plan = (data && data.plan) || 'free';
             if (plan === 'free') {
-                return 'Free includes a daily Fast allowance. <a href="/upgrade">Upgrade</a> for Thinking & Expert.';
+                return 'Free: Fast + 5 images/day (UTC). <a href="/upgrade">Upgrade</a> for Thinking & Expert.';
             }
             if (plan === 'max') {
                 return 'You are on Max. <a href="/upgrade">Renew or stack</a> when you need more.';
@@ -3724,6 +3742,12 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed');
                 cachedPlan = data;
+                lastPlanStatus = data;
+                planModes = Object.assign(
+                    { fast: true, thinking: false, expert4: false, expert16: false },
+                    data.modes || {}
+                );
+                applyPlanModeLocks();
                 updateAccountPlanBadge(data);
                 renderPlanStrip(data);
                 const settingsQuotas = document.getElementById('settingsQuotas');
@@ -4260,7 +4284,48 @@
             }
         }
 
+        function modeAllowedForPlan(modelKey) {
+            const key = modelKey || 'normal';
+            if (key === 'normal' || key === 'fast') return true;
+            if (key === 'smart') return !!planModes.thinking;
+            if (key === 'expert-4') return !!planModes.expert4;
+            if (key === 'expert-16') return !!planModes.expert16;
+            return true;
+        }
+        function applyPlanModeLocks() {
+            const menus = [document.getElementById('modelMenu'), document.getElementById('modelMenuMobile'), document.getElementById('plusMenu')];
+            menus.forEach(function(menu) {
+                if (!menu) return;
+                menu.querySelectorAll('.model-menu-item[data-model]').forEach(function(item) {
+                    const key = item.getAttribute('data-model');
+                    const allowed = modeAllowedForPlan(key);
+                    item.classList.toggle('plan-locked', !allowed);
+                    item.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+                    let tip = item.querySelector('.plan-lock-hint');
+                    if (!allowed) {
+                        if (!tip) {
+                            tip = document.createElement('span');
+                            tip.className = 'plan-lock-hint';
+                            tip.textContent = 'Upgrade';
+                            item.appendChild(tip);
+                        }
+                    } else if (tip) {
+                        tip.remove();
+                    }
+                });
+            });
+            // If current model is no longer allowed, fall back to Fast
+            if (!modeAllowedForPlan(currentModel)) {
+                currentModel = 'normal';
+                updateModelUI();
+            }
+        }
         function setModel(model) {
+            if (!modeAllowedForPlan(model)) {
+                const labels = { 'smart': 'Thinking', 'expert-4': 'Expert 4', 'expert-16': 'Expert 16' };
+                showToast((labels[model] || 'This mode') + ' is not on your plan. <a href="/upgrade">Upgrade</a> to unlock.', 'err', 6000);
+                return;
+            }
             currentModel = model;
             updateModelUI();
             const menus = [document.getElementById('modelMenu'), document.getElementById('modelMenuMobile'), document.getElementById('plusMenu')];

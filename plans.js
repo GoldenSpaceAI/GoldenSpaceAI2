@@ -3,15 +3,22 @@
  * Persistence: Postgres (DATABASE_URL) is primary so data survives Render redeploys;
  * JSON under DATA_DIR is a local mirror / offline fallback. On boot, load PG first;
  * if PG is empty and JSON has data, migrate JSON → Postgres.
- * Daily Fast limits reset on UTC calendar day. Paid Thinking/Expert caps are per 30-day period.
+ *
+ * Budgets are real model-cost USD (not plan list price), tracked from provider
+ * prompt+completion tokens via pricing.js rates.
+ * - Fast pool: Fast / normal mode only
+ * - Other pool: Thinking + Expert (4-AI / 16-AI / multi-AI) share one pool
+ * Paid allotments are per 30-day period. Free Fast is a small daily $ allowance.
+ * When both paid pools are exhausted, the account is demoted to Free.
+ *
  * Logged-in users: subscriptions, usage, and payment history are keyed by u_<userId>
  * (account), not only X-Client-Id, so every device sees the same plan/history.
  * Guests remain device-local.
  *
- * Approve / upgrade stacking (Fast, Thinking, Expert 4 / 16-AI):
- * 1) Free → any paid: grant that plan's full base limits.
+ * Approve / upgrade stacking (Fast $ / Other $):
+ * 1) Free → any paid: grant that plan's full base $ budgets.
  * 2) Higher tier (e.g. Plus→Pro, Pro→Max): keep current effective caps and ADD
- *    (newBase − oldBase) for each quota.
+ *    (newBase − oldBase) for each pool.
  * 3) Same plan again (e.g. Max→Max): ADD another full base allotment (doubles when
  *    starting from a single allotment).
  * Effective caps are stored on the subscription as `caps` and used for enforcement.
@@ -19,85 +26,102 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const {
+    costFromProviderUsage,
+    estimateCostFromTexts,
+    MODEL_PRICING,
+    DEFAULT_PRICING
+} = require('./pricing');
 
 const OMT_DESTINATION = '81056987';
 const PAID_PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * Plan defs — priceUsd is what the user pays via OMT.
+ * fastUsd / otherUsd are included model-cost budgets (USD).
+ * Free Fast is a small daily allowance; paid Fast+Other are per 30-day period.
+ */
 const PLAN_DEFS = {
     free: {
         id: 'free',
         label: 'Free',
         priceUsd: 0,
-        fastPerDay: 50,
-        thinkingPerPeriod: 0,
-        expert4PerPeriod: 0,
-        expert16PerPeriod: 0
+        fastUsd: 0.25,
+        otherUsd: 0,
+        fastPeriod: 'daily'
     },
     plus: {
         id: 'plus',
         label: 'Plus',
         priceUsd: 5,
-        fastPerDay: 120,
-        thinkingPerPeriod: 40,
-        expert4PerPeriod: 15,
-        expert16PerPeriod: 0
+        fastUsd: 2,
+        otherUsd: 1,
+        fastPeriod: 'period'
     },
     pro: {
         id: 'pro',
         label: 'Pro',
         priceUsd: 10,
-        fastPerDay: 200,
-        thinkingPerPeriod: 80,
-        expert4PerPeriod: 40,
-        expert16PerPeriod: 8
+        fastUsd: 5,
+        otherUsd: 3,
+        fastPeriod: 'period'
     },
     max: {
         id: 'max',
         label: 'Max',
         priceUsd: 15,
-        fastPerDay: 300,
-        thinkingPerPeriod: 120,
-        expert4PerPeriod: 60,
-        expert16PerPeriod: 15
+        fastUsd: 8,
+        otherUsd: 4,
+        fastPeriod: 'period'
     }
 };
 
 const PLAN_RANK = { free: 0, plus: 1, pro: 2, max: 3 };
 
+function roundUsd(n) {
+    const x = Number(n);
+    if (!Number.isFinite(x) || x <= 0) return 0;
+    return Math.round(x * 1e8) / 1e8;
+}
+
 function cloneCaps(c) {
     const src = c && typeof c === 'object' ? c : {};
+    // Migrate legacy message-count caps → $ budgets using plan base if needed
+    let fastUsd = src.fastUsd;
+    let otherUsd = src.otherUsd;
+    if (fastUsd == null && (src.fastPerDay != null || src.thinkingPerPeriod != null)) {
+        // Legacy shape: cannot convert 1:1; caller should prefer capsFromPlanId.
+        // Keep zeros here so defWithCaps + getEffectivePlan can fall back.
+        fastUsd = 0;
+        otherUsd = 0;
+    }
     return {
-        fastPerDay: Math.max(0, Number(src.fastPerDay) || 0),
-        thinkingPerPeriod: Math.max(0, Number(src.thinkingPerPeriod) || 0),
-        expert4PerPeriod: Math.max(0, Number(src.expert4PerPeriod) || 0),
-        expert16PerPeriod: Math.max(0, Number(src.expert16PerPeriod) || 0)
+        fastUsd: roundUsd(Math.max(0, Number(fastUsd) || 0)),
+        otherUsd: roundUsd(Math.max(0, Number(otherUsd) || 0))
     };
 }
 
 function capsFromPlanId(planId) {
-    return cloneCaps(PLAN_DEFS[planId] || PLAN_DEFS.free);
+    const def = PLAN_DEFS[planId] || PLAN_DEFS.free;
+    return cloneCaps({ fastUsd: def.fastUsd, otherUsd: def.otherUsd });
 }
 
 function addCaps(a, b) {
     const x = cloneCaps(a);
     const y = cloneCaps(b);
     return {
-        fastPerDay: x.fastPerDay + y.fastPerDay,
-        thinkingPerPeriod: x.thinkingPerPeriod + y.thinkingPerPeriod,
-        expert4PerPeriod: x.expert4PerPeriod + y.expert4PerPeriod,
-        expert16PerPeriod: x.expert16PerPeriod + y.expert16PerPeriod
+        fastUsd: roundUsd(x.fastUsd + y.fastUsd),
+        otherUsd: roundUsd(x.otherUsd + y.otherUsd)
     };
 }
 
-/** Difference of base plan defs (new − old), floored at 0 per quota. */
+/** Difference of base plan defs (new − old), floored at 0 per pool. */
 function deltaCaps(newPlanId, oldPlanId) {
     const n = capsFromPlanId(newPlanId);
     const o = capsFromPlanId(oldPlanId);
     return {
-        fastPerDay: Math.max(0, n.fastPerDay - o.fastPerDay),
-        thinkingPerPeriod: Math.max(0, n.thinkingPerPeriod - o.thinkingPerPeriod),
-        expert4PerPeriod: Math.max(0, n.expert4PerPeriod - o.expert4PerPeriod),
-        expert16PerPeriod: Math.max(0, n.expert16PerPeriod - o.expert16PerPeriod)
+        fastUsd: roundUsd(Math.max(0, n.fastUsd - o.fastUsd)),
+        otherUsd: roundUsd(Math.max(0, n.otherUsd - o.otherUsd))
     };
 }
 
@@ -109,10 +133,40 @@ function defWithCaps(planId, caps) {
         id: base.id,
         label: base.label,
         priceUsd: base.priceUsd,
-        fastPerDay: c.fastPerDay,
-        thinkingPerPeriod: c.thinkingPerPeriod,
-        expert4PerPeriod: c.expert4PerPeriod,
-        expert16PerPeriod: c.expert16PerPeriod
+        fastUsd: c.fastUsd,
+        otherUsd: c.otherUsd,
+        fastPeriod: base.fastPeriod
+    };
+}
+
+function isLegacyCaps(caps) {
+    if (!caps || typeof caps !== 'object') return false;
+    if (caps.fastUsd != null || caps.otherUsd != null) return false;
+    return caps.fastPerDay != null || caps.thinkingPerPeriod != null ||
+        caps.expert4PerPeriod != null || caps.expert16PerPeriod != null;
+}
+
+/**
+ * Migrate stacked legacy message caps → approximate $ caps by scale vs base plan.
+ */
+function migrateLegacyCaps(planId, legacy) {
+    const baseMsg = {
+        free: { fast: 50, other: 0 },
+        plus: { fast: 120, other: 40 + 15 },
+        pro: { fast: 200, other: 80 + 40 + 8 },
+        max: { fast: 300, other: 120 + 60 + 15 }
+    };
+    const base$ = capsFromPlanId(planId);
+    const bm = baseMsg[planId] || baseMsg.free;
+    const lf = Number(legacy.fastPerDay) || 0;
+    const lo = (Number(legacy.thinkingPerPeriod) || 0) +
+        (Number(legacy.expert4PerPeriod) || 0) +
+        (Number(legacy.expert16PerPeriod) || 0);
+    const fastScale = bm.fast > 0 ? lf / bm.fast : 1;
+    const otherScale = bm.other > 0 ? lo / bm.other : (lo > 0 ? 1 : 0);
+    return {
+        fastUsd: roundUsd(base$.fastUsd * Math.max(0, fastScale)),
+        otherUsd: roundUsd(base$.otherUsd * Math.max(0, otherScale))
     };
 }
 
@@ -136,9 +190,22 @@ function computeStackOnApprove(currentSub, newPlanId) {
         Date.now() < ends
     );
     const fromPlan = activePaid ? String(currentSub.plan).toLowerCase() : 'free';
-    const before = activePaid
-        ? (currentSub.caps ? cloneCaps(currentSub.caps) : capsFromPlanId(fromPlan))
-        : capsFromPlanId('free');
+    let before;
+    if (activePaid) {
+        if (currentSub.caps && isLegacyCaps(currentSub.caps)) {
+            before = migrateLegacyCaps(fromPlan, currentSub.caps);
+        } else if (currentSub.caps) {
+            before = cloneCaps(currentSub.caps);
+            // If migration left zeros, fall back to plan base
+            if (before.fastUsd <= 0 && before.otherUsd <= 0) {
+                before = capsFromPlanId(fromPlan);
+            }
+        } else {
+            before = capsFromPlanId(fromPlan);
+        }
+    } else {
+        before = capsFromPlanId('free');
+    }
     const newBase = capsFromPlanId(toPlan);
     const fromRank = PLAN_RANK[fromPlan] || 0;
     const toRank = PLAN_RANK[toPlan] || 0;
@@ -149,25 +216,21 @@ function computeStackOnApprove(currentSub, newPlanId) {
     let after;
 
     if (!activePaid || fromPlan === 'free' || fromRank === 0) {
-        // Free → any paid: full plan limits
         mode = 'grant_full';
         plan = toPlan;
         delta = cloneCaps(newBase);
         after = cloneCaps(newBase);
     } else if (toPlan === fromPlan) {
-        // Same plan again: stack another full allotment
         mode = 'same_stack';
         plan = toPlan;
         delta = cloneCaps(newBase);
         after = addCaps(before, newBase);
     } else if (toRank > fromRank) {
-        // Higher tier: keep current + add (newBase − oldBase)
         mode = 'upgrade_delta';
         plan = toPlan;
         delta = deltaCaps(toPlan, fromPlan);
         after = addCaps(before, delta);
     } else {
-        // Lower tier purchase while on higher: stack full purchased allotment, keep higher tier
         mode = 'lower_stack';
         plan = fromPlan;
         delta = cloneCaps(newBase);
@@ -202,6 +265,12 @@ function emptyStore() {
             pausedBy: null
         }
     };
+}
+
+function poolForKind(kind) {
+    if (kind === 'fast') return 'fast';
+    if (kind === 'thinking' || kind === 'expert4' || kind === 'expert16' || kind === 'other') return 'other';
+    return null;
 }
 
 function createPlansStore(dataDir, options = {}) {
@@ -503,7 +572,20 @@ function createPlansStore(dataDir, options = {}) {
                 stackMode: null
             };
         }
-        const caps = sub.caps ? cloneCaps(sub.caps) : capsFromPlanId(sub.plan);
+        let caps;
+        if (sub.caps && isLegacyCaps(sub.caps)) {
+            caps = migrateLegacyCaps(sub.plan, sub.caps);
+            // Persist migrated $ caps so stacking / status stay consistent
+            sub.caps = caps;
+            save();
+        } else if (sub.caps) {
+            caps = cloneCaps(sub.caps);
+            if (caps.fastUsd <= 0 && caps.otherUsd <= 0) {
+                caps = capsFromPlanId(sub.plan);
+            }
+        } else {
+            caps = capsFromPlanId(sub.plan);
+        }
         return {
             plan: sub.plan,
             def: defWithCaps(sub.plan, caps),
@@ -516,38 +598,65 @@ function createPlansStore(dataDir, options = {}) {
         };
     }
 
+    function emptyUsageRow(day, periodStartsAt) {
+        return {
+            day: day || utcDayKey(),
+            periodStartsAt: periodStartsAt || null,
+            fastSpendUsd: 0,
+            otherSpendUsd: 0,
+            // legacy counters kept for migration / admin visibility
+            fast: 0,
+            thinking: 0,
+            expert4: 0,
+            expert16: 0,
+            fastHalved: false
+        };
+    }
+
     function ensureUsage(deviceId) {
         const store = read();
         const day = utcDayKey();
         const effective = getEffectivePlan(deviceId);
         let u = store.usage[deviceId];
         if (!u) {
-            u = {
-                day,
-                fast: 0,
-                fastHalved: false,
-                periodStartsAt: effective.startsAt || null,
-                thinking: 0,
-                expert4: 0,
-                expert16: 0
-            };
+            u = emptyUsageRow(day, effective.startsAt || null);
             store.usage[deviceId] = u;
             save();
             return u;
         }
-        if (u.day !== day) {
-            u.day = day;
-            u.fast = 0;
-            u.fastHalved = false;
-            save();
+        // Migrate legacy-only rows
+        if (u.fastSpendUsd == null) u.fastSpendUsd = 0;
+        if (u.otherSpendUsd == null) u.otherSpendUsd = 0;
+
+        if (effective.plan === 'free') {
+            // Free Fast: small daily $ allowance resets at UTC midnight
+            if (u.day !== day) {
+                u.day = day;
+                u.fastSpendUsd = 0;
+                u.fast = 0;
+                u.fastHalved = false;
+                save();
+            }
+        } else {
+            // Paid: Fast + Other are period budgets (no daily Fast reset)
+            if (u.day !== day) {
+                u.day = day;
+                save();
+            }
         }
-        // Reset monthly counters when a new paid period starts (or when free / no period)
+
         const periodKey = effective.startsAt || null;
         if ((u.periodStartsAt || null) !== periodKey) {
             u.periodStartsAt = periodKey;
+            u.fastSpendUsd = 0;
+            u.otherSpendUsd = 0;
             u.thinking = 0;
             u.expert4 = 0;
             u.expert16 = 0;
+            // Keep same-day free fast counter if somehow on free; for paid clear Fast spend
+            if (effective.plan !== 'free') {
+                u.fast = 0;
+            }
             save();
         }
         return u;
@@ -564,112 +673,166 @@ function createPlansStore(dataDir, options = {}) {
         return 'fast';
     }
 
-    function fastCapFor(deviceId) {
+    function budgetCapsFor(deviceId) {
         const effective = getEffectivePlan(deviceId);
+        return {
+            plan: effective.plan,
+            def: effective.def,
+            caps: effective.caps,
+            fastCap: roundUsd(effective.def.fastUsd),
+            otherCap: roundUsd(effective.def.otherUsd),
+            startsAt: effective.startsAt,
+            endsAt: effective.endsAt
+        };
+    }
+
+    function remainingFor(deviceId, pool) {
+        const { fastCap, otherCap } = budgetCapsFor(deviceId);
         const u = ensureUsage(deviceId);
-        let cap = effective.def.fastPerDay;
-        if (u.fastHalved) cap = Math.floor(cap / 2);
-        return { cap, halved: !!u.fastHalved, planCap: effective.def.fastPerDay, plan: effective.plan, def: effective.def };
+        if (pool === 'fast') {
+            return roundUsd(Math.max(0, fastCap - (Number(u.fastSpendUsd) || 0)));
+        }
+        return roundUsd(Math.max(0, otherCap - (Number(u.otherSpendUsd) || 0)));
+    }
+
+    /**
+     * Demote paid subscription to Free when both $ pools are exhausted.
+     */
+    function demoteToFree(deviceId, reason) {
+        if (!deviceId) return null;
+        const store = read();
+        const sub = store.subscriptions[deviceId];
+        if (!sub || !sub.plan || sub.plan === 'free') return null;
+        const phone = normalizePhone(sub.phone);
+        if (phone && store.phoneIndex[phone] === deviceId) {
+            delete store.phoneIndex[phone];
+        }
+        store.subscriptions[deviceId] = {
+            plan: 'free',
+            phone: null,
+            startsAt: null,
+            endsAt: null,
+            paymentRequestId: null,
+            caps: null,
+            stackMode: null,
+            demotedAt: new Date().toISOString(),
+            demoteReason: String(reason || 'budget_exhausted').slice(0, 200)
+        };
+        // Start fresh Free daily allowance
+        const u = store.usage[deviceId] || emptyUsageRow(utcDayKey(), null);
+        u.periodStartsAt = null;
+        u.fastSpendUsd = 0;
+        u.otherSpendUsd = 0;
+        u.day = utcDayKey();
+        u.fast = 0;
+        u.thinking = 0;
+        u.expert4 = 0;
+        u.expert16 = 0;
+        store.usage[deviceId] = u;
+        save();
+        flushSync();
+        return store.subscriptions[deviceId];
+    }
+
+    function maybeDemoteIfExhausted(deviceId) {
+        const effective = getEffectivePlan(deviceId);
+        if (effective.plan === 'free') return { demoted: false, plan: 'free' };
+        const u = ensureUsage(deviceId);
+        const fastCap = roundUsd(effective.def.fastUsd);
+        const otherCap = roundUsd(effective.def.otherUsd);
+        const fastDone = (Number(u.fastSpendUsd) || 0) >= fastCap - 1e-9;
+        const otherDone = otherCap <= 0
+            ? true
+            : ((Number(u.otherSpendUsd) || 0) >= otherCap - 1e-9);
+        // Demote when the paid allotment is fully used (both pools exhausted).
+        // If otherCap is 0, only Fast matters.
+        const allotmentDone = fastDone && (otherCap <= 0 || otherDone);
+        if (allotmentDone) {
+            demoteToFree(deviceId, 'paid_allotment_exhausted');
+            return { demoted: true, plan: 'free' };
+        }
+        return { demoted: false, plan: effective.plan };
     }
 
     function buildLimitError(kind, deviceId) {
         const effective = getEffectivePlan(deviceId);
         const u = ensureUsage(deviceId);
         const upgradeUrl = '/upgrade';
+        const pool = poolForKind(kind) || 'fast';
+        const fastCap = roundUsd(effective.def.fastUsd);
+        const otherCap = roundUsd(effective.def.otherUsd);
+        const fastUsed = roundUsd(u.fastSpendUsd || 0);
+        const otherUsed = roundUsd(u.otherSpendUsd || 0);
 
-        if (kind === 'fast') {
-            const { cap, halved, planCap } = fastCapFor(deviceId);
-            if (effective.plan === 'free') {
-                return {
-                    status: 429,
-                    code: 'limit_reached',
-                    reply: 'Limit reached — 50 messages. Resets tomorrow. Or upgrade your plan.',
-                    upgradeUrl,
-                    limit: { kind: 'fast', used: u.fast, cap, plan: 'free', resets: 'utc_midnight', halved }
-                };
-            }
+        if (pool === 'fast') {
+            const left = roundUsd(Math.max(0, fastCap - fastUsed));
             return {
                 status: 429,
                 code: 'limit_reached',
-                reply: halved
-                    ? `Limit reached — Fast ${cap}/${planCap} today (halved after Grok fallback). Resets tomorrow (UTC). Or upgrade your plan.`
-                    : `Limit reached — Fast ${cap} messages today. Resets tomorrow (UTC). Or upgrade your plan.`,
+                reply: 'Plan used — please upgrade. Fast budget exhausted ($' +
+                    fastUsed.toFixed(2) + ' / $' + fastCap.toFixed(2) + ').',
                 upgradeUrl,
-                limit: { kind: 'fast', used: u.fast, cap, plan: effective.plan, resets: 'utc_midnight', halved }
+                limit: {
+                    kind: 'fast',
+                    pool: 'fast',
+                    usedUsd: fastUsed,
+                    capUsd: fastCap,
+                    leftUsd: left,
+                    unit: 'usd',
+                    plan: effective.plan,
+                    resets: effective.plan === 'free' ? 'utc_midnight' : 'period'
+                }
             };
         }
 
-        if (effective.plan === 'free') {
+        if (effective.plan === 'free' || otherCap <= 0) {
             const labels = {
                 thinking: 'Thinking',
                 expert4: 'Expert 4 (4-AI)',
-                expert16: 'Expert 16 (16-AI)'
+                expert16: 'Expert 16 (16-AI)',
+                other: 'Thinking / Expert'
             };
             return {
                 status: 429,
                 code: 'plan_required',
-                reply: `${labels[kind] || 'This mode'} is not included on Free. Upgrade your plan to unlock it.`,
+                reply: (labels[kind] || 'This mode') +
+                    ' is not included on Free. Plan used — please upgrade.',
                 upgradeUrl,
-                limit: { kind, used: 0, cap: 0, plan: 'free' }
+                limit: {
+                    kind,
+                    pool: 'other',
+                    usedUsd: otherUsed,
+                    capUsd: 0,
+                    leftUsd: 0,
+                    unit: 'usd',
+                    plan: 'free'
+                }
             };
         }
 
-        const def = effective.def;
-        if (kind === 'thinking') {
-            return {
-                status: 429,
-                code: 'limit_reached',
-                reply: `Limit reached — Thinking ${def.thinkingPerPeriod} messages this period. Upgrade or wait until your plan renews.`,
-                upgradeUrl,
-                limit: { kind, used: u.thinking, cap: def.thinkingPerPeriod, plan: effective.plan }
-            };
-        }
-        if (kind === 'expert4') {
-            if (def.expert4PerPeriod <= 0) {
-                return {
-                    status: 429,
-                    code: 'plan_required',
-                    reply: 'Expert 4 (4-AI) is not included on your plan. Upgrade to unlock it.',
-                    upgradeUrl,
-                    limit: { kind, used: 0, cap: 0, plan: effective.plan }
-                };
-            }
-            return {
-                status: 429,
-                code: 'limit_reached',
-                reply: `Limit reached — Expert 4 ${def.expert4PerPeriod} messages this period. Upgrade or wait until your plan renews.`,
-                upgradeUrl,
-                limit: { kind, used: u.expert4, cap: def.expert4PerPeriod, plan: effective.plan }
-            };
-        }
-        if (kind === 'expert16') {
-            if (def.expert16PerPeriod <= 0) {
-                return {
-                    status: 429,
-                    code: 'plan_required',
-                    reply: 'Expert 16 (16-AI) is not included on your plan. Upgrade to Plus/Pro/Max that includes it, or choose another mode.',
-                    upgradeUrl,
-                    limit: { kind, used: 0, cap: 0, plan: effective.plan }
-                };
-            }
-            return {
-                status: 429,
-                code: 'limit_reached',
-                reply: `Limit reached — Expert 16 ${def.expert16PerPeriod} messages this period. Upgrade or wait until your plan renews.`,
-                upgradeUrl,
-                limit: { kind, used: u.expert16, cap: def.expert16PerPeriod, plan: effective.plan }
-            };
-        }
         return {
             status: 429,
             code: 'limit_reached',
-            reply: 'Limit reached. Or upgrade your plan.',
-            upgradeUrl
+            reply: 'Plan used — please upgrade. Other-models budget exhausted ($' +
+                otherUsed.toFixed(2) + ' / $' + otherCap.toFixed(2) +
+                '). Thinking & Expert share this pool.',
+            upgradeUrl,
+            limit: {
+                kind,
+                pool: 'other',
+                usedUsd: otherUsed,
+                capUsd: otherCap,
+                leftUsd: roundUsd(Math.max(0, otherCap - otherUsed)),
+                unit: 'usd',
+                plan: effective.plan,
+                resets: 'period'
+            }
         };
     }
 
     /**
-     * Check whether a chat request is allowed. Does not consume quota.
+     * Check whether a chat request is allowed. Does not consume budget.
+     * Demotes to Free when paid allotment is already fully used.
      */
     function checkChatAllowed(deviceId, mode, agents) {
         if (!deviceId) {
@@ -683,115 +846,86 @@ function createPlansStore(dataDir, options = {}) {
                 }
             };
         }
+        const demote = maybeDemoteIfExhausted(deviceId);
         const kind = resolveUsageKind(mode, agents);
+        const pool = poolForKind(kind);
         const effective = getEffectivePlan(deviceId);
-        const u = ensureUsage(deviceId);
-        const def = effective.def;
+        const left = remainingFor(deviceId, pool);
 
-        if (kind === 'fast') {
-            const { cap } = fastCapFor(deviceId);
-            if (u.fast >= cap) {
-                return { ok: false, error: buildLimitError('fast', deviceId), kind };
-            }
-            return { ok: true, kind, plan: effective.plan };
+        if (pool === 'other' && (effective.plan === 'free' || roundUsd(effective.def.otherUsd) <= 0)) {
+            return { ok: false, error: buildLimitError(kind, deviceId), kind, pool };
         }
-
-        if (kind === 'thinking') {
-            if (def.thinkingPerPeriod <= 0) {
-                return { ok: false, error: buildLimitError('thinking', deviceId), kind };
+        if (left <= 1e-9) {
+            // If this was the last pool, demote after reporting
+            if (effective.plan !== 'free') {
+                maybeDemoteIfExhausted(deviceId);
             }
-            if (u.thinking >= def.thinkingPerPeriod) {
-                return { ok: false, error: buildLimitError('thinking', deviceId), kind };
-            }
-            return { ok: true, kind, plan: effective.plan };
+            return { ok: false, error: buildLimitError(kind, deviceId), kind, pool, demoted: demote.demoted };
         }
-
-        if (kind === 'expert4') {
-            if (def.expert4PerPeriod <= 0) {
-                return { ok: false, error: buildLimitError('expert4', deviceId), kind };
-            }
-            if (u.expert4 >= def.expert4PerPeriod) {
-                return { ok: false, error: buildLimitError('expert4', deviceId), kind };
-            }
-            return { ok: true, kind, plan: effective.plan };
-        }
-
-        if (kind === 'expert16') {
-            if (def.expert16PerPeriod <= 0) {
-                return { ok: false, error: buildLimitError('expert16', deviceId), kind };
-            }
-            if (u.expert16 >= def.expert16PerPeriod) {
-                return { ok: false, error: buildLimitError('expert16', deviceId), kind };
-            }
-            return { ok: true, kind, plan: effective.plan };
-        }
-
-        return { ok: true, kind: 'fast', plan: effective.plan };
+        return { ok: true, kind, pool, plan: effective.plan, leftUsd: left };
     }
 
     /**
-     * Consume one unit after a chat attempt is accepted / completed.
-     * @param {boolean} usedGrokFallback - Fast path OpenAI→Grok fallback only
+     * Record actual $ spend after a successful model call.
+     * @param {string} deviceId
+     * @param {string} kind - fast | thinking | expert4 | expert16
+     * @param {{ costUsd: number, model?: string, promptTokens?: number, completionTokens?: number }} spend
      */
-    function usageField(kind) {
-        if (kind === 'fast' || kind === 'thinking' || kind === 'expert4' || kind === 'expert16') return kind;
-        return null;
-    }
-
-    /**
-     * Consume one unit. Called when a chat is accepted so parallel requests cannot
-     * slip past the cap. Callers must releaseUsage if the reply does not succeed.
-     * Persists immediately so /api/plan-status sees the same counters as this process.
-     */
-    function recordUsage(deviceId, kind, { usedGrokFallback = false } = {}) {
-        if (!deviceId || !kind) return;
-        const field = usageField(kind);
-        if (!field) return;
+    function recordSpend(deviceId, kind, spend) {
+        if (!deviceId || !kind) return null;
+        const pool = poolForKind(kind);
+        if (!pool) return null;
+        const cost = roundUsd(spend && spend.costUsd);
+        if (cost <= 0) return ensureUsage(deviceId);
         const u = ensureUsage(deviceId);
-        if (kind === 'fast' && usedGrokFallback && !u.fastHalved) {
-            u.fastHalved = true;
+        if (pool === 'fast') {
+            u.fastSpendUsd = roundUsd((Number(u.fastSpendUsd) || 0) + cost);
+            u.fast = (Number(u.fast) || 0) + 1;
+        } else {
+            u.otherSpendUsd = roundUsd((Number(u.otherSpendUsd) || 0) + cost);
+            if (kind === 'thinking') u.thinking = (Number(u.thinking) || 0) + 1;
+            else if (kind === 'expert4') u.expert4 = (Number(u.expert4) || 0) + 1;
+            else if (kind === 'expert16') u.expert16 = (Number(u.expert16) || 0) + 1;
         }
-        u[field] = (u[field] || 0) + 1;
+        u.lastSpend = {
+            at: new Date().toISOString(),
+            kind,
+            pool,
+            costUsd: cost,
+            model: spend && spend.model ? String(spend.model) : null,
+            promptTokens: spend && spend.promptTokens != null ? Number(spend.promptTokens) : null,
+            completionTokens: spend && spend.completionTokens != null ? Number(spend.completionTokens) : null
+        };
         flushSync();
-        return u;
+        const demote = maybeDemoteIfExhausted(deviceId);
+        return { usage: u, demoted: demote.demoted, plan: demote.plan };
     }
 
-    /** Undo one recordUsage when the model call fails or returns an empty reply. */
-    function releaseUsage(deviceId, kind) {
-        if (!deviceId || !kind) return;
-        const field = usageField(kind);
-        if (!field) return;
-        const u = ensureUsage(deviceId);
-        u[field] = Math.max(0, (Number(u[field]) || 0) - 1);
-        flushSync();
-        return u;
+    /** @deprecated message-count hold — kept as no-op shim for older callers */
+    function recordUsage(deviceId, kind) {
+        // Soft provisional hold removed; spend is recorded after provider usage arrives.
+        return ensureUsage(deviceId);
     }
 
-    /** Flag UTC day as Fast-halved after OpenAI→Grok fallback (does not increment). */
-    function markFastHalved(deviceId) {
-        if (!deviceId) return;
-        const u = ensureUsage(deviceId);
-        if (!u.fastHalved) {
-            u.fastHalved = true;
-            flushSync();
-        }
-        return u;
+    function releaseUsage() {
+        // No-op: provisional message holds removed under $ budgets.
+    }
+
+    function markFastHalved() {
+        // No-op: Grok fallback cost is billed via actual tokens into the Fast pool.
     }
 
     function getStatus(deviceId) {
         const effective = getEffectivePlan(deviceId || '');
-        const u = deviceId ? ensureUsage(deviceId) : {
-            day: utcDayKey(), fast: 0, fastHalved: false, thinking: 0, expert4: 0, expert16: 0
-        };
-        const { cap, halved, planCap } = deviceId
-            ? fastCapFor(deviceId)
-            : { cap: PLAN_DEFS.free.fastPerDay, halved: false, planCap: PLAN_DEFS.free.fastPerDay };
+        const u = deviceId ? ensureUsage(deviceId) : emptyUsageRow(utcDayKey(), null);
+        const fastCap = roundUsd(effective.def.fastUsd);
+        const otherCap = roundUsd(effective.def.otherUsd);
+        const fastUsed = roundUsd(u.fastSpendUsd || 0);
+        const otherUsed = roundUsd(u.otherSpendUsd || 0);
         const baseDef = getPlanDef(effective.plan);
         const stacked = effective.plan !== 'free' && (
-            effective.caps.fastPerDay !== baseDef.fastPerDay ||
-            effective.caps.thinkingPerPeriod !== baseDef.thinkingPerPeriod ||
-            effective.caps.expert4PerPeriod !== baseDef.expert4PerPeriod ||
-            effective.caps.expert16PerPeriod !== baseDef.expert16PerPeriod
+            roundUsd(effective.caps.fastUsd) !== roundUsd(baseDef.fastUsd) ||
+            roundUsd(effective.caps.otherUsd) !== roundUsd(baseDef.otherUsd)
         );
         return {
             plan: effective.plan,
@@ -800,8 +934,24 @@ function createPlansStore(dataDir, options = {}) {
             phone: effective.phone,
             startsAt: effective.startsAt,
             endsAt: effective.endsAt,
-            timezoneNote: 'Daily Fast limits reset at UTC midnight. Thinking and Expert limits are per 30-day paid period starting on payment confirmation.',
+            timezoneNote: effective.plan === 'free'
+                ? 'Free Fast $ allowance resets at UTC midnight. Thinking/Expert require a paid plan.'
+                : 'Paid Fast and Other-model $ budgets are per 30-day period from payment confirmation. When both are used, you move to Free.',
             omtDestination: OMT_DESTINATION,
+            pricing: {
+                note: 'Spend uses real provider token costs (prompt + completion).',
+                models: Object.keys(MODEL_PRICING).map((id) => {
+                    const r = MODEL_PRICING[id];
+                    return {
+                        id,
+                        inputPerMUsd: r.input,
+                        outputPerMUsd: r.output,
+                        inputLongPerMUsd: r.inputLong || null,
+                        outputLongPerMUsd: r.outputLong || null
+                    };
+                }),
+                defaultPerMUsd: DEFAULT_PRICING
+            },
             stacking: {
                 active: effective.plan !== 'free',
                 stacked: !!stacked,
@@ -809,40 +959,51 @@ function createPlansStore(dataDir, options = {}) {
                 caps: effective.caps || capsFromPlanId(effective.plan),
                 baseCaps: capsFromPlanId(effective.plan),
                 rules: [
-                    'Free → paid: grant full plan limits (Fast / Thinking / 4-AI / 16-AI).',
+                    'Free → paid: grant full Fast $ and Other $ budgets.',
                     'Upgrade to a higher plan: keep current caps and ADD the difference (newBase − oldBase).',
-                    'Buy the same plan again: ADD another full allotment (doubles from a single allotment).'
+                    'Buy the same plan again: ADD another full Fast/Other allotment (doubles from a single allotment).'
                 ]
             },
             usage: {
                 day: u.day,
-                fast: u.fast,
-                fastCap: cap,
-                fastPlanCap: planCap,
-                fastHalved: halved,
-                thinking: u.thinking,
-                thinkingCap: effective.def.thinkingPerPeriod,
-                expert4: u.expert4,
-                expert4Cap: effective.def.expert4PerPeriod,
-                expert16: u.expert16,
-                expert16Cap: effective.def.expert16PerPeriod
+                unit: 'usd',
+                fastSpendUsd: fastUsed,
+                fastCapUsd: fastCap,
+                fastLeftUsd: roundUsd(Math.max(0, fastCap - fastUsed)),
+                otherSpendUsd: otherUsed,
+                otherCapUsd: otherCap,
+                otherLeftUsd: roundUsd(Math.max(0, otherCap - otherUsed)),
+                // Back-compat aliases for older UI that expected message counts:
+                fast: fastUsed,
+                fastCap: fastCap,
+                fastPlanCap: fastCap,
+                fastHalved: false,
+                thinking: otherUsed,
+                thinkingCap: otherCap,
+                expert4: 0,
+                expert4Cap: 0,
+                expert16: 0,
+                expert16Cap: 0,
+                requestCounts: {
+                    fast: u.fast || 0,
+                    thinking: u.thinking || 0,
+                    expert4: u.expert4 || 0,
+                    expert16: u.expert16 || 0
+                }
             },
             plans: Object.values(PLAN_DEFS).map(p => ({
                 id: p.id,
                 label: p.label,
                 priceUsd: p.priceUsd,
-                fastPerDay: p.fastPerDay,
-                thinkingPerPeriod: p.thinkingPerPeriod,
-                expert4PerPeriod: p.expert4PerPeriod,
-                expert16PerPeriod: p.expert16PerPeriod
+                fastUsd: p.fastUsd,
+                otherUsd: p.otherUsd,
+                fastPeriod: p.fastPeriod
             }))
         };
     }
 
-
     /**
-     * UI-friendly plan status: plan name + quotas with used/limit/percent.
-     * Free: Fast daily only. Paid: Fast daily + Thinking/Expert monthly (Expert16 if cap > 0).
+     * UI-friendly plan status: plan name + $ quotas (Fast vs Other).
      */
     function getPlanStatusUi(deviceId) {
         const status = getStatus(deviceId);
@@ -859,45 +1020,33 @@ function createPlansStore(dataDir, options = {}) {
         quotas.push({
             id: 'fast',
             label: 'Fast',
-            period: 'daily',
-            used: u.fast || 0,
-            limit: u.fastCap || 0,
-            planLimit: u.fastPlanCap || u.fastCap || 0,
-            percent: pct(u.fast, u.fastCap),
-            halved: !!u.fastHalved
+            period: status.plan === 'free' ? 'daily' : 'monthly',
+            unit: 'usd',
+            used: u.fastSpendUsd || 0,
+            limit: u.fastCapUsd || 0,
+            left: u.fastLeftUsd || 0,
+            planLimit: u.fastCapUsd || 0,
+            percent: pct(u.fastSpendUsd, u.fastCapUsd),
+            displayUsed: '$' + Number(u.fastSpendUsd || 0).toFixed(2),
+            displayLimit: '$' + Number(u.fastCapUsd || 0).toFixed(2),
+            displayLeft: '$' + Number(u.fastLeftUsd || 0).toFixed(2)
         });
 
-        if (status.plan !== 'free') {
-            if ((u.thinkingCap || 0) > 0) {
-                quotas.push({
-                    id: 'thinking',
-                    label: 'Thinking',
-                    period: 'monthly',
-                    used: u.thinking || 0,
-                    limit: u.thinkingCap || 0,
-                    percent: pct(u.thinking, u.thinkingCap)
-                });
-            }
-            if ((u.expert4Cap || 0) > 0) {
-                quotas.push({
-                    id: 'expert4',
-                    label: 'Expert 4',
-                    period: 'monthly',
-                    used: u.expert4 || 0,
-                    limit: u.expert4Cap || 0,
-                    percent: pct(u.expert4, u.expert4Cap)
-                });
-            }
-            if ((u.expert16Cap || 0) > 0) {
-                quotas.push({
-                    id: 'expert16',
-                    label: 'Expert 16',
-                    period: 'monthly',
-                    used: u.expert16 || 0,
-                    limit: u.expert16Cap || 0,
-                    percent: pct(u.expert16, u.expert16Cap)
-                });
-            }
+        if ((u.otherCapUsd || 0) > 0 || status.plan !== 'free') {
+            quotas.push({
+                id: 'other',
+                label: 'Other models',
+                period: 'monthly',
+                unit: 'usd',
+                used: u.otherSpendUsd || 0,
+                limit: u.otherCapUsd || 0,
+                left: u.otherLeftUsd || 0,
+                percent: pct(u.otherSpendUsd, u.otherCapUsd),
+                displayUsed: '$' + Number(u.otherSpendUsd || 0).toFixed(2),
+                displayLimit: '$' + Number(u.otherCapUsd || 0).toFixed(2),
+                displayLeft: '$' + Number(u.otherLeftUsd || 0).toFixed(2),
+                note: 'Thinking, Expert 4 & Expert 16 share this pool'
+            });
         }
 
         return {
@@ -1319,19 +1468,17 @@ function createPlansStore(dataDir, options = {}) {
         };
         store.phoneIndex[phone] = ownerKey;
 
-        // Reset period usage for this account/device owner
-        const u = store.usage[ownerKey] || {
-            day: utcDayKey(),
-            fast: 0,
-            fastHalved: false,
-            thinking: 0,
-            expert4: 0,
-            expert16: 0
-        };
+        // Reset period $ spend for this account/device owner (stacking adds caps; spend starts fresh for the new period window)
+        const u = store.usage[ownerKey] || emptyUsageRow(utcDayKey(), startsAt.toISOString());
         u.periodStartsAt = startsAt.toISOString();
+        u.day = utcDayKey();
+        u.fastSpendUsd = 0;
+        u.otherSpendUsd = 0;
+        u.fast = 0;
         u.thinking = 0;
         u.expert4 = 0;
         u.expert16 = 0;
+        u.fastHalved = false;
         store.usage[ownerKey] = u;
 
         payment.status = 'approved';
@@ -1551,10 +1698,17 @@ function createPlansStore(dataDir, options = {}) {
         getStatus,
         getPlanStatusUi,
         checkChatAllowed,
+        recordSpend,
         recordUsage,
         releaseUsage,
         markFastHalved,
         resolveUsageKind,
+        poolForKind,
+        remainingFor,
+        demoteToFree,
+        maybeDemoteIfExhausted,
+        costFromProviderUsage,
+        estimateCostFromTexts,
         createPaymentRequest,
         listPayments,
         listPaymentsAdmin,
@@ -1627,5 +1781,11 @@ module.exports = {
     capsFromPlanId,
     deltaCaps,
     addCaps,
-    OMT_DESTINATION
+    cloneCaps,
+    poolForKind,
+    OMT_DESTINATION,
+    costFromProviderUsage,
+    estimateCostFromTexts,
+    MODEL_PRICING,
+    DEFAULT_PRICING
 };

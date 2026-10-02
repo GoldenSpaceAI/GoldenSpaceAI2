@@ -10,6 +10,11 @@ const {
     isAdminAuthed,
     OMT_DESTINATION
 } = require('./plans');
+const {
+    costFromProviderUsage,
+    estimateCostFromTexts,
+    extractTokenCounts
+} = require('./pricing');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const { extractUploadedFile, MAX_FILE_BYTES } = require('./fileExtract');
@@ -359,24 +364,47 @@ function isAutoTitleRequest(body) {
 }
 
 /**
- * Reserve one unit immediately (blocks parallel over-cap), then keep it only
- * when the handler marks the reply successful. Otherwise roll it back.
+ * $ spend tracker for a chat request.
+ * Budget is checked up-front via enforceChatCaps; actual USD is committed after
+ * provider usage arrives (or estimated from text if usage is missing).
  */
 function holdUsage(deviceId, kind) {
-    let held = false;
-    if (deviceId && kind) {
-        plansStore.recordUsage(deviceId, kind, { usedGrokFallback: false });
-        held = true;
-    }
+    let committed = false;
     return {
-        rollback() {
-            if (!held) return;
-            held = false;
-            try { plansStore.releaseUsage(deviceId, kind); } catch (e) {
-                console.error('releaseUsage failed:', e.message);
+        commit(spend) {
+            if (committed || !deviceId || !kind) return null;
+            committed = true;
+            try {
+                return plansStore.recordSpend(deviceId, kind, spend || {});
+            } catch (e) {
+                console.error('recordSpend failed:', e.message);
+                return null;
             }
+        },
+        rollback() {
+            // No provisional hold under $ budgets — nothing to undo.
         }
     };
+}
+
+function messagesTextForEstimate(messages) {
+    if (!Array.isArray(messages)) return '';
+    return messages.map((m) => {
+        if (!m) return '';
+        if (typeof m.content === 'string') return m.content;
+        if (Array.isArray(m.content)) {
+            return m.content.map((c) => (c && c.type === 'text' ? c.text : '')).join(' ');
+        }
+        return '';
+    }).join('\n');
+}
+
+function spendFromUsageOrEstimate(model, usage, promptMessages, replyText) {
+    const counts = extractTokenCounts(usage);
+    if (counts.promptTokens > 0 || counts.completionTokens > 0) {
+        return costFromProviderUsage(model, usage);
+    }
+    return estimateCostFromTexts(model, messagesTextForEstimate(promptMessages), replyText || '');
 }
 
 function sendFreshJson(res, body) {
@@ -1073,7 +1101,13 @@ app.post('/api/chat', async (req, res) => {
                     activity.text ||
                     responseData.output?.find(o => o.type === 'message')?.content?.[0]?.text ||
                     'No response generated.';
-                return { reply, provider, modelName: config.model, activity };
+                return {
+                    reply,
+                    provider,
+                    modelName: config.model,
+                    activity,
+                    usage: responseData.usage || null
+                };
             } else if (safeMode === 'smart') {
                 const completion = await withTimeout(
                     client.chat.completions.create({
@@ -1087,6 +1121,7 @@ app.post('/api/chat', async (req, res) => {
                     'Smart request'
                 );
                 reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
+                return { reply, provider, modelName: config.model, usage: completion?.usage || null };
             } else {
                 // Fast (normal): OpenAI when available, else Grok — multimodal content parts supported
                 const completion = await withTimeout(
@@ -1100,8 +1135,8 @@ app.post('/api/chat', async (req, res) => {
                     'Fast request'
                 );
                 reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
+                return { reply, provider, modelName: config.model, usage: completion?.usage || null };
             }
-            return { reply, provider, modelName: config.model };
         });
 
         let reply = softCleanLatex(result.reply);
@@ -1113,8 +1148,15 @@ app.post('/api/chat', async (req, res) => {
         }
 
         console.log(`Response: ${String(reply).length} chars | provider=${result.provider}`);
-        if (result.usedGrokFallback && usageKind === 'fast') {
-            plansStore.markFastHalved(deviceId);
+        if (usageHold) {
+            const spend = spendFromUsageOrEstimate(
+                result.modelName || target.config.model,
+                result.usage,
+                conversationMessages,
+                reply
+            );
+            const recorded = usageHold.commit(spend);
+            console.log(`Spend: ${spend.costUsd.toFixed(6)} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
         }
         keepUsage = true;
         const chatPayload = { reply, model: safeMode, provider: result.provider };
@@ -1268,7 +1310,19 @@ app.post('/api/chat/stream', async (req, res) => {
                     sendSse({ full: reply });
                 }
 
-                if (String(reply).trim() && reply !== 'No response generated.') keepUsage = true;
+                if (String(reply).trim() && reply !== 'No response generated.') {
+                    if (usageHold) {
+                        const spend = spendFromUsageOrEstimate(
+                            config.model,
+                            responseData.usage,
+                            conversationMessages,
+                            reply
+                        );
+                        const recorded = usageHold.commit(spend);
+                        console.log(`Spend: ${spend.costUsd.toFixed(6)} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
+                    }
+                    keepUsage = true;
+                }
                 sendSse({
                     done: true,
                     model: safeMode,
@@ -1304,6 +1358,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 max_tokens: activeConfig.maxTokens,
                 temperature: activeConfig.temperature,
                 stream: true,
+                stream_options: { include_usage: true }
             };
             if (safeMode === 'smart') createArgs.reasoning_effort = 'high';
             return activeClient.chat.completions.create(createArgs, { signal: abortCtrl.signal });
@@ -1322,7 +1377,23 @@ app.post('/api/chat/stream', async (req, res) => {
                 UPSTREAM_TIMEOUT_MS,
                 label
             );
-            return completion?.choices?.[0]?.message?.content || '';
+            return {
+                text: completion?.choices?.[0]?.message?.content || '',
+                usage: completion?.usage || null,
+                model: activeConfig.model
+            };
+        }
+
+        function commitStreamSpend(modelName, usage, replyText) {
+            if (!usageHold || isAutoTitleRequest(req.body)) return;
+            const spend = spendFromUsageOrEstimate(
+                modelName || config.model,
+                usage,
+                conversationMessages,
+                replyText || ''
+            );
+            const recorded = usageHold.commit(spend);
+            console.log(`Spend: ${spend.costUsd.toFixed(6)} model=${spend.model} tokens=${spend.promptTokens}+${spend.completionTokens}${recorded && recorded.demoted ? ' (demoted→free)' : ''}`);
         }
 
         try {
@@ -1346,8 +1417,10 @@ app.post('/api/chat/stream', async (req, res) => {
 
             let full = '';
             let emittedGenerating = false;
+            let streamUsage = null;
             for await (const chunk of stream) {
                 if (clientClosed) break;
+                if (chunk && chunk.usage) streamUsage = chunk.usage;
                 const choice = chunk.choices?.[0];
                 const deltaObj = choice?.delta || {};
                 // Surface real reasoning fields only when the provider sends them (never invent CoT)
@@ -1378,7 +1451,9 @@ app.post('/api/chat/stream', async (req, res) => {
                 sendSse({ status: safeMode === 'smart' ? 'thinking' : 'waiting' });
                 console.warn('Stream empty — falling back to non-stream completion');
                 try {
-                    full = await nonStreamCompletion(client, config, 'Stream fallback');
+                    const fb = await nonStreamCompletion(client, config, 'Stream fallback');
+                    full = fb.text || '';
+                    if (fb.usage) streamUsage = fb.usage;
                     if (full) sendSse({ text: full });
                 } catch (fbErr) {
                     if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(fbErr)) {
@@ -1387,7 +1462,9 @@ app.post('/api/chat/stream', async (req, res) => {
                         config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
                         client = grok;
                         usedGrokFallback = true;
-                        full = await nonStreamCompletion(client, config, 'Stream Grok fallback');
+                        const fb2 = await nonStreamCompletion(client, config, 'Stream Grok fallback');
+                        full = fb2.text || '';
+                        if (fb2.usage) streamUsage = fb2.usage;
                         if (full) sendSse({ text: full });
                     } else {
                         sendSse({ error: mapApiError(fbErr, provider) });
@@ -1402,9 +1479,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 if (!cleaned.trim()) {
                     sendSse({ error: mapApiError({ message: 'empty reply' }, provider) });
                 } else {
-                    if (usedGrokFallback && usageKind === 'fast') {
-                        plansStore.markFastHalved(deviceId);
-                    }
+                    commitStreamSpend(config.model, streamUsage, cleaned);
                     keepUsage = true;
                 }
                 sendSse({ done: true, model: safeMode, provider, full: cleaned });
@@ -1416,14 +1491,13 @@ app.post('/api/chat/stream', async (req, res) => {
             if (clientClosed || err?.name === 'AbortError') {
                 // Last-chance non-stream if abort looked spurious and we got nothing yet
                 try {
-                    const text = await nonStreamCompletion(client, config, 'Abort recovery');
+                    const recovered = await nonStreamCompletion(client, config, 'Abort recovery');
+                    const text = recovered && recovered.text;
                     if (text) {
                         const cleanedAbort = softCleanLatex(text);
                         sendSse({ text: cleanedAbort });
                         if (String(cleanedAbort).trim()) {
-                            if (usedGrokFallback && usageKind === 'fast') {
-                                plansStore.markFastHalved(deviceId);
-                            }
+                            commitStreamSpend(config.model, recovered.usage, cleanedAbort);
                             keepUsage = true;
                         }
                         sendSse({ done: true, model: safeMode, provider, full: cleanedAbort });
@@ -1443,14 +1517,13 @@ app.post('/api/chat/stream', async (req, res) => {
                     config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
                     client = grok;
                     usedGrokFallback = true;
-                    const text = await nonStreamCompletion(client, config, 'Grok rescue');
+                    const rescued = await nonStreamCompletion(client, config, 'Grok rescue');
+                    const text = rescued && rescued.text;
                     if (text) {
                         const cleanedRescue = softCleanLatex(text);
                         sendSse({ text: cleanedRescue });
                         if (String(cleanedRescue).trim()) {
-                            if (usedGrokFallback && usageKind === 'fast') {
-                                plansStore.markFastHalved(deviceId);
-                            }
+                            commitStreamSpend(config.model, rescued.usage, cleanedRescue);
                             keepUsage = true;
                         }
                         sendSse({ done: true, model: safeMode, provider, full: cleanedRescue });

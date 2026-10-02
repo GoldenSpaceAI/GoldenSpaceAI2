@@ -5493,7 +5493,8 @@
                 }
 
                 if (errMsg && !streamedText) throw new Error(errMsg);
-                let finalText = (finalFull && !streamedText) ? finalFull : (streamedText || finalFull || '');
+                // Prefer server soft-cleaned `full` when present (KaTeX dash normalize); else stream.
+                let finalText = softCleanLatexClient(finalFull || streamedText || '');
                 if (!String(finalText).trim() && !errMsg) {
                     setThinkingStatus(thinkingId, 'waiting');
                     try {
@@ -5517,7 +5518,7 @@
                             })())
                         });
                         const data = await fb.json();
-                        if (data && data.reply) finalText = data.reply;
+                        if (data && data.reply) finalText = softCleanLatexClient(data.reply);
                         else if (data && data.error) throw new Error(data.error);
                         if (data && Array.isArray(data.sites)) {
                             for (let s = 0; s < data.sites.length; s++) recordSite(data.sites[s]);
@@ -6706,6 +6707,13 @@
             }
         }
 
+        /** Mirror server softCleanLatex — KaTeX rejects unicode en/em/minus dashes in math. */
+        function softCleanLatexClient(text) {
+            if (!text) return text || '';
+            return String(text)
+                .replace(/\u2013|\u2014|\u2212|\u2010|\u2011/g, '-');
+        }
+
         function renderMathIn(el) {
             if (!el) return;
             ensureTableScroll(el);
@@ -6726,7 +6734,8 @@
 
         function formatMarkdown(text) {
             if (!text) return '';
-            let s = String(text).replace(/\r\n/g, '\n');
+            // Always soft-clean before KaTeX (en/em/minus dashes → ASCII hyphen).
+            let s = softCleanLatexClient(String(text)).replace(/\r\n/g, '\n');
             const slots = [];
 
             function stash(html) {

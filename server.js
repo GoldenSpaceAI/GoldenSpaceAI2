@@ -240,6 +240,109 @@ function chatTemperatureParams(provider, model, temperature) {
     return { temperature };
 }
 
+/** True for OpenAI gpt-5 family (reasoning models that often starve visible content). */
+function isOpenAIGpt5Family(provider, model) {
+    if (provider !== 'openai') return false;
+    const m = String(model || '').toLowerCase();
+    return m.startsWith('gpt-5') || m.includes('gpt-5-');
+}
+
+/**
+ * Join chat/completions content which may be a string or array of parts
+ * ({type:'text', text}, {type:'refusal', refusal}, plain strings, etc.).
+ */
+function extractContentPartsText(content) {
+    if (content == null) return '';
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+        return content.map(function (part) {
+            if (part == null) return '';
+            if (typeof part === 'string') return part;
+            if (typeof part !== 'object') return '';
+            if (typeof part.text === 'string') return part.text;
+            if (typeof part.output_text === 'string') return part.output_text;
+            if (typeof part.refusal === 'string') return part.refusal;
+            if (typeof part.content === 'string') return part.content;
+            return '';
+        }).join('');
+    }
+    if (typeof content === 'object') {
+        if (typeof content.text === 'string') return content.text;
+        if (typeof content.output_text === 'string') return content.output_text;
+    }
+    return '';
+}
+
+/** Visible assistant text from a chat Completions message (not reasoning). */
+function extractChatMessageText(message) {
+    if (!message || typeof message !== 'object') return '';
+    const fromContent = extractContentPartsText(message.content);
+    if (fromContent && String(fromContent).trim()) return fromContent;
+    if (typeof message.refusal === 'string' && message.refusal.trim()) return message.refusal;
+    if (typeof message.text === 'string' && message.text.trim()) return message.text;
+    if (typeof message.output_text === 'string' && message.output_text.trim()) return message.output_text;
+    // Rare SDK shapes
+    if (message.message) return extractChatMessageText(message.message);
+    return '';
+}
+
+/** Visible text delta from a streaming chat Completions chunk choice.delta. */
+function extractChatDeltaText(delta) {
+    if (delta == null) return '';
+    if (typeof delta === 'string') return delta;
+    if (typeof delta !== 'object') return '';
+    const fromContent = extractContentPartsText(delta.content);
+    if (fromContent) return fromContent;
+    if (typeof delta.text === 'string') return delta.text;
+    if (typeof delta.output_text === 'string') return delta.output_text;
+    if (typeof delta.refusal === 'string') return delta.refusal;
+    return '';
+}
+
+/**
+ * Extract real assistant text from a chat.completions result.
+ * Newer / reasoning models may put text in content arrays, refusal, or leave
+ * content empty while still returning a choice — never treat that as success text
+ * unless we find an actual string.
+ */
+function extractChatCompletionText(completion) {
+    if (!completion) return '';
+    const choice = completion.choices && completion.choices[0];
+    if (!choice) {
+        // Some proxies flatten the message
+        return extractChatMessageText(completion.message) || extractContentPartsText(completion.output_text || completion.text);
+    }
+    const fromMsg = extractChatMessageText(choice.message);
+    if (fromMsg && String(fromMsg).trim()) return fromMsg;
+    if (typeof choice.text === 'string' && choice.text.trim()) return choice.text;
+    // choice may itself look like a message on some gateways
+    const fromChoice = extractChatMessageText(choice);
+    if (fromChoice && String(fromChoice).trim()) return fromChoice;
+    return '';
+}
+
+/**
+ * If OpenAI gpt-5 returns empty visible content (common when reasoning eats the
+ * max_completion_tokens budget), retry once with minimal reasoning + more room.
+ */
+async function openaiEmptyContentRetry(client, baseArgs, label) {
+    const model = baseArgs && baseArgs.model;
+    const bumped = Math.max(
+        Number(baseArgs.max_completion_tokens) || 0,
+        Number(baseArgs.max_tokens) || 0,
+        2048
+    ) * 2;
+    const retryArgs = Object.assign({}, baseArgs, {
+        max_completion_tokens: Math.min(bumped, 8192),
+        reasoning_effort: 'minimal'
+    });
+    delete retryArgs.max_tokens;
+    delete retryArgs.stream;
+    delete retryArgs.stream_options;
+    console.warn((label || 'OpenAI') + ' empty content — retry minimal reasoning, max_completion_tokens=' + retryArgs.max_completion_tokens + ' model=' + model);
+    return client.chat.completions.create(retryArgs);
+}
+
 
 function resolveMode(mode) {
     const key = mode === 'fast' ? 'normal' : (mode || 'normal');
@@ -470,14 +573,14 @@ function sendFreshJson(res, body) {
 // Soft clean: keep $ / $$ for KaTeX on the client; strip noisy wrappers only lightly.
 function softCleanLatex(text) {
     if (!text) return text;
-    return text
+    return String(text)
         // Replacer fn required: string '$$$$1$$' is parsed as $$ + literal 1 + $ (drops capture/digits).
         .replace(/\\boxed\{([^}]+)\}/g, function (_, inner) { return '$$' + inner + '$$'; })
         .replace(/\\displaystyle\b/g, '')
         .replace(/\\left\b/g, '')
         .replace(/\\right\b/g, '')
-        // KaTeX often fails on unicode en/em dashes inside math; use ASCII hyphen.
-        .replace(/\u2013|\u2014/g, '-');
+        // KaTeX often fails on unicode dashes/minus inside math; use ASCII hyphen.
+        .replace(/\u2013|\u2014|\u2212|\u2010|\u2011/g, '-');
 }
 
 function cleanLatex(text) {
@@ -1241,22 +1344,46 @@ app.post('/api/chat', async (req, res) => {
                     UPSTREAM_TIMEOUT_MS,
                     'Smart request'
                 );
-                reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
-                return { reply, provider, modelName: config.model, usage: completion?.usage || null };
+                reply = extractChatCompletionText(completion);
+                if (!String(reply).trim() && isOpenAIGpt5Family(provider, config.model)) {
+                    const retry = await withTimeout(
+                        openaiEmptyContentRetry(client, {
+                            model: config.model,
+                            messages: conversationMessages,
+                            ...chatTokenLimitParams(provider, config.maxTokens),
+                            ...chatTemperatureParams(provider, config.model, config.temperature),
+                            reasoning_effort: 'high',
+                        }, 'Smart'),
+                        UPSTREAM_TIMEOUT_MS,
+                        'Smart empty retry'
+                    );
+                    reply = extractChatCompletionText(retry);
+                    return { reply: reply || 'No response generated.', provider, modelName: config.model, usage: retry?.usage || completion?.usage || null };
+                }
+                return { reply: reply || 'No response generated.', provider, modelName: config.model, usage: completion?.usage || null };
             } else {
                 // Fast (normal): OpenAI when available, else Grok — multimodal content parts supported
-                const completion = await withTimeout(
-                    client.chat.completions.create({
-                        model: config.model,
-                        messages: conversationMessages,
-                        ...chatTokenLimitParams(provider, config.maxTokens),
-                        ...chatTemperatureParams(provider, config.model, config.temperature),
-                    }),
+                const createArgs = {
+                    model: config.model,
+                    messages: conversationMessages,
+                    ...chatTokenLimitParams(provider, config.maxTokens),
+                    ...chatTemperatureParams(provider, config.model, config.temperature),
+                };
+                let completion = await withTimeout(
+                    client.chat.completions.create(createArgs),
                     UPSTREAM_TIMEOUT_MS,
                     'Fast request'
                 );
-                reply = completion?.choices?.[0]?.message?.content || 'No response generated.';
-                return { reply, provider, modelName: config.model, usage: completion?.usage || null };
+                reply = extractChatCompletionText(completion);
+                if (!String(reply).trim() && isOpenAIGpt5Family(provider, config.model)) {
+                    completion = await withTimeout(
+                        openaiEmptyContentRetry(client, createArgs, 'Fast'),
+                        UPSTREAM_TIMEOUT_MS,
+                        'Fast empty retry'
+                    );
+                    reply = extractChatCompletionText(completion);
+                }
+                return { reply: reply || 'No response generated.', provider, modelName: config.model, usage: completion?.usage || null };
             }
         });
 
@@ -1523,10 +1650,27 @@ app.post('/api/chat/stream', async (req, res) => {
                 UPSTREAM_TIMEOUT_MS,
                 label
             );
+            let text = extractChatCompletionText(completion);
+            const prov = activeConfig.provider || provider;
+            if (!String(text).trim() && isOpenAIGpt5Family(prov, activeConfig.model)) {
+                const retry = await withTimeout(
+                    openaiEmptyContentRetry(activeClient, fallbackArgs, label + ' empty'),
+                    UPSTREAM_TIMEOUT_MS,
+                    label + ' empty retry'
+                );
+                text = extractChatCompletionText(retry);
+                return {
+                    text: text || '',
+                    usage: retry?.usage || completion?.usage || null,
+                    model: activeConfig.model,
+                    finishReason: retry?.choices?.[0]?.finish_reason || completion?.choices?.[0]?.finish_reason || null
+                };
+            }
             return {
-                text: completion?.choices?.[0]?.message?.content || '',
+                text: text || '',
                 usage: completion?.usage || null,
-                model: activeConfig.model
+                model: activeConfig.model,
+                finishReason: completion?.choices?.[0]?.finish_reason || null
             };
         }
 
@@ -1590,8 +1734,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 if (reasoningDelta) {
                     sendSse({ reasoning: reasoningDelta, status: 'thinking' });
                 }
-                const delta = deltaObj.content
-                    || deltaObj.text
+                const delta = extractChatDeltaText(deltaObj)
                     || (typeof choice?.delta === 'string' ? choice.delta : '')
                     || '';
                 if (delta) {
@@ -1599,8 +1742,10 @@ app.post('/api/chat/stream', async (req, res) => {
                         emittedGenerating = true;
                         sendSse({ status: 'generating' });
                     }
-                    full += delta;
-                    sendSse({ text: delta });
+                    // Soft-clean each chunk so KaTeX never sees raw en/em dashes mid-stream.
+                    const cleanedDelta = softCleanLatex(delta);
+                    full += cleanedDelta;
+                    sendSse({ text: cleanedDelta });
                 }
             }
             clearTimeout(timeoutId);
@@ -1611,7 +1756,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 console.warn('Stream empty — falling back to non-stream completion');
                 try {
                     const fb = await nonStreamCompletion(client, config, 'Stream fallback');
-                    full = fb.text || '';
+                    full = softCleanLatex(fb.text || '') || '';
                     if (fb.usage) streamUsage = fb.usage;
                     if (full) sendSse({ text: full });
                 } catch (fbErr) {
@@ -1622,7 +1767,7 @@ app.post('/api/chat/stream', async (req, res) => {
                         client = grok;
                         usedGrokFallback = true;
                         const fb2 = await nonStreamCompletion(client, config, 'Stream Grok fallback');
-                        full = fb2.text || '';
+                        full = softCleanLatex(fb2.text || '') || '';
                         if (fb2.usage) streamUsage = fb2.usage;
                         if (full) sendSse({ text: full });
                     } else {
@@ -1636,11 +1781,13 @@ app.post('/api/chat/stream', async (req, res) => {
             if (!clientClosed) {
                 const cleaned = softCleanLatex(full) || '';
                 if (!cleaned.trim()) {
+                    console.warn('Empty reply after stream/fallback | provider=' + provider + ' model=' + (config && config.model) + ' usage=' + JSON.stringify(streamUsage || null));
                     sendSse({ error: mapApiError({ message: 'empty reply' }, provider) });
                 } else {
                     commitStreamSpend(config.model, streamUsage, cleaned);
                     keepUsage = true;
                 }
+                // Always send soft-cleaned full so clients prefer it over raw stream text.
                 sendSse({ done: true, model: safeMode, provider, full: cleaned, contextPack: contextPackPayload() });
                 console.log(`Stream done: ${cleaned.length} chars | provider=${provider} | pack=${pack.meta.packSize}`);
             }

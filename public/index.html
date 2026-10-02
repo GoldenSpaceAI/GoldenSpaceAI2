@@ -1415,10 +1415,11 @@
         .thinking-trace {
             display: none;
             margin: 0;
-            padding: 8px 10px;
-            border-radius: 8px;
-            background: rgba(212,175,55,0.06);
-            border: 1px solid rgba(212,175,55,0.15);
+            padding: 6px 0 6px 12px;
+            border-radius: 0;
+            background: transparent;
+            border: none;
+            border-left: 2px solid var(--border, rgba(255,255,255,0.12));
             color: var(--text-muted, #888);
             font-size: 12px;
             line-height: 1.45;
@@ -2209,37 +2210,37 @@
         .thinking-indicator {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            padding: 6px 4px 4px;
+            gap: 8px;
+            padding: 2px 0 2px;
             max-width: 100%;
         }
         .thinking-row {
             display: inline-flex;
             align-items: center;
-            gap: 12px;
-            padding: 8px 14px;
-            border-radius: 999px;
-            background: var(--gold-soft);
-            border: 1px solid var(--gold-line);
+            gap: 10px;
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            border: none;
             width: fit-content;
             max-width: 100%;
         }
         .thinking-dots { display: flex; gap: 5px; flex-shrink: 0; }
         .thinking-status {
-            color: var(--gold);
+            color: var(--text-muted);
             font-size: 13px;
-            font-weight: 650;
-            letter-spacing: 0.015em;
-            line-height: 1.3;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            line-height: 1.35;
         }
         .thinking-shimmer {
-            height: 3px;
+            height: 2px;
             border-radius: 999px;
-            width: min(220px, 55%);
-            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            width: min(180px, 45%);
+            background: linear-gradient(90deg, transparent, var(--text-muted), transparent);
             background-size: 200% 100%;
             animation: shimmerMove 1.4s ease-in-out infinite;
-            opacity: 0.7;
+            opacity: 0.35;
         }
         @keyframes shimmerMove {
             0% { background-position: 100% 0; }
@@ -2248,10 +2249,11 @@
         .thinking-trace {
             display: none;
             margin: 0;
-            padding: 10px 12px;
-            border-radius: 12px;
-            background: var(--gold-soft);
-            border: 1px solid var(--gold-line);
+            padding: 6px 0 6px 12px;
+            border-radius: 0;
+            background: transparent;
+            border: none;
+            border-left: 2px solid var(--border);
             color: var(--text-muted);
             font-size: 12px;
             line-height: 1.5;
@@ -2262,62 +2264,70 @@
         }
         .thinking-trace.show { display: block; animation: msgIn 0.25s var(--ease-out); }
 
-        /* Activity panel: Searching / Thinking — survives after answer */
+        /* Activity panel: plain Grok-style disclosure (no gold card) */
         .activity-panel {
-            margin: 0 0 10px;
-            border-radius: 12px;
-            border: 1px solid var(--gold-line);
-            background: var(--gold-soft);
-            overflow: hidden;
+            margin: 0 0 8px;
+            border-radius: 0;
+            border: none;
+            background: transparent;
+            overflow: visible;
             max-width: 100%;
         }
         .activity-panel > summary {
             list-style: none;
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
-            padding: 8px 12px;
-            font-size: 12.5px;
-            font-weight: 650;
-            color: var(--gold);
+            padding: 2px 0;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
             user-select: none;
-            line-height: 1.35;
+            line-height: 1.4;
+            width: fit-content;
+            max-width: 100%;
         }
+        .activity-panel > summary:hover { color: var(--text); }
         .activity-panel > summary::-webkit-details-marker { display: none; }
-        .activity-panel > summary::before {
+        .activity-panel > summary::after {
+            content: '›';
+            display: inline-block;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1;
+            opacity: 0.75;
+            transition: transform 0.15s ease;
+            transform: rotate(0deg);
+            margin-left: 2px;
+        }
+        .activity-panel[open] > summary::after { transform: rotate(90deg); }
+        .activity-panel.live > summary::after {
             content: '';
             width: 6px; height: 6px;
-            border-right: 1.5px solid var(--gold);
-            border-bottom: 1.5px solid var(--gold);
-            transform: rotate(-45deg);
-            transition: transform 0.15s ease;
-            flex-shrink: 0;
-            opacity: 0.85;
-            margin-right: 2px;
-        }
-        .activity-panel[open] > summary::before { transform: rotate(45deg); }
-        .activity-panel.live > summary::before {
-            width: 7px; height: 7px;
-            border: none;
             border-radius: 50%;
-            background: var(--gold);
+            background: var(--text-muted);
+            opacity: 0.7;
             transform: none;
+            margin-left: 4px;
             animation: typingPulse 1s infinite;
         }
-        .activity-panel .activity-summary-text { flex: 1; min-width: 0; }
+        .activity-panel .activity-summary-text { flex: 0 1 auto; min-width: 0; }
         .activity-panel .activity-count {
-            font-weight: 600;
+            font-weight: 500;
             font-size: 11px;
             color: var(--text-muted);
-            opacity: 0.9;
+            opacity: 0.85;
         }
         .activity-body {
-            padding: 0 12px 10px;
+            padding: 6px 0 4px 2px;
             display: flex;
             flex-direction: column;
             gap: 8px;
+            border-left: 2px solid var(--border);
+            margin: 4px 0 0 2px;
+            padding-left: 12px;
         }
         .activity-sites {
             list-style: none;
@@ -2338,14 +2348,14 @@
             line-height: 1.4;
         }
         .activity-sites a {
-            color: var(--gold);
+            color: var(--text);
             text-decoration: none;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             min-width: 0;
         }
-        .activity-sites a:hover { text-decoration: underline; }
+        .activity-sites a:hover { text-decoration: underline; color: var(--gold); }
         .activity-sites .site-domain {
             color: var(--text-muted);
             font-size: 11px;
@@ -2362,10 +2372,10 @@
         }
         .activity-thinking {
             margin: 0;
-            padding: 8px 10px;
-            border-radius: 10px;
-            background: rgba(0,0,0,0.12);
-            border: 1px solid var(--border);
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            border: none;
             color: var(--text-muted);
             font-size: 12px;
             line-height: 1.5;
@@ -2374,8 +2384,8 @@
             max-height: 160px;
             overflow: auto;
         }
-        html.light .activity-thinking { background: rgba(0,0,0,0.04); }
-        .thinking-indicator .activity-panel { margin-top: 4px; }
+        html.light .activity-thinking { background: transparent; }
+        .thinking-indicator .activity-panel { margin-top: 2px; }
 
         .typing-dot {
             width: 7px; height: 7px;
@@ -3187,7 +3197,7 @@
             scroll-padding-bottom: 24px;
         }
         .thinking-indicator.streaming .thinking-status {
-            color: var(--gold);
+            color: var(--text-muted);
         }
         .thinking-indicator .thinking-mode-pill {
             display: inline-flex;
@@ -3544,6 +3554,12 @@
         }
         @media (min-width: 769px) {
             .model-btn { min-height: 38px; padding: 8px 11px; font-size: 13px; }
+        }
+
+        /* Muted typing dots in thinking row (not gold pulse card) */
+        .thinking-row .typing-dot {
+            background: var(--text-muted);
+            opacity: 0.55;
         }
 
         /* Quiet mode chip in thinking row (not arcade) */

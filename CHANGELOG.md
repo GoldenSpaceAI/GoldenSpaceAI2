@@ -1,3 +1,12 @@
+# GoldenSpaceAI — contact help + Thinking disclosure (2026-10-02)
+
+- **Need help / Contact us:** `mailto:support@goldenspaceai.space` on upgrade, login, terms, privacy, refund, my-plan, and updating (not main chat; admin skipped).
+- Legal Contact sections and footers now point at support@goldenspaceai.space.
+- **Chat Thinking / activity panel:** removed golden card/pill. Collapsed summary is plain muted text with a › disclosure; expanded body is a clean left-border Grok-style reveal (no gold box).
+- Service worker cache `goldenspaceai2-v58`. App `2.3.32`.
+
+---
+
 # GoldenSpaceAI — professional mode selector (2026-10-02)
 
 - **Mode selector redesign:** Fast / Thinking / Expert dropdown looks like ChatGPT/Claude product UI — clean trigger + chevron, quiet panel, stacked name/description, checkmark for selected, muted Upgrade hint — not arcade pills or NEW/BEST badges.

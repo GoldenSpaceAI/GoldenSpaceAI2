@@ -169,3 +169,34 @@ html.light input[type=password] {
   border-color: #cbbf9a !important;
 }
 
+
+/* Upgrade redesign (v2.3.41) */
+html.light .plan-card.selected {
+  background: linear-gradient(180deg, rgba(184,134,11,0.08), transparent 36%), var(--panel) !important;
+}
+html.light .plan-card .mode-pill.off { color: #9a9180; text-decoration-color: #cbbf9a; }
+html.light .plan-card li { color: #2c281f; }
+html.light .free-strip {
+  background: rgba(184,134,11,0.04);
+  border-color: var(--border);
+  color: var(--muted);
+}
+html.light .current-pill {
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--text);
+}
+html.light .stack-note {
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--muted);
+}
+html.light button.btn.primary {
+  background: var(--gold);
+  color: #0a0a0a;
+}
+html.light button.btn.ghost { color: var(--muted); }
+html.light .plan-card li.muted::before {
+  content: '–';
+  background: rgba(26,26,26,0.08);
+}

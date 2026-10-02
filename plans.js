@@ -46,7 +46,7 @@ const PLAN_DEFS = {
         id: 'free',
         label: 'Free',
         priceUsd: 0,
-        fastUsd: 0.25,
+        fastUsd: 0.05,
         otherUsd: 0,
         fastPeriod: 'daily'
     },

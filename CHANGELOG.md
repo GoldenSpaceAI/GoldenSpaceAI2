@@ -1,3 +1,12 @@
+# GoldenSpaceAI — Free Fast daily $0.05 (2026-10-02)
+
+- **Free Fast daily budget:** lowered from **$0.25** to **$0.05** (5 cents) model-cost USD per UTC calendar day. Free Other remains **$0**.
+- **Copy:** Terms Free plan Fast pool updated to USD 0.05/day.
+- Paid allotments unchanged (Plus/Pro/Max).
+- Service worker cache `goldenspaceai2-v49`. App `2.3.23`.
+
+---
+
 # GoldenSpaceAI — percent usage UI + admin spend (2026-10-02)
 
 - **User-facing usage:** plan strip, Settings, My Plan, upgrade hints, and chat limit messages show **% used / % left only** — no dollar amounts or token counts for end users. Real $ budgets still enforced server-side.

@@ -4412,7 +4412,15 @@
         let liveActiveAiEl = null;
         let liveHeardDisplay = '';
         let liveListenClosing = false;
-        const LIVE_SILENCE_MS = 1100;
+        let liveTtsOffset = 0;
+        let liveTtsChain = Promise.resolve();
+        let liveTtsGeneration = 0;
+        const LIVE_SILENCE_MS = 650;
+        const TTS_PLAYBACK_SPEED = 1.25;
+        const LIVE_FLUSH_MS = 140;
+        const LIVE_ENTER_MS = 80;
+        const LIVE_RELISTEN_MS = 80;
+        const LIVE_PAGE_ENTER_MS = 100;
         let recognition = null;
         let speaking = false;
         let ttsAudio = null;
@@ -5032,7 +5040,7 @@
             initTtsSettings();
             syncSendLiveButton();
             if (location.pathname === '/live' || location.pathname === '/live.html') {
-                setTimeout(function() { try { enterLiveMode(); } catch (e) {} }, 400);
+                setTimeout(function() { try { enterLiveMode(); } catch (e) {} }, LIVE_PAGE_ENTER_MS);
             }
             updateModelUI();
             bindTitleEdit();
@@ -6055,7 +6063,7 @@
             return s;
         }
 
-        const LIVE_VOICE_INSTRUCTIONS = 'LIVE VOICE MODE: Keep every reply short and speakable — 1 to 3 sentences, under ~60 words. No markdown, bullets, code, or headings. Conversational only.';
+        const LIVE_VOICE_INSTRUCTIONS = 'LIVE VOICE MODE: Keep every reply short and speakable — 1 to 3 sentences, under ~60 words. Lead with the answer in the first sentence. No markdown, bullets, code, or headings. Conversational only.';
         function liveAwareInstructions() {
             let s = combinedInstructions();
             if (liveModeActive) s = (s ? s + '\n\n' : '') + LIVE_VOICE_INSTRUCTIONS;
@@ -6330,7 +6338,10 @@
 
             function paintStream() {
                 streamTargetText = streamedText;
-                if (liveModeActive) updateLiveAiTranscript(streamedText);
+                if (liveModeActive) {
+                    updateLiveAiTranscript(streamedText);
+                    feedLiveTtsFromStream(streamedText, false);
+                }
                 if (streamPaintRaf) return;
                 streamPaintRaf = requestAnimationFrame(function() {
                     streamPaintRaf = null;
@@ -7223,7 +7234,7 @@
             if (!status) return;
             const map = {
                 ready: liveMuted ? 'Muted — tap Unmute when ready' : 'Ready',
-                listening: 'Listening… pause to send',
+                listening: 'Listening… short pause sends',
                 thinking: 'Generating short reply…',
                 speaking: 'Speaking…'
             };
@@ -7302,12 +7313,13 @@
                 if (liveModeActive && !liveMuted && !liveMicOpen && !liveSending && !isSending) {
                     startLiveMic();
                 }
-            }, 280);
+            }, LIVE_ENTER_MS);
         }
 
         function exitLiveMode() {
             if (!liveModeActive) return;
             clearLiveSilenceTimer();
+            resetLiveTtsPipeline();
             voiceCancelled = true;
             voiceSessionActive = false;
             liveMicOpen = false;
@@ -7410,7 +7422,7 @@
                         setLivePhase('ready');
                         updateLiveMicButton();
                     }
-                }, 450);
+                }, 200);
                 return;
             }
             try { recognition.start(); } catch (e) {
@@ -7434,7 +7446,7 @@
             // Brief wait so Web Speech can flush final results after silence
             setTimeout(function() {
                 finishLiveListen(true);
-            }, 380);
+            }, LIVE_FLUSH_MS);
         }
 
         async function finishLiveListen(doSend) {
@@ -7457,6 +7469,7 @@
             if (liveSending || isSending) return;
             liveSending = true;
             liveActiveAiEl = null;
+            resetLiveTtsPipeline();
             appendLiveBubble('user', spoken);
             setLivePhase('thinking');
             updateLiveMicButton();
@@ -7476,7 +7489,7 @@
                             if (liveModeActive && !liveMuted && !liveMicOpen && !liveSending && !isSending && !speaking) {
                                 startLiveMic();
                             }
-                        }, 320);
+                        }, LIVE_RELISTEN_MS);
                     }
                 }
             }
@@ -7488,6 +7501,92 @@
                 liveSpeakWait = null;
                 try { r(); } catch (e) {}
             }
+        }
+
+        function resetLiveTtsPipeline() {
+            liveTtsGeneration += 1;
+            liveTtsOffset = 0;
+            liveTtsChain = Promise.resolve();
+            window.__liveTtsOnDone = null;
+            if (liveSpeakWait && typeof liveSpeakWait.resolve === 'function') {
+                try { liveSpeakWait.resolve(); } catch (e) {}
+            }
+            liveSpeakWait = null;
+        }
+
+        function liveSpeakBtn() {
+            let speakBtn = null;
+            const msgs = document.querySelectorAll('#messagesContainer .message.ai:not(.thinking)');
+            if (msgs.length) {
+                const last = msgs[msgs.length - 1];
+                const actions = last.querySelectorAll('.message-actions .msg-btn');
+                for (let i = 0; i < actions.length; i++) {
+                    const t = (actions[i].getAttribute('title') || '') + ' ' + (actions[i].getAttribute('aria-label') || '');
+                    if (/Listen/i.test(t)) { speakBtn = actions[i]; break; }
+                }
+            }
+            return speakBtn;
+        }
+
+        /** Pull complete sentences from streamed text and queue TTS ASAP (first sentence starts early). */
+        function feedLiveTtsFromStream(rawText, isFinal) {
+            if (!liveModeActive) return;
+            const full = textForSpeech(rawText);
+            if (!full) {
+                if (isFinal) liveTtsOffset = 0;
+                return;
+            }
+            let pos = liveTtsOffset;
+            if (pos > full.length) pos = 0;
+            const chunks = [];
+            while (pos < full.length) {
+                const slice = full.slice(pos);
+                const m = slice.match(/^([^.!?…]+[.!?…]["'\)\]\|]*)(\s+|$)/);
+                if (m) {
+                    const piece = m[1].trim();
+                    if (piece) chunks.push(piece);
+                    pos += m[0].length;
+                    continue;
+                }
+                break;
+            }
+            if (isFinal) {
+                const rem = full.slice(pos).trim();
+                if (rem) chunks.push(rem);
+                pos = full.length;
+            }
+            if (!chunks.length) return;
+            liveTtsOffset = pos;
+            const gen = liveTtsGeneration;
+            if (!speaking && liveModeActive) {
+                setLivePhase('speaking');
+                updateLiveMicButton();
+            }
+            chunks.forEach(function(chunk) {
+                liveTtsChain = liveTtsChain.then(function() {
+                    if (gen !== liveTtsGeneration || !liveModeActive) return;
+                    return playTtsAndWait(chunk, liveSpeakBtn());
+                });
+            });
+        }
+
+        function playTtsAndWait(text, btn) {
+            return new Promise(function(resolve) {
+                let settled = false;
+                const done = function() {
+                    if (settled) return;
+                    settled = true;
+                    window.__liveTtsOnDone = null;
+                    resolve();
+                };
+                window.__liveTtsOnDone = done;
+                playOpenAiTts(text, btn).then(function() {
+                    // Safety: if audio never ends, unblock after 2 minutes
+                    setTimeout(function() {
+                        if (!settled) done();
+                    }, 120000);
+                }).catch(function() { done(); });
+            });
         }
 
         async function speakLiveReply(rawText) {
@@ -7502,34 +7601,11 @@
             updateLiveAiTranscript(String(rawText || '').trim() || text);
             setLivePhase('speaking');
             updateLiveMicButton();
-            let speakBtn = null;
-            const msgs = document.querySelectorAll('#messagesContainer .message.ai:not(.thinking)');
-            if (msgs.length) {
-                const last = msgs[msgs.length - 1];
-                const actions = last.querySelectorAll('.message-actions .msg-btn');
-                for (let i = 0; i < actions.length; i++) {
-                    const t = (actions[i].getAttribute('title') || '') + ' ' + (actions[i].getAttribute('aria-label') || '');
-                    if (/Listen/i.test(t)) { speakBtn = actions[i]; break; }
-                }
-            }
-            stopSpeaking();
-            await new Promise(function(resolve) {
-                liveSpeakWait = { resolve: resolve };
-                let settled = false;
-                const done = function() {
-                    if (settled) return;
-                    settled = true;
-                    window.__liveTtsOnDone = null;
-                    notifyLiveSpeakDone();
-                };
-                window.__liveTtsOnDone = done;
-                // Play as soon as audio is ready
-                playOpenAiTts(text, speakBtn).then(function() {
-                    setTimeout(function() {
-                        if (liveSpeakWait) done();
-                    }, 120000);
-                }).catch(function() { done(); });
-            });
+            // Flush any remaining text not yet spoken during stream (or full reply if no chunks yet)
+            feedLiveTtsFromStream(rawText, true);
+            const gen = liveTtsGeneration;
+            await liveTtsChain.catch(function() {});
+            if (gen !== liveTtsGeneration) return;
             if (liveModeActive) {
                 setLivePhase('ready');
                 updateLiveMicButton();
@@ -7860,7 +7936,7 @@
                 return;
             }
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.15;
+            utterance.rate = TTS_PLAYBACK_SPEED;
             utterance.pitch = 1;
             utterance.volume = 1;
             const voices = speechSynthesis.getVoices();
@@ -7899,7 +7975,7 @@
                     method: 'POST',
                     headers: Object.assign({ 'Content-Type': 'application/json' }, clientHeaders()),
                     signal: ttsFetchAbort ? ttsFetchAbort.signal : undefined,
-                    body: JSON.stringify({ text: text, voice: ttsVoice || 'nova', speed: 1.15 })
+                    body: JSON.stringify({ text: text, voice: ttsVoice || 'nova', speed: TTS_PLAYBACK_SPEED })
                 });
                 const ctype = (res.headers.get('content-type') || '').toLowerCase();
                 if (!res.ok || ctype.indexOf('audio') === -1) {

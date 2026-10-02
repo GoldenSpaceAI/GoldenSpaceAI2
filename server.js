@@ -358,7 +358,7 @@ function resolveMode(mode) {
 const LIVE_FAST_MAX_TOKENS = 256;
 const LIVE_VOICE_SYSTEM =
     'You are in Live voice mode. Reply in short spoken sentences only — typically 1–3 sentences, under ~60 words. ' +
-    'No markdown, lists, code blocks, or headings. Be clear, natural, and conversational.';
+    'Lead with the answer in the first sentence. No markdown, lists, code blocks, or headings. Be clear, natural, and conversational.';
 
 function isLiveFastRequest(body) {
     return !!(body && (body.live === true || body.live === 'true' || body.live === 1));
@@ -1239,7 +1239,7 @@ const TTS_VOICES = [
 ];
 const TTS_VOICE_IDS = new Set(TTS_VOICES.map((v) => v.id));
 const TTS_MAX_CHARS = 4000;
-const TTS_DEFAULT_SPEED = 1.15; // slightly faster than 1.0 for snappier speak-aloud / Live
+const TTS_DEFAULT_SPEED = 1.25; // snappier speak-aloud / Live
 const ttsRateBuckets = new Map();
 const TTS_RATE_LIMIT = 20;
 const TTS_RATE_WINDOW_MS = 60 * 1000;

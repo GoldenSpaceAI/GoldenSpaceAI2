@@ -1,3 +1,12 @@
+# GoldenSpaceAI — Live e2e latency cut (2026-10-02)
+
+- **Faster Live loop:** Silence before auto-send ~650ms (was ~1.1s); shorter waits for STT flush, enter, and re-listen so the stream starts sooner.
+- **Chunk TTS:** Live starts speaking on the first complete sentence while the reply still streams; remaining text flushes on done (queued sentence playback).
+- **TTS speed:** OpenAI + browser speak-aloud at **1.25** (was 1.15). Short Live replies kept (system prompt + 256 token cap); prompt leads with the answer.
+- Service worker cache `goldenspaceai2-v64`. App `2.3.38`.
+
+---
+
 # GoldenSpaceAI — Live UI pro + short Fast + faster TTS (2026-10-02)
 
 - **Live UI:** Full-screen `/live` restyled for a more professional voice experience (brand mark, phase pills, glass transcript, refined orb/rings, cleaner controls).

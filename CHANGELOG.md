@@ -1,3 +1,12 @@
+# GoldenSpaceAI — Live voice dedicated page (2026-10-02)
+
+- **Dedicated Live page:** Empty-composer **Live** opens a full-screen Grok-like `/live` page (not a chat overlay). Exit / Escape / browser back returns to chat with turns saved.
+- **Auto-send on silence:** Mic listens continuously; when speech pauses (~1.1s), the turn sends automatically as **Fast only** (`mode: normal`, normal Fast billing). Mute pauses the loop; tap Listening to force-send.
+- **Instant text + audio:** User and AI transcripts appear on the Live page immediately (AI streams live); TTS plays as soon as audio is ready, then listening resumes.
+- Service worker cache `goldenspaceai2-v62`. App `2.3.36`.
+
+---
+
 # GoldenSpaceAI — Live voice chat (2026-10-02)
 
 - **Live chat:** When the composer is empty, Send becomes a Grok-like **Live** button. With text (or an attachment), Send stays as now.

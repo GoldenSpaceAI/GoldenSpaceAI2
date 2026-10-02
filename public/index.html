@@ -809,7 +809,7 @@
             animation: pulse 1s infinite;
         }
 
-        /* Live voice chat (Grok-like) */
+        /* Live voice chat — dedicated full page (Grok-like) */
         .send-btn.live-chat-btn {
             width: auto;
             min-width: 40px;
@@ -857,104 +857,190 @@
             .send-btn.live-chat-btn .live-chat-label { display: none; }
             .send-btn.live-chat-btn { padding: 0; width: 40px; }
         }
-        .live-overlay {
+        .live-page {
             display: none;
             position: fixed;
             inset: 0;
-            z-index: 5100;
-            background: rgba(0,0,0,0.58);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            align-items: flex-end;
-            justify-content: center;
-            padding: 16px 16px calc(16px + var(--safe-bottom, 0px));
+            z-index: 5200;
+            flex-direction: column;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% 18%, rgba(212,175,55,0.14), transparent 55%),
+                radial-gradient(ellipse 60% 40% at 50% 100%, rgba(212,175,55,0.06), transparent 50%),
+                #0a0a0a;
+            color: var(--text);
+            padding: calc(12px + var(--safe-top, 0px)) 16px calc(16px + var(--safe-bottom, 0px));
+            box-sizing: border-box;
         }
-        .live-overlay.show { display: flex; }
-        .live-card {
-            width: min(420px, 100%);
-            background: var(--black-light, #141414);
-            border: 1px solid rgba(212,175,55,0.4);
-            border-radius: 28px;
-            padding: 22px 20px 18px;
-            text-align: center;
-            box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+        .live-page.show { display: flex; }
+        body.live-chat-on {
+            overflow: hidden;
+        }
+        body.live-chat-on .mic-dictate { opacity: 0.35; pointer-events: none; }
+        .live-page-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-shrink: 0;
+            margin-bottom: 8px;
+        }
+        .live-page-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .live-page-brand .live-title {
+            font-size: 16px;
+            font-weight: 750;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+        .live-fast-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #0a0a0a;
+            background: var(--gold);
+            border-radius: 999px;
+            padding: 3px 8px;
+        }
+        .live-page-exit {
+            font-family: inherit;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 650;
+            cursor: pointer;
+        }
+        .live-page-exit:hover { background: rgba(255,255,255,0.1); }
+        .live-page-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+            gap: 10px;
+            padding: 8px 0 4px;
         }
         .live-orb {
-            width: 72px;
-            height: 72px;
-            margin: 4px auto 14px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at 35% 30%, rgba(212,175,55,0.45), rgba(212,175,55,0.08) 55%, transparent 70%),
-                        linear-gradient(145deg, #2a2418, #12100c);
-            border: 1px solid rgba(212,175,55,0.5);
-            box-shadow: 0 0 0 6px rgba(212,175,55,0.06);
+            background:
+                radial-gradient(circle at 35% 30%, rgba(255,230,150,0.55), rgba(212,175,55,0.18) 45%, transparent 70%),
+                linear-gradient(160deg, #2e2818, #12100c 70%);
+            border: 1px solid rgba(212,175,55,0.55);
+            box-shadow: 0 0 0 10px rgba(212,175,55,0.05), 0 20px 50px rgba(0,0,0,0.45);
+            transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
         }
         .live-orb.listening {
-            animation: liveOrbPulse 1.2s ease-in-out infinite;
-            border-color: rgba(220,60,60,0.75);
-            box-shadow: 0 0 0 8px rgba(220,60,60,0.1);
+            animation: liveOrbPulse 1.15s ease-in-out infinite;
+            border-color: rgba(220,70,70,0.8);
+            box-shadow: 0 0 0 12px rgba(220,60,60,0.1), 0 20px 50px rgba(0,0,0,0.45);
         }
-        .live-orb.thinking { opacity: 0.85; }
+        .live-orb.thinking { opacity: 0.88; }
         .live-orb.speaking {
-            animation: liveOrbPulse 1.6s ease-in-out infinite;
-            border-color: rgba(212,175,55,0.85);
+            animation: liveOrbPulse 1.5s ease-in-out infinite;
+            border-color: rgba(212,175,55,0.95);
+            box-shadow: 0 0 0 14px rgba(212,175,55,0.12), 0 20px 50px rgba(0,0,0,0.45);
         }
         @keyframes liveOrbPulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.06); }
+            50% { transform: scale(1.05); }
         }
         .live-orb .live-bars {
             display: inline-flex;
             align-items: flex-end;
-            gap: 3px;
-            height: 22px;
+            gap: 4px;
+            height: 28px;
             color: var(--gold);
         }
         .live-orb.listening .live-bars { color: #fff; }
         .live-orb .live-bars i {
             display: block;
-            width: 3.5px;
+            width: 4px;
             border-radius: 3px;
             background: currentColor;
-            height: 8px;
+            height: 10px;
             animation: wavePulse 1.1s ease-in-out infinite;
         }
-        .live-orb .live-bars i:nth-child(2) { animation-delay: 0.1s; height: 14px; }
-        .live-orb .live-bars i:nth-child(3) { animation-delay: 0.2s; height: 20px; }
-        .live-orb .live-bars i:nth-child(4) { animation-delay: 0.3s; height: 12px; }
-        .live-orb .live-bars i:nth-child(5) { animation-delay: 0.4s; height: 16px; }
-        .live-title {
-            font-size: 17px;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
+        .live-orb .live-bars i:nth-child(2) { animation-delay: 0.1s; height: 16px; }
+        .live-orb .live-bars i:nth-child(3) { animation-delay: 0.2s; height: 24px; }
+        .live-orb .live-bars i:nth-child(4) { animation-delay: 0.3s; height: 14px; }
+        .live-orb .live-bars i:nth-child(5) { animation-delay: 0.4s; height: 18px; }
         .live-status {
-            font-size: 13px;
+            font-size: 15px;
             color: var(--gold);
-            font-weight: 600;
-            margin-bottom: 8px;
-            min-height: 18px;
+            font-weight: 650;
+            min-height: 22px;
+            text-align: center;
         }
         .live-hint {
-            margin: 0 0 12px;
-            font-size: 12px;
+            margin: 0;
+            font-size: 12.5px;
             color: var(--text-muted);
             line-height: 1.4;
+            text-align: center;
+            max-width: 360px;
         }
-        .live-interim {
-            min-height: 40px;
-            max-height: 88px;
+        .live-transcript {
+            width: min(640px, 100%);
+            flex: 0 1 34vh;
+            max-height: 34vh;
             overflow: auto;
-            color: var(--text-muted);
-            font-size: 13.5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 4px 2px 8px;
+            margin: 0 auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .live-bubble {
+            max-width: 92%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 14px;
             line-height: 1.45;
-            margin-bottom: 16px;
             word-break: break-word;
-            padding: 0 6px;
+            white-space: pre-wrap;
+        }
+        .live-bubble.user {
+            align-self: flex-end;
+            background: rgba(212,175,55,0.16);
+            border: 1px solid rgba(212,175,55,0.35);
+            color: var(--text);
+            border-bottom-right-radius: 6px;
+        }
+        .live-bubble.ai {
+            align-self: flex-start;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text);
+            border-bottom-left-radius: 6px;
+        }
+        .live-bubble.interim {
+            align-self: flex-end;
+            opacity: 0.7;
+            font-style: italic;
+            border-style: dashed;
+        }
+        .live-page-bottom {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding-top: 8px;
         }
         .live-actions {
             display: flex;
@@ -965,8 +1051,8 @@
         .live-btn {
             font-family: inherit;
             border-radius: 999px;
-            padding: 11px 18px;
-            font-size: 13px;
+            padding: 12px 20px;
+            font-size: 13.5px;
             font-weight: 650;
             cursor: pointer;
             border: 1px solid var(--gold-dark);
@@ -975,6 +1061,8 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            min-width: 120px;
+            justify-content: center;
         }
         .live-btn:disabled { opacity: 0.45; cursor: not-allowed; }
         .live-btn.secondary {
@@ -987,10 +1075,24 @@
             border-color: rgba(220, 60, 60, 0.95);
             color: #fff;
         }
-        body.live-chat-on .mic-dictate { opacity: 0.35; pointer-events: none; }
-        html.light .live-card {
-            background: #fffcf5;
-            box-shadow: 0 20px 50px rgba(80,60,20,0.18);
+        .live-btn.muted {
+            background: rgba(255,255,255,0.08);
+            border-color: #555;
+            color: var(--text-muted);
+        }
+        html.light .live-page {
+            background:
+                radial-gradient(ellipse 80% 50% at 50% 18%, rgba(212,175,55,0.18), transparent 55%),
+                #fffcf5;
+        }
+        html.light .live-page-exit {
+            border-color: rgba(0,0,0,0.12);
+            background: rgba(0,0,0,0.04);
+            color: #222;
+        }
+        html.light .live-bubble.ai {
+            background: rgba(0,0,0,0.04);
+            border-color: rgba(0,0,0,0.08);
         }
         html.light .send-btn.live-chat-btn {
             background: linear-gradient(145deg, #fff8e8, #f3e6c4);
@@ -4100,16 +4202,24 @@
             </div>
         </div>
 
-        <div class="live-overlay" id="liveOverlay" role="dialog" aria-modal="true" aria-label="Live voice chat">
-            <div class="live-card">
+        <div class="live-page" id="livePage" role="dialog" aria-modal="true" aria-label="Live voice chat" hidden>
+            <div class="live-page-top">
+                <div class="live-page-brand">
+                    <span class="live-title">Live</span>
+                    <span class="live-fast-badge" title="Fast mode — billed as normal Fast">Fast</span>
+                </div>
+                <button type="button" class="live-page-exit" id="liveExitBtn" onclick="exitLiveMode()">Exit</button>
+            </div>
+            <div class="live-page-center">
                 <div class="live-orb" id="liveOrb" aria-hidden="true"><span class="live-bars"><i></i><i></i><i></i><i></i><i></i></span></div>
-                <div class="live-title">Live chat</div>
                 <div class="live-status" id="liveStatus">Ready</div>
-                <p class="live-hint" id="liveHint">Opens your mic when you want. Stop listening to send — Fast mode only (billed as normal Fast). Reply is spoken aloud.</p>
-                <div class="live-interim" id="liveInterim" aria-live="polite"></div>
+                <p class="live-hint" id="liveHint">Speak naturally — when you pause, your message sends as Fast. Reply text appears instantly; audio plays as soon as it is ready.</p>
+            </div>
+            <div class="live-transcript" id="liveTranscript" aria-live="polite"></div>
+            <div class="live-page-bottom">
                 <div class="live-actions">
-                    <button type="button" class="live-btn secondary" id="liveExitBtn" onclick="exitLiveMode()">Exit</button>
-                    <button type="button" class="live-btn" id="liveMicBtn" onclick="toggleLiveMic()">Open mic</button>
+                    <button type="button" class="live-btn secondary" id="liveMuteBtn" onclick="toggleLiveMute()">Mute</button>
+                    <button type="button" class="live-btn" id="liveMicBtn" onclick="toggleLiveMic()">Start listening</button>
                 </div>
             </div>
         </div>
@@ -4128,6 +4238,13 @@
         let liveMicOpen = false;
         let liveSending = false;
         let liveSpeakWait = null; // { resolve }
+        let liveSilenceTimer = null;
+        let liveMuted = false;
+        let livePushedUrl = false;
+        let liveActiveAiEl = null;
+        let liveHeardDisplay = '';
+        let liveListenClosing = false;
+        const LIVE_SILENCE_MS = 1100;
         let recognition = null;
         let speaking = false;
         let ttsAudio = null;
@@ -4746,6 +4863,9 @@
             initSpeechRecognition();
             initTtsSettings();
             syncSendLiveButton();
+            if (location.pathname === '/live' || location.pathname === '/live.html') {
+                setTimeout(function() { try { enterLiveMode(); } catch (e) {} }, 400);
+            }
             updateModelUI();
             bindTitleEdit();
             bindMessagesScroll();
@@ -6017,6 +6137,7 @@
 
             function paintStream() {
                 streamTargetText = streamedText;
+                if (liveModeActive) updateLiveAiTranscript(streamedText);
                 if (streamPaintRaf) return;
                 streamPaintRaf = requestAnimationFrame(function() {
                     streamPaintRaf = null;
@@ -6817,11 +6938,102 @@
         }
 
 
-        function showLiveOverlay(show) {
-            const el = document.getElementById('liveOverlay');
+        function showLivePage(show) {
+            const el = document.getElementById('livePage');
             if (!el) return;
-            if (show) el.classList.add('show');
-            else el.classList.remove('show');
+            if (show) {
+                el.classList.add('show');
+                el.removeAttribute('hidden');
+            } else {
+                el.classList.remove('show');
+                el.setAttribute('hidden', '');
+            }
+        }
+
+        function clearLiveSilenceTimer() {
+            if (liveSilenceTimer) {
+                clearTimeout(liveSilenceTimer);
+                liveSilenceTimer = null;
+            }
+        }
+
+        function armLiveSilenceTimer() {
+            clearLiveSilenceTimer();
+            if (!liveModeActive || !liveMicOpen || liveSending || liveMuted) return;
+            liveSilenceTimer = setTimeout(function() {
+                liveSilenceTimer = null;
+                if (!liveModeActive || !liveMicOpen || liveSending || liveMuted) return;
+                const spoken = String(voiceFinalTranscript || '').trim();
+                if (!spoken) return; // keep listening until we hear something
+                stopLiveMic(); // auto-send when mic stops hearing speech
+            }, LIVE_SILENCE_MS);
+        }
+
+        function clearLiveTranscript() {
+            const box = document.getElementById('liveTranscript');
+            if (box) box.innerHTML = '';
+            liveActiveAiEl = null;
+            const interim = document.getElementById('liveInterimBubble');
+            if (interim) interim.remove();
+        }
+
+        function scrollLiveTranscript() {
+            const box = document.getElementById('liveTranscript');
+            if (!box) return;
+            requestAnimationFrame(function() { box.scrollTop = box.scrollHeight; });
+        }
+
+        function appendLiveBubble(role, text, opts) {
+            opts = opts || {};
+            const box = document.getElementById('liveTranscript');
+            if (!box) return null;
+            // Remove interim bubble when committing real content
+            if (!opts.interim) {
+                const old = document.getElementById('liveInterimBubble');
+                if (old) old.remove();
+            }
+            let el;
+            if (opts.interim) {
+                el = document.getElementById('liveInterimBubble');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'liveInterimBubble';
+                    el.className = 'live-bubble user interim';
+                    box.appendChild(el);
+                }
+            } else if (opts.updateEl) {
+                el = opts.updateEl;
+            } else {
+                el = document.createElement('div');
+                el.className = 'live-bubble ' + (role === 'user' ? 'user' : 'ai');
+                box.appendChild(el);
+            }
+            el.textContent = text || '';
+            if (role === 'ai' && !opts.interim) liveActiveAiEl = el;
+            scrollLiveTranscript();
+            return el;
+        }
+
+        function updateLiveInterimDisplay(display) {
+            const t = String(display || '').trim();
+            if (!t) {
+                const old = document.getElementById('liveInterimBubble');
+                if (old) old.remove();
+                return;
+            }
+            appendLiveBubble('user', t, { interim: true });
+        }
+
+        function updateLiveAiTranscript(text) {
+            if (!liveModeActive) return;
+            const t = String(text || '');
+            if (!t) return;
+            if (liveActiveAiEl && liveActiveAiEl.isConnected) {
+                liveActiveAiEl.textContent = t;
+                scrollLiveTranscript();
+            } else {
+                appendLiveBubble('ai', t);
+            }
         }
 
         function setLivePhase(phase) {
@@ -6835,8 +7047,8 @@
             }
             if (!status) return;
             const map = {
-                ready: 'Ready — open mic to speak',
-                listening: 'Listening…',
+                ready: liveMuted ? 'Muted — tap Unmute to speak' : 'Ready — listening starts automatically',
+                listening: 'Listening… pause to send',
                 thinking: 'Thinking (Fast)…',
                 speaking: 'Speaking reply…'
             };
@@ -6845,15 +7057,31 @@
 
         function updateLiveMicButton() {
             const btn = document.getElementById('liveMicBtn');
+            const muteBtn = document.getElementById('liveMuteBtn');
+            if (muteBtn) {
+                muteBtn.textContent = liveMuted ? 'Unmute' : 'Mute';
+                muteBtn.classList.toggle('muted', !!liveMuted);
+                muteBtn.disabled = !!(liveSending || isSending || speaking);
+            }
             if (!btn) return;
             const busy = liveSending || isSending || !!speaking;
-            btn.disabled = busy && !liveMicOpen;
+            btn.disabled = false;
+            btn.classList.remove('mic-open', 'muted');
             if (liveMicOpen) {
                 btn.classList.add('mic-open');
-                btn.textContent = 'Stop & send';
+                btn.textContent = 'Listening…';
+                btn.title = 'Tap to send now';
+            } else if (busy) {
+                btn.disabled = true;
+                btn.textContent = 'Wait…';
+                btn.title = 'Wait for reply';
+            } else if (liveMuted) {
+                btn.classList.add('muted');
+                btn.textContent = 'Start listening';
+                btn.title = 'Start listening';
             } else {
-                btn.classList.remove('mic-open');
-                btn.textContent = busy ? 'Wait…' : 'Open mic';
+                btn.textContent = 'Start listening';
+                btn.title = 'Start listening';
             }
         }
 
@@ -6863,6 +7091,7 @@
                 return;
             }
             if (isSending) return;
+            if (liveModeActive) return;
             // Cancel dictate if somehow active
             if (isRecording || voiceSessionActive) {
                 try { cancelVoiceInput(); } catch (e) {}
@@ -6870,26 +7099,48 @@
             liveModeActive = true;
             liveMicOpen = false;
             liveSending = false;
+            liveMuted = false;
+            liveActiveAiEl = null;
+            liveHeardDisplay = '';
+            liveListenClosing = false;
             voiceFinalTranscript = '';
             voicePrefill = '';
             document.body.classList.add('live-chat-on');
-            const interim = document.getElementById('liveInterim');
-            if (interim) interim.textContent = '';
-            showLiveOverlay(true);
+            clearLiveTranscript();
+            showLivePage(true);
             setLivePhase('ready');
             updateLiveMicButton();
             syncSendLiveButton();
+            if (!livePushedUrl && location.pathname !== '/live') {
+                try {
+                    history.pushState({ live: true }, '', '/live');
+                    livePushedUrl = true;
+                } catch (e) { livePushedUrl = false; }
+            } else if (location.pathname === '/live') {
+                livePushedUrl = true;
+            }
             if (!micPermissionGranted) {
                 try { requestMicPermission(); } catch (e) {}
             }
+            // Auto-start listening (Grok-like)
+            setTimeout(function() {
+                if (liveModeActive && !liveMuted && !liveMicOpen && !liveSending && !isSending) {
+                    startLiveMic();
+                }
+            }, 280);
         }
 
         function exitLiveMode() {
             if (!liveModeActive) return;
+            clearLiveSilenceTimer();
             voiceCancelled = true;
             voiceSessionActive = false;
             liveMicOpen = false;
             liveSending = false;
+            liveMuted = false;
+            liveListenClosing = false;
+            liveHeardDisplay = '';
+            liveActiveAiEl = null;
             if (recognition) {
                 try { recognition.abort(); } catch (e) { try { recognition.stop(); } catch (e2) {} }
             }
@@ -6900,32 +7151,75 @@
             }
             liveModeActive = false;
             document.body.classList.remove('live-chat-on');
-            showLiveOverlay(false);
+            showLivePage(false);
             setLivePhase('ready');
             syncSendLiveButton();
+            // Return to chat URL (skip if popstate already navigated away)
+            if (livePushedUrl && location.pathname === '/live') {
+                livePushedUrl = false;
+                try { history.replaceState({}, '', '/'); } catch (e) {}
+            } else {
+                livePushedUrl = false;
+            }
+            // Refresh chat view so Live turns are visible
+            try { loadChat(); } catch (e) {}
+        }
+
+        function toggleLiveMute() {
+            if (!liveModeActive) return;
+            if (liveMuted) {
+                liveMuted = false;
+                updateLiveMicButton();
+                setLivePhase('ready');
+                if (!liveMicOpen && !liveSending && !isSending && !speaking) startLiveMic();
+                return;
+            }
+            liveMuted = true;
+            clearLiveSilenceTimer();
+            if (liveMicOpen) {
+                // Pause listening without sending
+                voiceCancelled = true;
+                voiceSessionActive = false;
+                liveMicOpen = false;
+                isRecording = false;
+                liveListenClosing = false;
+                if (recognition) {
+                    try { recognition.abort(); } catch (e) { try { recognition.stop(); } catch (e2) {} }
+                }
+                voiceFinalTranscript = '';
+                liveHeardDisplay = '';
+                updateLiveInterimDisplay('');
+            }
+            setLivePhase('ready');
+            updateLiveMicButton();
         }
 
         function toggleLiveMic() {
             if (!liveModeActive) return;
             if (liveMicOpen) {
                 stopLiveMic();
-            } else {
-                if (liveSending || isSending || speaking) return;
-                startLiveMic();
+                return;
             }
+            if (liveSending || isSending || speaking) return;
+            liveMuted = false;
+            startLiveMic();
         }
 
         function startLiveMic() {
             if (!recognition || !liveModeActive) return;
-            if (liveSending || isSending) return;
+            if (liveSending || isSending || speaking) return;
+            clearLiveSilenceTimer();
             stopSpeaking();
+            liveMuted = false;
             voiceCancelled = false;
             voiceFinalTranscript = '';
             voicePrefill = '';
+            liveHeardDisplay = '';
+            liveListenClosing = false;
             voiceSessionActive = true;
             liveMicOpen = true;
-            const interim = document.getElementById('liveInterim');
-            if (interim) interim.textContent = 'Listening…';
+            liveActiveAiEl = null;
+            updateLiveInterimDisplay('');
             setLivePhase('listening');
             updateLiveMicButton();
             if (!micPermissionGranted) {
@@ -6953,31 +7247,42 @@
         }
 
         function stopLiveMic() {
-            if (!liveModeActive) return;
+            if (!liveModeActive || liveListenClosing || liveSending) return;
+            clearLiveSilenceTimer();
             voiceCancelled = false;
             voiceSessionActive = false;
             liveMicOpen = false;
             isRecording = false;
+            liveListenClosing = true;
             updateLiveMicButton();
             if (recognition) try { recognition.stop(); } catch (e) {}
-            finishLiveListen(true);
+            // Brief wait so Web Speech can flush final results after silence
+            setTimeout(function() {
+                finishLiveListen(true);
+            }, 380);
         }
 
         async function finishLiveListen(doSend) {
-            if (liveSending) return;
+            if (liveSending) { liveListenClosing = false; return; }
+            clearLiveSilenceTimer();
             liveMicOpen = false;
             isRecording = false;
             voiceSessionActive = false;
+            liveListenClosing = false;
             updateLiveMicButton();
-            const spoken = String(voiceFinalTranscript || '').trim();
-            const interim = document.getElementById('liveInterim');
-            if (interim) interim.textContent = spoken || '';
+            let spoken = String(voiceFinalTranscript || '').trim();
+            if (!spoken) spoken = String(liveHeardDisplay || '').trim();
+            liveHeardDisplay = '';
+            updateLiveInterimDisplay('');
             if (!doSend || !spoken || !liveModeActive) {
                 setLivePhase('ready');
+                updateLiveMicButton();
                 return;
             }
             if (liveSending || isSending) return;
             liveSending = true;
+            liveActiveAiEl = null;
+            appendLiveBubble('user', spoken);
             setLivePhase('thinking');
             updateLiveMicButton();
             try {
@@ -6990,6 +7295,14 @@
                 if (liveModeActive && !speaking) {
                     setLivePhase('ready');
                     updateLiveMicButton();
+                    // Auto-listen for next turn unless muted
+                    if (!liveMuted && !liveMicOpen && !isSending) {
+                        setTimeout(function() {
+                            if (liveModeActive && !liveMuted && !liveMicOpen && !liveSending && !isSending && !speaking) {
+                                startLiveMic();
+                            }
+                        }, 320);
+                    }
                 }
             }
         }
@@ -7010,9 +7323,10 @@
                 updateLiveMicButton();
                 return;
             }
+            // Ensure AI text is visible immediately (before audio)
+            updateLiveAiTranscript(String(rawText || '').trim() || text);
             setLivePhase('speaking');
             updateLiveMicButton();
-            // Find last Listen button for visual state, optional
             let speakBtn = null;
             const msgs = document.querySelectorAll('#messagesContainer .message.ai:not(.thinking)');
             if (msgs.length) {
@@ -7034,6 +7348,7 @@
                     notifyLiveSpeakDone();
                 };
                 window.__liveTtsOnDone = done;
+                // Play as soon as audio is ready
                 playOpenAiTts(text, speakBtn).then(function() {
                     setTimeout(function() {
                         if (liveSpeakWait) done();
@@ -7043,8 +7358,6 @@
             if (liveModeActive) {
                 setLivePhase('ready');
                 updateLiveMicButton();
-                const interim = document.getElementById('liveInterim');
-                if (interim) interim.textContent = 'Tap Open mic for the next turn';
             }
         }
 
@@ -7076,15 +7389,18 @@
             
             recognition.onresult = function(event) {
                 let interim = '';
+                let gotFinal = false;
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const piece = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) voiceFinalTranscript += piece;
+                    if (event.results[i].isFinal) { voiceFinalTranscript += piece; gotFinal = true; }
                     else interim += piece;
                 }
                 const display = (voiceFinalTranscript + ' ' + interim).trim();
                 if (liveModeActive) {
-                    const liveEl = document.getElementById('liveInterim');
-                    if (liveEl) liveEl.textContent = display || 'Listening…';
+                    liveHeardDisplay = display;
+                    updateLiveInterimDisplay(display);
+                    // Auto-send when the mic stops hearing speech (silence after activity)
+                    if (display) armLiveSilenceTimer();
                     return;
                 }
                 const interimEl = document.getElementById('listeningInterim');
@@ -7126,11 +7442,10 @@
             recognition.onend = function() {
                 if (liveModeActive) {
                     isRecording = false;
-                    // Keep listening while user left mic open
-                    if (voiceSessionActive && !voiceCancelled && liveMicOpen) {
+                    // Keep listening while mic is open; silence timer handles auto-send
+                    if (voiceSessionActive && !voiceCancelled && liveMicOpen && !liveSending) {
                         try { recognition.start(); return; } catch (e) {}
                     }
-                    // stopLiveMic / finishLiveListen owns send; do not double-send here
                     return;
                 }
                 if (voiceSessionActive && !voiceCancelled) {
@@ -7573,6 +7888,12 @@
         }
 
         window.addEventListener('popstate', function(e) { 
+            if (liveModeActive && !(e.state && e.state.live)) {
+                // Browser back from /live → exit without another history.back()
+                livePushedUrl = false;
+                exitLiveMode();
+                return;
+            }
             if (e.state && e.state.panel) closeChatsPanel(); 
         });
         document.addEventListener('keydown', function(e) {

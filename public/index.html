@@ -864,13 +864,13 @@
             z-index: 5200;
             flex-direction: column;
             background:
-                radial-gradient(ellipse 90% 55% at 50% -10%, rgba(212,175,55,0.16), transparent 52%),
-                radial-gradient(ellipse 50% 35% at 85% 80%, rgba(212,175,55,0.05), transparent 55%),
-                linear-gradient(180deg, #0c0c0e 0%, #080809 100%);
+                radial-gradient(ellipse 80% 40% at 50% 0%, rgba(212,175,55,0.07), transparent 55%),
+                linear-gradient(180deg, #0b0b0c 0%, #09090a 100%);
             color: var(--text);
-            padding: calc(14px + var(--safe-top, 0px)) 18px calc(18px + var(--safe-bottom, 0px));
+            padding: calc(16px + var(--safe-top, 0px)) 20px calc(20px + var(--safe-bottom, 0px));
             box-sizing: border-box;
             font-feature-settings: "ss01" 1, "kern" 1;
+            letter-spacing: -0.005em;
         }
         .live-page.show { display: flex; }
         body.live-chat-on { overflow: hidden; }
@@ -892,49 +892,50 @@
             min-width: 0;
         }
         .live-brand-mark {
-            width: 34px;
-            height: 34px;
-            border-radius: 10px;
-            background:
-                radial-gradient(circle at 30% 28%, rgba(255,236,180,0.95), rgba(212,175,55,0.75) 48%, #8a6d12 100%);
-            box-shadow: 0 0 0 1px rgba(212,175,55,0.35), 0 8px 20px rgba(0,0,0,0.35);
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: linear-gradient(145deg, #e4c65a, var(--gold) 55%, #a8841e);
+            box-shadow: 0 0 0 1px rgba(212,175,55,0.25);
             flex-shrink: 0;
             position: relative;
         }
         .live-brand-mark::after {
             content: '';
             position: absolute;
-            inset: 9px;
+            inset: 8px;
             border-radius: 50%;
-            border: 1.5px solid rgba(10,10,10,0.35);
-            box-shadow: inset 0 0 0 3px rgba(255,255,255,0.12);
+            border: 1.5px solid rgba(10,10,10,0.28);
+            box-shadow: none;
         }
         .live-brand-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .live-page-brand .live-title {
-            font-size: 15px;
-            font-weight: 700;
-            letter-spacing: -0.01em;
+            font-size: 14.5px;
+            font-weight: 650;
+            letter-spacing: -0.015em;
             white-space: nowrap;
-            line-height: 1.15;
+            line-height: 1.2;
         }
         .live-page-brand .live-subtitle {
-            font-size: 11px;
+            font-size: 11.5px;
             color: var(--text-muted);
-            letter-spacing: 0.02em;
+            letter-spacing: 0.01em;
+            font-weight: 450;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .live-fast-badge {
-            font-size: 9.5px;
-            font-weight: 750;
-            letter-spacing: 0.08em;
+            font-size: 10px;
+            font-weight: 650;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
-            color: #0a0a0a;
-            background: linear-gradient(135deg, #f0d678, var(--gold) 55%, #c9a227);
-            border-radius: 999px;
-            padding: 4px 9px;
-            box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset;
+            color: var(--gold);
+            background: rgba(212,175,55,0.1);
+            border: 1px solid rgba(212,175,55,0.28);
+            border-radius: 6px;
+            padding: 3px 8px;
+            box-shadow: none;
             flex-shrink: 0;
         }
         .live-page-exit {
@@ -966,76 +967,76 @@
         }
         .live-orb-wrap {
             position: relative;
-            width: 148px;
-            height: 148px;
+            width: 128px;
+            height: 128px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .live-orb-ring {
             position: absolute;
-            inset: 0;
+            inset: -6px;
             border-radius: 50%;
-            border: 1px solid rgba(212,175,55,0.18);
+            border: 1px solid rgba(255,255,255,0.06);
             pointer-events: none;
+            opacity: 0.7;
         }
         .live-orb-ring.r2 {
-            inset: -10px;
-            border-color: rgba(212,175,55,0.08);
+            inset: -14px;
+            border-color: rgba(255,255,255,0.04);
+            opacity: 0.5;
         }
         .live-orb.listening ~ .live-orb-ring,
         .live-orb-wrap:has(.live-orb.listening) .live-orb-ring {
-            animation: liveRingPulse 1.4s ease-in-out infinite;
-            border-color: rgba(220,70,70,0.35);
+            animation: none;
+            border-color: rgba(200,70,70,0.22);
+            opacity: 0.9;
         }
         .live-orb-wrap:has(.live-orb.speaking) .live-orb-ring {
-            animation: liveRingPulse 1.6s ease-in-out infinite;
-            border-color: rgba(212,175,55,0.4);
+            animation: none;
+            border-color: rgba(212,175,55,0.22);
+            opacity: 0.9;
         }
         @keyframes liveRingPulse {
-            0%, 100% { transform: scale(1); opacity: 0.85; }
-            50% { transform: scale(1.04); opacity: 1; }
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
         }
         .live-orb {
-            width: 112px;
-            height: 112px;
+            width: 96px;
+            height: 96px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            background:
-                radial-gradient(circle at 32% 28%, rgba(255,236,180,0.5), rgba(212,175,55,0.16) 42%, transparent 68%),
-                linear-gradient(165deg, #2a2416 0%, #12100c 72%);
-            border: 1px solid rgba(212,175,55,0.5);
+            background: linear-gradient(165deg, #1c1a14 0%, #12110e 100%);
+            border: 1px solid rgba(212,175,55,0.32);
             box-shadow:
-                0 0 0 1px rgba(0,0,0,0.35) inset,
-                0 18px 40px rgba(0,0,0,0.5),
-                0 0 48px rgba(212,175,55,0.08);
-            transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s, opacity 0.25s;
+                0 0 0 1px rgba(0,0,0,0.25) inset,
+                0 10px 28px rgba(0,0,0,0.4);
+            transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
             position: relative;
             z-index: 1;
         }
         .live-orb.listening {
-            animation: liveOrbPulse 1.15s ease-in-out infinite;
-            border-color: rgba(220,70,70,0.85);
+            animation: none;
+            border-color: rgba(200,70,70,0.65);
             box-shadow:
-                0 0 0 1px rgba(0,0,0,0.35) inset,
-                0 0 0 12px rgba(220,60,60,0.08),
-                0 18px 40px rgba(0,0,0,0.5);
+                0 0 0 1px rgba(0,0,0,0.25) inset,
+                0 0 0 8px rgba(200,60,60,0.06),
+                0 10px 28px rgba(0,0,0,0.4);
         }
-        .live-orb.thinking { opacity: 0.9; }
+        .live-orb.thinking { opacity: 0.85; }
         .live-orb.speaking {
-            animation: liveOrbPulse 1.5s ease-in-out infinite;
-            border-color: rgba(212,175,55,0.95);
+            animation: none;
+            border-color: rgba(212,175,55,0.7);
             box-shadow:
-                0 0 0 1px rgba(0,0,0,0.35) inset,
-                0 0 0 14px rgba(212,175,55,0.1),
-                0 18px 40px rgba(0,0,0,0.5),
-                0 0 56px rgba(212,175,55,0.14);
+                0 0 0 1px rgba(0,0,0,0.25) inset,
+                0 0 0 8px rgba(212,175,55,0.06),
+                0 10px 28px rgba(0,0,0,0.4);
         }
         @keyframes liveOrbPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.04); }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.92; }
         }
         .live-orb .live-bars {
             display: inline-flex;
@@ -1058,67 +1059,70 @@
         .live-orb .live-bars i:nth-child(4) { animation-delay: 0.3s; height: 14px; }
         .live-orb .live-bars i:nth-child(5) { animation-delay: 0.4s; height: 18px; }
         .live-status {
-            font-size: 14px;
-            color: var(--gold);
-            font-weight: 650;
+            font-size: 13.5px;
+            color: var(--text);
+            font-weight: 550;
             min-height: 22px;
             text-align: center;
             letter-spacing: -0.01em;
+            opacity: 0.92;
         }
         .live-phase-pills {
             display: flex;
-            gap: 6px;
+            gap: 8px;
             flex-wrap: wrap;
             justify-content: center;
         }
         .live-phase-pill {
             font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.06em;
+            font-weight: 600;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
             color: var(--text-muted);
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            background: transparent;
             border-radius: 999px;
-            padding: 4px 10px;
-            transition: color 0.2s, border-color 0.2s, background 0.2s;
+            padding: 4px 11px;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
         }
         .live-phase-pill.on {
-            color: #0a0a0a;
-            background: var(--gold);
-            border-color: transparent;
+            color: var(--gold);
+            background: rgba(212,175,55,0.1);
+            border-color: rgba(212,175,55,0.3);
         }
         .live-phase-pill.on.listen {
-            color: #fff;
-            background: rgba(200,55,55,0.92);
+            color: #e8a0a0;
+            background: rgba(200,55,55,0.1);
+            border-color: rgba(200,55,55,0.28);
         }
         .live-hint {
             margin: 0;
-            font-size: 12px;
+            font-size: 12.5px;
             color: var(--text-muted);
-            line-height: 1.45;
+            line-height: 1.5;
             text-align: center;
-            max-width: 340px;
-            opacity: 0.92;
+            max-width: 360px;
+            opacity: 0.78;
+            font-weight: 450;
         }
         .live-transcript {
-            width: min(560px, 100%);
-            flex: 0 1 32vh;
-            max-height: 32vh;
+            width: min(540px, 100%);
+            flex: 0 1 34vh;
+            max-height: 34vh;
             overflow: auto;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            padding: 14px 14px 12px;
+            gap: 8px;
+            padding: 12px 12px 10px;
             margin: 0 auto;
             scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.07);
-            border-radius: 18px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.22);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
         }
         .live-transcript:empty::before {
             content: 'Conversation appears here';
@@ -1130,28 +1134,29 @@
             opacity: 0.7;
         }
         .live-bubble {
-            max-width: 90%;
-            padding: 10px 14px;
-            border-radius: 14px;
+            max-width: 88%;
+            padding: 9px 13px;
+            border-radius: 12px;
             font-size: 13.5px;
-            line-height: 1.45;
+            line-height: 1.5;
             word-break: break-word;
             white-space: pre-wrap;
-            box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
+            box-shadow: none;
+            letter-spacing: -0.005em;
         }
         .live-bubble.user {
             align-self: flex-end;
-            background: linear-gradient(160deg, rgba(212,175,55,0.22), rgba(212,175,55,0.1));
-            border: 1px solid rgba(212,175,55,0.32);
+            background: rgba(212,175,55,0.12);
+            border: 1px solid rgba(212,175,55,0.22);
             color: var(--text);
-            border-bottom-right-radius: 5px;
+            border-bottom-right-radius: 4px;
         }
         .live-bubble.ai {
             align-self: flex-start;
-            background: rgba(255,255,255,0.045);
-            border: 1px solid rgba(255,255,255,0.09);
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.07);
             color: var(--text);
-            border-bottom-left-radius: 5px;
+            border-bottom-left-radius: 4px;
         }
         .live-bubble.interim {
             align-self: flex-end;
@@ -1177,52 +1182,52 @@
         .live-btn {
             font-family: inherit;
             border-radius: 999px;
-            padding: 13px 22px;
+            padding: 12px 20px;
             font-size: 13px;
-            font-weight: 650;
+            font-weight: 600;
             cursor: pointer;
-            border: 1px solid transparent;
-            background: linear-gradient(145deg, #f0d678, var(--gold) 50%, #b8922a);
+            border: 1px solid rgba(212,175,55,0.45);
+            background: var(--gold);
             color: var(--black);
             display: inline-flex;
             align-items: center;
             gap: 8px;
             min-width: 148px;
             justify-content: center;
-            box-shadow: 0 8px 22px rgba(212,175,55,0.22);
-            transition: transform 0.12s, filter 0.15s, box-shadow 0.15s;
+            box-shadow: none;
+            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
         }
-        .live-btn:hover:not(:disabled) { filter: brightness(1.05); }
-        .live-btn:active:not(:disabled) { transform: scale(0.98); }
-        .live-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+        .live-btn:hover:not(:disabled) { filter: none; background: #e0c04a; }
+        .live-btn:active:not(:disabled) { transform: none; opacity: 0.92; }
+        .live-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
         .live-btn.secondary {
-            background: rgba(255,255,255,0.05);
+            background: transparent;
             color: var(--text-muted);
             border-color: rgba(255,255,255,0.12);
             box-shadow: none;
             min-width: 108px;
         }
         .live-btn.secondary:hover:not(:disabled) {
-            background: rgba(255,255,255,0.09);
+            background: rgba(255,255,255,0.06);
             color: var(--text);
             filter: none;
         }
         .live-btn.mic-open {
-            background: linear-gradient(145deg, #e05555, #c43a3a);
-            border-color: transparent;
+            background: #c43a3a;
+            border-color: rgba(200,55,55,0.5);
             color: #fff;
-            box-shadow: 0 8px 22px rgba(200,55,55,0.28);
+            box-shadow: none;
         }
         .live-btn.muted {
-            background: rgba(255,255,255,0.06);
-            border-color: rgba(255,255,255,0.14);
+            background: transparent;
+            border-color: rgba(255,255,255,0.12);
             color: var(--text-muted);
             box-shadow: none;
         }
         html.light .live-page {
             background:
-                radial-gradient(ellipse 90% 55% at 50% -10%, rgba(212,175,55,0.2), transparent 52%),
-                linear-gradient(180deg, #fffdf8 0%, #f7f2e8 100%);
+                radial-gradient(ellipse 80% 40% at 50% 0%, rgba(212,175,55,0.08), transparent 55%),
+                linear-gradient(180deg, #fbfaf7 0%, #f4f1ea 100%);
         }
         html.light .live-page-top { border-bottom-color: rgba(0,0,0,0.06); }
         html.light .live-page-exit {
@@ -1232,10 +1237,16 @@
         }
         html.light .live-page-exit:hover { color: #222; background: rgba(0,0,0,0.06); }
         html.light .live-transcript {
-            background: rgba(255,255,255,0.72);
-            border-color: rgba(0,0,0,0.07);
-            box-shadow: 0 10px 28px rgba(0,0,0,0.06);
+            background: rgba(255,255,255,0.65);
+            border-color: rgba(0,0,0,0.06);
+            box-shadow: none;
         }
+        html.light .live-fast-badge {
+            color: #8a6d12;
+            background: rgba(212,175,55,0.12);
+            border-color: rgba(212,175,55,0.3);
+        }
+        html.light .live-status { color: #222; }
         html.light .live-bubble.ai {
             background: rgba(0,0,0,0.035);
             border-color: rgba(0,0,0,0.07);
@@ -4363,7 +4374,7 @@
                     <div class="live-brand-mark" aria-hidden="true"></div>
                     <div class="live-brand-copy">
                         <span class="live-title">Live Voice</span>
-                        <span class="live-subtitle">Short Fast replies · hands-free</span>
+                        <span class="live-subtitle">Hands-free · short Fast replies</span>
                     </div>
                     <span class="live-fast-badge" title="Fast mode — billed as normal Fast">Fast</span>
                 </div>
@@ -4381,7 +4392,7 @@
                     <span class="live-phase-pill" data-phase="thinking">Think</span>
                     <span class="live-phase-pill" data-phase="speaking">Speak</span>
                 </div>
-                <p class="live-hint" id="liveHint">Speak naturally. Pause to send — Fast replies stay short for voice. Text streams immediately; audio follows.</p>
+                <p class="live-hint" id="liveHint">Speak naturally. Pause to send. Replies stay short for voice — text and audio follow together.</p>
             </div>
             <div class="live-transcript" id="liveTranscript" aria-live="polite"></div>
             <div class="live-page-bottom">
@@ -4415,6 +4426,7 @@
         let liveTtsOffset = 0;
         let liveTtsChain = Promise.resolve();
         let liveTtsGeneration = 0;
+        let liveTtsPrefetches = []; // in-flight / ready TTS blobs for seamless sentence handoff
         const LIVE_SILENCE_MS = 650;
         const TTS_PLAYBACK_SPEED = 1.25;
         const LIVE_FLUSH_MS = 140;
@@ -7503,11 +7515,27 @@
             }
         }
 
+        function clearLiveTtsPrefetches() {
+            const list = liveTtsPrefetches.slice();
+            liveTtsPrefetches = [];
+            for (let i = 0; i < list.length; i++) {
+                const entry = list[i];
+                if (entry && entry.abort) {
+                    try { entry.abort.abort(); } catch (e) {}
+                }
+                if (entry && entry.url && entry.url !== ttsObjectUrl) {
+                    try { URL.revokeObjectURL(entry.url); } catch (e) {}
+                    entry.url = null;
+                }
+            }
+        }
+
         function resetLiveTtsPipeline() {
             liveTtsGeneration += 1;
             liveTtsOffset = 0;
             liveTtsChain = Promise.resolve();
             window.__liveTtsOnDone = null;
+            clearLiveTtsPrefetches();
             if (liveSpeakWait && typeof liveSpeakWait.resolve === 'function') {
                 try { liveSpeakWait.resolve(); } catch (e) {}
             }
@@ -7528,7 +7556,143 @@
             return speakBtn;
         }
 
-        /** Pull complete sentences from streamed text and queue TTS ASAP (first sentence starts early). */
+        /** Prefetch OpenAI TTS audio for a sentence (network overlaps with current playback). */
+        function prefetchLiveTtsChunk(text) {
+            const abort = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            const entry = { text: text, abort: abort, url: null, fallback: false, promise: null };
+            entry.promise = (async function() {
+                try {
+                    const res = await fetch('/api/tts', {
+                        method: 'POST',
+                        headers: Object.assign({ 'Content-Type': 'application/json' }, clientHeaders()),
+                        signal: abort ? abort.signal : undefined,
+                        body: JSON.stringify({ text: text, voice: ttsVoice || 'nova', speed: TTS_PLAYBACK_SPEED })
+                    });
+                    const ctype = (res.headers.get('content-type') || '').toLowerCase();
+                    if (!res.ok || ctype.indexOf('audio') === -1) {
+                        let fallback = true;
+                        try {
+                            const err = await res.json();
+                            fallback = !!(err && err.fallback);
+                        } catch (e) {}
+                        entry.fallback = true;
+                        if (!fallback) throw new Error('TTS unavailable');
+                        return entry;
+                    }
+                    const blob = await res.blob();
+                    entry.url = URL.createObjectURL(blob);
+                    return entry;
+                } catch (e) {
+                    if (e && e.name === 'AbortError') throw e;
+                    entry.fallback = true;
+                    return entry;
+                }
+            })();
+            // Swallow abort/errors here so cancelled prefetches do not warn; callers still attach handlers.
+            entry.promise.catch(function() {});
+            liveTtsPrefetches.push(entry);
+            return entry;
+        }
+
+        function releaseLiveTtsEntry(entry) {
+            if (!entry) return;
+            const ix = liveTtsPrefetches.indexOf(entry);
+            if (ix >= 0) liveTtsPrefetches.splice(ix, 1);
+            if (entry.abort) {
+                try { entry.abort.abort(); } catch (e) {}
+                entry.abort = null;
+            }
+            if (entry.url && entry.url !== ttsObjectUrl) {
+                try { URL.revokeObjectURL(entry.url); } catch (e) {}
+                entry.url = null;
+            }
+        }
+
+        /** Play a prefetched blob URL (or browser fallback). Resolves when audio ends. */
+        function playPrefetchedTtsAndWait(entry, btn) {
+            return new Promise(function(resolve) {
+                let settled = false;
+                const done = function() {
+                    if (settled) return;
+                    settled = true;
+                    window.__liveTtsOnDone = null;
+                    if (entry && entry.url && entry.url === ttsObjectUrl) {
+                        // stopSpeaking / onended will revoke; just detach
+                        entry.url = null;
+                    }
+                    releaseLiveTtsEntry(entry);
+                    resolve();
+                };
+                window.__liveTtsOnDone = done;
+                if (btn) {
+                    btn.classList.add('tts-loading');
+                    btn.title = 'Loading voice…';
+                }
+
+                entry.promise.then(function() {
+                    if (settled) return;
+                    if (btn) btn.classList.remove('tts-loading');
+                    if (!liveModeActive) { done(); return; }
+                    if (entry.fallback || !entry.url) {
+                        speakBrowserFallback(entry.text, btn);
+                        setTimeout(function() { if (!settled) done(); }, 120000);
+                        return;
+                    }
+                    playAudioUrlAndWait(entry.url, entry.text, btn).then(function() {
+                        setTimeout(function() { if (!settled) done(); }, 120000);
+                    }).catch(function() {
+                        speakBrowserFallback(entry.text, btn);
+                        setTimeout(function() { if (!settled) done(); }, 120000);
+                    });
+                }).catch(function(e) {
+                    if (e && e.name === 'AbortError') { done(); return; }
+                    speakBrowserFallback(entry.text, btn);
+                    setTimeout(function() { if (!settled) done(); }, 120000);
+                });
+            });
+        }
+
+        /** Play an already-fetched object URL; does not hit the network. */
+        function playAudioUrlAndWait(url, text, btn) {
+            return new Promise(function(resolve, reject) {
+                if (ttsAudio) {
+                    try { ttsAudio.pause(); } catch (e) {}
+                    ttsAudio = null;
+                }
+                // Keep prior object URL if it belongs to another prefetch; only swap current play URL
+                if (ttsObjectUrl && ttsObjectUrl !== url) {
+                    try { URL.revokeObjectURL(ttsObjectUrl); } catch (e) {}
+                }
+                ttsObjectUrl = url;
+                const audio = new Audio(url);
+                ttsAudio = audio;
+                speaking = true;
+                markSpeakingButton(btn);
+                if (btn) btn.classList.remove('tts-loading');
+                audio.onended = function() {
+                    speaking = false;
+                    clearTtsButtonState();
+                    if (ttsObjectUrl === url) {
+                        try { URL.revokeObjectURL(ttsObjectUrl); } catch (e) {}
+                        ttsObjectUrl = null;
+                    }
+                    ttsAudio = null;
+                    if (typeof window.__liveTtsOnDone === 'function') window.__liveTtsOnDone();
+                    resolve();
+                };
+                audio.onerror = function() {
+                    speaking = false;
+                    clearTtsButtonState();
+                    reject(new Error('audio error'));
+                };
+                const playP = audio.play();
+                if (playP && typeof playP.then === 'function') {
+                    playP.catch(function(err) { reject(err || new Error('play failed')); });
+                }
+            });
+        }
+
+        /** Pull complete sentences from streamed text; prefetch TTS immediately, play with no gap. */
         function feedLiveTtsFromStream(rawText, isFinal) {
             if (!liveModeActive) return;
             const full = textForSpeech(rawText);
@@ -7541,7 +7705,7 @@
             const chunks = [];
             while (pos < full.length) {
                 const slice = full.slice(pos);
-                const m = slice.match(/^([^.!?…]+[.!?…]["'\)\]\|]*)(\s+|$)/);
+                const m = slice.match(/^([^.!?…]+[.!?…]["'\)\]|]*)(\s+|$)/);
                 if (m) {
                     const piece = m[1].trim();
                     if (piece) chunks.push(piece);
@@ -7563,29 +7727,15 @@
                 updateLiveMicButton();
             }
             chunks.forEach(function(chunk) {
+                // Start network fetch immediately (overlaps current sentence playback)
+                const entry = prefetchLiveTtsChunk(chunk);
                 liveTtsChain = liveTtsChain.then(function() {
-                    if (gen !== liveTtsGeneration || !liveModeActive) return;
-                    return playTtsAndWait(chunk, liveSpeakBtn());
+                    if (gen !== liveTtsGeneration || !liveModeActive) {
+                        releaseLiveTtsEntry(entry);
+                        return;
+                    }
+                    return playPrefetchedTtsAndWait(entry, liveSpeakBtn());
                 });
-            });
-        }
-
-        function playTtsAndWait(text, btn) {
-            return new Promise(function(resolve) {
-                let settled = false;
-                const done = function() {
-                    if (settled) return;
-                    settled = true;
-                    window.__liveTtsOnDone = null;
-                    resolve();
-                };
-                window.__liveTtsOnDone = done;
-                playOpenAiTts(text, btn).then(function() {
-                    // Safety: if audio never ends, unblock after 2 minutes
-                    setTimeout(function() {
-                        if (!settled) done();
-                    }, 120000);
-                }).catch(function() { done(); });
             });
         }
 
@@ -8061,6 +8211,7 @@
         }
 
         function stopSpeaking() {
+            if (typeof clearLiveTtsPrefetches === 'function') clearLiveTtsPrefetches();
             if (ttsFetchAbort) {
                 try { ttsFetchAbort.abort(); } catch (e) {}
                 ttsFetchAbort = null;

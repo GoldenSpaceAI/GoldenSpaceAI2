@@ -332,8 +332,11 @@ async function openaiEmptyContentRetry(client, baseArgs, label) {
         Number(baseArgs.max_tokens) || 0,
         1536
     );
-    // Modest bump (not 2×) — enough for visible text after minimal reasoning, less latency
-    const bumped = Math.min(Math.max(baseTok + 1024, 2048), 4096);
+    // Modest bump (not 2×) — enough for visible text after minimal reasoning, less latency.
+    // Keep Live / short caps from exploding (baseTok <= 512 stays <= 512).
+    const bumped = baseTok <= 512
+        ? Math.min(baseTok + 128, 512)
+        : Math.min(Math.max(baseTok + 1024, 2048), 4096);
     const retryArgs = Object.assign({}, baseArgs, {
         max_completion_tokens: bumped,
         reasoning_effort: 'minimal'
@@ -350,6 +353,31 @@ function resolveMode(mode) {
     const key = mode === 'fast' ? 'normal' : (mode || 'normal');
     const safeMode = MODELS[key] ? key : 'normal';
     return { safeMode, config: MODELS[safeMode] };
+}
+
+const LIVE_FAST_MAX_TOKENS = 256;
+const LIVE_VOICE_SYSTEM =
+    'You are in Live voice mode. Reply in short spoken sentences only — typically 1–3 sentences, under ~60 words. ' +
+    'No markdown, lists, code blocks, or headings. Be clear, natural, and conversational.';
+
+function isLiveFastRequest(body) {
+    return !!(body && (body.live === true || body.live === 'true' || body.live === 1));
+}
+
+/** Cap tokens + inject short-reply system for Live voice Fast turns. */
+function applyLiveFastConfig(body, config) {
+    if (!isLiveFastRequest(body) || !config) return config;
+    const capped = Math.min(Number(config.maxTokens) || LIVE_FAST_MAX_TOKENS, LIVE_FAST_MAX_TOKENS);
+    return { ...config, maxTokens: capped, temperature: Math.min(Number(config.temperature) || 0.7, 0.65) };
+}
+
+function injectLiveVoiceSystem(messages, body) {
+    if (!isLiveFastRequest(body)) return messages;
+    const list = Array.isArray(messages) ? messages.slice() : [];
+    const already = list.some((m) => m && m.role === 'system' && /Live voice mode/i.test(String(m.content || '')));
+    if (already) return list;
+    list.unshift({ role: 'system', content: LIVE_VOICE_SYSTEM });
+    return list;
 }
 
 function isOpenAIConnectionFailure(error) {
@@ -1211,6 +1239,7 @@ const TTS_VOICES = [
 ];
 const TTS_VOICE_IDS = new Set(TTS_VOICES.map((v) => v.id));
 const TTS_MAX_CHARS = 4000;
+const TTS_DEFAULT_SPEED = 1.15; // slightly faster than 1.0 for snappier speak-aloud / Live
 const ttsRateBuckets = new Map();
 const TTS_RATE_LIMIT = 20;
 const TTS_RATE_WINDOW_MS = 60 * 1000;
@@ -1262,10 +1291,15 @@ app.post('/api/tts', async (req, res) => {
         const voiceRaw = String(req.body?.voice || 'nova').trim().toLowerCase();
         const voice = TTS_VOICE_IDS.has(voiceRaw) ? voiceRaw : 'nova';
 
+        let speed = Number(req.body?.speed);
+        if (!Number.isFinite(speed)) speed = TTS_DEFAULT_SPEED;
+        speed = Math.max(0.25, Math.min(4, speed));
+
         const speech = await openaiClient.audio.speech.create({
             model: 'tts-1-hd',
             voice,
             input: text,
+            speed,
             response_format: 'mp3'
         });
         const buf = Buffer.from(await speech.arrayBuffer());
@@ -1313,7 +1347,8 @@ app.post('/api/chat', async (req, res) => {
 
         activeProvider = target.provider;
         const { safeMode } = target;
-        const conversationMessages = buildConversationMessages(req.body);
+        target.config = applyLiveFastConfig(req.body, target.config);
+        const conversationMessages = injectLiveVoiceSystem(buildConversationMessages(req.body), req.body);
         const useWebSearch = webSearch === true;
 
         console.log(`Mode: ${safeMode} | Provider: ${target.provider} | Model: ${target.config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length} | planKind=${usageKind}`);
@@ -1475,6 +1510,7 @@ app.post('/api/chat/stream', async (req, res) => {
         }
 
         let { safeMode, config, client, provider, allowGrokFallback } = target;
+        config = applyLiveFastConfig(req.body, config);
         const useWebSearch = webSearch === true;
         const streamT0 = Date.now();
         const streamMark = (label) => {
@@ -1503,7 +1539,7 @@ app.post('/api/chat/stream', async (req, res) => {
 
         const pack = await resolveContextPack(req);
         streamMark('pack_ready');
-        const conversationMessages = pack.conversationMessages;
+        const conversationMessages = injectLiveVoiceSystem(pack.conversationMessages, req.body);
 
         console.log(`Stream: ${safeMode} | Provider: ${provider} | Model: ${config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | pack=${conversationMessages.length} (raw≈${pack.meta.recentRawCount}+sys${pack.meta.systemBlocks}) mem=${pack.meta.hasAccountMemory} sum=${pack.meta.hasRollingSummary} | planKind=${usageKind}`);
 

@@ -1,3 +1,12 @@
+# GoldenSpaceAI — Live UI pro + short Fast + faster TTS (2026-10-02)
+
+- **Live UI:** Full-screen `/live` restyled for a more professional voice experience (brand mark, phase pills, glass transcript, refined orb/rings, cleaner controls).
+- **Live Fast short only:** Live turns send `live: true` with a short-reply system prompt (client + server) and `maxTokens` capped at 256 so spoken answers stay brief.
+- **TTS:** Speak-aloud slightly faster — OpenAI `speed: 1.15` (default) and browser speech rate `1.15`.
+- Service worker cache `goldenspaceai2-v63`. App `2.3.37`.
+
+---
+
 # GoldenSpaceAI — Live voice dedicated page (2026-10-02)
 
 - **Dedicated Live page:** Empty-composer **Live** opens a full-screen Grok-like `/live` page (not a chat overlay). Exit / Escape / browser back returns to chat with turns saved.

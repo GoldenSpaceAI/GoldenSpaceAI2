@@ -1268,7 +1268,7 @@ app.get('/api/tts/status', (req, res) => {
     res.json({
         provider: openaiTtsReady() ? 'openai' : 'browser',
         openai: openaiTtsReady(),
-        model: openaiTtsReady() ? 'tts-1-hd' : null,
+        model: openaiTtsReady() ? 'tts-1' : null,
         voices: TTS_VOICES,
         defaultVoice: 'nova',
         maxChars: TTS_MAX_CHARS
@@ -1296,7 +1296,7 @@ app.post('/api/tts', async (req, res) => {
         speed = Math.max(0.25, Math.min(4, speed));
 
         const speech = await openaiClient.audio.speech.create({
-            model: 'tts-1-hd',
+            model: 'tts-1',
             voice,
             input: text,
             speed,
@@ -3004,7 +3004,7 @@ async function startServer() {
         console.log(`📜 Context pack: recent=${RECENT_WINDOW} raw + rolling summary + account memory (was full ${40} window)`);
         console.log(`📐 Math Cleaner: ✅`);
         console.log(`📡 Streaming: ✅ /api/chat/stream`);
-        console.log(`🔊 TTS: ${openaiTtsReady() ? 'OpenAI tts-1-hd ✅' : 'browser fallback (no OPENAI_API_KEY)'}`);
+        console.log(`🔊 TTS: ${openaiTtsReady() ? 'OpenAI tts-1 ✅' : 'browser fallback (no OPENAI_API_KEY)'}`);
         console.log(`💾 Persistence: ✅ ${CHATS_FILE}`);
         console.log(`💳 Plans store: ✅ ${pi.pg ? 'postgres' : 'json'} (${pi.source || plansPersist.source}) + ${plansStore.filePath} (daily Fast reset: UTC)`);
         console.log(`🔐 Admin passkey: ${ADMIN_PASSKEY ? '✅ set' : '❌ missing ADMIN_PASSKEY'}`);

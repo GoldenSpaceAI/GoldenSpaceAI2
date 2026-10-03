@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Admin Users — GoldenSpaceAI</title>
 <meta name="theme-color" content="#0a0a0a">
-<link rel="icon" href="/logo.png">
+<link rel="icon" href="/logo.png?v=20261003">
 <style>
   :root {
     --gold:#d4af37; --gold-light:#f4d03f; --gold-dark:#b8962e;
@@ -42,7 +42,7 @@
     display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
   }
   .brand { display:flex; align-items:center; gap:10px; font-weight:800; color:var(--gold); }
-  .brand img { width:28px; height:28px; border-radius:8px; object-fit:cover; }
+  .brand img { height:38px; width:auto; max-width:96px; border-radius:6px; object-fit:contain; background:transparent; }
   .topnav-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
   main { max-width:1480px; margin:0 auto; padding:28px 20px 80px; }
@@ -374,7 +374,7 @@
 </head>
 <body>
 <header class="topnav">
-  <a class="brand" href="/"><img src="/logo.png" alt="">GoldenSpaceAI Admin</a>
+  <a class="brand" href="/"><img src="/logo.png?v=20261003" alt="">GoldenSpaceAI Admin</a>
   <div class="topnav-actions">
     <a class="btn ghost" href="/admin-page" style="padding:8px 12px;">Upgrade requests</a>
     <button type="button" class="theme-toggle btn ghost" data-theme-toggle aria-label="Toggle color theme">Light</button>

@@ -25,11 +25,12 @@
         }
 
         .app-icon {
-            width: 100px;
-            height: 100px;
-            border-radius: 20px;
+            width: min(220px, 70%);
+            height: auto;
+            border-radius: 0;
             margin-bottom: 20px;
-            box-shadow: 0 0 40px rgba(212,175,55,0.4);
+            object-fit: contain;
+            background: transparent;
         }
 
         h1 {
@@ -120,7 +121,7 @@
 </head>
 <body>
     <div class="container">
-        <img src="/logo.png" alt="GoldenSpaceAI" class="app-icon" onerror="this.style.display='none'">
+        <img src="/logo.png?v=20261003" alt="GoldenSpaceAI" class="app-icon" onerror="this.style.display='none'">
         <h1>GoldenSpaceAI</h1>
         <p class="version">Version 1.0 · Android App</p>
 

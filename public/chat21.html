@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>GoldenSpaceAI — Chat study</title>
+<style>
+  :root {
+    --bg: #0c0b09;
+    --bg-warm: #14110c;
+    --rail: #110f0c;
+    --elev: #1c1813;
+    --elev-2: #241f18;
+    --ink: #f7f1e6;
+    --ink-soft: #e7dcc8;
+    --muted: #a89880;
+    --faint: #6f6456;
+    --gold: #d4b06a;
+    --gold-bright: #f0e2c4;
+    --gold-deep: #8d6830;
+    --line: rgba(212, 176, 106, 0.16);
+    --line-strong: rgba(212, 176, 106, 0.42);
+    --user: #2c261b;
+    --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    --serif: "Iowan Old Style", Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --sans: "Avenir Next", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    --rail-w: 292px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--sans);
+    background:
+      radial-gradient(900px 420px at 70% -10%, rgba(212, 176, 106, 0.16), transparent 60%),
+      radial-gradient(700px 380px at 0% 100%, rgba(141, 104, 48, 0.12), transparent 55%),
+      var(--bg);
+    letter-spacing: 0.01em;
+  }
+  button, textarea { font-family: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, textarea:focus-visible, .search input:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .app {
+    height: 100%;
+    display: grid;
+    grid-template-columns: var(--rail-w) 1fr;
+    min-height: 100dvh;
+  }
+  .rail {
+    background: linear-gradient(180deg, rgba(212, 176, 106, 0.05), transparent 120px), var(--rail);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 18px 14px 14px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 6px 16px;
+  }
+  .mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(160deg, #f3e6c8, #c6a15a 46%, #6e4e1e);
+    color: #1a140c;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 8px 18px rgba(0,0,0,0.35);
+    flex: none;
+  }
+  .brand-name {
+    font-family: var(--serif);
+    font-size: 17px;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+  }
+  .brand-kicker {
+    display: block;
+    margin-top: 2px;
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .new-chat {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid var(--line-strong);
+    background: linear-gradient(180deg, rgba(212,176,106,0.16), rgba(212,176,106,0.05));
+    color: var(--gold-bright);
+    border-radius: 12px;
+    padding: 11px 12px;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .new-chat:hover { background: rgba(212,176,106,0.2); }
+  .search {
+    margin: 12px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+    border-radius: 10px;
+    padding: 0 10px;
+    color: var(--faint);
+  }
+  .search input {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 9px 0;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .search input::placeholder { color: var(--faint); }
+  .list-label {
+    margin: 10px 6px 6px;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .convos {
+    overflow: auto;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 2px;
+  }
+  .convo {
+    text-align: left;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 12px;
+    padding: 10px 10px 9px;
+  }
+  .convo:hover { background: rgba(255,255,255,0.03); }
+  .convo.active {
+    background: rgba(212, 176, 106, 0.1);
+    border-color: var(--line);
+  }
+  .convo-title {
+    display: block;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .convo.active .convo-title { color: var(--gold-bright); }
+  .convo-meta {
+    display: block;
+    margin-top: 3px;
+    font-size: 11.5px;
+    color: var(--faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rail-foot {
+    margin-top: 10px;
+    padding: 10px 8px 2px;
+    border-top: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+  }
+  .stage {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid transparent;
+  }
+  .icon-btn, .send, .tool {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    color: var(--ink-soft);
+    flex: none;
+  }
+  .icon-btn:hover, .tool:hover { border-color: var(--line-strong); color: var(--gold-bright); }
+  .icon-btn[aria-pressed="true"], .tool[aria-pressed="true"] {
+    background: rgba(212,176,106,0.16);
+    border-color: var(--gold);
+    color: var(--gold-bright);
+  }
+  .menu-btn { display: none; }
+  .titles { min-width: 0; flex: 1; }
+  .titles h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 20px;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .titles p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .modes {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: rgba(0,0,0,0.25);
+  }
+  .mode {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 11px;
+    border-radius: 9px;
+    letter-spacing: 0.02em;
+  }
+  .mode[aria-checked="true"] {
+    background: linear-gradient(180deg, #f3e6c8, #d4b06a);
+    color: #1c150c;
+  }
+  .mode:hover:not([aria-checked="true"]) { color: var(--ink); }
+  .thread-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px 0 12px;
+  }
+  .thread {
+    width: min(760px, calc(100% - 36px));
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .empty {
+    margin: auto;
+    padding: 48px 8px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .empty[hidden], .msg[hidden], .banner[hidden], .chip[hidden], .settings[hidden] { display: none !important; }
+  .empty-mark {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 18px;
+    background: linear-gradient(160deg, #f3e6c8, #c6a15a 48%, #6e4e1e);
+    color: #1a140c;
+    box-shadow: 0 16px 40px rgba(212,176,106,0.18);
+  }
+  .empty h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(36px, 5vw, 52px);
+    letter-spacing: -0.02em;
+    background: linear-gradient(120deg, #fff8ea, #d4b06a 55%, #f7f1e6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .empty .lede {
+    max-width: 420px;
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .prompts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 22px;
+  }
+  .prompt {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .prompt:hover { border-color: var(--line-strong); color: var(--gold-bright); }
+  .msg {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    max-width: 100%;
+  }
+  .msg.user { flex-direction: row-reverse; }
+  .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    flex: none;
+    background: var(--elev);
+    border: 1px solid var(--line);
+    color: var(--gold);
+    font-weight: 700;
+  }
+  .msg.user .avatar {
+    background: linear-gradient(160deg, #f3e6c8, #c6a15a);
+    color: #1c150c;
+    border-color: transparent;
+  }
+  .bubble {
+    max-width: min(560px, 86%);
+    padding: 12px 14px 10px;
+    border-radius: 16px;
+    background: var(--elev);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset;
+  }
+  .msg.user .bubble {
+    background: linear-gradient(180deg, #3a3123, var(--user));
+    border-color: rgba(212,176,106,0.28);
+    border-bottom-right-radius: 6px;
+  }
+  .msg.assistant .bubble { border-bottom-left-radius: 6px; }
+  .bubble p { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
+  .bubble .time {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--faint);
+  }
+  body.no-times .time { display: none; }
+  body.compact .bubble { padding: 8px 11px; }
+  body.compact .thread { gap: 8px; }
+  .attach-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: rgba(212,176,106,0.12);
+    color: var(--gold-bright);
+    font-size: 12px;
+  }
+  .banner {
+    width: min(760px, calc(100% - 36px));
+    margin: 0 auto 4px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--line-strong);
+    background: rgba(212,176,106,0.08);
+    color: var(--gold-bright);
+    font-size: 13px;
+  }
+  .composer-dock {
+    padding: 6px 18px calc(16px + var(--safe-b));
+  }
+  .composer {
+    width: min(760px, 100%);
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    background: rgba(18, 15, 12, 0.92);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 10px 10px 8px;
+  }
+  .composer:focus-within { border-color: var(--line-strong); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px; }
+  .chips:empty { display: none; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 4px 8px 4px 10px;
+    background: rgba(212,176,106,0.12);
+    border: 1px solid var(--line);
+    color: var(--gold-bright);
+    font-size: 12px;
+  }
+  .chip button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    padding: 0;
+  }
+  .composer textarea {
+    width: 100%;
+    resize: none;
+    border: 0;
+    background: transparent;
+    padding: 8px 6px 4px;
+    min-height: 48px;
+    max-height: 160px;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .composer textarea::placeholder { color: var(--faint); }
+  .composer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hint {
+    flex: 1;
+    font-size: 11.5px;
+    color: var(--faint);
+    padding-left: 4px;
+  }
+  .send {
+    width: auto;
+    padding: 0 14px;
+    gap: 6px;
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(180deg, #f3e6c8, #d4b06a);
+    color: #1c150c;
+    border-color: transparent;
+    font-weight: 700;
+    font-size: 13px;
+    height: 36px;
+  }
+  .send:disabled { opacity: 0.45; cursor: default; }
+  .send:not(:disabled):hover { filter: brightness(1.05); }
+  .scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 20;
+  }
+  .settings {
+    position: absolute;
+    top: 64px;
+    right: 18px;
+    width: min(320px, calc(100% - 28px));
+    background: var(--elev-2);
+    border: 1px solid var(--line-strong);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+    z-index: 5;
+  }
+  .settings header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .settings h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+  }
+  .settings p.note {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+  .switch input { accent-color: #d4b06a; width: 16px; height: 16px; }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    .rail {
+      position: fixed;
+      z-index: 30;
+      inset: 0 auto 0 0;
+      width: min(86vw, 320px);
+      transform: translateX(-105%);
+      transition: transform 0.2s ease;
+      box-shadow: var(--shadow);
+    }
+    body.rail-open .rail { transform: none; }
+    body.rail-open .scrim { display: block; }
+    .menu-btn { display: grid; }
+    .top { padding: 12px 12px 8px; align-items: flex-start; flex-wrap: wrap; }
+    .modes { order: 3; width: 100%; overflow: auto; }
+    .mode { flex: 1; }
+    .titles h1 { font-size: 18px; }
+    .thread { width: calc(100% - 24px); }
+    .banner { width: calc(100% - 24px); }
+    .composer-dock { padding: 4px 10px calc(10px + var(--safe-b)); }
+    .hint { display: none; }
+    .settings { top: 108px; right: 10px; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail" id="rail" aria-label="Conversations">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2.5 14.8 9.2 21.5 12 14.8 14.8 12 21.5 9.2 14.8 2.5 12 9.2 9.2 12 2.5Z" fill="currentColor"/></svg>
+        </div>
+        <div>
+          <div class="brand-name">GoldenSpaceAI</div>
+          <span class="brand-kicker">Chat study</span>
+        </div>
+      </div>
+      <button class="new-chat" id="newChat" type="button">
+        <span>New conversation</span>
+        <span aria-hidden="true">+</span>
+      </button>
+      <label class="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="filter" type="search" placeholder="Search conversations" autocomplete="off">
+      </label>
+      <div class="list-label">Recent</div>
+      <div class="convos" id="convos" role="list"></div>
+      <div class="rail-foot">Local preview · nothing is sent</div>
+    </aside>
+    <div class="scrim" id="scrim" hidden></div>
+    <main class="stage">
+      <header class="top">
+        <button class="icon-btn menu-btn" id="openRail" type="button" aria-label="Open conversations">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        </button>
+        <div class="titles">
+          <h1 id="chatTitle">New conversation</h1>
+          <p id="modeCaption">Fast · quick replies</p>
+        </div>
+        <div class="modes" role="radiogroup" aria-label="Mode">
+          <button class="mode" type="button" role="radio" data-mode="fast" aria-checked="true">Fast</button>
+          <button class="mode" type="button" role="radio" data-mode="thinking" aria-checked="false">Thinking</button>
+          <button class="mode" type="button" role="radio" data-mode="expert" aria-checked="false">Expert</button>
+          <button class="mode" type="button" role="radio" data-mode="live" aria-checked="false">Live</button>
+        </div>
+        <button class="icon-btn" id="settingsBtn" type="button" aria-expanded="false" aria-controls="settings" aria-label="Open settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M4.9 6.3l1.6 1.6M17.5 16.1l1.6 1.6M3.5 12h2.2M18.3 12h2.2M4.9 17.7l1.6-1.6M17.5 7.9l1.6-1.6"/></svg>
+        </button>
+      </header>
+      <div class="banner" id="liveBanner" hidden>Live is preview only. Voice is not connected on this page.</div>
+      <div class="thread-wrap" id="threadWrap">
+        <div class="thread" id="thread" aria-live="polite">
+          <div class="empty" id="empty">
+            <div class="empty-mark" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2.5 14.8 9.2 21.5 12 14.8 14.8 12 21.5 9.2 14.8 2.5 12 9.2 9.2 12 2.5Z" fill="currentColor"/></svg>
+            </div>
+            <h2>GoldenSpaceAI</h2>
+            <p class="lede">A quieter room for serious work. This study stays on the page — messages never leave the browser.</p>
+            <div class="prompts">
+              <button class="prompt" type="button" data-prompt="Outline a calm launch sequence for a private release.">Outline a launch</button>
+              <button class="prompt" type="button" data-prompt="Compare two approaches and name the tradeoff that matters.">Compare approaches</button>
+              <button class="prompt" type="button" data-prompt="Draft a short, precise reply I can send as-is.">Draft a reply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="composer-dock">
+        <form class="composer" id="composer" autocomplete="off">
+          <div class="chips" id="chips"></div>
+          <textarea id="input" rows="1" placeholder="Write a message" aria-label="Message"></textarea>
+          <div class="composer-row">
+            <button class="tool" id="attachBtn" type="button" aria-label="Attach a sample file">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 12.5 14.8 5.7a3 3 0 1 1 4.2 4.2l-8.4 8.5a4.2 4.2 0 0 1-6-6l7.6-7.6"/></svg>
+            </button>
+            <button class="tool" id="micBtn" type="button" aria-pressed="false" aria-label="Toggle listening">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>
+            </button>
+            <span class="hint" id="hint">Local only · Enter to send</span>
+            <button class="send" id="sendBtn" type="submit" disabled>Send</button>
+          </div>
+        </form>
+      </div>
+      <section class="settings" id="settings" hidden>
+        <header>
+          <h2>Preferences</h2>
+          <button class="icon-btn" id="closeSettings" type="button" aria-label="Close settings">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </header>
+        <p class="note">These switches only change this page. They do not touch your account, plan, or the live chat.</p>
+        <label class="switch"><span>Show message times</span><input id="timesToggle" type="checkbox" checked></label>
+        <label class="switch"><span>Compact thread</span><input id="compactToggle" type="checkbox"></label>
+      </section>
+    </main>
+  </div>
+<script>
+(function () {
+  var MODES = {
+    fast: "Fast · quick replies",
+    thinking: "Thinking · deeper reasoning",
+    expert: "Expert · research depth",
+    live: "Live · preview only"
+  };
+  var FILES = ["atelier-brief.pdf", "floor-notes.png", "agenda.txt"];
+  var fileCursor = 0;
+  var idSeq = 3;
+  var mode = "fast";
+  var listening = false;
+  var attachment = null;
+  var activeId = "c0";
+  var convos = [
+    {
+      id: "c0",
+      title: "New conversation",
+      messages: []
+    },
+    {
+      id: "c1",
+      title: "Atelier launch notes",
+      messages: [
+        { role: "user", text: "Keep the launch note short and exact.", time: "9:04" },
+        { role: "assistant", text: "Preview copy, set in this layout only. Nothing here was written by a model.", time: "9:04" }
+      ]
+    },
+    {
+      id: "c2",
+      title: "Quarterly brief",
+      messages: [
+        { role: "user", text: "What should the brief open with?", time: "Yesterday" },
+        { role: "assistant", text: "A single sentence of intent, then the decision. This reply is local sample text.", time: "Yesterday" }
+      ]
+    }
+  ];
+
+  var convosEl = document.getElementById("convos");
+  var threadEl = document.getElementById("thread");
+  var emptyEl = document.getElementById("empty");
+  var titleEl = document.getElementById("chatTitle");
+  var captionEl = document.getElementById("modeCaption");
+  var inputEl = document.getElementById("input");
+  var sendBtn = document.getElementById("sendBtn");
+  var chipsEl = document.getElementById("chips");
+  var liveBanner = document.getElementById("liveBanner");
+  var hintEl = document.getElementById("hint");
+  var settingsEl = document.getElementById("settings");
+  var settingsBtn = document.getElementById("settingsBtn");
+  var threadWrap = document.getElementById("threadWrap");
+
+  function active() {
+    for (var i = 0; i < convos.length; i++) if (convos[i].id === activeId) return convos[i];
+    return convos[0];
+  }
+  function clock() {
+    var d = new Date();
+    var h = d.getHours();
+    var m = d.getMinutes();
+    return h + ":" + (m < 10 ? "0" : "") + m;
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  }
+  function renderList() {
+    var q = document.getElementById("filter").value.trim().toLowerCase();
+    convosEl.innerHTML = "";
+    convos.forEach(function (c) {
+      if (q && c.title.toLowerCase().indexOf(q) === -1) return;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "convo" + (c.id === activeId ? " active" : "");
+      btn.setAttribute("role", "listitem");
+      var preview = c.messages.length ? c.messages[c.messages.length - 1].text : "Empty thread";
+      btn.innerHTML = '<span class="convo-title">' + escapeHtml(c.title) + '</span><span class="convo-meta">' + escapeHtml(preview) + "</span>";
+      btn.addEventListener("click", function () { selectConvo(c.id); closeRail(); });
+      convosEl.appendChild(btn);
+    });
+  }
+  function renderThread() {
+    var c = active();
+    titleEl.textContent = c.title;
+    var nodes = threadEl.querySelectorAll(".msg");
+    for (var i = 0; i < nodes.length; i++) nodes[i].remove();
+    emptyEl.hidden = c.messages.length > 0;
+    c.messages.forEach(function (m) { threadEl.appendChild(messageNode(m)); });
+    threadWrap.scrollTop = threadWrap.scrollHeight;
+  }
+  function messageNode(m) {
+    var row = document.createElement("article");
+    row.className = "msg " + (m.role === "user" ? "user" : "assistant");
+    var attach = m.file ? '<div class="attach-note">' + escapeHtml(m.file) + "</div>" : "";
+    row.innerHTML =
+      '<div class="avatar" aria-hidden="true">' + (m.role === "user" ? "You" : "G") + "</div>" +
+      '<div class="bubble">' + attach + "<p>" + escapeHtml(m.text) + '</p><span class="time">' + escapeHtml(m.time || "") + "</span></div>";
+    return row;
+  }
+  function selectConvo(id) {
+    activeId = id;
+    renderList();
+    renderThread();
+  }
+  function setMode(next) {
+    mode = next;
+    document.querySelectorAll(".mode").forEach(function (btn) {
+      btn.setAttribute("aria-checked", btn.getAttribute("data-mode") === next ? "true" : "false");
+    });
+    captionEl.textContent = MODES[next];
+    liveBanner.hidden = next !== "live";
+  }
+  function syncSend() {
+    var has = inputEl.value.trim().length > 0 || !!attachment;
+    sendBtn.disabled = !has;
+  }
+  function renderChip() {
+    chipsEl.innerHTML = "";
+    if (listening) {
+      var listen = document.createElement("span");
+      listen.className = "chip";
+      listen.textContent = "Listening";
+      chipsEl.appendChild(listen);
+    }
+    if (attachment) {
+      var chip = document.createElement("span");
+      chip.className = "chip";
+      chip.appendChild(document.createTextNode(attachment));
+      var x = document.createElement("button");
+      x.type = "button";
+      x.setAttribute("aria-label", "Remove attachment");
+      x.textContent = "×";
+      x.addEventListener("click", function () { attachment = null; renderChip(); syncSend(); });
+      chip.appendChild(x);
+      chipsEl.appendChild(chip);
+    }
+    hintEl.textContent = listening ? "Listening · local indicator only" : "Local only · Enter to send";
+  }
+  function pushMessage(role, text, file) {
+    var c = active();
+    c.messages.push({ role: role, text: text, time: clock(), file: file || "" });
+    if (c.title === "New conversation" && role === "user") {
+      c.title = text.replace(/\s+/g, " ").slice(0, 42);
+    }
+    renderList();
+    renderThread();
+  }
+  function sendCurrent() {
+    var text = inputEl.value.trim();
+    if (!text && !attachment) return;
+    var file = attachment;
+    var body = text || "Attached a file.";
+    pushMessage("user", body, file);
+    inputEl.value = "";
+    attachment = null;
+    if (listening) {
+      listening = false;
+      document.getElementById("micBtn").setAttribute("aria-pressed", "false");
+    }
+    renderChip();
+    syncSend();
+    inputEl.style.height = "auto";
+    window.setTimeout(function () {
+      var note = mode === "live"
+        ? "Live preview only. This page did not open voice or call a model."
+        : "Preview reply in " + mode + " styling. No model was called.";
+      pushMessage("assistant", note, "");
+    }, 280);
+  }
+  function openRail() { document.body.classList.add("rail-open"); document.getElementById("scrim").hidden = false; }
+  function closeRail() { document.body.classList.remove("rail-open"); document.getElementById("scrim").hidden = true; }
+  function toggleSettings(force) {
+    var open = typeof force === "boolean" ? force : settingsEl.hidden;
+    settingsEl.hidden = !open;
+    settingsBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  document.getElementById("newChat").addEventListener("click", function () {
+    var id = "c" + (++idSeq);
+    convos.unshift({ id: id, title: "New conversation", messages: [] });
+    activeId = id;
+    attachment = null;
+    inputEl.value = "";
+    renderChip();
+    syncSend();
+    renderList();
+    renderThread();
+    closeRail();
+    inputEl.focus();
+  });
+  document.getElementById("filter").addEventListener("input", renderList);
+  document.getElementById("openRail").addEventListener("click", openRail);
+  document.getElementById("scrim").addEventListener("click", closeRail);
+  document.querySelectorAll(".mode").forEach(function (btn) {
+    btn.addEventListener("click", function () { setMode(btn.getAttribute("data-mode")); });
+  });
+  settingsBtn.addEventListener("click", function () { toggleSettings(); });
+  document.getElementById("closeSettings").addEventListener("click", function () { toggleSettings(false); });
+  document.getElementById("timesToggle").addEventListener("change", function (e) {
+    document.body.classList.toggle("no-times", !e.target.checked);
+  });
+  document.getElementById("compactToggle").addEventListener("change", function (e) {
+    document.body.classList.toggle("compact", e.target.checked);
+  });
+  document.getElementById("attachBtn").addEventListener("click", function () {
+    attachment = FILES[fileCursor % FILES.length];
+    fileCursor++;
+    renderChip();
+    syncSend();
+  });
+  document.getElementById("micBtn").addEventListener("click", function () {
+    listening = !listening;
+    this.setAttribute("aria-pressed", listening ? "true" : "false");
+    renderChip();
+  });
+  document.querySelectorAll(".prompt").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      inputEl.value = btn.getAttribute("data-prompt");
+      syncSend();
+      inputEl.focus();
+    });
+  });
+  inputEl.addEventListener("input", function () {
+    syncSend();
+    inputEl.style.height = "auto";
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + "px";
+  });
+  inputEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendCurrent();
+    }
+  });
+  document.getElementById("composer").addEventListener("submit", function (e) {
+    e.preventDefault();
+    sendCurrent();
+  });
+
+  renderList();
+  renderThread();
+  renderChip();
+})();
+</script>
+</body>
+</html>

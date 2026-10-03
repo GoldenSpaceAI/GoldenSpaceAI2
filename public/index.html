@@ -11,8 +11,8 @@
     <meta name="description" content="GoldenSpaceAI - AI Chat Assistant powered by Grok">
     <title>GoldenSpaceAI</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="/logo.png">
-    <link rel="apple-touch-icon" href="/logo.png">
+    <link rel="icon" type="image/png" href="/logo.png?v=20261003">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
@@ -892,21 +892,13 @@
             min-width: 0;
         }
         .live-brand-mark {
-            width: 30px;
-            height: 30px;
-            border-radius: 8px;
-            background: linear-gradient(145deg, #e4c65a, var(--gold) 55%, #a8841e);
-            box-shadow: 0 0 0 1px rgba(212,175,55,0.25);
+            width: 32px;
+            height: 38px;
+            object-fit: contain;
+            border-radius: 4px;
+            background: transparent;
             flex-shrink: 0;
-            position: relative;
-        }
-        .live-brand-mark::after {
-            content: '';
-            position: absolute;
-            inset: 8px;
-            border-radius: 50%;
-            border: 1.5px solid rgba(10,10,10,0.28);
-            box-shadow: none;
+            display: block;
         }
         .live-brand-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .live-page-brand .live-title {
@@ -2141,14 +2133,11 @@
             box-shadow: 0 1px 0 rgba(212,175,55,0.06);
         }
         .brand-mark {
-            width: 28px; height: 28px; flex-shrink: 0;
-            border-radius: 9px;
-            background: linear-gradient(145deg, var(--gold-light), var(--gold-dark));
-            color: #0a0a0a;
-            font-weight: 800; font-size: 13px;
-            display: inline-flex; align-items: center; justify-content: center;
-            letter-spacing: -0.02em;
-            box-shadow: 0 2px 8px rgba(212,175,55,0.35);
+            width: 36px; height: 42px; flex-shrink: 0;
+            object-fit: contain;
+            border-radius: 6px;
+            background: transparent;
+            display: block;
         }
         .top-bar-title-wrap {
             flex: 1; min-width: 0;
@@ -3068,7 +3057,7 @@
             .message-bubble { font-size: 14.5px; max-width: 88%; }
             .top-bar-sub { display: none; }
             .icon-btn { padding: 7px 10px; font-size: 11.5px; }
-            .brand-mark { width: 26px; height: 26px; font-size: 12px; }
+            .brand-mark { width: 32px; height: 38px; }
             .toast-host { bottom: calc(108px + var(--safe-bottom)); }
             body.chats-open .composer-shell {
                 visibility: hidden !important;
@@ -3157,10 +3146,9 @@
             border-bottom-color: color-mix(in srgb, var(--border) 85%, var(--gold) 15%);
         }
         .brand-mark {
-            width: 30px; height: 30px;
-            border-radius: 10px;
-            font-size: 13px;
-            box-shadow: 0 3px 10px rgba(212,175,55,0.32);
+            width: 36px; height: 42px;
+            border-radius: 6px;
+            box-shadow: none;
         }
         .top-bar-title {
             font-size: 15.5px;
@@ -3567,10 +3555,11 @@
         }
         .empty-state .empty-plan-hint a:hover { text-decoration: underline; }
         .empty-state .empty-logo {
-            width: 56px; height: 56px;
-            border-radius: 16px;
-            object-fit: cover;
-            box-shadow: 0 12px 28px rgba(212,175,55,0.22);
+            width: min(240px, 72vw);
+            height: auto;
+            border-radius: 0;
+            object-fit: contain;
+            background: transparent;
             margin-bottom: 4px;
         }
         .empty-state .empty-chips {
@@ -4126,7 +4115,7 @@
     <div class="app-container">
         <div class="top-bar">
             <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>
-            <span class="brand-mark" aria-hidden="true">G</span>
+            <img class="brand-mark" src="/logo.png?v=20261003" width="36" height="42" alt="">
             <div class="top-bar-title-wrap">
                 <span class="top-bar-title" id="topBarTitle" contenteditable="false" spellcheck="false" title="Tap to rename chat" role="textbox" aria-label="Chat title">GoldenSpaceAI</span>
                 <span class="top-bar-sub" id="topBarSub">AI assistant</span>
@@ -4371,7 +4360,7 @@
         <div class="live-page" id="livePage" role="dialog" aria-modal="true" aria-label="Live voice chat" hidden>
             <div class="live-page-top">
                 <div class="live-page-brand">
-                    <div class="live-brand-mark" aria-hidden="true"></div>
+                    <img class="live-brand-mark" src="/logo.png?v=20261003" width="30" height="36" alt="">
                     <div class="live-brand-copy">
                         <span class="live-title">Live Voice</span>
                         <span class="live-subtitle">Hands-free · short Fast replies</span>
@@ -5686,7 +5675,7 @@
                     '" onclick="useEmptyStarter(this)">' + s.label + '</button>';
             }).join('');
             return '<div class="empty-state">' +
-                '<img class="empty-logo" src="/logo.png" width="56" height="56" alt="" />' +
+                '<img class="empty-logo" src="/logo.png?v=20261003" width="200" height="240" alt="" />' +
                 '<div class="empty-title">How can I help?</div>' +
                 '<div class="empty-value">Research, code, writing, and analysis — pick a mode, then ask.</div>' +
                 '<div class="empty-chips" role="list">' + chips + '</div>' +

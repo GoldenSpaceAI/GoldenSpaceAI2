@@ -1739,6 +1739,41 @@
         .install-app-footer-btn:active { transform: scale(0.98); opacity: 0.9; }
         .install-app-footer-btn.installed,
         .install-app-footer-btn[hidden] { display: none !important; }
+
+        .install-help-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 13000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.55);
+            padding: 16px;
+        }
+        .install-help-overlay[hidden] { display: none !important; }
+        .install-help-card {
+            width: min(420px, 100%);
+            background: var(--black-light);
+            border: 1px solid rgba(212,175,55,0.28);
+            border-radius: 16px;
+            padding: 18px 16px 16px;
+            color: var(--text);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+        }
+        html.light .install-help-card { background: #fffdf8; color: #1a160f; }
+        .install-help-card h2 { margin: 0 0 8px; font-size: 18px; }
+        .install-help-card p { margin: 0 0 14px; font-size: 14px; line-height: 1.45; color: var(--text-muted); }
+        .install-help-card button {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--gold-dark);
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #0a0a0a;
+            font-weight: 800;
+            font-size: 13.5px;
+            cursor: pointer;
+        }
         .footer-legal {
             display: flex;
             flex-wrap: wrap;
@@ -4392,6 +4427,14 @@
             </div>
         </div>
 
+    </div>
+
+    <div class="install-help-overlay" id="installHelpOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="installHelpTitle">
+        <div class="install-help-card">
+            <h2 id="installHelpTitle">Install the app</h2>
+            <p id="installHelpBody"></p>
+            <button type="button" id="installHelpClose">Close</button>
+        </div>
     </div>
 
     <script>
@@ -8664,9 +8707,13 @@
         }
 
 
-        // ===== PWA install (one-press native prompt only) =====
+        // ===== PWA install =====
+        // Show the footer button whenever the app is not already installed.
+        // A deferred beforeinstallprompt opens the native prompt; otherwise a short help modal.
         let deferredInstallPrompt = null;
         const installBtn = document.getElementById('installAppBtn');
+        const installHelpOverlay = document.getElementById('installHelpOverlay');
+        const installHelpBody = document.getElementById('installHelpBody');
 
         function isStandaloneApp() {
             return window.matchMedia('(display-mode: standalone)').matches
@@ -8674,20 +8721,38 @@
                 || document.referrer.indexOf('android-app://') === 0;
         }
 
+        function isIosInstallDevice() {
+            var ua = navigator.userAgent || '';
+            if (/iPad|iPhone|iPod/.test(ua)) return true;
+            return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+        }
+
         function refreshInstallButton() {
             if (!installBtn) return;
-            // Show Install only when a deferred beforeinstallprompt exists.
-            // No teaching modal / how-to / navigate when unavailable.
-            if (isStandaloneApp() || !deferredInstallPrompt) {
+            if (isStandaloneApp()) {
                 installBtn.hidden = true;
-                installBtn.classList.toggle('installed', isStandaloneApp());
-                installBtn.setAttribute('aria-label', isStandaloneApp() ? 'App already installed' : 'Install not available');
+                installBtn.classList.add('installed');
+                installBtn.setAttribute('aria-label', 'App already installed');
                 return;
             }
             installBtn.hidden = false;
             installBtn.classList.remove('installed');
             installBtn.setAttribute('aria-label', 'Install app');
             installBtn.textContent = 'Install App';
+        }
+
+        function openInstallHelp() {
+            if (!installHelpOverlay || !installHelpBody) return;
+            if (isIosInstallDevice()) {
+                installHelpBody.textContent = 'On iPhone or iPad, tap Share, then tap Add to Home Screen.';
+            } else {
+                installHelpBody.textContent = 'Open the browser menu, then choose Add to Home Screen or Install app.';
+            }
+            installHelpOverlay.hidden = false;
+        }
+
+        function closeInstallHelp() {
+            if (installHelpOverlay) installHelpOverlay.hidden = true;
         }
 
         // Capture early so a later click can call prompt() without navigating away.
@@ -8699,6 +8764,7 @@
 
         window.addEventListener('appinstalled', function() {
             deferredInstallPrompt = null;
+            closeInstallHelp();
             refreshInstallButton();
         });
 
@@ -8708,18 +8774,17 @@
                 return;
             }
             if (!deferredInstallPrompt) {
-                // Silent: no modal, no how-to, no navigate.
-                refreshInstallButton();
+                openInstallHelp();
                 return;
             }
             const promptEvent = deferredInstallPrompt;
             deferredInstallPrompt = null;
-            refreshInstallButton();
             try {
                 await promptEvent.prompt();
                 await promptEvent.userChoice;
             } catch (err) {
-                // Stay silent on prompt failure — no teaching UI.
+                // Native prompt was not available. Do not pretend it is.
+                openInstallHelp();
             }
             refreshInstallButton();
         }
@@ -8731,6 +8796,21 @@
                 installApp();
             });
         }
+        if (installHelpOverlay) {
+            installHelpOverlay.addEventListener('click', function(e) {
+                if (e.target === installHelpOverlay) closeInstallHelp();
+            });
+        }
+        var installHelpClose = document.getElementById('installHelpClose');
+        if (installHelpClose) {
+            installHelpClose.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeInstallHelp();
+            });
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeInstallHelp();
+        });
 
         refreshInstallButton();
 
@@ -8753,4 +8833,5 @@
         init();
     </script>
 </body>
+
 </html>

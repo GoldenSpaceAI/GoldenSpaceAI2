@@ -56,6 +56,14 @@ function updateRollingSummary(messages, existingSummary, summarizedCount) {
     let summary = String(existingSummary || '').trim();
 
     if (keepFrom <= 0) {
+        // Callers often pass only the recent window (last RECENT_WINDOW), while
+        // `summary` already covers older turns that are not in this list.
+        // Wiping here dropped long-chat context on every completion. A truly
+        // short chat sends no summary (or count 0) and still clears below.
+        const windowOnly = list.length === RECENT_WINDOW && !!summary && prevCount > 0;
+        if (windowOnly) {
+            return { summary, summarizedCount: prevCount, changed: false };
+        }
         return { summary: '', summarizedCount: 0, changed: summary !== '' || prevCount !== 0 };
     }
     if (keepFrom <= prevCount && summary) {

@@ -3065,6 +3065,14 @@ app.get('/health', (req, res) => {
     });
 });
 
+// ==================== CHAT 21 PROTOTYPE (local UI only, no model API) ====================
+app.get('/chat21', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'chat21.html'));
+});
+app.get('/chat21.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'chat21.html'));
+});
+
 // ==================== CATCH-ALL ROUTE ====================
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });

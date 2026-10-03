@@ -1,3 +1,13 @@
+# GoldenSpaceAI — long-chat context cap on every model path (2026-10-03)
+
+- **Model prompt (Fast, Thinking, Expert, Live `/api/chat` + `/api/chat/stream`):** account memory (signed-in only) + rolling summary of older turns + last **10** raw messages. Full thread stays in the DB and the chat UI.
+- **Expert / Responses:** all system blocks are sent (instructions, memory, summary). Before, only the first system block was prepended, so the rolling summary was dropped whenever instructions or memory came first.
+- **Summary upkeep:** passing only the recent window no longer wipes a summary that already covers older turns. A thread edited down under 10 messages still clears that summary and does not resurrect the pre-edit DB summary.
+- Guests still have no cross-chat account memory. No plan budgets, Talk caps, or user-facing cost/token copy changes.
+- App `2.3.43`.
+
+---
+
 # GoldenSpaceAI — auto-title PACK fix + admin users redesign (2026-10-02)
 
 - **Chat auto-title:** `/api/chat` no longer referenced an undefined `pack` after a successful reply (that returned `⚠️ pack is not defined`, and the client titled new chats **⚠️ pack** with the error icon). Auto-title skips context-pack maintenance; stream path unchanged.

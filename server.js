@@ -826,9 +826,16 @@ function callResponsesAPI(conversationMessages, config, useWebSearch, opts) {
                     ).join(' ') : '')
             }));
 
-        const systemMsg = conversationMessages.find(m => m.role === 'system');
-        if (systemMsg && input.length > 0) {
-            input[0].content = systemMsg.content + '\n\n' + input[0].content;
+        // Responses API has no system role here. Join EVERY system block
+        // (custom instructions, account memory, rolling summary, live voice) —
+        // previously only the first block was kept, so long-chat summary was dropped.
+        const systemPreamble = conversationMessages
+            .filter(m => m && m.role === 'system' && m.content)
+            .map(m => String(m.content).trim())
+            .filter(Boolean)
+            .join('\n\n');
+        if (systemPreamble && input.length > 0) {
+            input[0].content = systemPreamble + '\n\n' + input[0].content;
         }
 
         const tools = useWebSearch ? [{ type: 'web_search' }] : [];
@@ -997,6 +1004,33 @@ function expandUserContentForModel(msg) {
     return text;
 }
 
+
+function messageSig(msg) {
+    if (!msg) return '';
+    const role = msg.role || '';
+    let content = '';
+    if (typeof msg.content === 'string') content = msg.content;
+    else if (Array.isArray(msg.content)) {
+        content = msg.content.map(c => (c && c.type === 'text' && c.text) ? c.text : '').join(' ');
+    }
+    return role + '\n' + String(content).slice(0, 240);
+}
+
+/** If `body` continues past the tail of `stored`, append those turns (newest user message). */
+function appendUnsavedBodyTurns(stored, body) {
+    const base = Array.isArray(stored) ? stored : [];
+    const extra = Array.isArray(body) ? body : [];
+    if (!base.length || !extra.length) return base.length ? base : extra;
+    const last = messageSig(base[base.length - 1]);
+    if (!last) return base;
+    let idx = -1;
+    for (let i = extra.length - 1; i >= 0; i--) {
+        if (messageSig(extra[i]) === last) { idx = i; break; }
+    }
+    if (idx === -1 || idx === extra.length - 1) return base;
+    return base.concat(extra.slice(idx + 1));
+}
+
 /**
  * ChatGPT-style pack:
  *   [system customInstructions?]
@@ -1010,10 +1044,18 @@ async function resolveContextPack(req) {
     const user = auth && auth.readUserFromReq(req);
     const chatId = body.chatId ? String(body.chatId) : '';
     let accountMemory = {};
-    let rollingSummary = typeof body.rollingSummary === 'string' ? body.rollingSummary : '';
+    const clientSentSummary = typeof body.rollingSummary === 'string';
+    let rollingSummary = clientSentSummary ? body.rollingSummary : '';
     let summaryMessageCount = Math.max(0, Number(body.summaryMessageCount) || 0);
     let ownerKey = null;
     let storedChat = null;
+    const bodyMessages = Array.isArray(body.messages) ? body.messages : [];
+    // Edit/resend that shrinks the thread under the window clears the summary on purpose.
+    // Do not put the old DB summary (which still describes removed turns) back on the prompt.
+    const explicitShortClear = clientSentSummary
+        && !String(rollingSummary).trim()
+        && summaryMessageCount === 0
+        && bodyMessages.length < RECENT_WINDOW;
 
     if (user && user.id) {
         ownerKey = 'u_' + user.id;
@@ -1023,7 +1065,7 @@ async function resolveContextPack(req) {
         } catch (e) {
             console.error('getUserMemory:', e.message);
         }
-        if (chatId) {
+        if (chatId && !explicitShortClear) {
             // Skip DB getChat when the client already shipped a usable rolling summary —
             // avoids cold-path latency on every reply for logged-in users.
             const clientHasSummary = !!(String(rollingSummary || '').trim() && summaryMessageCount > 0);
@@ -1031,7 +1073,7 @@ async function resolveContextPack(req) {
                 try {
                     storedChat = await auth.getChat(ownerKey, chatId);
                     if (storedChat) {
-                        if (!rollingSummary && storedChat.rollingSummary) {
+                        if (!String(rollingSummary || '').trim() && storedChat.rollingSummary) {
                             rollingSummary = storedChat.rollingSummary;
                         }
                         if (!summaryMessageCount && storedChat.summaryMessageCount) {
@@ -1046,10 +1088,12 @@ async function resolveContextPack(req) {
     }
 
     // Prefer fuller history for summary refresh: stored chat messages, else request body.
-    const bodyMessages = Array.isArray(body.messages) ? body.messages : [];
-    const historyForSummary = (storedChat && Array.isArray(storedChat.messages) && storedChat.messages.length >= bodyMessages.length)
+    // If the newest turn is only on the request (not saved yet), append it so it is not
+    // dropped between the summary cutoff and the recent window.
+    let historyForSummary = (storedChat && Array.isArray(storedChat.messages) && storedChat.messages.length >= bodyMessages.length)
         ? storedChat.messages
         : bodyMessages;
+    historyForSummary = appendUnsavedBodyTurns(historyForSummary, bodyMessages);
 
     if (shouldRefreshSummary(historyForSummary.length, summaryMessageCount) ||
         (historyForSummary.length > RECENT_WINDOW && !rollingSummary)) {

@@ -12,7 +12,7 @@
  * - Expert16: Expert 16 alone (Max only)
  * Retained $ on paid plans is margin (not usable as API budget).
  * Paid allotments are per 30-day period from admin approve (no auto-renew).
- * Free Fast is $0.05/day UTC midnight reset. Images count toward the same Fast bucket.
+ * Free Fast is $0.02/day UTC midnight reset. Images count toward the same Fast bucket.
  * Talk minutes (Live / TTS voice time) are separate hard-stops: Free 1 min/UTC week;
  * paid Talk is per 30-day period. Hard-stop per bucket — no borrowing across modes/Talk.
  * When all usable paid buckets are exhausted, the account is demoted to Free.
@@ -56,7 +56,7 @@ const PLAN_DEFS = {
         id: 'free',
         label: 'Free',
         priceUsd: 0,
-        fastUsd: 0.05,
+        fastUsd: 0.02,
         thinkShareUsd: 0,
         expert16Usd: 0,
         retainedUsd: 0,

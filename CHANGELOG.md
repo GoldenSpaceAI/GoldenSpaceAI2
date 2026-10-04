@@ -1,3 +1,12 @@
+# GoldenSpaceAI — tighten Free Fast daily budget (2026-10-04)
+
+- **Free Fast daily budget:** lowered from **$0.05** to **$0.02** model-cost USD per UTC calendar day so a handful of normal chats uses it up and Plus is the clear next step.
+- Thinking / Expert stay blocked on Free. Talk stays **1 min/UTC week**. Images stay **5/day**.
+- Paid plans (Plus / Pro / Max) unchanged. Upgrade hard-stop still points at `/upgrade` (Plus) with **% only** (no $ or token counts shown to users).
+- App `2.3.44`.
+
+---
+
 # GoldenSpaceAI — long-chat context cap on every model path (2026-10-03)
 
 - **Model prompt (Fast, Thinking, Expert, Live `/api/chat` + `/api/chat/stream`):** account memory (signed-in only) + rolling summary of older turns + last **10** raw messages. Full thread stays in the DB and the chat UI.

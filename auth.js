@@ -43,6 +43,29 @@ function authStatus() {
     };
 }
 
+async function authStatusWithHealth() {
+    const status = authStatus();
+    if (!status.database) {
+        status.databaseAvailable = null;
+        status.ready = false;
+        return status;
+    }
+    try {
+        const p = getPool();
+        if (!p) throw new Error('Database connection is not configured');
+        await p.query('SELECT 1');
+        status.databaseAvailable = true;
+    } catch (e) {
+        status.databaseAvailable = false;
+        status.ready = false;
+        if (!status.liveLoginBlockedBy.includes('DATABASE_UNAVAILABLE')) {
+            status.liveLoginBlockedBy.push('DATABASE_UNAVAILABLE');
+        }
+        console.error('Auth database health check failed:', e.message);
+    }
+    return status;
+}
+
 function getPublicBaseUrl(req) {
     const fromEnv = env('APP_BASE_URL') || env('PUBLIC_URL');
     if (fromEnv) return fromEnv.replace(/\/$/, '');
@@ -97,7 +120,8 @@ function createAuth(options = {}) {
                     ? false
                     : { rejectUnauthorized: false },
                 max: 5,
-                idleTimeoutMillis: 30000
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 5000
             });
             pool.on('error', (err) => console.error('Postgres pool error:', err.message));
         }
@@ -822,6 +846,7 @@ function createAuth(options = {}) {
     return {
         SESSION_COOKIE,
         authStatus,
+        authStatusWithHealth,
         getPool,
         ensureSchema,
         readUserFromReq,

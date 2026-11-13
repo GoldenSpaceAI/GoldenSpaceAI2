@@ -190,60 +190,45 @@ try {
     console.error('Failed to initialize Grok client:', e.message);
 }
 
-let openaiClient = null;
-if (process.env.OPENAI_API_KEY) {
+let deepseekClient = null;
+if (process.env.DEEPSEEK_API_KEY) {
     try {
-        // Pin baseURL so a stray OPENAI_BASE_URL env cannot break Fast.
-        openaiClient = new OpenAI({
-            apiKey: String(process.env.OPENAI_API_KEY).trim(),
-            baseURL: 'https://api.openai.com/v1',
+        deepseekClient = new OpenAI({
+            apiKey: String(process.env.DEEPSEEK_API_KEY).trim(),
+            baseURL: 'https://api.deepseek.com',
             timeout: UPSTREAM_TIMEOUT_MS,
         });
     } catch (e) {
-        console.error('Failed to initialize OpenAI client:', e.message);
+        console.error('Failed to initialize DeepSeek client:', e.message);
     }
 }
 
 // Recent raw turns sent to the model (summary + account memory cover older context).
 const HISTORY_WINDOW = RECENT_WINDOW;
-const OPENAI_FAST_MODEL = process.env.OPENAI_FAST_MODEL || 'gpt-5-nano';
+const DEEPSEEK_FAST_MODEL = process.env.DEEPSEEK_FAST_MODEL || 'deepseek-flash';
 const GROK_FAST_MODEL = 'grok-4.3';
-// Fast defaults to Grok. Set FAST_PROVIDER=openai to try OpenAI first (Grok fallback on connection/auth failure).
-// Set FAST_PROVIDER=openai and we still fall back to Grok unless you also need hard-fail — fallback stays on for openai pref.
-const FAST_PROVIDER_PREF = String(process.env.FAST_PROVIDER || '').trim().toLowerCase();
 
 const MODELS = {
-    // Fast prefers OpenAI gpt-5-nano when reachable; otherwise Grok. Thinking/expert stay on Grok.
-    normal: { model: OPENAI_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'openai' },
-    fast: { model: OPENAI_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'openai' },
+    // Fast uses DeepSeek's lowest-cost Flash model. Grok is the automatic fallback.
+    normal: { model: DEEPSEEK_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'deepseek' },
+    fast: { model: DEEPSEEK_FAST_MODEL, maxTokens: 2048, temperature: 0.7, provider: 'deepseek' },
     smart: { model: 'grok-4.3', maxTokens: 4096, temperature: 0.3, provider: 'grok' },
     expert: { model: 'grok-4.20-multi-agent-0309', maxTokens: 4096, temperature: 0.5, provider: 'grok' }
 };
 
 
-/** OpenAI gpt-5-* / newer chat models reject legacy `max_tokens` (400). Use `max_completion_tokens`.
- *  xAI/Grok chat completions still expect `max_tokens`. */
+/** DeepSeek and Grok use the Chat Completions `max_tokens` parameter. */
 function chatTokenLimitParams(provider, maxTokens) {
-    if (provider === 'openai') {
-        return { max_completion_tokens: maxTokens };
-    }
     return { max_tokens: maxTokens };
 }
 
-/** OpenAI gpt-5-* chat models reject non-default temperature (400); only default 1 is allowed.
- *  Omit temperature for that family. Grok/xAI and other OpenAI models keep the configured value. */
+/** Both DeepSeek Flash and Grok support the configured temperature. */
 function chatTemperatureParams(provider, model, temperature) {
-    if (provider === 'openai') {
-        const m = String(model || '').toLowerCase();
-        if (m.startsWith('gpt-5') || m.includes('gpt-5-')) {
-            return {};
-        }
-    }
     if (temperature === undefined || temperature === null) return {};
     return { temperature };
 }
 
-/** True for OpenAI gpt-5 family (reasoning models that often starve visible content). */
+/** True only for legacy OpenAI GPT-5 configurations (none are active). */
 function isOpenAIGpt5Family(provider, model) {
     if (provider !== 'openai') return false;
     const m = String(model || '').toLowerCase();
@@ -325,7 +310,7 @@ function extractChatCompletionText(completion) {
 }
 
 /**
- * If OpenAI gpt-5 returns empty visible content (common when reasoning eats the
+ * Legacy empty-content retry path for previous OpenAI GPT-5 configurations.
  * max_completion_tokens budget), retry once with minimal reasoning + more room.
  */
 async function openaiEmptyContentRetry(client, baseArgs, label) {
@@ -383,83 +368,50 @@ function injectLiveVoiceSystem(messages, body) {
     return list;
 }
 
-function isOpenAIConnectionFailure(error) {
+function isProviderConnectionFailure(error) {
     const raw = String(error?.message || error || '');
     const cause = String(error?.cause?.code || error?.cause?.message || error?.cause || '');
     const blob = raw + ' ' + cause;
     if (error?.name === 'APIConnectionError') return true;
     if (/Connection error|ECONNRESET|ENOTFOUND|ECONNREFUSED|EAI_AGAIN|fetch failed|network|socket/i.test(blob)) return true;
-    // OpenAI SDK connection errors often have no HTTP status
+    // SDK connection errors often have no HTTP status
     if (!error?.status && /connection|fetch failed|network/i.test(blob)) return true;
     return false;
 }
 
-function shouldFallbackOpenAIToGrok(error) {
+function shouldFallbackDeepSeekToGrok(error) {
     if (!process.env.GROK_API_KEY || !grok) return false;
-    if (isOpenAIConnectionFailure(error)) return true;
+    if (isProviderConnectionFailure(error)) return true;
     if (error?.status === 401 || error?.status === 403) return true;
-    if (error?.code === 'invalid_api_key' || error?.code === 'missing_openai_key') return true;
+    if (error?.code === 'invalid_api_key' || error?.code === 'missing_deepseek_key') return true;
     return false;
 }
 
 function resolveChatTarget(mode) {
     const { safeMode, config } = resolveMode(mode);
-    if (config.provider !== 'openai') {
-        if (!process.env.GROK_API_KEY) {
+    if (config.provider === 'grok') {
+        if (!process.env.GROK_API_KEY || !grok) {
             const err = new Error('GROK_API_KEY missing');
             err.code = 'missing_grok_key';
             err.status = 401;
             throw err;
         }
-        return {
-            safeMode,
-            config,
-            client: grok,
-            provider: 'grok',
-            allowGrokFallback: false
-        };
+        return { safeMode, config, client: grok, provider: 'grok', allowGrokFallback: false };
     }
 
-    // Fast path: default to Grok (reliable on Render). Opt in with FAST_PROVIDER=openai.
-    const useOpenAI = FAST_PROVIDER_PREF === 'openai' && !!openaiClient && !!process.env.OPENAI_API_KEY;
-    if (!useOpenAI) {
-        if (!process.env.GROK_API_KEY || !grok) {
-            if (!process.env.OPENAI_API_KEY || !openaiClient) {
-                const err = new Error('OPENAI_API_KEY missing');
-                err.code = 'missing_openai_key';
-                err.status = 401;
-                throw err;
-            }
-            // OpenAI only available
-            return {
-                safeMode,
-                config,
-                client: openaiClient,
-                provider: 'openai',
-                allowGrokFallback: false
-            };
+    // Prefer DeepSeek for Fast. Keep Grok as a safety fallback during setup or outages.
+    if (!deepseekClient || !process.env.DEEPSEEK_API_KEY) {
+        if (process.env.GROK_API_KEY && grok) {
+            const grokConfig = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
+            return { safeMode, config: grokConfig, client: grok, provider: 'grok', allowGrokFallback: false };
         }
-        const grokConfig = {
-            ...config,
-            model: GROK_FAST_MODEL,
-            provider: 'grok'
-        };
-        return {
-            safeMode,
-            config: grokConfig,
-            client: grok,
-            provider: 'grok',
-            allowGrokFallback: false
-        };
+        const err = new Error('DEEPSEEK_API_KEY missing');
+        err.code = 'missing_deepseek_key';
+        err.status = 401;
+        throw err;
     }
 
-    return {
-        safeMode,
-        config,
-        client: openaiClient,
-        provider: 'openai',
-        allowGrokFallback: !!process.env.GROK_API_KEY && !!grok
-    };
+    return { safeMode, config, client: deepseekClient, provider: 'deepseek', allowGrokFallback: !!process.env.GROK_API_KEY && !!grok };
 }
 
 async function runWithProviderFallback(target, runFn) {
@@ -470,9 +422,9 @@ async function runWithProviderFallback(target, runFn) {
         }
         return result;
     } catch (err) {
-        if (target.provider === 'openai' && target.allowGrokFallback && shouldFallbackOpenAIToGrok(err)) {
+        if (target.provider === 'deepseek' && target.allowGrokFallback && shouldFallbackDeepSeekToGrok(err)) {
             const cause = err?.cause?.code || err?.cause?.message || '';
-            console.warn(`OpenAI Fast failed (${err.message}${cause ? '; ' + cause : ''}) — falling back to Grok ${GROK_FAST_MODEL}`);
+            console.warn(`DeepSeek Fast failed (${err.message}${cause ? '; ' + cause : ''}) — falling back to Grok ${GROK_FAST_MODEL}`);
             const grokConfig = { ...target.config, model: GROK_FAST_MODEL, provider: 'grok' };
             const result = await runFn(grok, grokConfig, 'grok');
             if (result && typeof result === 'object') result.usedGrokFallback = true;
@@ -1195,10 +1147,10 @@ function mapApiError(error, provider) {
     const cause = String(error?.cause?.code || error?.cause?.message || '');
     const raw = String(error?.message || error || '') + (cause ? ' ' + cause : '');
     const clean = String(error?.message || error || '').split('\n')[0].replace(/\s+at\s+.*/g, '').substring(0, 160);
-    const who = provider === 'openai' ? 'OpenAI' : 'Grok';
+    const who = provider === 'deepseek' ? 'DeepSeek' : 'Grok';
 
-    if (error?.code === 'missing_openai_key') {
-        return '🔑 Fast mode needs OPENAI_API_KEY (or a working GROK_API_KEY fallback). Set it in Render environment variables, then redeploy.';
+    if (error?.code === 'missing_deepseek_key') {
+        return '🔑 Fast mode needs DEEPSEEK_API_KEY (or a working GROK_API_KEY fallback). Set it in Render environment variables, then redeploy.';
     }
     if (error?.code === 'missing_grok_key') {
         return '🔑 Grok API key not configured. Set GROK_API_KEY on Render.';
@@ -1275,16 +1227,9 @@ app.post('/api/extract-file', (req, res) => {
 });
 
 
-// ==================== PREMIUM TTS (OpenAI) ====================
-const TTS_VOICES = [
-    { id: 'nova', label: 'Nova', desc: 'Warm & friendly' },
-    { id: 'alloy', label: 'Alloy', desc: 'Neutral & clear' },
-    { id: 'shimmer', label: 'Shimmer', desc: 'Soft & expressive' },
-    { id: 'echo', label: 'Echo', desc: 'Soft male' },
-    { id: 'fable', label: 'Fable', desc: 'Storyteller' },
-    { id: 'onyx', label: 'Onyx', desc: 'Deep & steady' }
-];
-const TTS_VOICE_IDS = new Set(TTS_VOICES.map((v) => v.id));
+// ==================== BUILT-IN BROWSER SPEECH ====================
+const TTS_VOICES = [{ id: 'system', label: 'Device default', desc: 'Uses the browser voice' }];
+const TTS_VOICE_IDS = new Set(['system']);
 const TTS_MAX_CHARS = 4000;
 const TTS_DEFAULT_SPEED = 1.25; // snappier speak-aloud / Live
 const ttsRateBuckets = new Map();
@@ -1307,17 +1252,12 @@ function ttsRateLimit(req, res) {
     return true;
 }
 
-function openaiTtsReady() {
-    return !!(openaiClient && process.env.OPENAI_API_KEY);
-}
-
 app.get('/api/tts/status', (req, res) => {
     res.json({
-        provider: openaiTtsReady() ? 'openai' : 'browser',
-        openai: openaiTtsReady(),
-        model: openaiTtsReady() ? 'tts-1' : null,
+        provider: 'browser',
+        model: null,
         voices: TTS_VOICES,
-        defaultVoice: 'nova',
+        defaultVoice: 'system',
         maxChars: TTS_MAX_CHARS
     });
 });
@@ -1328,8 +1268,8 @@ app.post('/api/tts', async (req, res) => {
         const raw = String(req.body?.text || '').trim();
         if (!raw) return res.status(400).json({ error: 'Missing text', fallback: true });
         const text = raw.length > TTS_MAX_CHARS ? raw.slice(0, TTS_MAX_CHARS) : raw;
-        const voiceRaw = String(req.body?.voice || 'nova').trim().toLowerCase();
-        const voice = TTS_VOICE_IDS.has(voiceRaw) ? voiceRaw : 'nova';
+        const voiceRaw = String(req.body?.voice || 'system').trim().toLowerCase();
+        const voice = TTS_VOICE_IDS.has(voiceRaw) ? voiceRaw : 'system';
 
         let speed = Number(req.body?.speed);
         if (!Number.isFinite(speed)) speed = TTS_DEFAULT_SPEED;
@@ -1359,43 +1299,13 @@ app.post('/api/tts', async (req, res) => {
             }
         };
 
-        if (!openaiTtsReady()) {
-            // Browser fallback still counts as Talk (Live/TTS voice time)
-            recordTalkSafe();
-            return res.status(503).json({
-                error: 'OpenAI TTS not configured',
-                fallback: true,
-                provider: 'browser'
-            });
-        }
-
-        try {
-            const speech = await openaiClient.audio.speech.create({
-                model: 'tts-1',
-                voice,
-                input: text,
-                speed,
-                response_format: 'mp3'
-            });
-            const buf = Buffer.from(await speech.arrayBuffer());
-            recordTalkSafe();
-            res.setHeader('Content-Type', 'audio/mpeg');
-            res.setHeader('Cache-Control', 'no-store');
-            res.setHeader('X-TTS-Provider', 'openai');
-            res.setHeader('X-TTS-Voice', voice);
-            res.setHeader('X-Talk-Seconds', String(estSec));
-            return res.send(buf);
-        } catch (e) {
-            console.error('TTS error:', e.message || e);
-            // Count Talk even when falling back to browser speech
-            recordTalkSafe();
-            return res.status(502).json({
-                error: 'TTS failed',
-                fallback: true,
-                provider: 'browser',
-                detail: String(e.message || e).slice(0, 200)
-            });
-        }
+        // Cloud TTS is disabled; the client uses the browser's built-in speech synthesis.
+        recordTalkSafe();
+        return res.status(503).json({
+            error: 'Browser speech is used for voice playback.',
+            fallback: true,
+            provider: 'browser'
+        });
     } catch (e) {
         console.error('TTS error:', e.message || e);
         return res.status(502).json({
@@ -1409,7 +1319,7 @@ app.post('/api/tts', async (req, res) => {
 
 // ==================== MAIN CHAT ENDPOINT (non-streaming, compatibility) ====================
 app.post('/api/chat', async (req, res) => {
-    let activeProvider = 'grok';
+    let activeProvider = 'deepseek';
     let usageHold = null;
     let keepUsage = false;
     try {
@@ -1502,7 +1412,7 @@ app.post('/api/chat', async (req, res) => {
                 }
                 return { reply: reply || 'No response generated.', provider, modelName: config.model, usage: completion?.usage || null };
             } else {
-                // Fast (normal): OpenAI when available, else Grok — multimodal content parts supported
+                // Fast (normal): DeepSeek when configured, else Grok — multimodal content parts supported
                 const createArgs = {
                     model: config.model,
                     messages: conversationMessages,
@@ -1858,9 +1768,9 @@ app.post('/api/chat/stream', async (req, res) => {
                 stream = await openStream(client, config);
                 streamMark('stream_open');
             } catch (openErr) {
-                if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(openErr)) {
+                if (provider === 'deepseek' && allowGrokFallback && shouldFallbackDeepSeekToGrok(openErr)) {
                     const cause = openErr?.cause?.code || openErr?.cause?.message || '';
-                    console.warn(`OpenAI Fast stream failed (${openErr.message}${cause ? '; ' + cause : ''}) — falling back to Grok ${GROK_FAST_MODEL}`);
+                    console.warn(`DeepSeek Fast stream failed (${openErr.message}${cause ? '; ' + cause : ''}) — falling back to Grok ${GROK_FAST_MODEL}`);
                     provider = 'grok';
                     config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
                     client = grok;
@@ -1941,8 +1851,8 @@ app.post('/api/chat/stream', async (req, res) => {
                     if (full) sendSse({ text: full });
                     streamMark('empty_fallback_ok');
                 } catch (fbErr) {
-                    if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(fbErr)) {
-                        console.warn('OpenAI empty-stream fallback failed — trying Grok');
+                    if (provider === 'deepseek' && allowGrokFallback && shouldFallbackDeepSeekToGrok(fbErr)) {
+                        console.warn('DeepSeek empty-stream fallback failed — trying Grok');
                         provider = 'grok';
                         config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
                         client = grok;
@@ -1997,11 +1907,11 @@ app.post('/api/chat/stream', async (req, res) => {
                 return res.end();
             }
 
-            // Final OpenAI → Grok rescue for Fast
-            if (provider === 'openai' && allowGrokFallback && shouldFallbackOpenAIToGrok(err)) {
+            // Final DeepSeek → Grok rescue for Fast
+            if (provider === 'deepseek' && allowGrokFallback && shouldFallbackDeepSeekToGrok(err)) {
                 try {
                     const cause = err?.cause?.code || err?.cause?.message || '';
-                    console.warn(`OpenAI Fast failed mid-stream (${err.message}${cause ? '; ' + cause : ''}) — non-stream Grok fallback`);
+                    console.warn(`DeepSeek Fast failed mid-stream (${err.message}${cause ? '; ' + cause : ''}) — non-stream Grok fallback`);
                     provider = 'grok';
                     config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
                     client = grok;
@@ -2497,8 +2407,8 @@ app.delete('/api/chats/:id', async (req, res) => {
 });
 
 // ==================== AUTH (email OTP + Google OAuth) ====================
-app.get('/api/auth/status', (req, res) => {
-    const st = auth.authStatus();
+app.get('/api/auth/status', async (req, res) => {
+    const st = await auth.authStatusWithHealth();
     const user = auth.readUserFromReq(req);
     res.setHeader('Cache-Control', 'no-store');
     res.json({
@@ -2553,12 +2463,14 @@ app.post('/api/auth/otp/verify', async (req, res) => {
     }
 });
 
-app.get('/api/auth/google/start', (req, res) => {
-    const st = auth.authStatus();
+app.get('/api/auth/google/start', async (req, res) => {
+    const st = await auth.authStatusWithHealth();
     if (!st.ready || !st.googleOAuth) {
         return res.status(503).json({
             ok: false,
-            error: 'Google OAuth is not configured yet.',
+            error: st.databaseAvailable === false
+                ? 'Account storage is offline. Connect the active database before signing in.'
+                : 'Google OAuth is not configured yet.',
             missing: st.liveLoginBlockedBy,
             need: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'DATABASE_URL', 'SESSION_SECRET']
         });
@@ -2950,7 +2862,7 @@ app.get('/api/admin/users', async (req, res) => {
                 'Location from last payment request IP geo (or cached IP) when available',
                 'Device from device_links (most recent) else last payment deviceId',
                 'Today/total tokens+$ from persisted usage (UTC day); totals seeded from period spend for older rows',
-                'Grok vs OpenAI $ split tracked from recordSpend provider (historical rows may show $0 until new usage)',
+                'Grok vs DeepSeek $ split tracked from recordSpend provider',
                 'Talk minutes: today (UTC day) + period used/cap (Free=UTC week, paid=30-day period)'
             ]
         }
@@ -3040,12 +2952,13 @@ app.get('/live.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+    const authReadiness = await auth.authStatusWithHealth();
     res.json({
         status: 'online',
         app: 'GoldenSpaceAI',
         providers: {
-            fast: (FAST_PROVIDER_PREF === 'openai' ? ('OpenAI ' + OPENAI_FAST_MODEL + ' → Grok fallback') : ('Grok ' + GROK_FAST_MODEL + ' (OpenAI opt-in via FAST_PROVIDER=openai)')),
+            fast: 'DeepSeek ' + DEEPSEEK_FAST_MODEL + ' → Grok fallback',
             thinking: 'Grok 4.3',
             expert: 'Grok multi-agent'
         },
@@ -3059,12 +2972,12 @@ app.get('/health', (req, res) => {
         contextPack: true,
         accountMemory: true,
         pwaReady: true,
-        fastProviderPref: FAST_PROVIDER_PREF || 'auto',
+        fastProvider: 'deepseek',
+        deepseekKeyConfigured: !!process.env.DEEPSEEK_API_KEY,
         grokKeyConfigured: !!process.env.GROK_API_KEY,
-        openaiKeyConfigured: !!process.env.OPENAI_API_KEY,
-        ttsProvider: openaiTtsReady() ? 'openai' : 'browser',
+        ttsProvider: 'browser',
         adminPasskeyConfigured: !!ADMIN_PASSKEY,
-        auth: auth ? auth.authStatus() : { ready: false }
+        auth: auth ? authReadiness : { ready: false }
     });
 });
 
@@ -3108,12 +3021,12 @@ async function startServer() {
         console.log('═══════════════════════════════');
         console.log('🚀 GoldenSpaceAI Server');
         console.log(`📡 Port: ${PORT}`);
-        console.log(`⚡ Fast: pref=${FAST_PROVIDER_PREF || 'grok-default'} | OpenAI ${OPENAI_FAST_MODEL} (${process.env.OPENAI_API_KEY ? 'key ✅' : 'key ❌'}) | Grok ${GROK_FAST_MODEL} (${process.env.GROK_API_KEY ? 'key ✅' : 'key ❌'})`);
+        console.log(`⚡ Fast: DeepSeek ${DEEPSEEK_FAST_MODEL} (${process.env.DEEPSEEK_API_KEY ? 'key ✅' : 'key ❌'}) | Grok fallback ${process.env.GROK_API_KEY ? '✅' : '❌'}`);
         console.log(`🧠 Thinking/Expert: Grok (key ${process.env.GROK_API_KEY ? '✅' : '❌'})`);
         console.log(`📜 Context pack: recent=${RECENT_WINDOW} raw + rolling summary + account memory (was full ${40} window)`);
         console.log(`📐 Math Cleaner: ✅`);
         console.log(`📡 Streaming: ✅ /api/chat/stream`);
-        console.log(`🔊 TTS: ${openaiTtsReady() ? 'OpenAI tts-1 ✅' : 'browser fallback (no OPENAI_API_KEY)'}`);
+        console.log('🔊 TTS: browser built-in speech synthesis');
         console.log(`💾 Persistence: ✅ ${CHATS_FILE}`);
         console.log(`💳 Plans store: ✅ ${pi.pg ? 'postgres' : 'json'} (${pi.source || plansPersist.source}) + ${plansStore.filePath} (daily Fast reset: UTC)`);
         console.log(`🔐 Admin passkey: ${ADMIN_PASSKEY ? '✅ set' : '❌ missing ADMIN_PASSKEY'}`);

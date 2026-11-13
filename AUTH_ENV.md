@@ -3,12 +3,18 @@
 Login (email **6-digit OTP** via Resend + Google OAuth) and cross-device chat sync are implemented in code.
 **Live login stays disabled until the keys below are set.** Guest chat stays device-local (`X-Client-Id`). **Upgrades require login**; paid plan status and payment history sync under the account (`u_<userId>`) across devices. Guests without a session keep device-local plan history only.
 
+## AI provider and voice
+
+- Fast mode uses `DEEPSEEK_API_KEY` with the `deepseek-flash` model by default.
+- Thinking and Expert modes still use Grok and `GROK_API_KEY`.
+- Speak-aloud and live voice use the browser’s built-in speech synthesis; no separate TTS API key is needed.
+
 ## Required for sessions + sync storage
 
 | Name | Purpose | Status notes |
 |------|---------|--------------|
-| `DATABASE_URL` | Postgres connection (Render Internal DB URL) | Create DB `GoldenSpaceAI2-db`, then **Link** it to each web service (or paste Internal Database URL). |
-| `SESSION_SECRET` | Signs `gsa_session` cookie | Set on Oregon + Frankfurt (random 32+ bytes hex). |
+| `DATABASE_URL` | Postgres connection (Render Internal DB URL) | Use the replacement `GoldenSpaceAI2-db-next` in Frankfurt. Link it to the Frankfurt web service. This free database expires 2026-12-13; the previous database is suspended and its accounts are not migrated. |
+| `SESSION_SECRET` | Signs `gsa_session` cookie | Keep the current value on the Frankfurt service. |
 
 Without these, `/api/auth/*` reports `ready: false`. Chats still work as guest via device id (JSON fallback; Postgres chats when `DATABASE_URL` is linked). **Plans / subscriptions / usage / OMT payment history** also persist in Postgres (`plans_store`) when `DATABASE_URL` is linked — required so Render redeploys do not reset daily limits or payment history.
 

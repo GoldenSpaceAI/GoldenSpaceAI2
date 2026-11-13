@@ -4323,12 +4323,7 @@
                         <div class="settings-theme-row">
                             <span class="settings-k">Voice</span>
                             <select class="settings-select" id="settingsTtsVoice" aria-label="Speak aloud voice" onchange="onTtsVoiceChange()">
-                                <option value="nova">Nova — warm</option>
-                                <option value="alloy">Alloy — clear</option>
-                                <option value="shimmer">Shimmer — soft</option>
-                                <option value="echo">Echo — soft male</option>
-                                <option value="fable">Fable — storyteller</option>
-                                <option value="onyx">Onyx — deep</option>
+                                <option value="system">Device default</option>
                             </select>
                         </div>
                         <div class="settings-theme-row" style="margin-top:12px;">
@@ -4471,8 +4466,8 @@
         let ttsObjectUrl = null;
         let ttsActiveBtn = null;
         let ttsFetchAbort = null;
-        let ttsProvider = 'browser'; // 'openai' | 'browser'
-        let ttsVoice = 'nova';
+        let ttsProvider = 'browser'; // browser built-in speech synthesis
+        let ttsVoice = 'system';
         let ttsAutoRead = false;
         const TTS_VOICE_KEY = 'goldenspaceai2_tts_voice';
         const TTS_AUTOREAD_KEY = 'goldenspaceai2_tts_autoread';
@@ -6728,8 +6723,8 @@
             if (/Connection error|Could not reach/i.test(msg)) {
                 return '⚠️ Could not reach the AI provider. Tap Retry or switch mode.';
             }
-            if (/OPENAI_API_KEY|Fast mode needs/i.test(msg)) {
-                return '🔑 Fast mode needs OPENAI_API_KEY. Set it in Render environment variables, then redeploy.';
+            if (/DEEPSEEK_API_KEY|Fast mode needs/i.test(msg)) {
+                return '🔑 Fast mode needs DEEPSEEK_API_KEY. Set it in Render environment variables, then redeploy.';
             }
             if (/GROK_API_KEY|Grok API key not configured/i.test(msg)) {
                 return '🔑 Grok API key not configured. Set GROK_API_KEY on Render.';
@@ -7630,7 +7625,7 @@
             return speakBtn;
         }
 
-        /** Prefetch OpenAI TTS audio for a sentence (network overlaps with current playback). */
+        /** Reserve Talk usage for a sentence; speech itself plays through the browser. */
         function prefetchLiveTtsChunk(text) {
             const abort = (typeof AbortController !== 'undefined') ? new AbortController() : null;
             const entry = { text: text, abort: abort, url: null, fallback: false, promise: null };
@@ -8089,7 +8084,7 @@
         function loadTtsPrefs() {
             try {
                 const v = localStorage.getItem(TTS_VOICE_KEY);
-                if (v && /^(nova|alloy|shimmer|echo|fable|onyx)$/.test(v)) ttsVoice = v;
+                if (v === 'system') ttsVoice = v;
             } catch (e) {}
             try {
                 ttsAutoRead = localStorage.getItem(TTS_AUTOREAD_KEY) === '1';
@@ -8113,17 +8108,15 @@
             }
             const hint = document.getElementById('settingsTtsHint');
             if (hint) {
-                hint.textContent = ttsProvider === 'openai'
-                    ? 'Premium OpenAI TTS (tts-1). Mic input is unchanged.'
-                    : 'Browser voice fallback (set OPENAI_API_KEY for premium TTS). Mic input unchanged.';
+                hint.textContent = 'Built-in browser voice. No separate voice API key needed. Mic input is unchanged.';
             }
         }
 
         function onTtsVoiceChange() {
             const sel = document.getElementById('settingsTtsVoice');
             if (!sel) return;
-            const v = String(sel.value || 'nova');
-            if (/^(nova|alloy|shimmer|echo|fable|onyx)$/.test(v)) ttsVoice = v;
+            const v = String(sel.value || 'system');
+            if (v === 'system') ttsVoice = v;
             saveTtsPrefs();
         }
 
@@ -8140,8 +8133,7 @@
                 const res = await fetch('/api/tts/status', { headers: clientHeaders() });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data && data.provider === 'openai') ttsProvider = 'openai';
-                    else ttsProvider = 'browser';
+                    ttsProvider = 'browser';
                     if (data && data.defaultVoice && !localStorage.getItem(TTS_VOICE_KEY)) {
                         ttsVoice = data.defaultVoice;
                     }
@@ -8195,9 +8187,7 @@
             utterance.volume = 1;
             const voices = speechSynthesis.getVoices();
             if (voices.length) {
-                const preferred = voices.find(function(v) { return v.lang.startsWith('en') && v.name.includes('Google'); }) ||
-                                  voices.find(function(v) { return v.lang.startsWith('en') && v.name.includes('Samantha'); }) ||
-                                  voices.find(function(v) { return v.lang.startsWith('en-US'); });
+                const preferred = voices.find(function(v) { return v.name === ttsVoice || v.voiceURI === ttsVoice; });
                 if (preferred) utterance.voice = preferred;
             }
             speaking = true;
@@ -8215,7 +8205,7 @@
             speechSynthesis.speak(utterance);
         }
 
-        async function playOpenAiTts(text, btn) {
+        async function playTtsWithBrowserFallback(text, btn) {
             if (ttsFetchAbort) {
                 try { ttsFetchAbort.abort(); } catch (e) {}
             }
@@ -8321,13 +8311,8 @@
             if (!text) return;
 
             stopSpeaking();
-            // Prefer OpenAI premium TTS; graceful browser fallback otherwise
-            if (ttsProvider === 'openai') {
-                playOpenAiTts(text, btn);
-            } else {
-                // Still try OpenAI once (status may have been stale); server returns fallback:true
-                playOpenAiTts(text, btn);
-            }
+            // Use built-in browser speech; the server only checks Talk usage limits.
+            playTtsWithBrowserFallback(text, btn);
         }
 
         function stopSpeaking() {

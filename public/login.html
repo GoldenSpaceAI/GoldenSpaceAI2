@@ -559,9 +559,9 @@
     var g = document.getElementById('authGoogleBtn');
     var sendBtn = document.getElementById('authOtpSendBtn');
     var verifyBtn = document.getElementById('authOtpVerifyBtn');
-    if (g) g.disabled = !authState.googleOAuth;
-    if (sendBtn) sendBtn.disabled = !authState.emailOtp;
-    if (verifyBtn) verifyBtn.disabled = !authState.emailOtp || verifying;
+    if (g) g.disabled = !authState.ready || !authState.googleOAuth;
+    if (sendBtn) sendBtn.disabled = !authState.ready || !authState.emailOtp;
+    if (verifyBtn) verifyBtn.disabled = !authState.ready || !authState.emailOtp || verifying;
     updateResendUi();
   }
 
@@ -569,7 +569,9 @@
     var onOtp = document.getElementById('stepOtp') && document.getElementById('stepOtp').classList.contains('active');
     if (onOtp) return;
     if (!authState.ready) {
-      setStatus('Server auth storage not ready yet (DATABASE_URL / SESSION_SECRET).', 'err');
+      setStatus(authState.databaseAvailable === false
+        ? 'Account storage is offline. The site owner must connect the active database before sign-in can work.'
+        : 'Server auth storage is not configured yet (DATABASE_URL / SESSION_SECRET).', 'err');
     } else if (!authState.googleOAuth && !authState.emailOtp) {
       setStatus('Login providers not configured yet. See AUTH_ENV.md.', 'err');
     } else if (!authState.emailOtp) {
@@ -588,14 +590,15 @@
         guest: !!data.guest,
         googleOAuth: !!data.googleOAuth,
         emailOtp: !!data.emailOtp,
-        ready: !!data.ready
+        ready: !!data.ready,
+        databaseAvailable: data.databaseAvailable !== false
       };
       if (authState.user) {
         window.location.replace(postLoginTarget());
         return;
       }
     } catch (e) {
-      authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false };
+      authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false, databaseAvailable: false };
     }
     applyProviderButtons();
     showProviderHint();
@@ -626,6 +629,10 @@
 
   window.requestEmailOtp = async function(opts) {
     opts = opts || {};
+    if (!authState.ready) {
+      setStatus('Account storage is offline. The site owner must connect the active database before sign-in can work.', 'err');
+      return;
+    }
     if (!authState.emailOtp) {
       setStatus('Email login disabled until RESEND_API_KEY is set.', 'err');
       return;
@@ -671,6 +678,10 @@
   };
 
   window.verifyEmailOtp = async function() {
+    if (!authState.ready) {
+      setStatus('Account storage is offline. The site owner must connect the active database before sign-in can work.', 'err');
+      return;
+    }
     if (!authState.emailOtp) {
       setStatus('Email login disabled until RESEND_API_KEY is set.', 'err');
       return;

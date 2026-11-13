@@ -1,7 +1,7 @@
 /**
  * Model cost tables used for plan $ spend budgets.
  * Rates are USD per 1,000,000 tokens (provider list prices as of 2026-10).
- * Sources: OpenAI platform pricing (gpt-5-nano); xAI docs.x.ai/developers/pricing (Grok).
+ * Sources: DeepSeek API pricing (deepseek-flash); xAI docs.x.ai/developers/pricing (Grok).
  *
  * Long-context (≥200k prompt tokens): Grok models use the higher tier for ALL tokens
  * in that request (per xAI pricing notes).
@@ -10,8 +10,8 @@ const LONG_CONTEXT_PROMPT_TOKENS = 200000;
 
 /** @type {Record<string, { input: number, output: number, inputLong?: number, outputLong?: number }>} */
 const MODEL_PRICING = {
-    // OpenAI Fast default (gpt-5-nano)
-    'gpt-5-nano': { input: 0.05, output: 0.40 },
+    // DeepSeek Flash peak-rate cache-miss prices for safe budget accounting.
+    'deepseek-flash': { input: 0.30, output: 1.20 },
     // Legacy Fast alias (still billable if env override / older traffic)
     'gpt-4o-mini': { input: 0.15, output: 0.60 },
     // xAI Grok 4.3 (Fast fallback + Thinking)
@@ -42,27 +42,18 @@ function lookupPricing(model) {
 
 
 /**
- * Normalize spend provider to `openai` | `grok` (infer from model when omitted).
+ * Normalize spend provider to `deepseek` | `grok` (infer from model when omitted).
  * @param {string|null|undefined} provider
  * @param {string|null|undefined} model
- * @returns {'openai'|'grok'|'unknown'}
+ * @returns {'deepseek'|'grok'|'unknown'}
  */
 function normalizeProvider(provider, model) {
     const p = String(provider || '').trim().toLowerCase();
-    if (p === 'openai') return 'openai';
+    if (p === 'deepseek' || p === 'deepseek-ai') return 'deepseek';
     if (p === 'grok' || p === 'xai') return 'grok';
     const id = normalizeModelId(model);
     if (!id) return p || 'unknown';
-    if (
-        id.startsWith('gpt-') ||
-        id.startsWith('o1') ||
-        id.startsWith('o3') ||
-        id.startsWith('o4') ||
-        id.includes('chatgpt') ||
-        id.includes('openai')
-    ) {
-        return 'openai';
-    }
+    if (id.startsWith('deepseek')) return 'deepseek';
     if (id.startsWith('grok') || id.startsWith('xai')) return 'grok';
     return p || 'unknown';
 }
@@ -90,7 +81,7 @@ function costFromUsage(model, promptTokens, completionTokens) {
 }
 
 /**
- * Normalize provider usage objects (OpenAI chat + Responses / xAI).
+ * Normalize provider usage objects (DeepSeek/Grok OpenAI-compatible chat responses).
  */
 function extractTokenCounts(usage) {
     if (!usage || typeof usage !== 'object') {

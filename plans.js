@@ -754,10 +754,12 @@ function createPlansStore(dataDir, options = {}) {
             todayTokens: 0,
             todayGrokSpendUsd: 0,
             todayOpenaiSpendUsd: 0,
+            todayDeepseekSpendUsd: 0,
             totalSpendUsd: 0,
             totalTokens: 0,
             totalGrokSpendUsd: 0,
             totalOpenaiSpendUsd: 0,
+            totalDeepseekSpendUsd: 0,
             // legacy counters kept for migration / admin visibility
             fast: 0,
             thinking: 0,
@@ -783,8 +785,10 @@ function createPlansStore(dataDir, options = {}) {
         if (u.todayTokens == null) u.todayTokens = 0;
         if (u.todayGrokSpendUsd == null) u.todayGrokSpendUsd = 0;
         if (u.todayOpenaiSpendUsd == null) u.todayOpenaiSpendUsd = 0;
+        if (u.todayDeepseekSpendUsd == null) u.todayDeepseekSpendUsd = 0;
         if (u.totalGrokSpendUsd == null) u.totalGrokSpendUsd = 0;
         if (u.totalOpenaiSpendUsd == null) u.totalOpenaiSpendUsd = 0;
+        if (u.totalDeepseekSpendUsd == null) u.totalDeepseekSpendUsd = 0;
         if (u.todayTalkSeconds == null) u.todayTalkSeconds = 0;
         if (!u.spendDay) u.spendDay = u.day || day || utcDayKey();
         return u;
@@ -798,6 +802,7 @@ function createPlansStore(dataDir, options = {}) {
             u.todayTokens = 0;
             u.todayGrokSpendUsd = 0;
             u.todayOpenaiSpendUsd = 0;
+            u.todayDeepseekSpendUsd = 0;
             u.todayTalkSeconds = 0;
         }
         return u;
@@ -814,10 +819,12 @@ function createPlansStore(dataDir, options = {}) {
                 todaySpendUsd: 0,
                 todayGrokSpendUsd: 0,
                 todayOpenaiSpendUsd: 0,
+                todayDeepseekSpendUsd: 0,
                 totalTokens: 0,
                 totalSpendUsd: 0,
                 totalGrokSpendUsd: 0,
                 totalOpenaiSpendUsd: 0,
+                totalDeepseekSpendUsd: 0,
                 periodFastSpendUsd: 0,
                 periodThinkShareSpendUsd: 0,
                 periodExpert16SpendUsd: 0,
@@ -850,6 +857,7 @@ function createPlansStore(dataDir, options = {}) {
             todaySpendUsd: todayActive ? roundUsd(Number(u.todaySpendUsd) || 0) : 0,
             todayGrokSpendUsd: todayActive ? roundUsd(Number(u.todayGrokSpendUsd) || 0) : 0,
             todayOpenaiSpendUsd: todayActive ? roundUsd(Number(u.todayOpenaiSpendUsd) || 0) : 0,
+            todayDeepseekSpendUsd: todayActive ? roundUsd(Number(u.todayDeepseekSpendUsd) || 0) : 0,
             totalTokens: Number(u.totalTokens) || 0,
             totalSpendUsd: roundUsd(
                 u.totalSpendUsd != null
@@ -858,6 +866,7 @@ function createPlansStore(dataDir, options = {}) {
             ),
             totalGrokSpendUsd: roundUsd(Number(u.totalGrokSpendUsd) || 0),
             totalOpenaiSpendUsd: roundUsd(Number(u.totalOpenaiSpendUsd) || 0),
+            totalDeepseekSpendUsd: roundUsd(Number(u.totalDeepseekSpendUsd) || 0),
             periodFastSpendUsd: roundUsd(Number(u.fastSpendUsd) || 0),
             periodThinkShareSpendUsd: thinkShareUsed(u),
             periodExpert16SpendUsd: expert16Used(u),
@@ -1406,6 +1415,9 @@ function createPlansStore(dataDir, options = {}) {
         } else if (provider === 'openai') {
             u.todayOpenaiSpendUsd = roundUsd((Number(u.todayOpenaiSpendUsd) || 0) + cost);
             u.totalOpenaiSpendUsd = roundUsd((Number(u.totalOpenaiSpendUsd) || 0) + cost);
+        } else if (provider === 'deepseek') {
+            u.todayDeepseekSpendUsd = roundUsd((Number(u.todayDeepseekSpendUsd) || 0) + cost);
+            u.totalDeepseekSpendUsd = roundUsd((Number(u.totalDeepseekSpendUsd) || 0) + cost);
         }
         u.lastSpend = {
             at: new Date().toISOString(),
@@ -2303,10 +2315,12 @@ function createPlansStore(dataDir, options = {}) {
                 todaySpendUsd: usage.todaySpendUsd,
                 todayGrokSpendUsd: usage.todayGrokSpendUsd,
                 todayOpenaiSpendUsd: usage.todayOpenaiSpendUsd,
+                todayDeepseekSpendUsd: usage.todayDeepseekSpendUsd,
                 totalTokens: usage.totalTokens,
                 totalSpendUsd: usage.totalSpendUsd,
                 totalGrokSpendUsd: usage.totalGrokSpendUsd,
                 totalOpenaiSpendUsd: usage.totalOpenaiSpendUsd,
+                totalDeepseekSpendUsd: usage.totalDeepseekSpendUsd,
                 tokensToday: usage.todayTokens,
                 dollarsToday: usage.todaySpendUsd,
                 tokensTotal: usage.totalTokens,
@@ -2315,6 +2329,8 @@ function createPlansStore(dataDir, options = {}) {
                 openaiSpendToday: usage.todayOpenaiSpendUsd,
                 grokSpendTotal: usage.totalGrokSpendUsd,
                 openaiSpendTotal: usage.totalOpenaiSpendUsd,
+                deepseekSpendToday: usage.todayDeepseekSpendUsd,
+                deepseekSpendTotal: usage.totalDeepseekSpendUsd,
                 todayTalkSeconds: usage.todayTalkSeconds || 0,
                 talkSecondsUsed: usage.talkSecondsUsed || 0,
                 talkCapSeconds: usage.talkCapSeconds || 0,

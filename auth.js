@@ -43,7 +43,7 @@ function authStatus() {
     };
 }
 
-async function authStatusWithHealth() {
+async function authStatusWithHealth(getPool) {
     const status = authStatus();
     if (!status.database) {
         status.databaseAvailable = null;
@@ -846,7 +846,7 @@ function createAuth(options = {}) {
     return {
         SESSION_COOKIE,
         authStatus,
-        authStatusWithHealth,
+        authStatusWithHealth: () => authStatusWithHealth(getPool),
         getPool,
         ensureSchema,
         readUserFromReq,

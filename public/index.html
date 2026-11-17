@@ -4150,7 +4150,25 @@
         .imagine-nav-link>span:first-child{font-size:18px}
         .imagine-nav-badge{margin-left:auto;font-size:9px;letter-spacing:.12em;padding:4px 7px;border-radius:99px;background:rgba(212,175,55,.14);color:var(--text-muted,#a69e8b)}
 
-    </style>
+    .notification-trigger{position:relative;min-width:40px;font-size:18px}
+.notification-badge{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:#d94b4b;color:#fff;font:700 10px/17px system-ui;text-align:center}
+.notification-panel{position:fixed;z-index:230;right:18px;top:70px;width:min(390px,calc(100vw - 24px));max-height:min(72vh,580px);background:var(--black-light,#141414);border:1px solid var(--border,#303030);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.42);display:flex;flex-direction:column;overflow:hidden}
+.notification-panel[hidden]{display:none}
+.notification-panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border,#303030)}
+.notification-panel-head strong{display:block;font-size:15px}
+.notification-panel-head span{display:block;margin-top:3px;font-size:11px;color:var(--text-muted,#aaa)}
+.notification-mark-all,.notification-close{border:0;background:transparent;color:var(--gold,#d4af37);cursor:pointer;padding:6px 8px}
+.notification-close{font-size:22px;color:var(--text-muted,#aaa)}
+.notification-list{overflow:auto;padding:7px;display:grid;gap:6px}
+.notification-item{border:1px solid transparent;border-radius:11px;padding:11px 12px;background:rgba(255,255,255,.035);cursor:pointer}
+.notification-item.unread{border-color:var(--gold-line,rgba(212,175,55,.35));background:rgba(212,175,55,.08)}
+.notification-item strong{display:block;font-size:13px;margin-bottom:4px}
+.notification-item p{margin:0;color:var(--text-muted,#aaa);font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.notification-item time{display:block;margin-top:6px;color:var(--text-muted,#888);font-size:10px}
+.notification-empty{padding:22px 14px;text-align:center;color:var(--text-muted,#aaa);font-size:13px}
+.email-pref-row{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.5;color:var(--text-muted,#aaa)}
+.email-pref-row input{accent-color:var(--gold,#d4af37);margin-top:3px}
+</style>
 </head>
 <body>
     <div class="app-container">
@@ -4163,9 +4181,14 @@
             </div>
             <div class="top-bar-actions">
                 <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button>
+                <button class="icon-btn notification-trigger" id="notificationsBtn" type="button" onclick="toggleNotificationPanel()" aria-label="Notifications" title="Notifications">♢<span id="notificationBadge" class="notification-badge" hidden></span></button>
                 <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Theme">Theme</button>
             </div>
         </div>
+        <section class="notification-panel" id="notificationPanel" aria-label="Notifications" hidden>
+            <header class="notification-panel-head"><div><strong>Notifications</strong><span id="notificationCount">Latest account updates</span></div><div><button type="button" class="notification-mark-all" onclick="markAllNotificationsRead()">Mark all read</button><button type="button" class="notification-close" onclick="toggleNotificationPanel(false)" aria-label="Close notifications">×</button></div></header>
+            <div id="notificationList" class="notification-list" aria-live="polite"></div>
+        </section>
 
         <div class="main-content">
             <div class="chats-panel" id="chatsPanel">
@@ -4323,6 +4346,11 @@
                             <span class="settings-k">Theme</span>
                             <button type="button" class="settings-theme-btn" id="settingsThemeBtn" onclick="toggleTheme()" aria-label="Toggle theme">Light</button>
                         </div>
+                    </div>
+                    <div class="settings-card" aria-label="Email announcements">
+                        <h3>Email announcements</h3>
+                        <label class="email-pref-row"><input type="checkbox" id="emailAnnouncementsToggle" onchange="saveEmailAnnouncements(this.checked)"> <span>Send me occasional GoldenSpaceAI account announcements by email.</span></label>
+                        <p class="settings-instr-hint" id="emailAnnouncementsNote">Optional. In-app notifications remain enabled.</p>
                     </div>
                     <div class="settings-card" aria-label="Voice output">
                         <h3>Voice</h3>
@@ -4731,8 +4759,92 @@
                 // Do not force-close settings on guest refresh (theme/instructions still useful)
             }
         }
+        function toggleNotificationPanel(forceOpen) {
+            const panel = document.getElementById('notificationPanel');
+            if (!panel) return;
+            const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : panel.hidden;
+            panel.hidden = !shouldOpen;
+            if (shouldOpen) refreshNotifications();
+        }
+        function renderNotifications(items, requiresLogin) {
+            const list = document.getElementById('notificationList');
+            const count = document.getElementById('notificationCount');
+            if (!list) return;
+            list.replaceChildren();
+            if (requiresLogin) {
+                const n = document.createElement('div'); n.className = 'notification-empty'; n.textContent = 'Sign in to receive and view account notifications.'; list.appendChild(n);
+                if (count) count.textContent = 'Sign in to receive updates';
+                return;
+            }
+            const rows = Array.isArray(items) ? items : [];
+            const unread = rows.filter(item => !item.readAt).length;
+            if (count) count.textContent = unread ? unread + ' unread' : 'Latest account updates';
+            if (!rows.length) {
+                const n = document.createElement('div'); n.className = 'notification-empty'; n.textContent = 'You’re all caught up.'; list.appendChild(n); return;
+            }
+            rows.forEach(item => {
+                const card = document.createElement('article'); card.className = 'notification-item' + (item.readAt ? '' : ' unread');
+                const title = document.createElement('strong'); title.textContent = item.title || 'GoldenSpaceAI update';
+                const message = document.createElement('p'); message.textContent = item.message || '';
+                card.appendChild(title); card.appendChild(message);
+                if (item.createdAt) { const time = document.createElement('time'); time.dateTime = item.createdAt; time.textContent = new Date(item.createdAt).toLocaleString(); card.appendChild(time); }
+                if (!item.readAt) card.addEventListener('click', () => markNotificationRead(item.id));
+                list.appendChild(card);
+            });
+        }
+        async function refreshNotifications() {
+            try {
+                const res = await apiFetch('/api/notifications', { method: 'GET', cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Could not load notifications.');
+                renderNotifications(data.notifications, data.requiresLogin);
+                const badge = document.getElementById('notificationBadge');
+                if (badge) { const unread = Number(data.unread) || 0; badge.hidden = unread < 1; badge.textContent = unread > 9 ? '9+' : String(unread); }
+            } catch (e) {
+                renderNotifications([], false);
+            }
+        }
+        async function markNotificationRead(id) {
+            try { await apiFetch('/api/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [id] }) }); await refreshNotifications(); }
+            catch (_) {}
+        }
+        async function markAllNotificationsRead() {
+            try { await apiFetch('/api/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [] }) }); await refreshNotifications(); }
+            catch (_) {}
+        }
+        async function loadEmailAnnouncements() {
+            const input = document.getElementById('emailAnnouncementsToggle');
+            const note = document.getElementById('emailAnnouncementsNote');
+            if (!input) return;
+            try {
+                const res = await apiFetch('/api/notification-preferences', { method: 'GET', cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Sign in to manage email preferences.');
+                input.checked = !!data.enabled; input.disabled = false;
+                if (note) note.textContent = 'Optional. In-app notifications remain enabled; you can unsubscribe from announcement emails any time.';
+            } catch (_) {
+                input.checked = false; input.disabled = true;
+                if (note) note.textContent = 'Sign in to manage optional email announcements. In-app notifications stay separate.';
+            }
+        }
+        async function saveEmailAnnouncements(enabled) {
+            const input = document.getElementById('emailAnnouncementsToggle');
+            const note = document.getElementById('emailAnnouncementsNote');
+            if (input) input.disabled = true;
+            try {
+                const res = await apiFetch('/api/notification-preferences', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailAnnouncements: !!enabled }) });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Could not save preference.');
+                if (note) note.textContent = data.enabled ? 'Email announcements are on. You can turn them off any time.' : 'Email announcements are off. In-app notifications remain on.';
+            } catch (e) {
+                if (input) input.checked = !enabled;
+                if (note) note.textContent = e.message || 'Could not save your preference.';
+            } finally { if (input) input.disabled = false; }
+        }
+
         function openSettingsPanel() {
             if (!isDesktop()) closeChatsPanel();
+            loadEmailAnnouncements();
             const overlay = document.getElementById('settingsOverlay');
             if (overlay) overlay.classList.add('open');
             renderAuthCard();
@@ -8824,7 +8936,9 @@
         }
 
         init();
-    </script>
+            refreshNotifications();
+        setInterval(refreshNotifications, 60000);
+</script>
 </body>
 
 </html>

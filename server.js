@@ -1357,9 +1357,20 @@ app.post('/api/chat', async (req, res) => {
             pack ? pack.conversationMessages : buildConversationMessages(req.body),
             req.body
         );
+        const identityAgents = Number(req.body?.agents) === 16 ? 16 : 4;
+        const identityName = safeMode === 'expert'
+            ? (identityAgents === 16 ? 'GoldenSpaceAI 16 Agent model' : 'GoldenSpaceAI 4 Agent model')
+            : (safeMode === 'smart' ? 'GoldenSpaceAI Thinking model' : 'GoldenSpaceAI Fast model');
+        const identityInstructions = safeMode === 'expert'
+            ? (identityAgents === 16
+                ? 'If asked who you are or how you work, say: “I’m the GoldenSpaceAI 16 Agent model. I use 16 AI agents to research and work on your request, then combine their work into one answer.”'
+                : 'If asked who you are or how you work, say: “I’m the GoldenSpaceAI 4 Agent model. I use 4 AI agents to work on your request, then combine their work into one answer.”')
+            : (safeMode === 'smart'
+                ? 'If asked who you are, say: “I’m the GoldenSpaceAI Thinking model.”'
+                : 'If asked who you are, say: “I’m the GoldenSpaceAI Fast model.”');
         conversationMessages.unshift({
             role: 'system',
-            content: 'You are GoldenSpaceAI. Be truthful about the model provider if asked: Fast uses DeepSeek, unless this request falls back to xAI Grok. Thinking and Expert use xAI Grok. Never claim to be OpenAI or ChatGPT; the underlying compatibility SDK does not make OpenAI the provider.'
+            content: 'You are ' + identityName + ', part of GoldenSpaceAI. ' + identityInstructions + ' When asked about the underlying provider, answer truthfully: Fast normally uses DeepSeek and can fall back to Grok; Thinking and Expert use Grok. Never say you are OpenAI or ChatGPT. Do not invent capabilities beyond this mode description.'
         });
         const useWebSearch = webSearch === true;
 
@@ -3017,14 +3028,23 @@ function isBlockedImagineQuery(query) {
 app.get('/api/imagine/search', async (req, res) => {
     const query = String(req.query.query || '').trim().replace(/\s+/g, ' ');
     const type = String(req.query.type || 'photo').toLowerCase();
+    const page = Math.max(1, Math.min(250, parseInt(req.query.page, 10) || 1));
+    const isNewSearch = true;
+    const orientation = String(req.query.orientation || '').toLowerCase();
+    const color = String(req.query.color || '').toLowerCase();
+    const duration = String(req.query.duration || '').toLowerCase();
+    const allowedOrientations = ['', 'landscape', 'portrait', 'square'];
+    const allowedColors = ['', 'red', 'orange', 'yellow', 'green', 'turquoise', 'blue', 'violet', 'pink', 'brown', 'black', 'gray', 'white'];
     if (!query || query.length > 160) return res.status(400).json({ message: 'Enter a search description up to 160 characters.' });
     if (type !== 'photo' && type !== 'video') return res.status(400).json({ message: 'Choose images or videos.' });
+    if (!allowedOrientations.includes(orientation)) return res.status(400).json({ message: 'Choose a valid orientation.' });
+    if (type === 'photo' && !allowedColors.includes(color)) return res.status(400).json({ message: 'Choose a valid color.' });
+    if (type === 'video' && !['', 'short', 'medium', 'long'].includes(duration)) return res.status(400).json({ message: 'Choose a valid video duration.' });
     if (isBlockedImagineQuery(query)) return res.status(400).json({ message: 'Access blocked for this word or phrase. Try a different search.' });
 
     const ownerKey = resolvePlanOwnerKey(req) || getClientId(req);
-    const allowance = plansStore.checkImagineAllowed(ownerKey, type);
+    const allowance = plansStore.checkImagineAllowed(ownerKey, type, isNewSearch);
     if (!allowance.ok) return res.status(allowance.error.status || 429).json({ message: allowance.error.reply, code: allowance.error.code, upgradeUrl: allowance.error.upgradeUrl || '/upgrade' });
-
     const apiKey = String(process.env.PEXELS_API_KEY || '').trim();
     if (!apiKey) return res.status(503).json({ message: 'Imagine is not configured yet. Please try again later.' });
 
@@ -3037,22 +3057,41 @@ app.get('/api/imagine/search', async (req, res) => {
     }
     if (bucket.count >= IMAGINE_RATE_LIMIT) return res.status(429).json({ message: 'Too many searches right now. Please wait a minute and try again.' });
 
-    const cacheKey = type + ':' + query.toLowerCase();
+    const perPage = Math.min(type === 'photo' ? 20 : 5, allowance.mediaCap - allowance.mediaUsed);
+    const filters = { orientation, color: type === 'photo' ? color : '', duration: type === 'video' ? duration : '' };
+    const cacheKey = JSON.stringify([type, query.toLowerCase(), page, perPage, filters]);
     const cached = imagineCache.get(cacheKey);
-    if (cached && now - cached.createdAt < IMAGINE_CACHE_TTL_MS) {
-        const results = cached.payload.results.slice(0, Math.min(type === 'photo' ? 20 : 5, allowance.mediaCap - allowance.mediaUsed));
-        if (!results.length) return res.status(429).json({ message: 'Your daily ' + (type === 'video' ? 'video' : 'image') + ' limit is reached. It resets at midnight UTC.', code: 'imagine_media_limit', upgradeUrl: '/upgrade' });
+
+    function responseUsage(usage) {
+        return {
+            searchesRemaining: Math.max(0, allowance.searchCap - usage.searchesUsed),
+            imagesRemaining: Math.max(0, allowance.imagesCap - usage.imagesUsed),
+            videosRemaining: Math.max(0, allowance.videosCap - usage.videosUsed)
+        };
+    }
+    function finish(payload) {
         bucket.count += 1;
-        const usage = plansStore.recordImagine(ownerKey, type, results.length);
+        const usage = plansStore.recordImagine(ownerKey, type, payload.results.length, isNewSearch);
         res.setHeader('Cache-Control', 'private, max-age=300');
-        return res.json({ ...cached.payload, results, count: results.length, usage: { searchesRemaining: Math.max(0, allowance.searchCap - usage.searchesUsed), imagesRemaining: Math.max(0, allowance.imagesCap - usage.imagesUsed), videosRemaining: Math.max(0, allowance.videosCap - usage.videosUsed) } });
+        return res.json({ ...payload, usage: responseUsage(usage) });
+    }
+    if (cached && now - cached.createdAt < IMAGINE_CACHE_TTL_MS) {
+        const results = cached.payload.results.slice(0, perPage);
+        if (!results.length && allowance.mediaUsed >= allowance.mediaCap) return res.status(429).json({ message: 'Your daily ' + (type === 'video' ? 'video' : 'image') + ' limit is reached. It resets at midnight UTC.', code: 'imagine_media_limit', upgradeUrl: '/upgrade' });
+        return finish({ ...cached.payload, results, count: results.length });
     }
 
     try {
-        const endpoint = type === 'photo' ? 'https://api.pexels.com/v1/search' : 'https://api.pexels.com/videos/search';
-        const perPage = Math.min(type === 'photo' ? 20 : 5, allowance.mediaCap - allowance.mediaUsed);
-        const url = endpoint + '?query=' + encodeURIComponent(query) + '&per_page=' + perPage;
-        const response = await fetch(url, {
+        const endpoint = type === 'photo' ? 'https://api.pexels.com/v1/search' : 'https://api.pexels.com/v1/videos/search';
+        const params = new URLSearchParams({ query, page: String(page), per_page: String(perPage) });
+        if (orientation) params.set('orientation', orientation);
+        if (type === 'photo' && color) params.set('color', color);
+        if (type === 'video') {
+            if (duration === 'short') params.set('max_duration', '30');
+            if (duration === 'medium') { params.set('min_duration', '30'); params.set('max_duration', '120'); }
+            if (duration === 'long') params.set('min_duration', '120');
+        }
+        const response = await fetch(endpoint + '?' + params.toString(), {
             headers: { Authorization: apiKey, Accept: 'application/json' },
             signal: AbortSignal.timeout(15000)
         });
@@ -3091,17 +3130,14 @@ app.get('/api/imagine/search', async (req, res) => {
                 };
             }).filter(Boolean);
         }
-        const payload = { type, query, results, source: 'Pexels', count: results.length };
+        const payload = { type, query, results, source: 'Pexels', count: results.length, page, hasMore: !!raw.next_page, totalResults: Number(raw.total_results) || null };
         imagineCache.set(cacheKey, { createdAt: now, payload });
         if (imagineCache.size > 300) {
             for (const [key, entry] of imagineCache) {
                 if (now - entry.createdAt >= IMAGINE_CACHE_TTL_MS || imagineCache.size > 250) imagineCache.delete(key);
             }
         }
-        bucket.count += 1;
-        const usage = plansStore.recordImagine(ownerKey, type, results.length);
-        res.setHeader('Cache-Control', 'private, max-age=300');
-        res.json({ ...payload, usage: { searchesRemaining: Math.max(0, allowance.searchCap - usage.searchesUsed), imagesRemaining: Math.max(0, allowance.imagesCap - usage.imagesUsed), videosRemaining: Math.max(0, allowance.videosCap - usage.videosUsed) } });
+        return finish(payload);
     } catch (error) {
         if (error && error.name === 'TimeoutError') return res.status(504).json({ message: 'Pexels took too long to respond. Please try again.' });
         console.error('Pexels search error:', error.message);

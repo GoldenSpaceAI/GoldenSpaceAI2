@@ -4144,6 +4144,12 @@
             text-transform: none;
         }
 
+    
+        .imagine-nav-link{margin:10px 12px 8px;min-height:42px;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid rgba(212,175,55,.3);border-radius:12px;background:linear-gradient(100deg,rgba(212,175,55,.13),rgba(212,175,55,.035));color:var(--gold,#d4af37);text-decoration:none;font-size:14px;font-weight:700;letter-spacing:.01em}
+        .imagine-nav-link:hover{border-color:rgba(212,175,55,.62);background:rgba(212,175,55,.16)}
+        .imagine-nav-link>span:first-child{font-size:18px}
+        .imagine-nav-badge{margin-left:auto;font-size:9px;letter-spacing:.12em;padding:4px 7px;border-radius:99px;background:rgba(212,175,55,.14);color:var(--text-muted,#a69e8b)}
+
     </style>
 </head>
 <body>
@@ -4173,6 +4179,7 @@
                 <div class="chat-search-wrap">
                     <input class="chat-search" id="chatSearch" type="search" placeholder="Search chats..." oninput="renderChatsList()" aria-label="Search chats">
                 </div>
+                <a class="imagine-nav-link" href="/imagine" aria-label="Open Imagine"><span aria-hidden="true">✦</span><span>Imagine</span><span class="imagine-nav-badge">MEDIA</span></a>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
                     <div class="plan-strip" id="planStrip" aria-label="Plan usage">

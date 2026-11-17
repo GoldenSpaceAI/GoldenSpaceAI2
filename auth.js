@@ -171,6 +171,24 @@ function createAuth(options = {}) {
                         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                         linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     );
+                    CREATE TABLE IF NOT EXISTS user_notifications (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        title TEXT NOT NULL,
+                        message TEXT NOT NULL,
+                        category TEXT NOT NULL DEFAULT 'announcement',
+                        dedupe_key TEXT NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        read_at TIMESTAMPTZ,
+                        UNIQUE(user_id, dedupe_key)
+                    );
+                    CREATE INDEX IF NOT EXISTS user_notifications_recent_idx
+                        ON user_notifications(user_id, created_at DESC);
+                    CREATE TABLE IF NOT EXISTS user_notification_preferences (
+                        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                        email_announcements BOOLEAN NOT NULL DEFAULT FALSE,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
                     CREATE TABLE IF NOT EXISTS chats (
                         owner_key TEXT NOT NULL,
                         chat_id TEXT NOT NULL,
@@ -804,15 +822,172 @@ function createAuth(options = {}) {
      * Admin read-only: accounts + linked devices from Postgres.
      * No last-login IP/UA is stored on users today.
      */
+    async function createNotification(userId, item) {
+        const p = getPool();
+        if (!userId || !p || !(await ensureSchema())) return { ok: false, error: 'Notifications are unavailable.' };
+        const v = item || {};
+        const title = String(v.title || 'GoldenSpaceAI update').trim().slice(0, 120);
+        const message = String(v.message || '').trim().slice(0, 4000);
+        const category = String(v.category || 'announcement').slice(0, 40);
+        const dedupeKey = String(v.dedupeKey || crypto.randomUUID()).slice(0, 180);
+        const result = await p.query(
+            `INSERT INTO user_notifications (user_id, title, message, category, dedupe_key)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (user_id, dedupe_key) DO NOTHING
+             RETURNING id, title, message, category, created_at, read_at`,
+            [String(userId), title, message, category, dedupeKey]
+        );
+        return { ok: true, created: result.rowCount > 0, notification: result.rows[0] || null };
+    }
+
+    async function listNotifications(userId, limit) {
+        const p = getPool();
+        if (!userId || !p || !(await ensureSchema())) return { ok: false, notifications: [] };
+        const n = Math.max(1, Math.min(50, Number(limit) || 30));
+        const result = await p.query(
+            `SELECT id, title, message, category, created_at, read_at
+             FROM user_notifications WHERE user_id = $1
+             ORDER BY created_at DESC LIMIT $2`,
+            [String(userId), n]
+        );
+        const notifications = result.rows.map(row => ({
+            id: String(row.id), title: row.title, message: row.message, category: row.category,
+            createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+            readAt: row.read_at ? new Date(row.read_at).toISOString() : null
+        }));
+        return { ok: true, notifications, unread: notifications.filter(x => !x.readAt).length };
+    }
+
+    async function markNotificationsRead(userId, ids) {
+        const p = getPool();
+        if (!userId || !p || !(await ensureSchema())) return { ok: false };
+        const list = Array.isArray(ids) ? ids.map(String).slice(0, 50) : [];
+        if (list.length) {
+            await p.query(
+                'UPDATE user_notifications SET read_at = NOW() WHERE user_id = $1 AND id = ANY($2::uuid[])',
+                [String(userId), list]
+            );
+        } else {
+            await p.query('UPDATE user_notifications SET read_at = NOW() WHERE user_id = $1 AND read_at IS NULL', [String(userId)]);
+        }
+        return { ok: true };
+    }
+
+    async function getEmailAnnouncements(userId) {
+        const p = getPool();
+        if (!userId || !p || !(await ensureSchema())) return { ok: false, enabled: false };
+        const result = await p.query('SELECT email_announcements FROM user_notification_preferences WHERE user_id = $1', [String(userId)]);
+        return { ok: true, enabled: !!result.rows[0]?.email_announcements };
+    }
+
+    async function setEmailAnnouncements(userId, enabled) {
+        const p = getPool();
+        if (!userId || !p || !(await ensureSchema())) return { ok: false };
+        await p.query(
+            `INSERT INTO user_notification_preferences (user_id, email_announcements, updated_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (user_id) DO UPDATE SET email_announcements = EXCLUDED.email_announcements, updated_at = NOW()`,
+            [String(userId), !!enabled]
+        );
+        return { ok: true, enabled: !!enabled };
+    }
+
+    async function broadcastNotification(title, message, category) {
+        const p = getPool();
+        if (!p || !(await ensureSchema())) return { ok: false, sent: 0, error: 'Notifications are unavailable.' };
+        const users = await p.query('SELECT id FROM users');
+        const ids = users.rows.map(row => String(row.id));
+        const dedupe = 'broadcast:' + crypto.randomUUID();
+        let sent = 0;
+        for (let i = 0; i < ids.length; i += 250) {
+            const batch = ids.slice(i, i + 250);
+            const result = await p.query(
+                `INSERT INTO user_notifications (user_id, title, message, category, dedupe_key)
+                 SELECT uid, $2, $3, $4, $5 FROM unnest($1::uuid[]) AS ids(uid)
+                 ON CONFLICT (user_id, dedupe_key) DO NOTHING RETURNING id`,
+                [batch, String(title).slice(0, 120), String(message).slice(0, 4000), String(category || 'announcement'), dedupe]
+            );
+            sent += result.rowCount || 0;
+        }
+        return { ok: true, sent, recipients: ids.length };
+    }
+
+    function emailUnsubscribeToken(userId) {
+        const secret = env('SESSION_SECRET');
+        if (!secret || !userId) return '';
+        return crypto.createHmac('sha256', secret).update('email-announcements:' + String(userId)).digest('hex');
+    }
+
+    async function unsubscribeEmailAnnouncements(userId, token) {
+        const expected = emailUnsubscribeToken(userId);
+        const supplied = String(token || '');
+        if (!expected || !supplied || supplied.length !== expected.length ||
+            !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) return { ok: false };
+        const result = await setEmailAnnouncements(userId, false);
+        return { ok: !!result.ok };
+    }
+
+    async function sendAnnouncementEmails(title, message, baseUrl) {
+        if (!env('RESEND_API_KEY')) return { ok: false, error: 'Email delivery is not configured (RESEND_API_KEY).' };
+        const p = getPool();
+        if (!p || !(await ensureSchema())) return { ok: false, error: 'Email recipients are unavailable.' };
+        const users = await p.query(`
+            SELECT u.id, u.email FROM users u
+            INNER JOIN user_notification_preferences pref ON pref.user_id = u.id AND pref.email_announcements = TRUE
+            WHERE u.email IS NOT NULL AND btrim(u.email) <> ''
+            ORDER BY u.created_at
+        `);
+        const recipients = users.rows;
+        const from = emailFromAddress();
+        const base = String(baseUrl || 'https://www.goldenspaceai.space').replace(/\/$/, '');
+        const safe = text => String(text || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+        const safeTitle = String(title || '').slice(0, 120);
+        const safeMessage = String(message || '').slice(0, 4000);
+        const htmlMessage = safe(safeMessage).replace(/\r?\n/g, '<br>');
+        let sent = 0, failed = 0;
+        for (let i = 0; i < recipients.length; i += 100) {
+            const batch = recipients.slice(i, i + 100).map(user => {
+                const uid = String(user.id);
+                const token = emailUnsubscribeToken(uid);
+                const url = base + '/api/email/unsubscribe?uid=' + encodeURIComponent(uid) + '&token=' + encodeURIComponent(token);
+                return {
+                    from, to: [user.email], subject: safeTitle,
+                    html: '<main style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#242424"><h2>' + safe(safeTitle) + '</h2><p style="line-height:1.6">' + htmlMessage + '</p><hr><p style="font-size:12px;color:#666">GoldenSpaceAI account announcement. <a href="' + url + '">Unsubscribe from announcement emails</a>.</p></main>',
+                    text: safeTitle + '\n\n' + safeMessage + '\n\nUnsubscribe: ' + url,
+                    headers: { 'List-Unsubscribe': '<' + url + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+                };
+            });
+            try {
+                const response = await fetch('https://api.resend.com/emails/batch', {
+                    method: 'POST',
+                    headers: { Authorization: 'Bearer ' + env('RESEND_API_KEY'), 'Content-Type': 'application/json' },
+                    body: JSON.stringify(batch),
+                    signal: AbortSignal.timeout(20000)
+                });
+                if (response.ok) sent += batch.length;
+                else {
+                    failed += batch.length;
+                    console.error('Resend broadcast batch failed:', response.status, await response.text().catch(() => ''));
+                }
+            } catch (error) {
+                failed += batch.length;
+                console.error('Resend broadcast batch error:', error.message);
+            }
+        }
+        return { ok: failed === 0, sent, failed, recipients: recipients.length };
+    }
+
     async function listUsersForAdmin() {
         const p = getPool();
         if (!p || !(await ensureSchema())) {
             return { ok: false, users: [], error: 'Auth database unavailable' };
         }
         const usersRes = await p.query(`
-            SELECT id, email, name, google_id, created_at, updated_at
-            FROM users
-            ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST
+            SELECT u.id, u.email, u.name, u.google_id, u.created_at, u.updated_at,
+                   COALESCE(pref.email_announcements, FALSE) AS email_announcements
+            FROM users u
+            LEFT JOIN user_notification_preferences pref ON pref.user_id = u.id
+            ORDER BY COALESCE(u.updated_at, u.created_at) DESC NULLS LAST
         `);
         const linksRes = await p.query(`
             SELECT device_id, user_id, linked_at
@@ -835,6 +1010,7 @@ function createAuth(options = {}) {
                 email: row.email || null,
                 name: row.name || null,
                 googleId: row.google_id || null,
+                emailAnnouncements: !!row.email_announcements,
                 createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
                 updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
                 devices: devicesByUser.get(id) || []
@@ -872,7 +1048,15 @@ function createAuth(options = {}) {
         patchUserMemory,
         ownerKeyForRequest,
         getPublicBaseUrl,
-        listUsersForAdmin
+        listUsersForAdmin,
+        createNotification,
+        listNotifications,
+        markNotificationsRead,
+        getEmailAnnouncements,
+        setEmailAnnouncements,
+        broadcastNotification,
+        sendAnnouncementEmails,
+        unsubscribeEmailAnnouncements
     };
 }
 

@@ -475,6 +475,7 @@
               <th class="g-identity" colspan="2">Identity</th>
               <th class="g-plan" colspan="1">Plan</th>
               <th class="g-usage" colspan="3">Usage</th>
+              <th class="g-imagine" colspan="1">Imagine · today</th>
               <th class="g-spend" colspan="3">Grok / DeepSeek spend</th>
             </tr>
             <tr class="col-labels">
@@ -484,6 +485,7 @@
               <th class="sortable num" data-sort="talkSecondsUsed">Talk min <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayTokens">Tokens <span class="sort-ind">▼</span></th>
               <th class="sortable num group-end" data-sort="todaySpendUsd">$ spent <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="imagineImagesToday">Imagine use <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayGrokSpendUsd">Grok $ <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayDeepseekSpendUsd">DeepSeek $ <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="totalSpendUsd">$ total <span class="sort-ind">▼</span></th>
@@ -590,6 +592,12 @@
       totalSpendUsd: totalSpendUsd,
       totalGrokSpendUsd: totalGrok,
       totalDeepseekSpendUsd: totalDeepseek,
+      imagineSearchesToday: Number(u.imagineSearchesToday) || 0,
+      imagineSearchesCap: Number(u.imagineSearchesCap) || 0,
+      imagineImagesToday: Number(u.imagineImagesToday) || 0,
+      imagineImagesCap: Number(u.imagineImagesCap) || 0,
+      imagineVideosToday: Number(u.imagineVideosToday) || 0,
+      imagineVideosCap: Number(u.imagineVideosCap) || 0,
       todayTalkSeconds: Number(u.todayTalkSeconds) || 0,
       talkSecondsUsed: Number(u.talkSecondsUsed) || 0,
       talkCapSeconds: Number(u.talkCapSeconds) || 0,
@@ -679,6 +687,7 @@
     if (key === 'talkSecondsUsed') return Number(u.talkSecondsUsed) || 0;
     if (key === 'todayTalkSeconds') return Number(u.todayTalkSeconds) || 0;
     if (key === 'todayTokens') return Number(u.todayTokens) || 0;
+    if (key === 'imagineImagesToday') return Number(u.imagineImagesToday) || 0;
     if (key === 'todaySpendUsd') return Number(u.todaySpendUsd) || 0;
     if (key === 'todayGrokSpendUsd') return Number(u.todayGrokSpendUsd) || 0;
     if (key === 'todayDeepseekSpendUsd') return Number(u.todayDeepseekSpendUsd) || 0;
@@ -692,7 +701,7 @@
   function getSorted(list) {
     const key = sortKey;
     const dir = sortDir === 'asc' ? 1 : -1;
-    const numeric = /Tokens|SpendUsd|TalkSeconds|talkSeconds/.test(key);
+    const numeric = /Tokens|SpendUsd|TalkSeconds|talkSeconds|imagineImagesToday/.test(key);
     return list.slice().sort((a, b) => {
       const av = sortValue(a, key);
       const bv = sortValue(b, key);
@@ -790,6 +799,13 @@
             '<div class="metric-stack align-end">' +
               '<span class="primary">' + escapeHtml(fmtUsd(u.todaySpendUsd)) + ' today</span>' +
               '<span class="secondary">' + escapeHtml(fmtUsd(u.totalSpendUsd)) + ' total</span>' +
+            '</div>' +
+          '</td>' +
+          '<td class="num imagine-cell">' +
+            '<div class="metric-stack align-end">' +
+              '<span class="primary">' + escapeHtml(u.imagineImagesToday + '/' + u.imagineImagesCap) + ' images</span>' +
+              '<span class="secondary">' + escapeHtml(Math.max(0, u.imagineImagesCap - u.imagineImagesToday) + ' images left · ' + Math.max(0, u.imagineVideosCap - u.imagineVideosToday) + ' videos left') + '</span>' +
+              '<span class="secondary">' + escapeHtml(Math.max(0, u.imagineSearchesCap - u.imagineSearchesToday) + ' searches left today') + '</span>' +
             '</div>' +
           '</td>' +
           '<td class="num">' +

@@ -5,6 +5,7 @@
  */
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const webpush = require('web-push');
 
 const SESSION_COOKIE = 'gsa_session';
 const SESSION_DAYS = 30;
@@ -189,6 +190,15 @@ function createAuth(options = {}) {
                         email_announcements BOOLEAN NOT NULL DEFAULT FALSE,
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     );
+                    CREATE TABLE IF NOT EXISTS user_push_subscriptions (
+                        id BIGSERIAL PRIMARY KEY,
+                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        endpoint TEXT NOT NULL UNIQUE,
+                        subscription JSONB NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS user_push_subscriptions_user_idx ON user_push_subscriptions(user_id);
                     CREATE TABLE IF NOT EXISTS chats (
                         owner_key TEXT NOT NULL,
                         chat_id TEXT NOT NULL,
@@ -822,6 +832,59 @@ function createAuth(options = {}) {
      * Admin read-only: accounts + linked devices from Postgres.
      * No last-login IP/UA is stored on users today.
      */
+    function pushConfigured() {
+        return !!(env('VAPID_PUBLIC_KEY') && env('VAPID_PRIVATE_KEY'));
+    }
+
+    function configureWebPush() {
+        if (!pushConfigured()) return false;
+        try {
+            webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:support@goldenspaceai.space', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
+            return true;
+        } catch (error) {
+            console.error('Web push configuration failed:', error.message);
+            return false;
+        }
+    }
+
+    async function savePushSubscription(userId, subscription) {
+        const p = getPool();
+        const sub = subscription || {};
+        if (!userId || !p || !(await ensureSchema())) return { ok: false, error: 'Push notifications are unavailable.' };
+        if (!sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return { ok: false, error: 'Invalid device subscription.' };
+        await p.query(
+            `INSERT INTO user_push_subscriptions (user_id, endpoint, subscription)
+             VALUES ($1, $2, $3::jsonb)
+             ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, subscription = EXCLUDED.subscription, updated_at = NOW()`,
+            [String(userId), String(sub.endpoint), JSON.stringify(sub)]
+        );
+        return { ok: true };
+    }
+
+    async function removePushSubscription(userId, endpoint) {
+        const p = getPool();
+        if (!userId || !p || !endpoint || !(await ensureSchema())) return { ok: false };
+        await p.query('DELETE FROM user_push_subscriptions WHERE user_id = $1 AND endpoint = $2', [String(userId), String(endpoint)]);
+        return { ok: true };
+    }
+
+    async function sendPushToUser(userId, title, message, url) {
+        const p = getPool();
+        if (!pushConfigured() || !configureWebPush() || !p || !(await ensureSchema())) return { ok: false, sent: 0 };
+        const rows = await p.query('SELECT id, endpoint, subscription FROM user_push_subscriptions WHERE user_id = $1', [String(userId)]);
+        let sent = 0;
+        for (const row of rows.rows) {
+            try {
+                await webpush.sendNotification(row.subscription, JSON.stringify({ title: String(title).slice(0, 120), body: String(message).slice(0, 220), url: String(url || '/') }), { TTL: 86400 });
+                sent++;
+            } catch (error) {
+                if (error.statusCode === 404 || error.statusCode === 410) await p.query('DELETE FROM user_push_subscriptions WHERE id = $1', [row.id]);
+                else console.error('Web push delivery failed:', error.statusCode || error.message);
+            }
+        }
+        return { ok: true, sent };
+    }
+
     async function createNotification(userId, item) {
         const p = getPool();
         if (!userId || !p || !(await ensureSchema())) return { ok: false, error: 'Notifications are unavailable.' };
@@ -837,6 +900,9 @@ function createAuth(options = {}) {
              RETURNING id, title, message, category, created_at, read_at`,
             [String(userId), title, message, category, dedupeKey]
         );
+        if (result.rowCount > 0) {
+            sendPushToUser(userId, title, message, '/').catch(error => console.error('Web push send:', error.message));
+        }
         return { ok: true, created: result.rowCount > 0, notification: result.rows[0] || null };
     }
 
@@ -945,6 +1011,7 @@ function createAuth(options = {}) {
             );
             sent += result.rowCount || 0;
         }
+        if (sent) await Promise.all(ids.map(id => sendPushToUser(id, title, message, '/').catch(() => null)));
         return { ok: true, sent, recipients: ids.length };
     }
 
@@ -1086,6 +1153,10 @@ function createAuth(options = {}) {
         getPublicBaseUrl,
         listUsersForAdmin,
         createNotification,
+        savePushSubscription,
+        removePushSubscription,
+        sendPushToUser,
+        pushNotificationsConfigured: pushConfigured,
         listNotifications,
         markNotificationsRead,
         getEmailAnnouncements,

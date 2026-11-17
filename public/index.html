@@ -4150,7 +4150,7 @@
         .imagine-nav-link>span:first-child{font-size:18px}
         .imagine-nav-badge{margin-left:auto;font-size:9px;letter-spacing:.12em;padding:4px 7px;border-radius:99px;background:rgba(212,175,55,.14);color:var(--text-muted,#a69e8b)}
 
-    .notification-trigger{position:relative;min-width:40px;font-size:18px}
+    .notification-trigger{position:relative;min-width:34px;font-size:18px}
 .notification-badge{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:#d94b4b;color:#fff;font:700 10px/17px system-ui;text-align:center}
 .notification-panel{position:fixed;z-index:230;right:18px;top:70px;width:min(390px,calc(100vw - 24px));max-height:min(72vh,580px);background:var(--black-light,#141414);border:1px solid var(--border,#303030);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.42);display:flex;flex-direction:column;overflow:hidden}
 .notification-panel[hidden]{display:none}
@@ -4181,7 +4181,6 @@
             </div>
             <div class="top-bar-actions">
                 <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button>
-                <button class="icon-btn notification-trigger" id="notificationsBtn" type="button" onclick="toggleNotificationPanel()" aria-label="Notifications" title="Notifications">♢<span id="notificationBadge" class="notification-badge" hidden></span></button>
                 <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Theme">Theme</button>
             </div>
         </div>
@@ -4222,6 +4221,7 @@
                     <div class="account-strip" id="accountStrip" aria-label="Account">
                         <div class="account-guest-row" id="accountGuestRow">
                             <a class="account-login-btn" id="accountLoginBtn" href="/login">Log in</a>
+                            <button type="button" class="account-gear notification-trigger" onclick="toggleNotificationPanel()" aria-label="Notifications" title="Notifications">♢<span class="notification-badge" hidden></span></button>
                             <button type="button" class="account-gear" id="accountGearGuestBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <circle cx="12" cy="12" r="3"/>
@@ -4235,6 +4235,7 @@
                                 <span class="account-plan-badge" id="accountPlanBadge">FREE</span>
                             </div>
                             <div class="account-actions">
+                                <button type="button" class="account-gear notification-trigger" onclick="toggleNotificationPanel()" aria-label="Notifications" title="Notifications">♢<span class="notification-badge" hidden></span></button>
                                 <button type="button" class="account-gear" id="accountGearBtn" onclick="openSettingsPanel()" title="Settings" aria-label="Settings">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <circle cx="12" cy="12" r="3"/>
@@ -4848,8 +4849,7 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Could not load notifications.');
                 renderNotifications(data.notifications, data.requiresLogin);
-                const badge = document.getElementById('notificationBadge');
-                if (badge) { const unread = Number(data.unread) || 0; badge.hidden = unread < 1; badge.textContent = unread > 9 ? '9+' : String(unread); }
+                document.querySelectorAll('.notification-badge').forEach(function(badge) { const unread = Number(data.unread) || 0; badge.hidden = unread < 1; badge.textContent = unread > 9 ? '9+' : String(unread); });
             } catch (e) {
                 renderNotifications([], false);
             }

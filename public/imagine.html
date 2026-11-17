@@ -92,6 +92,6 @@ var actions=el("div","card-actions");var preview=el("button","action",type==="ph
 function openMedia(kind,src,label){modalInner.querySelectorAll("img,video").forEach(function(n){n.remove()});var media=el(kind==="image"?"img":"video");media.src=src;media.alt=label||"";if(kind==="video"){media.controls=true;media.autoplay=true;media.playsInline=true}modalInner.appendChild(media);modal.hidden=false;document.getElementById("closeModal").focus()}
 function closeModal(){var v=modalInner.querySelector("video");if(v)v.pause();modal.hidden=true;modalInner.querySelectorAll("img,video").forEach(function(n){n.remove()})}
 document.getElementById("imagesTab").addEventListener("click",function(){if(type!=="photo")setType("photo")});document.getElementById("videosTab").addEventListener("click",function(){if(type!=="video")setType("video")});form.addEventListener("submit",function(e){e.preventDefault();search(field.value,1,false)});document.querySelectorAll(".suggestion").forEach(function(b){b.addEventListener("click",function(){field.value=b.textContent;search(field.value,1,false)})});moreBtn.addEventListener("click",function(){if(hasMore&&!busy)search(lastQuery,currentPage+1,true)});document.getElementById("closeModal").addEventListener("click",closeModal);modal.addEventListener("click",function(e){if(e.target===modal)closeModal()});document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!modal.hidden)closeModal()});refreshUsage()
-})(););
+})();
 </script>
 </body></html>

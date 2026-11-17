@@ -61,6 +61,9 @@ const PLAN_DEFS = {
         expert16Usd: 0,
         retainedUsd: 0,
         imagesPerDay: 5,
+        imagineSearchesPerDay: 2,
+        imagineImagesPerDay: 20,
+        imagineVideosPerDay: 10,
         talkMinutes: 1,
         talkPeriod: 'weekly',
         fastPeriod: 'daily',
@@ -77,6 +80,9 @@ const PLAN_DEFS = {
         expert16Usd: 0,
         retainedUsd: 3,
         imagesPerDay: 10,
+        imagineSearchesPerDay: 10,
+        imagineImagesPerDay: 100,
+        imagineVideosPerDay: 50,
         talkMinutes: 5,
         talkPeriod: 'period',
         fastPeriod: 'period',
@@ -93,6 +99,9 @@ const PLAN_DEFS = {
         expert16Usd: 0,
         retainedUsd: 3,
         imagesPerDay: 20,
+        imagineSearchesPerDay: 45,
+        imagineImagesPerDay: 300,
+        imagineVideosPerDay: 150,
         talkMinutes: 10,
         talkPeriod: 'period',
         fastPeriod: 'period',
@@ -109,6 +118,9 @@ const PLAN_DEFS = {
         expert16Usd: 3,
         retainedUsd: 3,
         imagesPerDay: 30,
+        imagineSearchesPerDay: 75,
+        imagineImagesPerDay: 500,
+        imagineVideosPerDay: 250,
         talkMinutes: 20,
         talkPeriod: 'period',
         fastPeriod: 'period',
@@ -767,6 +779,10 @@ function createPlansStore(dataDir, options = {}) {
             expert16: 0,
             imagesToday: 0,
             imageDay: d,
+            imagineDay: d,
+            imagineSearchesToday: 0,
+            imagineImagesToday: 0,
+            imagineVideosToday: 0,
             talkSecondsUsed: 0,
             talkPeriodKey: null,
             todayTalkSeconds: 0,
@@ -1192,6 +1208,44 @@ function createPlansStore(dataDir, options = {}) {
                 resets: 'utc_midnight'
             }
         };
+    }
+
+    function checkImagineAllowed(deviceId, type) {
+        if (!deviceId) return { ok: false, error: { status: 400, code: 'missing_client', reply: 'Refresh the page and try again.' } };
+        const effective = getEffectivePlan(deviceId);
+        const u = ensureUsage(deviceId);
+        const day = utcDayKey();
+        if (u.imagineDay !== day) {
+            u.imagineDay = day;
+            u.imagineSearchesToday = 0;
+            u.imagineImagesToday = 0;
+            u.imagineVideosToday = 0;
+        }
+        const searchCap = Math.max(0, Number(effective.def.imagineSearchesPerDay) || 0);
+        const mediaType = type === 'video' ? 'video' : 'image';
+        const mediaCap = Math.max(0, Number(mediaType === 'video' ? effective.def.imagineVideosPerDay : effective.def.imagineImagesPerDay) || 0);
+        const used = Number(mediaType === 'video' ? u.imagineVideosToday : u.imagineImagesToday) || 0;
+        if (Number(u.imagineSearchesToday) >= searchCap) return { ok: false, error: { status: 429, code: 'imagine_search_limit', reply: 'Your daily Imagine search limit is reached. It resets at midnight UTC.', upgradeUrl: '/upgrade' } };
+        if (used >= mediaCap) return { ok: false, error: { status: 429, code: 'imagine_media_limit', reply: 'Your daily ' + (mediaType === 'video' ? 'video' : 'image') + ' limit is reached. It resets at midnight UTC.', upgradeUrl: '/upgrade' } };
+        return { ok: true, searchCap, searchesUsed: Number(u.imagineSearchesToday) || 0, mediaCap, mediaUsed: used, mediaType };
+    }
+
+    function recordImagine(deviceId, type, count) {
+        if (!deviceId) return null;
+        const u = ensureUsage(deviceId);
+        const day = utcDayKey();
+        if (u.imagineDay !== day) {
+            u.imagineDay = day;
+            u.imagineSearchesToday = 0;
+            u.imagineImagesToday = 0;
+            u.imagineVideosToday = 0;
+        }
+        u.imagineSearchesToday = (Number(u.imagineSearchesToday) || 0) + 1;
+        const n = Math.max(0, Number(count) || 0);
+        if (type === 'video') u.imagineVideosToday = (Number(u.imagineVideosToday) || 0) + n;
+        else u.imagineImagesToday = (Number(u.imagineImagesToday) || 0) + n;
+        flushSync();
+        return { searchesUsed: u.imagineSearchesToday, imagesUsed: u.imagineImagesToday, videosUsed: u.imagineVideosToday };
     }
 
     function checkImageAllowed(deviceId) {
@@ -2405,6 +2459,8 @@ function createPlansStore(dataDir, options = {}) {
         checkChatAllowed,
         checkImageAllowed,
         recordImage,
+        checkImagineAllowed,
+        recordImagine,
         checkTalkAllowed,
         recordTalk,
         recordSpend,

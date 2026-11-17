@@ -1748,9 +1748,10 @@ function createPlansStore(dataDir, options = {}) {
                 : 'Not included on this plan';
             quotas.push(row);
         }
-        const imagineSearchCap = Math.max(0, Number(status.imagineSearchesPerDay) || 0);
-        const imagineImageCap = Math.max(0, Number(status.imagineImagesPerDay) || 0);
-        const imagineVideoCap = Math.max(0, Number(status.imagineVideosPerDay) || 0);
+        const imaginePlanDef = PLAN_DEFS[status.plan] || PLAN_DEFS.free;
+        const imagineSearchCap = Math.max(0, Number(imaginePlanDef.imagineSearchesPerDay) || 0);
+        const imagineImageCap = Math.max(0, Number(imaginePlanDef.imagineImagesPerDay) || 0);
+        const imagineVideoCap = Math.max(0, Number(imaginePlanDef.imagineVideosPerDay) || 0);
         imagineQuota('imagineSearches', 'Imagine searches', u.imagineSearchesToday || 0, imagineSearchCap, 'Daily Pexels search allowance (UTC).');
         imagineQuota('imagineImages', 'Imagine images', u.imagineImagesToday || 0, imagineImageCap, 'Daily Pexels image-result allowance (UTC).');
         imagineQuota('imagineVideos', 'Imagine videos', u.imagineVideosToday || 0, imagineVideoCap, 'Daily Pexels video-result allowance (UTC).');

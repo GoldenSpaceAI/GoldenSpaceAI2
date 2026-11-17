@@ -892,6 +892,42 @@ function createAuth(options = {}) {
         return { ok: true, enabled: !!enabled };
     }
 
+    async function sendAccountNoticeEmail(userId, title, message, baseUrl) {
+        if (!env('RESEND_API_KEY')) return { ok: false, skipped: true };
+        const p = getPool();
+        if (!userId || !p || !(await ensureSchema())) return { ok: false, skipped: true };
+        const result = await p.query(`
+            SELECT u.email FROM users u
+            INNER JOIN user_notification_preferences pref ON pref.user_id = u.id AND pref.email_announcements = TRUE
+            WHERE u.id = $1 AND u.email IS NOT NULL
+            LIMIT 1
+        `, [String(userId)]);
+        const email = result.rows[0]?.email;
+        if (!email) return { ok: true, skipped: true };
+        const base = String(baseUrl || 'https://www.goldenspaceai.space').replace(/\/$/, '');
+        const token = emailUnsubscribeToken(String(userId));
+        const url = base + '/api/email/unsubscribe?uid=' + encodeURIComponent(String(userId)) + '&token=' + encodeURIComponent(token);
+        const safe = text => String(text || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+        const safeTitle = String(title || 'GoldenSpaceAI usage update').slice(0, 120);
+        const safeMessage = String(message || '').slice(0, 4000);
+        const html = '<main style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#242424"><h2>' + safe(safeTitle) + '</h2><p style="line-height:1.6">' + safe(safeMessage).replace(/\r?\n/g, '<br>') + '</p><hr><p style="font-size:12px;color:#666">Manage this email preference: <a href="' + url + '">unsubscribe</a>.</p></main>';
+        const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + env('RESEND_API_KEY'), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                from: emailFromAddress(), to: [email], subject: safeTitle, html,
+                text: safeTitle + '\n\n' + safeMessage + '\n\nUnsubscribe: ' + url,
+                headers: { 'List-Unsubscribe': '<' + url + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+            }),
+            signal: AbortSignal.timeout(15000)
+        });
+        if (!response.ok) {
+            console.error('Resend limit email failed:', response.status, await response.text().catch(() => ''));
+            return { ok: false };
+        }
+        return { ok: true, skipped: false };
+    }
+
     async function broadcastNotification(title, message, category) {
         const p = getPool();
         if (!p || !(await ensureSchema())) return { ok: false, sent: 0, error: 'Notifications are unavailable.' };
@@ -1055,6 +1091,7 @@ function createAuth(options = {}) {
         getEmailAnnouncements,
         setEmailAnnouncements,
         broadcastNotification,
+        sendAccountNoticeEmail,
         sendAnnouncementEmails,
         unsubscribeEmailAnnouncements
     };

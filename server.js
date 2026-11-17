@@ -2207,6 +2207,7 @@ function listChatsFromJson(ownerKey) {
             createdAt: c.createdAt || null,
             updatedAt: c.updatedAt || null,
             named: !!c.named,
+            projectId: c.projectId || null,
             messageCount: Array.isArray(c.messages) ? c.messages.length : 0
         };
     }).sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
@@ -2249,7 +2250,8 @@ async function migrateJsonChatsToPostgres(ownerKey) {
                 customInstructions: chat.customInstructions || '',
                 systemPrompt: chat.systemPrompt || '',
                 rollingSummary: chat.rollingSummary || '',
-                summaryMessageCount: Number(chat.summaryMessageCount) || 0
+                summaryMessageCount: Number(chat.summaryMessageCount) || 0,
+                projectId: chat.projectId || null
             });
             if (ok) migrated += 1;
         } catch (e) {
@@ -2266,6 +2268,47 @@ async function migrateJsonChatsToPostgres(ownerKey) {
     }
     return { migrated };
 }
+
+app.get('/api/projects', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try { return res.json({ projects: await auth.listProjects(ownerKey) }); }
+    catch (error) { console.error('projects list:', error.message); return res.status(500).json({ error: 'Could not load projects.' }); }
+});
+
+app.post('/api/projects', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const result = await auth.createProject(ownerKey, req.body || {});
+        return res.status(result.ok ? 201 : 400).json(result);
+    } catch (error) { console.error('project create:', error.message); return res.status(500).json({ ok: false, error: 'Could not create project.' }); }
+});
+
+app.put('/api/projects/:id', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const result = await auth.updateProject(ownerKey, req.params.id, req.body || {});
+        return res.status(result.ok ? 200 : 404).json(result);
+    } catch (error) { console.error('project update:', error.message); return res.status(500).json({ ok: false, error: 'Could not update project.' }); }
+});
+
+app.delete('/api/projects/:id', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const result = await auth.deleteProject(ownerKey, req.params.id);
+        if (result.ok) {
+            const store = readStore();
+            const ownerChats = store[ownerKey] || {};
+            Object.keys(ownerChats).forEach(id => { if (ownerChats[id] && ownerChats[id].projectId === req.params.id) ownerChats[id].projectId = null; });
+            store[ownerKey] = ownerChats;
+            try { writeStore(store); } catch (_) {}
+        }
+        return res.status(result.ok ? 200 : 404).json(result);
+    } catch (error) { console.error('project delete:', error.message); return res.status(500).json({ ok: false, error: 'Could not delete project.' }); }
+});
 
 app.get('/api/chats', async (req, res) => {
     const resolved = resolveChatOwnerKeyOrGuestEmpty(req);
@@ -2350,7 +2393,8 @@ app.post('/api/chats', async (req, res) => {
         customInstructions: body.customInstructions || '',
         systemPrompt: body.systemPrompt || '',
         rollingSummary: body.rollingSummary || '',
-        summaryMessageCount: Number(body.summaryMessageCount) || 0
+        summaryMessageCount: Number(body.summaryMessageCount) || 0,
+        projectId: body.projectId || null
     };
     try {
         const ok = await auth.upsertChat(ownerKey, id, chat);
@@ -2394,7 +2438,8 @@ app.put('/api/chats/:id', async (req, res) => {
         rollingSummary: body.rollingSummary !== undefined ? (body.rollingSummary || '') : (existing.rollingSummary || ''),
         summaryMessageCount: body.summaryMessageCount !== undefined
             ? Math.max(0, Number(body.summaryMessageCount) || 0)
-            : (Number(existing.summaryMessageCount) || 0)
+            : (Number(existing.summaryMessageCount) || 0),
+        projectId: body.projectId !== undefined ? (body.projectId || null) : (existing.projectId || null)
     };
     try {
         const ok = await auth.upsertChat(ownerKey, req.params.id, chat);

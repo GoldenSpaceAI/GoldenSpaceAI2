@@ -211,7 +211,17 @@ function createAuth(options = {}) {
                         system_prompt TEXT DEFAULT '',
                         rolling_summary TEXT DEFAULT '',
                         summary_message_count INT NOT NULL DEFAULT 0,
+                        project_id TEXT DEFAULT NULL,
                         PRIMARY KEY (owner_key, chat_id)
+                    );
+                    CREATE TABLE IF NOT EXISTS user_projects (
+                        owner_key TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        instructions TEXT NOT NULL DEFAULT '',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (owner_key, project_id)
                     );
                     CREATE TABLE IF NOT EXISTS user_memory (
                         user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -225,6 +235,7 @@ function createAuth(options = {}) {
                 // Additive migrations for existing DBs
                 try { await client.query(`ALTER TABLE chats ADD COLUMN IF NOT EXISTS rolling_summary TEXT DEFAULT ''`); } catch (_) {}
                 try { await client.query(`ALTER TABLE chats ADD COLUMN IF NOT EXISTS summary_message_count INT NOT NULL DEFAULT 0`); } catch (_) {}
+                try { await client.query(`ALTER TABLE chats ADD COLUMN IF NOT EXISTS project_id TEXT DEFAULT NULL`); } catch (_) {}
                 schemaReady = true;
                 console.log('Auth/Postgres schema ready');
                 return true;
@@ -678,7 +689,7 @@ function createAuth(options = {}) {
         if (!p || !(await ensureSchema())) return null; // signal fallback
         const r = await p.query(
             `SELECT chat_id AS id, name, created_at AS "createdAt", updated_at AS "updatedAt",
-                    named, jsonb_array_length(messages) AS "messageCount"
+                    named, project_id AS "projectId", jsonb_array_length(messages) AS "messageCount"
              FROM chats WHERE owner_key = $1
              ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST`,
             [ownerKey]
@@ -689,6 +700,7 @@ function createAuth(options = {}) {
             createdAt: tsIso(row.createdAt),
             updatedAt: tsIso(row.updatedAt),
             named: !!row.named,
+            projectId: row.projectId || null,
             messageCount: Number(row.messageCount) || 0
         }));
     }
@@ -699,7 +711,7 @@ function createAuth(options = {}) {
         const r = await p.query(
             `SELECT chat_id AS id, name, messages, created_at AS "createdAt", updated_at AS "updatedAt",
                     named, custom_instructions AS "customInstructions", system_prompt AS "systemPrompt",
-                    rolling_summary AS "rollingSummary", summary_message_count AS "summaryMessageCount"
+                    rolling_summary AS "rollingSummary", summary_message_count AS "summaryMessageCount", project_id AS "projectId"
              FROM chats WHERE owner_key = $1 AND chat_id = $2`,
             [ownerKey, chatId]
         );
@@ -715,7 +727,8 @@ function createAuth(options = {}) {
             customInstructions: row.customInstructions || '',
             systemPrompt: row.systemPrompt || '',
             rollingSummary: row.rollingSummary || '',
-            summaryMessageCount: Number(row.summaryMessageCount) || 0
+            summaryMessageCount: Number(row.summaryMessageCount) || 0,
+            projectId: row.projectId || null
         };
     }
 
@@ -725,8 +738,8 @@ function createAuth(options = {}) {
         const rollingSummary = chat.rollingSummary != null ? String(chat.rollingSummary) : '';
         const summaryMessageCount = Math.max(0, Number(chat.summaryMessageCount) || 0);
         await p.query(
-            `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt, rolling_summary, summary_message_count)
-             VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11)
+            `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt, rolling_summary, summary_message_count, project_id)
+             VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11,$12)
              ON CONFLICT (owner_key, chat_id) DO UPDATE SET
                name = EXCLUDED.name,
                messages = EXCLUDED.messages,
@@ -736,6 +749,7 @@ function createAuth(options = {}) {
                system_prompt = EXCLUDED.system_prompt,
                rolling_summary = EXCLUDED.rolling_summary,
                summary_message_count = EXCLUDED.summary_message_count,
+               project_id = EXCLUDED.project_id,
                created_at = COALESCE(chats.created_at, EXCLUDED.created_at)`,
             [
                 ownerKey,
@@ -748,7 +762,8 @@ function createAuth(options = {}) {
                 chat.customInstructions || '',
                 chat.systemPrompt || '',
                 rollingSummary,
-                summaryMessageCount
+                summaryMessageCount,
+                chat.projectId || null
             ]
         );
         return true;
@@ -883,6 +898,68 @@ function createAuth(options = {}) {
             }
         }
         return { ok: true, sent };
+    }
+
+    async function listProjects(ownerKey) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return [];
+        const r = await p.query(
+            `SELECT project_id AS id, name, instructions, created_at AS "createdAt", updated_at AS "updatedAt"
+             FROM user_projects WHERE owner_key = $1 ORDER BY updated_at DESC`,
+            [String(ownerKey)]
+        );
+        return r.rows.map(row => ({ id: row.id, name: row.name, instructions: row.instructions || '', createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) }));
+    }
+
+    async function createProject(ownerKey, project) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Projects are unavailable.' };
+        const item = project || {};
+        const id = String(item.id || ('project_' + crypto.randomUUID())).slice(0, 100);
+        const name = String(item.name || '').trim().slice(0, 100);
+        const instructions = String(item.instructions || '').trim().slice(0, 8000);
+        if (!name) return { ok: false, error: 'Add a project name.' };
+        const r = await p.query(
+            `INSERT INTO user_projects (owner_key, project_id, name, instructions)
+             VALUES ($1,$2,$3,$4) RETURNING project_id AS id, name, instructions, created_at AS "createdAt", updated_at AS "updatedAt"`,
+            [String(ownerKey), id, name, instructions]
+        );
+        const row = r.rows[0];
+        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
+    }
+
+    async function updateProject(ownerKey, projectId, project) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Projects are unavailable.' };
+        const item = project || {};
+        const name = String(item.name || '').trim().slice(0, 100);
+        const instructions = String(item.instructions || '').trim().slice(0, 8000);
+        if (!name) return { ok: false, error: 'Add a project name.' };
+        const r = await p.query(
+            `UPDATE user_projects SET name=$3, instructions=$4, updated_at=NOW()
+             WHERE owner_key=$1 AND project_id=$2
+             RETURNING project_id AS id, name, instructions, created_at AS "createdAt", updated_at AS "updatedAt"`,
+            [String(ownerKey), String(projectId), name, instructions]
+        );
+        if (!r.rows[0]) return { ok: false, error: 'Project not found.' };
+        const row = r.rows[0];
+        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
+    }
+
+    async function deleteProject(ownerKey, projectId) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Projects are unavailable.' };
+        const client = await p.connect();
+        try {
+            await client.query('BEGIN');
+            await client.query('UPDATE chats SET project_id = NULL WHERE owner_key=$1 AND project_id=$2', [String(ownerKey), String(projectId)]);
+            const r = await client.query('DELETE FROM user_projects WHERE owner_key=$1 AND project_id=$2', [String(ownerKey), String(projectId)]);
+            await client.query('COMMIT');
+            return { ok: true, deleted: r.rowCount > 0 };
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally { client.release(); }
     }
 
     async function createNotification(userId, item) {
@@ -1153,6 +1230,10 @@ function createAuth(options = {}) {
         getPublicBaseUrl,
         listUsersForAdmin,
         createNotification,
+        listProjects,
+        createProject,
+        updateProject,
+        deleteProject,
         savePushSubscription,
         removePushSubscription,
         sendPushToUser,

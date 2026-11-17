@@ -4186,7 +4186,7 @@
             </div>
         </div>
         <section class="notification-panel" id="notificationPanel" aria-label="Notifications" hidden>
-            <header class="notification-panel-head"><div><strong>Notifications</strong><span id="notificationCount">Latest account updates</span></div><div><button type="button" class="notification-mark-all" onclick="markAllNotificationsRead()">Mark all read</button><button type="button" class="notification-close" onclick="toggleNotificationPanel(false)" aria-label="Close notifications">×</button></div></header>
+            <header class="notification-panel-head"><div><strong>Notifications</strong><span id="notificationCount">Latest account updates</span><small id="pushStatus" style="display:block;margin-top:4px;color:var(--muted);font-size:12px">Device alerts are off</small></div><div><button type="button" class="notification-mark-all" id="pushToggleBtn" onclick="togglePushNotifications()">Enable device alerts</button><button type="button" class="notification-mark-all" onclick="markAllNotificationsRead()">Mark all read</button><button type="button" class="notification-close" onclick="toggleNotificationPanel(false)" aria-label="Close notifications">×</button></div></header>
             <div id="notificationList" class="notification-list" aria-live="polite"></div>
         </section>
 
@@ -4759,6 +4759,56 @@
                 // Do not force-close settings on guest refresh (theme/instructions still useful)
             }
         }
+        function decodePushKey(value) {
+            const padding = '='.repeat((4 - value.length % 4) % 4);
+            const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const raw = atob(base64);
+            return Uint8Array.from(raw, c => c.charCodeAt(0));
+        }
+        async function refreshPushStatus() {
+            const button = document.getElementById('pushToggleBtn');
+            const status = document.getElementById('pushStatus');
+            if (!button || !status) return;
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+                button.disabled = true; button.textContent = 'Device alerts unavailable';
+                status.textContent = 'This browser does not support device alerts.';
+                return;
+            }
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                button.textContent = sub ? 'Turn off device alerts' : 'Enable device alerts';
+                status.textContent = sub ? 'Device alerts are on for this device.' : 'Device alerts are off';
+            } catch (_) { status.textContent = 'Open this site in a supported browser to enable device alerts.'; }
+        }
+        async function togglePushNotifications() {
+            const button = document.getElementById('pushToggleBtn');
+            const status = document.getElementById('pushStatus');
+            if (button) button.disabled = true;
+            try {
+                const keyRes = await apiFetch('/api/push/public-key', { cache: 'no-store' });
+                const keyData = await keyRes.json();
+                if (!keyRes.ok || !keyData.enabled || !keyData.publicKey) throw new Error('Device alerts are not configured yet.');
+                const reg = await navigator.serviceWorker.ready;
+                let sub = await reg.pushManager.getSubscription();
+                if (sub) {
+                    await apiFetch('/api/push/subscribe', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+                    await sub.unsubscribe();
+                    if (status) status.textContent = 'Device alerts are off for this device.';
+                } else {
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') throw new Error('Allow notifications in your browser settings, then try again.');
+                    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodePushKey(keyData.publicKey) });
+                    const save = await apiFetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+                    const saved = await save.json();
+                    if (!save.ok) { await sub.unsubscribe(); throw new Error(saved.error || 'Could not save this device.'); }
+                    if (status) status.textContent = 'Device alerts are on for this device.';
+                }
+            } catch (error) {
+                if (status) status.textContent = error.message || 'Could not update device alerts.';
+            } finally { await refreshPushStatus(); if (button) button.disabled = false; }
+        }
+
         function toggleNotificationPanel(forceOpen) {
             const panel = document.getElementById('notificationPanel');
             if (!panel) return;
@@ -8937,6 +8987,7 @@
 
         init();
             refreshNotifications();
+            refreshPushStatus();
         setInterval(refreshNotifications, 60000);
 </script>
 </body>

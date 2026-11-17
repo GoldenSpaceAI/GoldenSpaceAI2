@@ -829,8 +829,20 @@ function createPlansStore(dataDir, options = {}) {
         const store = read();
         const day = utcDayKey();
         const u = (ownerKey && store.usage[ownerKey]) || null;
+        let imagineDef = PLAN_DEFS.free;
+        try { if (ownerKey) imagineDef = getEffectivePlan(ownerKey).def || imagineDef; } catch (_) {}
+        const imagineToday = !!u && u.imagineDay === day;
+        const imagineAdminUsage = {
+            imagineSearchesToday: imagineToday ? (Number(u.imagineSearchesToday) || 0) : 0,
+            imagineSearchesCap: Number(imagineDef.imagineSearchesPerDay) || 0,
+            imagineImagesToday: imagineToday ? (Number(u.imagineImagesToday) || 0) : 0,
+            imagineImagesCap: Number(imagineDef.imagineImagesPerDay) || 0,
+            imagineVideosToday: imagineToday ? (Number(u.imagineVideosToday) || 0) : 0,
+            imagineVideosCap: Number(imagineDef.imagineVideosPerDay) || 0
+        };
         if (!u) {
             return {
+                ...imagineAdminUsage,
                 todayTokens: 0,
                 todaySpendUsd: 0,
                 todayGrokSpendUsd: 0,
@@ -869,6 +881,7 @@ function createPlansStore(dataDir, options = {}) {
             }
         } catch (_) {}
         return {
+            ...imagineAdminUsage,
             todayTokens: todayActive ? (Number(u.todayTokens) || 0) : 0,
             todaySpendUsd: todayActive ? roundUsd(Number(u.todaySpendUsd) || 0) : 0,
             todayGrokSpendUsd: todayActive ? roundUsd(Number(u.todayGrokSpendUsd) || 0) : 0,
@@ -915,6 +928,17 @@ function createPlansStore(dataDir, options = {}) {
         if (u.otherSpendUsd == null) u.otherSpendUsd = roundUsd(thinkShareUsed(u) + expert16Used(u));
         rollDailySpendCounters(u, day);
         rollImageDay(u, day);
+        if (u.imagineDay !== day) {
+            u.imagineDay = day;
+            u.imagineSearchesToday = 0;
+            u.imagineImagesToday = 0;
+            u.imagineVideosToday = 0;
+            save();
+        } else {
+            if (u.imagineSearchesToday == null) u.imagineSearchesToday = 0;
+            if (u.imagineImagesToday == null) u.imagineImagesToday = 0;
+            if (u.imagineVideosToday == null) u.imagineVideosToday = 0;
+        }
         if (u.talkSecondsUsed == null) u.talkSecondsUsed = 0;
         rollTalkPeriod(u, effective.plan, effective.startsAt || null);
 
@@ -1210,7 +1234,7 @@ function createPlansStore(dataDir, options = {}) {
         };
     }
 
-    function checkImagineAllowed(deviceId, type) {
+    function checkImagineAllowed(deviceId, type, isNewSearch) {
         if (!deviceId) return { ok: false, error: { status: 400, code: 'missing_client', reply: 'Refresh the page and try again.' } };
         const effective = getEffectivePlan(deviceId);
         const u = ensureUsage(deviceId);
@@ -1225,12 +1249,12 @@ function createPlansStore(dataDir, options = {}) {
         const mediaType = type === 'video' ? 'video' : 'image';
         const mediaCap = Math.max(0, Number(mediaType === 'video' ? effective.def.imagineVideosPerDay : effective.def.imagineImagesPerDay) || 0);
         const used = Number(mediaType === 'video' ? u.imagineVideosToday : u.imagineImagesToday) || 0;
-        if (Number(u.imagineSearchesToday) >= searchCap) return { ok: false, error: { status: 429, code: 'imagine_search_limit', reply: 'Your daily Imagine search limit is reached. It resets at midnight UTC.', upgradeUrl: '/upgrade' } };
+        if (isNewSearch !== false && Number(u.imagineSearchesToday) >= searchCap) return { ok: false, error: { status: 429, code: 'imagine_search_limit', reply: 'Your daily Imagine search limit is reached. It resets at midnight UTC.', upgradeUrl: '/upgrade' } };
         if (used >= mediaCap) return { ok: false, error: { status: 429, code: 'imagine_media_limit', reply: 'Your daily ' + (mediaType === 'video' ? 'video' : 'image') + ' limit is reached. It resets at midnight UTC.', upgradeUrl: '/upgrade' } };
-        return { ok: true, searchCap, searchesUsed: Number(u.imagineSearchesToday) || 0, mediaCap, mediaUsed: used, mediaType };
+        return { ok: true, searchCap, searchesUsed: Number(u.imagineSearchesToday) || 0, mediaCap, mediaUsed: used, mediaType, imagesCap: Math.max(0, Number(effective.def.imagineImagesPerDay) || 0), videosCap: Math.max(0, Number(effective.def.imagineVideosPerDay) || 0), imagesUsed: Number(u.imagineImagesToday) || 0, videosUsed: Number(u.imagineVideosToday) || 0 };
     }
 
-    function recordImagine(deviceId, type, count) {
+    function recordImagine(deviceId, type, count, isNewSearch) {
         if (!deviceId) return null;
         const u = ensureUsage(deviceId);
         const day = utcDayKey();
@@ -1240,7 +1264,7 @@ function createPlansStore(dataDir, options = {}) {
             u.imagineImagesToday = 0;
             u.imagineVideosToday = 0;
         }
-        u.imagineSearchesToday = (Number(u.imagineSearchesToday) || 0) + 1;
+        if (isNewSearch !== false) u.imagineSearchesToday = (Number(u.imagineSearchesToday) || 0) + 1;
         const n = Math.max(0, Number(count) || 0);
         if (type === 'video') u.imagineVideosToday = (Number(u.imagineVideosToday) || 0) + n;
         else u.imagineImagesToday = (Number(u.imagineImagesToday) || 0) + n;
@@ -1536,6 +1560,9 @@ function createPlansStore(dataDir, options = {}) {
             endsAt: effective.endsAt,
             retainedUsd: effective.def.retainedUsd || 0,
             imagesPerDay: imagesCap,
+            imagineSearchesPerDay: Number(effective.def.imagineSearchesPerDay) || 0,
+            imagineImagesPerDay: Number(effective.def.imagineImagesPerDay) || 0,
+            imagineVideosPerDay: Number(effective.def.imagineVideosPerDay) || 0,
             talkMinutes: Number(effective.def.talkMinutes) || 0,
             talkPeriod: effective.def.talkPeriod || (effective.plan === 'free' ? 'weekly' : 'period'),
             modes,
@@ -1588,6 +1615,9 @@ function createPlansStore(dataDir, options = {}) {
                 otherLeftUsd: roundUsd(Math.max(0, otherCap - otherUsed)),
                 imagesToday: imagesUsed,
                 imagesCap,
+                imagineSearchesToday: Number(u.imagineSearchesToday) || 0,
+                imagineImagesToday: Number(u.imagineImagesToday) || 0,
+                imagineVideosToday: Number(u.imagineVideosToday) || 0,
                 imagesLeft: Math.max(0, imagesCap - imagesUsed),
                 talkSecondsUsed: talkUsed,
                 talkCapSeconds: talkCapSec,
@@ -1622,6 +1652,9 @@ function createPlansStore(dataDir, options = {}) {
                 expert16Usd: p.expert16Usd,
                 retainedUsd: p.retainedUsd || 0,
                 imagesPerDay: p.imagesPerDay || 0,
+                imagineSearchesPerDay: p.imagineSearchesPerDay || 0,
+                imagineImagesPerDay: p.imagineImagesPerDay || 0,
+                imagineVideosPerDay: p.imagineVideosPerDay || 0,
                 talkMinutes: p.talkMinutes || 0,
                 talkPeriod: p.talkPeriod || (p.id === 'free' ? 'weekly' : 'period'),
                 // legacy alias
@@ -1706,6 +1739,22 @@ function createPlansStore(dataDir, options = {}) {
             ));
         }
 
+        function imagineQuota(id, label, used, limit, note) {
+            const row = quotaRow(id, label, 'daily', used, limit, note);
+            const safeUsed = Math.max(0, Number(used) || 0);
+            const safeLimit = Math.max(0, Number(limit) || 0);
+            row.displayMeta = safeLimit
+                ? safeUsed + ' of ' + safeLimit + ' used · ' + Math.max(0, safeLimit - safeUsed) + ' left today'
+                : 'Not included on this plan';
+            quotas.push(row);
+        }
+        const imagineSearchCap = Math.max(0, Number(status.imagineSearchesPerDay) || 0);
+        const imagineImageCap = Math.max(0, Number(status.imagineImagesPerDay) || 0);
+        const imagineVideoCap = Math.max(0, Number(status.imagineVideosPerDay) || 0);
+        imagineQuota('imagineSearches', 'Imagine searches', u.imagineSearchesToday || 0, imagineSearchCap, 'Daily Pexels search allowance (UTC).');
+        imagineQuota('imagineImages', 'Imagine images', u.imagineImagesToday || 0, imagineImageCap, 'Daily Pexels image-result allowance (UTC).');
+        imagineQuota('imagineVideos', 'Imagine videos', u.imagineVideosToday || 0, imagineVideoCap, 'Daily Pexels video-result allowance (UTC).');
+
         if ((u.imagesCap || 0) > 0) {
             quotas.push(quotaRow(
                 'images',
@@ -1741,6 +1790,9 @@ function createPlansStore(dataDir, options = {}) {
             timezoneNote: status.timezoneNote,
             modes,
             imagesPerDay: status.imagesPerDay || 0,
+            imagineSearchesPerDay: status.imagineSearchesPerDay || 0,
+            imagineImagesPerDay: status.imagineImagesPerDay || 0,
+            imagineVideosPerDay: status.imagineVideosPerDay || 0,
             talkMinutes: status.talkMinutes || 0,
             talkPeriod: status.talkPeriod || (status.plan === 'free' ? 'weekly' : 'period'),
             quotas,
@@ -2385,6 +2437,12 @@ function createPlansStore(dataDir, options = {}) {
                 openaiSpendTotal: usage.totalOpenaiSpendUsd,
                 deepseekSpendToday: usage.todayDeepseekSpendUsd,
                 deepseekSpendTotal: usage.totalDeepseekSpendUsd,
+                imagineSearchesToday: usage.imagineSearchesToday || 0,
+                imagineSearchesCap: usage.imagineSearchesCap || 0,
+                imagineImagesToday: usage.imagineImagesToday || 0,
+                imagineImagesCap: usage.imagineImagesCap || 0,
+                imagineVideosToday: usage.imagineVideosToday || 0,
+                imagineVideosCap: usage.imagineVideosCap || 0,
                 todayTalkSeconds: usage.todayTalkSeconds || 0,
                 talkSecondsUsed: usage.talkSecondsUsed || 0,
                 talkCapSeconds: usage.talkCapSeconds || 0,

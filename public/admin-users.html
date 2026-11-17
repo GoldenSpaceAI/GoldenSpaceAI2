@@ -368,6 +368,13 @@
   html.light input[type="search"],
   html.light select { background:#fff; }
   html.light .hero-badge { background:#fff; }
+.announcement-panel{margin:18px 0;padding:20px;border:1px solid var(--border);border-radius:var(--radius);background:linear-gradient(135deg,rgba(212,175,55,.08),transparent 55%),var(--panel);box-shadow:var(--shadow)}
+.announcement-heading h2{margin:0;font-size:18px}.announcement-heading p{margin:5px 0 16px;color:var(--muted);font-size:13px}
+.announcement-panel>label{display:grid;gap:7px;margin:12px 0;font-size:12px;font-weight:700;color:var(--muted)}
+.announcement-panel input,.announcement-panel textarea{width:100%;border:1px solid var(--border);border-radius:10px;background:var(--panel-elev);color:var(--text);padding:11px 12px;font:inherit;font-weight:450;resize:vertical}
+.announcement-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.announcement-actions .btn{min-height:42px}
+#broadcastFeedback:empty{display:none}
+@media(max-width:600px){.announcement-panel{padding:15px}.announcement-actions{display:grid}.announcement-actions .btn{width:100%}}
 </style>
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js" defer></script>
@@ -439,6 +446,17 @@
         <div class="stat-sub prov-split" id="statUsdTotalSplit">Grok — · DeepSeek —</div>
       </div>
     </div>
+
+    <section class="announcement-panel" aria-label="Send announcement">
+      <div class="announcement-heading"><div><h2>Send an announcement</h2><p>In-app notices go to all accounts. Email goes only to people who opted in.</p></div></div>
+      <label>Title or email subject<input id="broadcastTitle" maxlength="120" placeholder="A short, clear title"></label>
+      <label>Message<textarea id="broadcastMessage" maxlength="4000" rows="4" placeholder="Write your message to users…"></textarea></label>
+      <div class="announcement-actions">
+        <button class="btn" type="button" id="sendBroadcastNotice">Send in-app notification to all accounts</button>
+        <button class="btn ghost" type="button" id="sendBroadcastEmail">Email opted-in accounts</button>
+      </div>
+      <p id="broadcastFeedback" class="note" role="status" aria-live="polite"></p>
+    </section>
 
     <div class="panel">
       <div class="panel-head">
@@ -895,6 +913,32 @@
       renderRows();
     });
   });
+
+  async function sendBroadcast(channel) {
+    const title = document.getElementById('broadcastTitle').value.trim();
+    const message = document.getElementById('broadcastMessage').value.trim();
+    const feedback = document.getElementById('broadcastFeedback');
+    const noticeBtn = document.getElementById('sendBroadcastNotice');
+    const emailBtn = document.getElementById('sendBroadcastEmail');
+    if (!title || !message) { feedback.textContent = 'Add a title and message first.'; return; }
+    if (channel === 'email' && !confirm('Send this email to every account that opted in to announcement emails?')) return;
+    noticeBtn.disabled = true; emailBtn.disabled = true; feedback.textContent = 'Sending…';
+    try {
+      const path = channel === 'email' ? '/api/admin/email/broadcast' : '/api/admin/notifications/broadcast';
+      const { res, data } = await api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, message }) });
+      if (!res.ok) throw new Error(data.error || 'Could not send message.');
+      if (channel === 'email') {
+        feedback.textContent = data.recipients === 0
+          ? 'No accounts have opted in to announcement emails yet.'
+          : 'Email sent to ' + (data.sent || 0) + ' opted-in account(s)' + (data.failed ? ' · ' + data.failed + ' failed.' : '.');
+      } else {
+        feedback.textContent = 'In-app notification sent to ' + (data.sent || 0) + ' account(s).';
+      }
+    } catch (error) { feedback.textContent = error.message || 'Could not send message.'; }
+    finally { noticeBtn.disabled = false; emailBtn.disabled = false; }
+  }
+  document.getElementById('sendBroadcastNotice').addEventListener('click', () => sendBroadcast('notice'));
+  document.getElementById('sendBroadcastEmail').addEventListener('click', () => sendBroadcast('email'));
 
   checkSession();
 })();

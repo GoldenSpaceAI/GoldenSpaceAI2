@@ -4152,7 +4152,7 @@
 
     .notification-trigger{position:relative;min-width:34px;font-size:18px}
 .notification-badge{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:#d94b4b;color:#fff;font:700 10px/17px system-ui;text-align:center}
-.notification-panel{position:fixed;z-index:230;right:18px;top:70px;width:min(390px,calc(100vw - 24px));max-height:min(72vh,580px);background:var(--black-light,#141414);border:1px solid var(--border,#303030);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.42);display:flex;flex-direction:column;overflow:hidden}
+.device-notification-prompt{position:fixed;z-index:245;right:20px;bottom:24px;width:min(380px,calc(100vw - 28px));padding:18px;background:var(--black-light,#171717);color:var(--text,#f5f5f5);border:1px solid var(--border,#353535);border-radius:16px;box-shadow:0 18px 55px rgba(0,0,0,.32)}.device-notification-prompt[hidden]{display:none}.device-notification-prompt strong{display:block;font-size:15px}.device-notification-prompt p{margin:7px 0 14px;color:var(--text-muted,#a7a7a7);font-size:13px;line-height:1.45}.device-notification-prompt-actions{display:flex;gap:8px}.device-notification-prompt-actions button{border:1px solid var(--border,#353535);border-radius:10px;padding:9px 13px;background:var(--gold,#c7a64a);color:#111;font-weight:700;cursor:pointer}.device-notification-prompt-actions button:last-child{background:transparent;color:var(--text,#f5f5f5)}@media(max-width:600px){.device-notification-prompt{right:14px;bottom:calc(82px + env(safe-area-inset-bottom));width:calc(100vw - 28px)}}.notification-panel{position:fixed;z-index:230;right:18px;top:70px;width:min(390px,calc(100vw - 24px));max-height:min(72vh,580px);background:var(--black-light,#141414);border:1px solid var(--border,#303030);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.42);display:flex;flex-direction:column;overflow:hidden}
 .notification-panel[hidden]{display:none}
 .notification-panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border,#303030)}
 .notification-panel-head strong{display:block;font-size:15px}
@@ -4188,6 +4188,14 @@
             <header class="notification-panel-head"><div><strong>Notifications</strong><span id="notificationCount">Latest account updates</span><small id="pushStatus" style="display:block;margin-top:4px;color:var(--muted);font-size:12px">Device alerts are off</small></div><div><button type="button" class="notification-mark-all" id="pushToggleBtn" onclick="togglePushNotifications()">Enable device alerts</button><button type="button" class="notification-mark-all" onclick="markAllNotificationsRead()">Mark all read</button><button type="button" class="notification-close" onclick="toggleNotificationPanel(false)" aria-label="Close notifications">×</button></div></header>
             <div id="notificationList" class="notification-list" aria-live="polite"></div>
         </section>
+        <aside class="device-notification-prompt" id="deviceNotificationPrompt" hidden role="dialog" aria-label="Device notifications">
+            <strong>Turn on device notifications?</strong>
+            <p>Get important plan and usage alerts in this device’s notification center.</p>
+            <div class="device-notification-prompt-actions">
+                <button type="button" onclick="enablePushFromPrompt()">Enable alerts</button>
+                <button type="button" onclick="dismissDeviceNotificationPrompt()">Not now</button>
+            </div>
+        </aside>
 
         <div class="main-content">
             <div class="chats-panel" id="chatsPanel">
@@ -4766,6 +4774,25 @@
             const raw = atob(base64);
             return Uint8Array.from(raw, c => c.charCodeAt(0));
         }
+        function maybeShowDeviceNotificationPrompt(subscription) {
+            const prompt = document.getElementById('deviceNotificationPrompt');
+            if (!prompt || !isLoggedIn() || subscription) { if (prompt) prompt.hidden = true; return; }
+            if (Notification.permission === 'denied') { prompt.hidden = true; return; }
+            let snoozeUntil = 0;
+            try { snoozeUntil = Number(localStorage.getItem('gsa_push_prompt_snooze_until')) || 0; } catch (_) {}
+            prompt.hidden = Date.now() < snoozeUntil;
+        }
+        function dismissDeviceNotificationPrompt() {
+            const prompt = document.getElementById('deviceNotificationPrompt');
+            if (prompt) prompt.hidden = true;
+            try { localStorage.setItem('gsa_push_prompt_snooze_until', String(Date.now() + 7 * 24 * 60 * 60 * 1000)); } catch (_) {}
+        }
+        function enablePushFromPrompt() {
+            const prompt = document.getElementById('deviceNotificationPrompt');
+            if (prompt) prompt.hidden = true;
+            togglePushNotifications();
+        }
+
         async function refreshPushStatus() {
             const button = document.getElementById('pushToggleBtn');
             const status = document.getElementById('pushStatus');
@@ -4780,11 +4807,15 @@
                 const sub = await reg.pushManager.getSubscription();
                 button.textContent = sub ? 'Turn off device alerts' : 'Enable device alerts';
                 status.textContent = sub ? 'Device alerts are on for this device.' : 'Device alerts are off';
+                maybeShowDeviceNotificationPrompt(sub);
             } catch (_) { status.textContent = 'Open this site in a supported browser to enable device alerts.'; }
         }
         async function togglePushNotifications() {
             const button = document.getElementById('pushToggleBtn');
             const status = document.getElementById('pushStatus');
+            if (!isLoggedIn()) { if (status) status.textContent = 'Sign in to enable device alerts.'; return; }
+            // Start the permission request inside the button tap; browsers block automatic prompts.
+            const permissionRequest = Notification.permission === 'default' ? Notification.requestPermission() : Promise.resolve(Notification.permission);
             if (button) button.disabled = true;
             try {
                 const keyRes = await apiFetch('/api/push/public-key', { cache: 'no-store' });
@@ -4797,7 +4828,7 @@
                     await sub.unsubscribe();
                     if (status) status.textContent = 'Device alerts are off for this device.';
                 } else {
-                    const permission = await Notification.requestPermission();
+                    const permission = await permissionRequest;
                     if (permission !== 'granted') throw new Error('Allow notifications in your browser settings, then try again.');
                     sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodePushKey(keyData.publicKey) });
                     const save = await apiFetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub.toJSON() }) });
@@ -5257,6 +5288,7 @@
             stickToBottom = true;
             updateJumpLatestBtn();
             loadPlanStatus();
+            refreshPushStatus();
             document.addEventListener('visibilitychange', function() {
                 if (document.visibilityState === 'visible') loadPlanStatus();
             });

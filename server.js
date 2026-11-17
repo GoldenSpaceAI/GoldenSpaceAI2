@@ -473,11 +473,18 @@ function requestHasImage(body) {
 function notifyAccountQuota(req, title, message, dedupeKey, category) {
     const user = auth && auth.readUserFromReq(req);
     if (!user || !user.id || !auth.createNotification) return;
+    const titleText = String(title || 'Usage limit reached').slice(0, 120);
+    const messageText = String(message || '').slice(0, 4000);
     auth.createNotification(user.id, {
-        title: String(title || 'Usage limit reached').slice(0, 120),
-        message: String(message || '').slice(0, 4000),
+        title: titleText,
+        message: messageText,
         category: category || 'usage_limit',
         dedupeKey: dedupeKey || ('limit:' + (plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10)))
+    }).then(result => {
+        if (result && result.created && auth.sendAccountNoticeEmail) {
+            return auth.sendAccountNoticeEmail(user.id, titleText, messageText, 'https://www.goldenspaceai.space')
+                .catch(error => console.error('usage limit email:', error.message));
+        }
     }).catch(error => console.error('usage notification:', error.message));
 }
 
@@ -3124,7 +3131,10 @@ app.get('/api/imagine/search', async (req, res) => {
     const ownerKey = resolvePlanOwnerKey(req) || getClientId(req);
     const allowance = plansStore.checkImagineAllowed(ownerKey, type, isNewSearch);
     if (!allowance.ok) {
-        notifyAccountQuota(req, 'Imagine limit reached', allowance.error.reply, 'imagine-block:' + String(allowance.error.code || type) + ':' + (plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10)), 'usage_limit');
+        const limitDay = plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10);
+        const limitKey = allowance.error.code === 'imagine_search_limit' ? 'imagine-searches:' + limitDay
+            : (allowance.error.code === 'imagine_media_limit' ? (type === 'video' ? 'imagine-videos:' : 'imagine-images:') + limitDay : 'imagine-block:' + String(allowance.error.code || type) + ':' + limitDay);
+        notifyAccountQuota(req, 'Imagine limit reached', allowance.error.reply, limitKey, 'usage_limit');
         return res.status(allowance.error.status || 429).json({ message: allowance.error.reply, code: allowance.error.code, upgradeUrl: allowance.error.upgradeUrl || '/upgrade' });
     }
     const apiKey = String(process.env.PEXELS_API_KEY || '').trim();

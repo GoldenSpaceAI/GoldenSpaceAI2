@@ -363,14 +363,14 @@
 <main>
   <section class="hero">
     <h1>Choose your plan</h1>
-    <p class="sub">Modes, Talk time, daily images, and unlimited docs. Pay once for 30 days via OMT Pay — no auto-renew. Usage shown as % only.</p>
+    <p class="sub">Modes, Talk time, Imagine image and video allowances, and unlimited docs. Pay once for 30 days via OMT Pay — no auto-renew. Usage shown as % only.</p>
     <div class="hero-meta">
       <div class="current-pill" id="currentPlan"><span class="dot" aria-hidden="true"></span><span id="currentPlanText">Loading your plan…</span></div>
       <a class="status-link" href="/my-plan">Payment status →</a>
     </div>
     <div class="free-strip" id="freeRef" aria-label="Free plan">
       <strong>Free</strong>
-      <span>Fast · Talk 1 min/week · 5 images/day (UTC) · Docs unlimited · Thinking &amp; Expert not included</span>
+      <span>Fast · Talk 1 min/week · 5 chat uploads/day · Imagine: 2 searches/day · Docs unlimited · Thinking &amp; Expert not included</span>
     </div>
   </section>
 
@@ -467,6 +467,7 @@
       bullets: [
         { text: 'Fast + Thinking', ok: true },
         { text: 'Expert 4 / Expert 16 not included', ok: false },
+        { text: 'Imagine: 10 searches/day · up to 100 images + 50 videos/day', ok: true },
         { text: 'Talk (Live / speak-aloud): 5 min / 30 days', ok: true },
         { text: 'Images: 10 per UTC day', ok: true },
         { text: 'Documents: unlimited', ok: true }
@@ -482,6 +483,8 @@
       ],
       bullets: [
         { text: 'Fast + Thinking + Expert 4', ok: true },
+        { text: 'Expert 4 combines four AI agents into one answer', ok: true },
+        { text: 'Imagine: up to 300 images + 150 videos/day · 45 searches/day', ok: true },
         { text: 'Expert 16 not included', ok: false },
         { text: 'Talk (Live / speak-aloud): 10 min / 30 days', ok: true },
         { text: 'Images: 20 per UTC day', ok: true },
@@ -498,6 +501,8 @@
       ],
       bullets: [
         { text: 'Fast + Thinking + Expert 4 + Expert 16', ok: true },
+        { text: 'Expert 4 combines 4 agents; Expert 16 combines 16 agents into one answer', ok: true },
+        { text: 'Imagine: up to 500 images + 250 videos/day · 75 searches/day', ok: true },
         { text: 'Talk (Live / speak-aloud): 20 min / 30 days', ok: true },
         { text: 'Images: 30 per UTC day', ok: true },
         { text: 'Documents: unlimited', ok: true }

@@ -470,6 +470,17 @@ function requestHasImage(body) {
     return false;
 }
 
+function notifyAccountQuota(req, title, message, dedupeKey, category) {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id || !auth.createNotification) return;
+    auth.createNotification(user.id, {
+        title: String(title || 'Usage limit reached').slice(0, 120),
+        message: String(message || '').slice(0, 4000),
+        category: category || 'usage_limit',
+        dedupeKey: dedupeKey || ('limit:' + (plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10)))
+    }).catch(error => console.error('usage notification:', error.message));
+}
+
 function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
     const deviceId = resolvePlanOwnerKey(req) || getClientId(req);
     const mode = req.body?.mode;
@@ -479,6 +490,7 @@ function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
     if (check.ok) {
         return { ok: true, deviceId, kind: check.kind, plan: check.plan, hasImage };
     }
+    notifyAccountQuota(req, 'Plan usage limit reached', check.error && (check.error.reply || check.error.message) || 'A plan usage limit was reached. Review your usage in Settings.', 'usage-limit:' + String(check.error && check.error.code || mode || 'plan') + ':' + (plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10)), 'usage_limit');
     if (sse) {
         sendPlanLimitSse(res, sendSse, check.error);
         return { ok: false };
@@ -2632,6 +2644,73 @@ app.get('/api/plan', (req, res) => {
     sendFreshJson(res, plansStore.getPlanPublic(ownerKey));
 });
 
+app.get('/api/notifications', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) return res.json({ ok: true, notifications: [], unread: 0, requiresLogin: true });
+    try { return res.json(await auth.listNotifications(user.id, 30)); }
+    catch (error) { console.error('notifications list:', error.message); return res.status(500).json({ ok: false, error: 'Could not load notifications.' }); }
+});
+
+app.post('/api/notifications/read', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Sign in to manage notifications.' });
+    try {
+        const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids : [];
+        return res.json(await auth.markNotificationsRead(user.id, ids));
+    } catch (error) { console.error('notifications read:', error.message); return res.status(500).json({ ok: false, error: 'Could not update notifications.' }); }
+});
+
+app.get('/api/notification-preferences', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Sign in to manage email preferences.' });
+    try { return res.json(await auth.getEmailAnnouncements(user.id)); }
+    catch (error) { return res.status(500).json({ ok: false, error: 'Could not load email preferences.' }); }
+});
+
+app.post('/api/notification-preferences', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Sign in to manage email preferences.' });
+    try { return res.json(await auth.setEmailAnnouncements(user.id, !!(req.body && req.body.emailAnnouncements))); }
+    catch (error) { return res.status(500).json({ ok: false, error: 'Could not save email preferences.' }); }
+});
+
+app.get('/api/email/unsubscribe', async (req, res) => {
+    try {
+        const result = await auth.unsubscribeEmailAnnouncements(req.query.uid, req.query.token);
+        res.setHeader('Cache-Control', 'no-store');
+        if (!result.ok) return res.status(400).send('This unsubscribe link is invalid or expired.');
+        return res.send('<!doctype html><html><meta name="viewport" content="width=device-width"><title>Email preferences</title><body style="font:16px system-ui;max-width:600px;margin:12vh auto;padding:24px;color:#222"><h1>You are unsubscribed</h1><p>You will no longer receive GoldenSpaceAI announcement emails. In-app notifications are unchanged.</p><a href="https://www.goldenspaceai.space/">Return to GoldenSpaceAI</a></body></html>');
+    } catch (error) { return res.status(500).send('Could not update email preferences.'); }
+});
+
+app.post('/api/email/unsubscribe', async (req, res) => {
+    const body = req.body || {};
+    const result = await auth.unsubscribeEmailAnnouncements(body.uid || req.query.uid, body.token || req.query.token);
+    return result.ok ? res.status(204).end() : res.status(400).send('Invalid unsubscribe request.');
+});
+
+app.post('/api/admin/notifications/broadcast', async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const title = String(req.body && req.body.title || '').trim();
+    const message = String(req.body && req.body.message || '').trim();
+    if (!title || title.length > 120 || !message || message.length > 4000) return res.status(400).json({ ok: false, error: 'Add a title (up to 120 characters) and message (up to 4,000 characters).' });
+    try {
+        const result = await auth.broadcastNotification(title, message, 'admin_announcement');
+        return res.status(result.ok ? 200 : 503).json(result);
+    } catch (error) { console.error('admin notification broadcast:', error.message); return res.status(500).json({ ok: false, error: 'Could not send the in-app notification.' }); }
+});
+
+app.post('/api/admin/email/broadcast', async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const title = String(req.body && req.body.title || '').trim();
+    const message = String(req.body && req.body.message || '').trim();
+    if (!title || title.length > 120 || !message || message.length > 4000) return res.status(400).json({ ok: false, error: 'Add a subject (up to 120 characters) and message (up to 4,000 characters).' });
+    try {
+        const result = await auth.sendAnnouncementEmails(title, message, 'https://www.goldenspaceai.space');
+        return res.status(result.ok ? 200 : (result.error ? 503 : 207)).json(result);
+    } catch (error) { console.error('admin email broadcast:', error.message); return res.status(500).json({ ok: false, error: 'Could not send announcement emails.' }); }
+});
+
 app.get('/api/plan-status', (req, res) => {
     const ownerKey = resolvePlanOwnerKey(req);
     sendFreshJson(res, plansStore.getPlanStatusUi(ownerKey));
@@ -3044,7 +3123,10 @@ app.get('/api/imagine/search', async (req, res) => {
 
     const ownerKey = resolvePlanOwnerKey(req) || getClientId(req);
     const allowance = plansStore.checkImagineAllowed(ownerKey, type, isNewSearch);
-    if (!allowance.ok) return res.status(allowance.error.status || 429).json({ message: allowance.error.reply, code: allowance.error.code, upgradeUrl: allowance.error.upgradeUrl || '/upgrade' });
+    if (!allowance.ok) {
+        notifyAccountQuota(req, 'Imagine limit reached', allowance.error.reply, 'imagine-block:' + String(allowance.error.code || type) + ':' + (plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10)), 'usage_limit');
+        return res.status(allowance.error.status || 429).json({ message: allowance.error.reply, code: allowance.error.code, upgradeUrl: allowance.error.upgradeUrl || '/upgrade' });
+    }
     const apiKey = String(process.env.PEXELS_API_KEY || '').trim();
     if (!apiKey) return res.status(503).json({ message: 'Imagine is not configured yet. Please try again later.' });
 
@@ -3072,6 +3154,10 @@ app.get('/api/imagine/search', async (req, res) => {
     function finish(payload) {
         bucket.count += 1;
         const usage = plansStore.recordImagine(ownerKey, type, payload.results.length, isNewSearch);
+        const dayKey = plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10);
+        if (isNewSearch && usage.searchesUsed >= allowance.searchCap) notifyAccountQuota(req, 'Imagine searches used for today', 'You have used today’s Imagine searches. Your allowance resets at midnight UTC.', 'imagine-searches:' + dayKey, 'usage_limit');
+        if (type === 'photo' && allowance.imagesCap > 0 && usage.imagesUsed >= allowance.imagesCap) notifyAccountQuota(req, 'Imagine image limit reached', 'You have used today’s Imagine image allowance. It resets at midnight UTC.', 'imagine-images:' + dayKey, 'usage_limit');
+        if (type === 'video' && allowance.videosCap > 0 && usage.videosUsed >= allowance.videosCap) notifyAccountQuota(req, 'Imagine video limit reached', 'You have used today’s Imagine video allowance. It resets at midnight UTC.', 'imagine-videos:' + dayKey, 'usage_limit');
         res.setHeader('Cache-Control', 'private, max-age=300');
         return res.json({ ...payload, usage: responseUsage(usage) });
     }

@@ -1357,6 +1357,10 @@ app.post('/api/chat', async (req, res) => {
             pack ? pack.conversationMessages : buildConversationMessages(req.body),
             req.body
         );
+        conversationMessages.unshift({
+            role: 'system',
+            content: 'You are GoldenSpaceAI. Be truthful about the model provider if asked: Fast uses DeepSeek, unless this request falls back to xAI Grok. Thinking and Expert use xAI Grok. Never claim to be OpenAI or ChatGPT; the underlying compatibility SDK does not make OpenAI the provider.'
+        });
         const useWebSearch = webSearch === true;
 
         console.log(`Mode: ${safeMode} | Provider: ${target.provider} | Model: ${target.config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length} | planKind=${usageKind}${autoTitle ? ' | autoTitle' : ''}`);
@@ -3000,15 +3004,29 @@ const imagineCache = new Map();
 const IMAGINE_RATE_LIMIT = 12;
 const IMAGINE_WINDOW_MS = 60 * 1000;
 const IMAGINE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const IMAGINE_BLOCKED_TERMS = [
+    /\b(?:porn|porno|pornographic|xxx|hentai|rule\s*34|onlyfans|sex\s*tape|nude|nudes|naked|explicit\s*sex|graphic\s*sex|fetish|bestiality)\b/i,
+    /\b(?:child|children|kid|kids|minor|minors|underage|teen|teenager|loli|shota)\b.{0,35}\b(?:nude|naked|sex|sexual|porn|erotic|explicit)\b/i,
+    /\b(?:nude|naked|sex|sexual|porn|erotic|explicit)\b.{0,35}\b(?:child|children|kid|kids|minor|minors|underage|teen|teenager|loli|shota)\b/i,
+    /\b(?:gore|graphic\s*violence|dismember(?:ment|ed)?|decapitat(?:ed|ion)|snuff\s*film)\b/i
+];
+function isBlockedImagineQuery(query) {
+    return IMAGINE_BLOCKED_TERMS.some(pattern => pattern.test(query));
+}
 
 app.get('/api/imagine/search', async (req, res) => {
-    const query = String(req.query.query || '').trim().replace(/\\s+/g, ' ');
+    const query = String(req.query.query || '').trim().replace(/\s+/g, ' ');
     const type = String(req.query.type || 'photo').toLowerCase();
     if (!query || query.length > 160) return res.status(400).json({ message: 'Enter a search description up to 160 characters.' });
     if (type !== 'photo' && type !== 'video') return res.status(400).json({ message: 'Choose images or videos.' });
+    if (isBlockedImagineQuery(query)) return res.status(400).json({ message: 'Access blocked for this word or phrase. Try a different search.' });
+
+    const ownerKey = resolvePlanOwnerKey(req) || getClientId(req);
+    const allowance = plansStore.checkImagineAllowed(ownerKey, type);
+    if (!allowance.ok) return res.status(allowance.error.status || 429).json({ message: allowance.error.reply, code: allowance.error.code, upgradeUrl: allowance.error.upgradeUrl || '/upgrade' });
 
     const apiKey = String(process.env.PEXELS_API_KEY || '').trim();
-    if (!apiKey) return res.status(503).json({ message: 'Imagine is not configured yet. Add PEXELS_API_KEY to the Oregon service environment.' });
+    if (!apiKey) return res.status(503).json({ message: 'Imagine is not configured yet. Please try again later.' });
 
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
     const now = Date.now();
@@ -3017,19 +3035,22 @@ app.get('/api/imagine/search', async (req, res) => {
         bucket = { start: now, count: 0 };
         imagineRateBuckets.set(ip, bucket);
     }
-    bucket.count += 1;
-    if (bucket.count > IMAGINE_RATE_LIMIT) return res.status(429).json({ message: 'Too many searches right now. Please wait a minute and try again.' });
+    if (bucket.count >= IMAGINE_RATE_LIMIT) return res.status(429).json({ message: 'Too many searches right now. Please wait a minute and try again.' });
 
     const cacheKey = type + ':' + query.toLowerCase();
     const cached = imagineCache.get(cacheKey);
     if (cached && now - cached.createdAt < IMAGINE_CACHE_TTL_MS) {
+        const results = cached.payload.results.slice(0, Math.min(type === 'photo' ? 20 : 5, allowance.mediaCap - allowance.mediaUsed));
+        if (!results.length) return res.status(429).json({ message: 'Your daily ' + (type === 'video' ? 'video' : 'image') + ' limit is reached. It resets at midnight UTC.', code: 'imagine_media_limit', upgradeUrl: '/upgrade' });
+        bucket.count += 1;
+        const usage = plansStore.recordImagine(ownerKey, type, results.length);
         res.setHeader('Cache-Control', 'private, max-age=300');
-        return res.json(cached.payload);
+        return res.json({ ...cached.payload, results, count: results.length, usage: { searchesRemaining: Math.max(0, allowance.searchCap - usage.searchesUsed), imagesRemaining: Math.max(0, allowance.imagesCap - usage.imagesUsed), videosRemaining: Math.max(0, allowance.videosCap - usage.videosUsed) } });
     }
 
     try {
         const endpoint = type === 'photo' ? 'https://api.pexels.com/v1/search' : 'https://api.pexels.com/videos/search';
-        const perPage = type === 'photo' ? 20 : 5;
+        const perPage = Math.min(type === 'photo' ? 20 : 5, allowance.mediaCap - allowance.mediaUsed);
         const url = endpoint + '?query=' + encodeURIComponent(query) + '&per_page=' + perPage;
         const response = await fetch(url, {
             headers: { Authorization: apiKey, Accept: 'application/json' },
@@ -3043,7 +3064,7 @@ app.get('/api/imagine/search', async (req, res) => {
         const raw = await response.json();
         let results;
         if (type === 'photo') {
-            results = (Array.isArray(raw.photos) ? raw.photos : []).slice(0, 20).map(photo => ({
+            results = (Array.isArray(raw.photos) ? raw.photos : []).slice(0, perPage).map(photo => ({
                 id: photo.id,
                 alt: photo.alt || '',
                 photographer: photo.photographer || 'Pexels contributor',
@@ -3054,7 +3075,7 @@ app.get('/api/imagine/search', async (req, res) => {
                 download: photo.src?.original || photo.src?.large2x || photo.src?.large || ''
             })).filter(photo => photo.preview && photo.image && photo.download);
         } else {
-            results = (Array.isArray(raw.videos) ? raw.videos : []).slice(0, 5).map(video => {
+            results = (Array.isArray(raw.videos) ? raw.videos : []).slice(0, perPage).map(video => {
                 const files = Array.isArray(video.video_files) ? video.video_files.filter(file => file && file.link && String(file.file_type || '').includes('mp4')) : [];
                 const chosen = files.find(file => file.quality === 'sd') || files.find(file => file.quality === 'hd') || files[0];
                 if (!chosen) return null;
@@ -3077,8 +3098,10 @@ app.get('/api/imagine/search', async (req, res) => {
                 if (now - entry.createdAt >= IMAGINE_CACHE_TTL_MS || imagineCache.size > 250) imagineCache.delete(key);
             }
         }
+        bucket.count += 1;
+        const usage = plansStore.recordImagine(ownerKey, type, results.length);
         res.setHeader('Cache-Control', 'private, max-age=300');
-        res.json(payload);
+        res.json({ ...payload, usage: { searchesRemaining: Math.max(0, allowance.searchCap - usage.searchesUsed), imagesRemaining: Math.max(0, allowance.imagesCap - usage.imagesUsed), videosRemaining: Math.max(0, allowance.videosCap - usage.videosUsed) } });
     } catch (error) {
         if (error && error.name === 'TimeoutError') return res.status(504).json({ message: 'Pexels took too long to respond. Please try again.' });
         console.error('Pexels search error:', error.message);

@@ -829,8 +829,9 @@ function createPlansStore(dataDir, options = {}) {
         const store = read();
         const day = utcDayKey();
         const u = (ownerKey && store.usage[ownerKey]) || null;
-        let imagineDef = PLAN_DEFS.free;
-        try { if (ownerKey) imagineDef = getEffectivePlan(ownerKey).def || imagineDef; } catch (_) {}
+        let imaginePlan = 'free';
+        try { if (ownerKey) imaginePlan = getEffectivePlan(ownerKey).plan || 'free'; } catch (_) {}
+        const imagineDef = PLAN_DEFS[imaginePlan] || PLAN_DEFS.free;
         const imagineToday = !!u && u.imagineDay === day;
         const imagineAdminUsage = {
             imagineSearchesToday: imagineToday ? (Number(u.imagineSearchesToday) || 0) : 0,
@@ -1245,13 +1246,14 @@ function createPlansStore(dataDir, options = {}) {
             u.imagineImagesToday = 0;
             u.imagineVideosToday = 0;
         }
-        const searchCap = Math.max(0, Number(effective.def.imagineSearchesPerDay) || 0);
+        const imagineDef = PLAN_DEFS[effective.plan] || PLAN_DEFS.free;
+        const searchCap = Math.max(0, Number(imagineDef.imagineSearchesPerDay) || 0);
         const mediaType = type === 'video' ? 'video' : 'image';
-        const mediaCap = Math.max(0, Number(mediaType === 'video' ? effective.def.imagineVideosPerDay : effective.def.imagineImagesPerDay) || 0);
+        const mediaCap = Math.max(0, Number(mediaType === 'video' ? imagineDef.imagineVideosPerDay : imagineDef.imagineImagesPerDay) || 0);
         const used = Number(mediaType === 'video' ? u.imagineVideosToday : u.imagineImagesToday) || 0;
         if (isNewSearch !== false && Number(u.imagineSearchesToday) >= searchCap) return { ok: false, error: { status: 429, code: 'imagine_search_limit', reply: 'Your daily Imagine search limit is reached. It resets at midnight UTC.', upgradeUrl: '/upgrade' } };
         if (used >= mediaCap) return { ok: false, error: { status: 429, code: 'imagine_media_limit', reply: 'Your daily ' + (mediaType === 'video' ? 'video' : 'image') + ' limit is reached. It resets at midnight UTC.', upgradeUrl: '/upgrade' } };
-        return { ok: true, searchCap, searchesUsed: Number(u.imagineSearchesToday) || 0, mediaCap, mediaUsed: used, mediaType, imagesCap: Math.max(0, Number(effective.def.imagineImagesPerDay) || 0), videosCap: Math.max(0, Number(effective.def.imagineVideosPerDay) || 0), imagesUsed: Number(u.imagineImagesToday) || 0, videosUsed: Number(u.imagineVideosToday) || 0 };
+        return { ok: true, searchCap, searchesUsed: Number(u.imagineSearchesToday) || 0, mediaCap, mediaUsed: used, mediaType, imagesCap: Math.max(0, Number(imagineDef.imagineImagesPerDay) || 0), videosCap: Math.max(0, Number(imagineDef.imagineVideosPerDay) || 0), imagesUsed: Number(u.imagineImagesToday) || 0, videosUsed: Number(u.imagineVideosToday) || 0 };
     }
 
     function recordImagine(deviceId, type, count, isNewSearch) {
@@ -1544,6 +1546,7 @@ function createPlansStore(dataDir, options = {}) {
         const imagesUsed = Number(u.imagesToday) || 0;
         const otherUsed = roundUsd(thinkUsed + e16Used);
         const otherCap = roundUsd(thinkShareCap + expert16Cap);
+        const imagineDef = PLAN_DEFS[effective.plan] || PLAN_DEFS.free;
         const baseDef = getPlanDef(effective.plan);
         const stacked = effective.plan !== 'free' && (
             roundUsd(effective.caps.fastUsd) !== roundUsd(baseDef.fastUsd) ||
@@ -1560,9 +1563,9 @@ function createPlansStore(dataDir, options = {}) {
             endsAt: effective.endsAt,
             retainedUsd: effective.def.retainedUsd || 0,
             imagesPerDay: imagesCap,
-            imagineSearchesPerDay: Number(effective.def.imagineSearchesPerDay) || 0,
-            imagineImagesPerDay: Number(effective.def.imagineImagesPerDay) || 0,
-            imagineVideosPerDay: Number(effective.def.imagineVideosPerDay) || 0,
+            imagineSearchesPerDay: Number(imagineDef.imagineSearchesPerDay) || 0,
+            imagineImagesPerDay: Number(imagineDef.imagineImagesPerDay) || 0,
+            imagineVideosPerDay: Number(imagineDef.imagineVideosPerDay) || 0,
             talkMinutes: Number(effective.def.talkMinutes) || 0,
             talkPeriod: effective.def.talkPeriod || (effective.plan === 'free' ? 'weekly' : 'period'),
             modes,

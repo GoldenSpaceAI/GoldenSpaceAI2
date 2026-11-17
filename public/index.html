@@ -4150,7 +4150,7 @@
         .imagine-nav-link>span:first-child{font-size:18px}
         .imagine-nav-badge{margin-left:auto;font-size:9px;letter-spacing:.12em;padding:4px 7px;border-radius:99px;background:rgba(212,175,55,.14);color:var(--text-muted,#a69e8b)}
 
-    .notification-trigger{position:relative;min-width:34px;font-size:18px}
+    .projects-section{padding:10px 10px 6px;border-top:1px solid var(--border,#2c2c2c);margin-top:10px}.projects-section-head{display:flex;align-items:center;justify-content:space-between;padding:2px 8px 8px;color:var(--text-muted,#999);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}.projects-section-head button{width:28px;height:28px;border:1px solid var(--border,#353535);border-radius:8px;background:transparent;color:var(--text,#eee);font-size:20px;line-height:1;cursor:pointer}.projects-section-head button:hover{background:var(--gold-soft,rgba(212,175,55,.12))}.project-row{width:100%;display:flex;align-items:center;gap:9px;min-height:36px;padding:7px 9px;border:0;border-radius:9px;background:transparent;color:var(--text,#eee);text-align:left;font-size:13px;cursor:pointer}.project-row:hover,.project-row.active{background:var(--gold-soft,rgba(212,175,55,.12))}.project-row.active{color:var(--gold,#d4af37);font-weight:650}.project-row-icon{width:17px;text-align:center;opacity:.8}.project-row-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.project-count{color:var(--text-muted,#888);font-size:11px}.project-row-edit{margin-left:auto;opacity:.45;border:0;background:transparent;color:inherit;cursor:pointer;font-size:16px}.project-row:hover .project-row-edit{opacity:1}.project-dialog{position:fixed;z-index:400;inset:0;display:grid;place-items:center;padding:20px}.project-dialog[hidden]{display:none}.project-dialog-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(4px)}.project-dialog-card{position:relative;z-index:1;width:min(480px,100%);padding:26px;border:1px solid var(--border,#393939);border-radius:18px;background:var(--black-light,#181818);color:var(--text,#f4f4f4);box-shadow:0 28px 90px rgba(0,0,0,.5)}.project-dialog-card h2{margin:0 30px 22px 0;font-size:21px;letter-spacing:-.02em}.project-dialog-close{position:absolute;right:16px;top:14px;width:32px;height:32px;border:0;border-radius:9px;background:transparent;color:var(--text-muted,#aaa);font-size:24px;cursor:pointer}.project-dialog-card label{display:block;margin:14px 0 7px;font-size:12px;font-weight:650;color:var(--text-muted,#aaa)}.project-dialog-card label span{font-weight:400}.project-dialog-card input,.project-dialog-card textarea,.project-dialog-card select{box-sizing:border-box;width:100%;border:1px solid var(--border,#393939);border-radius:10px;background:var(--background,#101010);color:var(--text,#f4f4f4);padding:11px 12px;font:inherit;font-size:14px}.project-dialog-card textarea{resize:vertical;line-height:1.5}.project-dialog-actions{display:flex;align-items:center;gap:8px;margin-top:22px}.project-dialog-actions span{flex:1}.project-dialog-actions button{border:1px solid var(--border,#393939);border-radius:9px;padding:9px 13px;background:transparent;color:var(--text,#eee);font:inherit;font-size:13px;font-weight:650;cursor:pointer}.project-dialog-actions .project-save-btn{border-color:var(--gold,#d4af37);background:var(--gold,#d4af37);color:#141414}.project-dialog-actions .project-delete-btn{margin-right:auto;color:#ee7777;border-color:rgba(238,119,119,.35)}@media(max-width:600px){.project-dialog{padding:14px}.project-dialog-card{padding:22px 18px;border-radius:15px}}.notification-trigger{position:relative;min-width:34px;font-size:18px}
 .notification-badge{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:#d94b4b;color:#fff;font:700 10px/17px system-ui;text-align:center}
 .device-notification-prompt{position:fixed;z-index:245;right:20px;bottom:24px;width:min(380px,calc(100vw - 28px));padding:18px;background:var(--black-light,#171717);color:var(--text,#f5f5f5);border:1px solid var(--border,#353535);border-radius:16px;box-shadow:0 18px 55px rgba(0,0,0,.32)}.device-notification-prompt[hidden]{display:none}.device-notification-prompt strong{display:block;font-size:15px}.device-notification-prompt p{margin:7px 0 14px;color:var(--text-muted,#a7a7a7);font-size:13px;line-height:1.45}.device-notification-prompt-actions{display:flex;gap:8px}.device-notification-prompt-actions button{border:1px solid var(--border,#353535);border-radius:10px;padding:9px 13px;background:var(--gold,#c7a64a);color:#111;font-weight:700;cursor:pointer}.device-notification-prompt-actions button:last-child{background:transparent;color:var(--text,#f5f5f5)}@media(max-width:600px){.device-notification-prompt{right:14px;bottom:calc(82px + env(safe-area-inset-bottom));width:calc(100vw - 28px)}}.notification-panel{position:fixed;z-index:230;right:18px;top:70px;width:min(390px,calc(100vw - 24px));max-height:min(72vh,580px);background:var(--black-light,#141414);border:1px solid var(--border,#303030);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.42);display:flex;flex-direction:column;overflow:hidden}
 .notification-panel[hidden]{display:none}
@@ -4197,6 +4197,30 @@
             </div>
         </aside>
 
+        <div class="project-dialog" id="projectDialog" hidden>
+            <div class="project-dialog-backdrop" onclick="closeProjectDialog()"></div>
+            <section class="project-dialog-card" role="dialog" aria-modal="true" aria-labelledby="projectDialogTitle">
+                <button type="button" class="project-dialog-close" onclick="closeProjectDialog()" aria-label="Close">×</button>
+                <h2 id="projectDialogTitle">Create project</h2>
+                <div id="projectEditFields">
+                    <label for="projectNameInput">Project name</label>
+                    <input id="projectNameInput" maxlength="100" placeholder="e.g. School, App launch, Research">
+                    <label for="projectInstructionsInput">Project instructions <span>optional</span></label>
+                    <textarea id="projectInstructionsInput" maxlength="8000" rows="5" placeholder="Tell GoldenSpaceAI what to remember and how to help in this project."></textarea>
+                </div>
+                <div id="projectMoveFields" hidden>
+                    <label for="projectMoveSelect">Move chat to</label>
+                    <select id="projectMoveSelect"></select>
+                </div>
+                <div class="project-dialog-actions">
+                    <button type="button" class="project-delete-btn" id="projectDeleteBtn" onclick="deleteProjectFromDialog()" hidden>Delete project</button>
+                    <span></span>
+                    <button type="button" class="project-cancel-btn" onclick="closeProjectDialog()">Cancel</button>
+                    <button type="button" class="project-save-btn" id="projectSaveBtn" onclick="saveProjectDialog()">Save</button>
+                </div>
+            </section>
+        </div>
+
         <div class="main-content">
             <div class="chats-panel" id="chatsPanel">
                 <div class="chats-panel-header">
@@ -4210,6 +4234,11 @@
                     <input class="chat-search" id="chatSearch" type="search" placeholder="Search chats..." oninput="renderChatsList()" aria-label="Search chats">
                 </div>
                 <a class="imagine-nav-link" href="/imagine" aria-label="Open Imagine"><span aria-hidden="true">✦</span><span>Imagine</span><span class="imagine-nav-badge">MEDIA</span></a>
+                <div class="projects-section">
+                    <div class="projects-section-head"><span>Projects</span><button type="button" onclick="openProjectEditor()" aria-label="Create project" title="Create project">+</button></div>
+                    <button type="button" class="project-row project-all active" id="allChatsProjectBtn" onclick="selectProject(null)"><span>All chats</span><span id="allChatsCount" class="project-count"></span></button>
+                    <div id="projectsList" class="projects-list"></div>
+                </div>
                 <div class="chats-list" id="chatsList"></div>
                 <div class="chats-panel-footer">
                     <div class="plan-strip" id="planStrip" aria-label="Plan usage">
@@ -4483,6 +4512,11 @@
         let currentModel = 'normal';
         let currentChatId = null;
         let chats = {};
+        let projects = [];
+        let activeProjectId = null;
+        let projectDialogMode = 'create';
+        let projectDialogChatId = null;
+        let projectDialogId = null;
         let isRecording = false;
         let liveModeActive = false;
         let liveMicOpen = false;
@@ -5270,6 +5304,7 @@
                 await hydrateAccountChatsFromServer({ adoptGuest: false });
                 clearGuestChatSession();
             }
+            await loadProjects();
             if (Object.keys(chats).length === 0) createNewChat();
             else {
                 if (!currentChatId || !chats[currentChatId]) currentChatId = newestChatId();
@@ -5754,7 +5789,8 @@
             const sub = document.getElementById('topBarSub');
             if (sub) {
                 const cfg = MODELS[currentModel] || MODELS.normal;
-                sub.textContent = cfg.label + (cfg.desc && cfg.desc !== cfg.label ? ' · ' + cfg.desc.replace(/^Expert - /, '') : '');
+                const project = currentChatId && chats[currentChatId] ? projectForChat(chats[currentChatId]) : null;
+                sub.textContent = (project ? project.name + ' · ' : '') + cfg.label + (cfg.desc && cfg.desc !== cfg.label ? ' · ' + cfg.desc.replace(/^Expert - /, '') : '');
             }
         }
 
@@ -5773,7 +5809,7 @@
 
         function createNewChat() {
             const id = 'chat_' + Date.now();
-            chats[id] = { name: 'New Chat', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), systemPrompt: '', rollingSummary: '', summaryMessageCount: 0 };
+            chats[id] = { name: 'New Chat', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), projectId: activeProjectId || null, systemPrompt: '', rollingSummary: '', summaryMessageCount: 0 };
             currentChatId = id;
             saveChats();
             loadChat();
@@ -5955,6 +5991,142 @@
             scrollToBottom(true);
         }
 
+        function projectForChat(chat) {
+            if (!chat || !chat.projectId) return null;
+            return projects.find(function(project) { return project.id === chat.projectId; }) || null;
+        }
+        async function loadProjects() {
+            if (!isLoggedIn()) { projects = []; activeProjectId = null; renderProjectsList(); return; }
+            try {
+                const res = await apiFetch('/api/projects', { method: 'GET', cache: 'no-store' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Could not load projects.');
+                projects = Array.isArray(data.projects) ? data.projects : [];
+                let saved = null;
+                try { saved = localStorage.getItem('goldenspaceai2_active_project'); } catch (_) {}
+                activeProjectId = projects.some(function(p) { return p.id === saved; }) ? saved : null;
+            } catch (_) { projects = []; activeProjectId = null; }
+            renderProjectsList();
+            renderChatsList();
+        }
+        function renderProjectsList() {
+            const list = document.getElementById('projectsList');
+            const allButton = document.getElementById('allChatsProjectBtn');
+            const count = document.getElementById('allChatsCount');
+            if (!list) return;
+            list.replaceChildren();
+            if (allButton) allButton.classList.toggle('active', !activeProjectId);
+            if (count) count.textContent = String(Object.keys(chats || {}).length);
+            projects.forEach(function(project) {
+                const row = document.createElement('div');
+                row.className = 'project-row' + (project.id === activeProjectId ? ' active' : '');
+                row.setAttribute('role', 'group');
+                const select = document.createElement('button');
+                select.type = 'button'; select.className = 'project-row';
+                select.innerHTML = '<span class="project-row-icon" aria-hidden="true">▣</span><span class="project-row-name"></span><span class="project-count"></span>';
+                select.querySelector('.project-row-name').textContent = project.name;
+                select.querySelector('.project-count').textContent = String(Object.values(chats || {}).filter(function(c) { return c.projectId === project.id; }).length);
+                select.onclick = function() { selectProject(project.id); };
+                const edit = document.createElement('button');
+                edit.type = 'button'; edit.className = 'project-row-edit'; edit.textContent = '⋯'; edit.title = 'Project options'; edit.setAttribute('aria-label', 'Edit ' + project.name);
+                edit.onclick = function(event) { event.stopPropagation(); openProjectEditor(project.id); };
+                row.appendChild(select); row.appendChild(edit); list.appendChild(row);
+            });
+        }
+        function selectProject(projectId) {
+            activeProjectId = projectId || null;
+            try {
+                if (activeProjectId) localStorage.setItem('goldenspaceai2_active_project', activeProjectId);
+                else localStorage.removeItem('goldenspaceai2_active_project');
+            } catch (_) {}
+            renderProjectsList();
+            if (!activeProjectId) { renderChatsList(); return; }
+            const ids = Object.keys(chats || {}).filter(function(id) { return chats[id].projectId === activeProjectId; });
+            ids.sort(function(a, b) { return chatUpdatedMs(chats[b]) - chatUpdatedMs(chats[a]); });
+            if (ids.length) { currentChatId = ids[0]; loadChat(); renderChatsList(); }
+            else createNewChat();
+        }
+        function openProjectEditor(projectId, chatId) {
+            if (!isLoggedIn()) { alert('Sign in to create and sync projects across your devices.'); return; }
+            projectDialogId = projectId || null;
+            projectDialogChatId = chatId || null;
+            projectDialogMode = chatId ? 'move' : (projectId ? 'edit' : 'create');
+            const dialog = document.getElementById('projectDialog');
+            const title = document.getElementById('projectDialogTitle');
+            const editFields = document.getElementById('projectEditFields');
+            const moveFields = document.getElementById('projectMoveFields');
+            const deleteButton = document.getElementById('projectDeleteBtn');
+            const name = document.getElementById('projectNameInput');
+            const instructions = document.getElementById('projectInstructionsInput');
+            const save = document.getElementById('projectSaveBtn');
+            if (!dialog) return;
+            if (projectDialogMode === 'move') {
+                const select = document.getElementById('projectMoveSelect');
+                select.replaceChildren();
+                [['', 'All chats'], ...projects.map(function(p) { return [p.id, p.name]; })].forEach(function(option) {
+                    const el = document.createElement('option'); el.value = option[0]; el.textContent = option[1]; select.appendChild(el);
+                });
+                select.value = (chats[chatId] && chats[chatId].projectId) || '';
+                title.textContent = 'Move chat';
+                editFields.hidden = true; moveFields.hidden = false; deleteButton.hidden = true; save.textContent = 'Move';
+            } else {
+                const project = projects.find(function(p) { return p.id === projectId; }) || { name: '', instructions: '' };
+                title.textContent = projectDialogMode === 'edit' ? 'Project settings' : 'Create project';
+                name.value = project.name || ''; instructions.value = project.instructions || '';
+                editFields.hidden = false; moveFields.hidden = true; deleteButton.hidden = projectDialogMode !== 'edit'; save.textContent = projectDialogMode === 'edit' ? 'Save changes' : 'Create project';
+            }
+            dialog.hidden = false;
+            const focus = projectDialogMode === 'move' ? document.getElementById('projectMoveSelect') : name;
+            setTimeout(function() { if (focus) focus.focus(); }, 0);
+        }
+        function closeProjectDialog() { const dialog = document.getElementById('projectDialog'); if (dialog) dialog.hidden = true; }
+        async function saveProjectDialog() {
+            const button = document.getElementById('projectSaveBtn');
+            if (button) button.disabled = true;
+            try {
+                if (projectDialogMode === 'move') {
+                    const chat = chats[projectDialogChatId];
+                    if (!chat) return closeProjectDialog();
+                    chat.projectId = document.getElementById('projectMoveSelect').value || null;
+                    chat.updatedAt = new Date().toISOString();
+                    saveChatsLocal();
+                    await syncChatToServer(projectDialogChatId);
+                    closeProjectDialog(); renderProjectsList(); renderChatsList();
+                    return;
+                }
+                const body = {
+                    name: document.getElementById('projectNameInput').value.trim(),
+                    instructions: document.getElementById('projectInstructionsInput').value.trim()
+                };
+                if (!body.name) { alert('Enter a project name.'); return; }
+                const url = projectDialogMode === 'edit' ? '/api/projects/' + encodeURIComponent(projectDialogId) : '/api/projects';
+                const res = await apiFetch(url, { method: projectDialogMode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.error || 'Could not save project.');
+                if (projectDialogMode === 'edit') projects = projects.map(function(p) { return p.id === data.project.id ? data.project : p; });
+                else { projects.unshift(data.project); activeProjectId = data.project.id; }
+                closeProjectDialog();
+                if (projectDialogMode === 'create') {
+                    try { localStorage.setItem('goldenspaceai2_active_project', activeProjectId); } catch (_) {}
+                    createNewChat();
+                } else { renderProjectsList(); renderChatsList(); }
+            } catch (error) { alert(error.message || 'Could not save project.'); }
+            finally { if (button) button.disabled = false; }
+        }
+        async function deleteProjectFromDialog() {
+            const project = projects.find(function(p) { return p.id === projectDialogId; });
+            if (!project || !confirm('Delete project "' + project.name + '"? Its chats will stay in All chats.')) return;
+            try {
+                const res = await apiFetch('/api/projects/' + encodeURIComponent(project.id), { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.error || 'Could not delete project.');
+                projects = projects.filter(function(p) { return p.id !== project.id; });
+                Object.keys(chats).forEach(function(id) { if (chats[id].projectId === project.id) { chats[id].projectId = null; syncChatToServer(id); } });
+                if (activeProjectId === project.id) selectProject(null);
+                closeProjectDialog(); renderProjectsList(); renderChatsList(); saveChatsLocal();
+            } catch (error) { alert(error.message || 'Could not delete project.'); }
+        }
+
         function renderChatsList() {
             const list = document.getElementById('chatsList');
             list.innerHTML = '';
@@ -5964,6 +6136,7 @@
                 const ub = chats[b].updatedAt || chats[b].createdAt || '';
                 return String(ub).localeCompare(String(ua));
             });
+            if (activeProjectId) chatIds = chatIds.filter(function(id) { return chats[id].projectId === activeProjectId; });
             if (q) {
                 chatIds = chatIds.filter(function(id) {
                     const c = chats[id];
@@ -5976,9 +6149,10 @@
                 });
             }
             if(!chatIds.length) {
-                list.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:13px;">' + (q ? 'No matches' : 'No chats yet') + '</div>';
+                list.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:13px;">' + (q ? 'No matches' : (activeProjectId ? 'No chats in this project yet' : 'No chats yet')) + '</div>';
                 return;
             }
+            renderProjectsList();
             for (let i = 0; i < chatIds.length; i++) {
                 const id = chatIds[i];
                 const chat = chats[id];
@@ -5986,6 +6160,7 @@
                 div.className = 'chat-item' + (id === currentChatId ? ' active' : '');
                 div.innerHTML = '<span class="chat-item-name" onclick="switchChat(\'' + id + '\')">' + escapeHtmlRaw(chat.name) + '</span>' +
                     '<div class="chat-item-actions">' +
+                    '<button class="chat-item-btn" title="Move to project" onclick="event.stopPropagation();openProjectEditor(null,\'' + id + '\')">&#8644;</button>' +
                     '<button class="chat-item-btn" title="Rename" onclick="event.stopPropagation();renameChat(\'' + id + '\')">&#9998;</button>' +
                     '<button class="chat-item-btn delete" title="Delete" onclick="event.stopPropagation();deleteChat(\'' + id + '\')">&#10005;</button>' +
                     '</div>';
@@ -6298,9 +6473,10 @@
         }
         function combinedInstructions() {
             let s = globalInstructions || '';
-            if (currentChatId && chats[currentChatId] && chats[currentChatId].systemPrompt) {
-                s = (s ? s + '\n\n' : '') + chats[currentChatId].systemPrompt;
-            }
+            const chat = currentChatId ? chats[currentChatId] : null;
+            if (chat && chat.systemPrompt) s = (s ? s + '\n\n' : '') + chat.systemPrompt;
+            const project = projectForChat(chat);
+            if (project && project.instructions) s = (s ? s + '\n\n' : '') + 'Project instructions for "' + project.name + '":\n' + project.instructions;
             return s;
         }
 

@@ -2989,6 +2989,103 @@ app.get('/chat21.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'chat21.html'));
 });
 
+app.get('/imagine', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'imagine.html'));
+});
+
+
+// ==================== PEXELS IMAGINE SEARCH ====================
+const imagineRateBuckets = new Map();
+const imagineCache = new Map();
+const IMAGINE_RATE_LIMIT = 12;
+const IMAGINE_WINDOW_MS = 60 * 1000;
+const IMAGINE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+app.get('/api/imagine/search', async (req, res) => {
+    const query = String(req.query.query || '').trim().replace(/\\s+/g, ' ');
+    const type = String(req.query.type || 'photo').toLowerCase();
+    if (!query || query.length > 160) return res.status(400).json({ message: 'Enter a search description up to 160 characters.' });
+    if (type !== 'photo' && type !== 'video') return res.status(400).json({ message: 'Choose images or videos.' });
+
+    const apiKey = String(process.env.PEXELS_API_KEY || '').trim();
+    if (!apiKey) return res.status(503).json({ message: 'Imagine is not configured yet. Add PEXELS_API_KEY to the Oregon service environment.' });
+
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+    const now = Date.now();
+    let bucket = imagineRateBuckets.get(ip);
+    if (!bucket || now - bucket.start >= IMAGINE_WINDOW_MS) {
+        bucket = { start: now, count: 0 };
+        imagineRateBuckets.set(ip, bucket);
+    }
+    bucket.count += 1;
+    if (bucket.count > IMAGINE_RATE_LIMIT) return res.status(429).json({ message: 'Too many searches right now. Please wait a minute and try again.' });
+
+    const cacheKey = type + ':' + query.toLowerCase();
+    const cached = imagineCache.get(cacheKey);
+    if (cached && now - cached.createdAt < IMAGINE_CACHE_TTL_MS) {
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        return res.json(cached.payload);
+    }
+
+    try {
+        const endpoint = type === 'photo' ? 'https://api.pexels.com/v1/search' : 'https://api.pexels.com/videos/search';
+        const perPage = type === 'photo' ? 20 : 5;
+        const url = endpoint + '?query=' + encodeURIComponent(query) + '&per_page=' + perPage;
+        const response = await fetch(url, {
+            headers: { Authorization: apiKey, Accept: 'application/json' },
+            signal: AbortSignal.timeout(15000)
+        });
+        if (response.status === 429) return res.status(429).json({ message: 'Pexels is busy. Please try again in a little while.' });
+        if (!response.ok) {
+            console.error('Pexels search failed:', response.status);
+            return res.status(502).json({ message: 'Pexels could not complete that search. Please try again.' });
+        }
+        const raw = await response.json();
+        let results;
+        if (type === 'photo') {
+            results = (Array.isArray(raw.photos) ? raw.photos : []).slice(0, 20).map(photo => ({
+                id: photo.id,
+                alt: photo.alt || '',
+                photographer: photo.photographer || 'Pexels contributor',
+                photographerUrl: photo.photographer_url || 'https://www.pexels.com',
+                pexelsUrl: photo.url || 'https://www.pexels.com',
+                preview: photo.src?.large || photo.src?.medium || photo.src?.original || '',
+                image: photo.src?.large2x || photo.src?.original || photo.src?.large || '',
+                download: photo.src?.original || photo.src?.large2x || photo.src?.large || ''
+            })).filter(photo => photo.preview && photo.image && photo.download);
+        } else {
+            results = (Array.isArray(raw.videos) ? raw.videos : []).slice(0, 5).map(video => {
+                const files = Array.isArray(video.video_files) ? video.video_files.filter(file => file && file.link && String(file.file_type || '').includes('mp4')) : [];
+                const chosen = files.find(file => file.quality === 'sd') || files.find(file => file.quality === 'hd') || files[0];
+                if (!chosen) return null;
+                return {
+                    id: video.id,
+                    photographer: video.user?.name || 'Pexels contributor',
+                    photographerUrl: video.user?.url || 'https://www.pexels.com',
+                    pexelsUrl: video.url || 'https://www.pexels.com',
+                    poster: video.image || '',
+                    preview: chosen.link,
+                    download: chosen.link,
+                    duration: Number(video.duration) || 0
+                };
+            }).filter(Boolean);
+        }
+        const payload = { type, query, results, source: 'Pexels', count: results.length };
+        imagineCache.set(cacheKey, { createdAt: now, payload });
+        if (imagineCache.size > 300) {
+            for (const [key, entry] of imagineCache) {
+                if (now - entry.createdAt >= IMAGINE_CACHE_TTL_MS || imagineCache.size > 250) imagineCache.delete(key);
+            }
+        }
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        res.json(payload);
+    } catch (error) {
+        if (error && error.name === 'TimeoutError') return res.status(504).json({ message: 'Pexels took too long to respond. Please try again.' });
+        console.error('Pexels search error:', error.message);
+        return res.status(502).json({ message: 'Could not reach Pexels. Please try again.' });
+    }
+});
+
 // ==================== CATCH-ALL ROUTE ====================
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });

@@ -2667,6 +2667,31 @@ app.post('/api/notifications/read', async (req, res) => {
     } catch (error) { console.error('notifications read:', error.message); return res.status(500).json({ ok: false, error: 'Could not update notifications.' }); }
 });
 
+app.get('/api/push/public-key', (req, res) => {
+    const publicKey = String(process.env.VAPID_PUBLIC_KEY || '').trim();
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ enabled: !!(publicKey && process.env.VAPID_PRIVATE_KEY), publicKey: publicKey || null });
+});
+
+app.post('/api/push/subscribe', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Sign in to enable device notifications.' });
+    if (!auth.pushNotificationsConfigured()) return res.status(503).json({ ok: false, error: 'Device notifications are not configured on the server yet.' });
+    try {
+        const result = await auth.savePushSubscription(user.id, req.body && req.body.subscription);
+        return res.status(result.ok ? 200 : 400).json(result);
+    } catch (error) { console.error('push subscription:', error.message); return res.status(500).json({ ok: false, error: 'Could not enable device notifications.' }); }
+});
+
+app.delete('/api/push/subscribe', async (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Sign in to manage device notifications.' });
+    try {
+        const result = await auth.removePushSubscription(user.id, String(req.body && req.body.endpoint || ''));
+        return res.json(result);
+    } catch (error) { console.error('push unsubscribe:', error.message); return res.status(500).json({ ok: false, error: 'Could not disable device notifications.' }); }
+});
+
 app.get('/api/notification-preferences', async (req, res) => {
     const user = auth && auth.readUserFromReq(req);
     if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Sign in to manage email preferences.' });

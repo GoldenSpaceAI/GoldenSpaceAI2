@@ -4522,7 +4522,7 @@
                 return '<div class="plan-quota">' +
                     '<div class="plan-quota-row">' +
                     '<span class="plan-quota-label">' + (q.label || q.id) + '</span>' +
-                    '<span class="plan-quota-meta">' + pct + '% used · ' + leftPct + '% left · ' + period + '</span>' +
+                    '<span class="plan-quota-meta">' + (q.displayMeta || (pct + '% used · ' + leftPct + '% left · ' + period)) + '</span>' +
                     '</div>' +
                     '<div class="plan-quota-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + (q.label || q.id) + ' usage">' +
                     '<div class="plan-quota-fill ' + fillClass + '" style="width:' + pct + '%"></div>' +
@@ -4732,6 +4732,7 @@
             }
         }
         function openSettingsPanel() {
+            if (!isDesktop()) closeChatsPanel();
             const overlay = document.getElementById('settingsOverlay');
             if (overlay) overlay.classList.add('open');
             renderAuthCard();

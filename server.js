@@ -360,6 +360,15 @@ function applyLiveFastConfig(body, config) {
     return { ...config, maxTokens: capped, temperature: Math.min(Number(config.temperature) || 0.7, 0.65) };
 }
 
+function applyQuizOutputBudget(body, config) {
+    if (!config || isLiveFastRequest(body)) return config;
+    const requested = Number(body && body.quizQuestionCount);
+    if (!Number.isFinite(requested) || requested < 1) return config;
+    const count = Math.min(100, Math.floor(requested));
+    const budget = Math.min(12000, 1200 + count * 96);
+    return { ...config, maxTokens: Math.max(Number(config.maxTokens) || 0, budget) };
+}
+
 function injectLiveVoiceSystem(messages, body) {
     if (!isLiveFastRequest(body)) return messages;
     const list = Array.isArray(messages) ? messages.slice() : [];
@@ -1437,7 +1446,7 @@ app.post('/api/chat', async (req, res) => {
 
         activeProvider = target.provider;
         const { safeMode } = target;
-        target.config = applyLiveFastConfig(req.body, target.config);
+        target.config = applyQuizOutputBudget(req.body, applyLiveFastConfig(req.body, target.config));
         const autoTitle = isAutoTitleRequest(req.body);
         // Auto-title calls must not trip on context-pack maintenance (pack was previously undefined here,
         // which returned "⚠️ pack is not defined" and the client titled chats "⚠️ pack").
@@ -1627,7 +1636,7 @@ app.post('/api/chat/stream', async (req, res) => {
         }
 
         let { safeMode, config, client, provider, allowGrokFallback } = target;
-        config = applyLiveFastConfig(req.body, config);
+        config = applyQuizOutputBudget(req.body, applyLiveFastConfig(req.body, config));
         const useWebSearch = webSearch === true;
         const streamT0 = Date.now();
         const streamMark = (label) => {

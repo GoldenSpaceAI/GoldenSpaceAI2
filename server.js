@@ -3040,6 +3040,22 @@ app.get('/api/admin/users', async (req, res) => {
     });
 });
 
+app.get('/api/admin/users/:userId/usage', (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const userId = String(req.params.userId || '');
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+        return res.status(400).json({ error: 'Invalid account id.' });
+    }
+    try {
+        const ownerKey = plansStore.accountOwnerKey(userId);
+        // Same usage snapshot shown to the account owner; this route does not write account data.
+        return res.json(plansStore.getPlanStatusUi(ownerKey));
+    } catch (error) {
+        console.error('admin user usage:', error.message);
+        return res.status(500).json({ error: 'Could not load this account usage.' });
+    }
+});
+
 app.get('/terms', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'terms.html'));
 });

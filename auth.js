@@ -219,6 +219,8 @@ function createAuth(options = {}) {
                         project_id TEXT NOT NULL,
                         name TEXT NOT NULL,
                         instructions TEXT NOT NULL DEFAULT '',
+                        color TEXT NOT NULL DEFAULT '#d4af37',
+                        icon TEXT NOT NULL DEFAULT '📁',
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         PRIMARY KEY (owner_key, project_id)
@@ -236,6 +238,8 @@ function createAuth(options = {}) {
                 try { await client.query(`ALTER TABLE chats ADD COLUMN IF NOT EXISTS rolling_summary TEXT DEFAULT ''`); } catch (_) {}
                 try { await client.query(`ALTER TABLE chats ADD COLUMN IF NOT EXISTS summary_message_count INT NOT NULL DEFAULT 0`); } catch (_) {}
                 try { await client.query(`ALTER TABLE chats ADD COLUMN IF NOT EXISTS project_id TEXT DEFAULT NULL`); } catch (_) {}
+                try { await client.query(`ALTER TABLE user_projects ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '#d4af37'`); } catch (_) {}
+                try { await client.query(`ALTER TABLE user_projects ADD COLUMN IF NOT EXISTS icon TEXT NOT NULL DEFAULT '📁'`); } catch (_) {}
                 schemaReady = true;
                 console.log('Auth/Postgres schema ready');
                 return true;
@@ -900,15 +904,26 @@ function createAuth(options = {}) {
         return { ok: true, sent };
     }
 
+    const PROJECT_COLORS = ['#d4af37', '#f97362', '#ec4899', '#a78bfa', '#6688ff', '#22b8a5', '#f0a340', '#8b9a7a'];
+    const PROJECT_ICONS = ['📁', '🚀', '💡', '📚', '🎨', '🧪', '🌿', '⭐', '🎧', '📝'];
+    function projectColor(value) {
+        const color = String(value || '').trim().toLowerCase();
+        return PROJECT_COLORS.includes(color) ? color : PROJECT_COLORS[0];
+    }
+    function projectIcon(value) {
+        const icon = String(value || '').trim();
+        return PROJECT_ICONS.includes(icon) ? icon : PROJECT_ICONS[0];
+    }
+
     async function listProjects(ownerKey) {
         const p = getPool();
         if (!ownerKey || !p || !(await ensureSchema())) return [];
         const r = await p.query(
-            `SELECT project_id AS id, name, instructions, created_at AS "createdAt", updated_at AS "updatedAt"
+            `SELECT project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"
              FROM user_projects WHERE owner_key = $1 ORDER BY updated_at DESC`,
             [String(ownerKey)]
         );
-        return r.rows.map(row => ({ id: row.id, name: row.name, instructions: row.instructions || '', createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) }));
+        return r.rows.map(row => ({ id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) }));
     }
 
     async function createProject(ownerKey, project) {
@@ -918,14 +933,16 @@ function createAuth(options = {}) {
         const id = String(item.id || ('project_' + crypto.randomUUID())).slice(0, 100);
         const name = String(item.name || '').trim().slice(0, 100);
         const instructions = String(item.instructions || '').trim().slice(0, 8000);
+        const color = projectColor(item.color);
+        const icon = projectIcon(item.icon);
         if (!name) return { ok: false, error: 'Add a project name.' };
         const r = await p.query(
-            `INSERT INTO user_projects (owner_key, project_id, name, instructions)
-             VALUES ($1,$2,$3,$4) RETURNING project_id AS id, name, instructions, created_at AS "createdAt", updated_at AS "updatedAt"`,
-            [String(ownerKey), id, name, instructions]
+            `INSERT INTO user_projects (owner_key, project_id, name, instructions, color, icon)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"`,
+            [String(ownerKey), id, name, instructions, color, icon]
         );
         const row = r.rows[0];
-        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
+        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
     }
 
     async function updateProject(ownerKey, projectId, project) {
@@ -934,16 +951,18 @@ function createAuth(options = {}) {
         const item = project || {};
         const name = String(item.name || '').trim().slice(0, 100);
         const instructions = String(item.instructions || '').trim().slice(0, 8000);
+        const color = projectColor(item.color);
+        const icon = projectIcon(item.icon);
         if (!name) return { ok: false, error: 'Add a project name.' };
         const r = await p.query(
-            `UPDATE user_projects SET name=$3, instructions=$4, updated_at=NOW()
+            `UPDATE user_projects SET name=$3, instructions=$4, color=$5, icon=$6, updated_at=NOW()
              WHERE owner_key=$1 AND project_id=$2
-             RETURNING project_id AS id, name, instructions, created_at AS "createdAt", updated_at AS "updatedAt"`,
-            [String(ownerKey), String(projectId), name, instructions]
+             RETURNING project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"`,
+            [String(ownerKey), String(projectId), name, instructions, color, icon]
         );
         if (!r.rows[0]) return { ok: false, error: 'Project not found.' };
         const row = r.rows[0];
-        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
+        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
     }
 
     async function deleteProject(ownerKey, projectId) {

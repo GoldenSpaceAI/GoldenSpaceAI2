@@ -1276,7 +1276,30 @@ app.post('/api/documents/export', async (req, res) => {
         const artifact = req.body?.artifact;
         const bytes = JSON.stringify(artifact || {}).length;
         if (bytes > 250000) return res.status(413).json({ error: 'This document is too large to export.' });
+        const documentOwnerKey = resolvePlanOwnerKey(req) || getClientId(req);
+        const documentAllowance = plansStore.getOfficeDocumentAllowance(documentOwnerKey);
+        if (!documentAllowance.ok) {
+            return res.status(429).json({
+                error: 'You have reached your Word and PowerPoint limit for the last 3 days. Your oldest file allowance returns at ' + (documentAllowance.resetsAt || 'the end of the rolling window') + '.',
+                code: 'office_document_limit_reached',
+                used: documentAllowance.used,
+                limit: documentAllowance.limit,
+                resetsAt: documentAllowance.resetsAt,
+                upgradeUrl: '/upgrade'
+            });
+        }
         const file = await createOfficeDocument(artifact, format);
+        const recordedDocument = plansStore.recordOfficeDocumentExport(documentOwnerKey);
+        if (!recordedDocument.ok) {
+            return res.status(429).json({
+                error: 'You have reached your Word and PowerPoint limit for the last 3 days.',
+                code: 'office_document_limit_reached',
+                used: recordedDocument.used,
+                limit: recordedDocument.limit,
+                resetsAt: recordedDocument.resetsAt,
+                upgradeUrl: '/upgrade'
+            });
+        }
         const base = String(artifact?.title || 'GoldenSpaceAI').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80) || 'GoldenSpaceAI';
         res.setHeader('Content-Type', format === 'pptx'
             ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'

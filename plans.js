@@ -131,6 +131,8 @@ const PLAN_DEFS = {
 };
 
 const PLAN_RANK = { free: 0, plus: 1, pro: 2, max: 3 };
+const OFFICE_DOCUMENT_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const OFFICE_DOCUMENT_CAPS = { free: 2, plus: 5, pro: 10, max: 0 }; // zero means unlimited
 
 function roundUsd(n) {
     const x = Number(n);
@@ -783,6 +785,7 @@ function createPlansStore(dataDir, options = {}) {
             imagineSearchesToday: 0,
             imagineImagesToday: 0,
             imagineVideosToday: 0,
+            officeDocumentExports: [],
             talkSecondsUsed: 0,
             talkPeriodKey: null,
             todayTalkSeconds: 0,
@@ -920,6 +923,7 @@ function createPlansStore(dataDir, options = {}) {
             save();
             return u;
         }
+        if (!Array.isArray(u.officeDocumentExports)) u.officeDocumentExports = [];
         // Migrate legacy-only rows
         if (u.fastSpendUsd == null) u.fastSpendUsd = 0;
         if (u.thinkShareSpendUsd == null) {
@@ -1274,6 +1278,44 @@ function createPlansStore(dataDir, options = {}) {
         return { searchesUsed: u.imagineSearchesToday, imagesUsed: u.imagineImagesToday, videosUsed: u.imagineVideosToday };
     }
 
+    function getOfficeDocumentAllowance(deviceId) {
+        const effective = getEffectivePlan(deviceId || '');
+        const cap = Number(OFFICE_DOCUMENT_CAPS[effective.plan]);
+        if (!deviceId) return { ok: true, used: 0, limit: cap, unlimited: cap === 0, remaining: cap === 0 ? null : cap, resetsAt: null };
+        const u = ensureUsage(deviceId);
+        const now = Date.now();
+        const cutoff = now - OFFICE_DOCUMENT_WINDOW_MS;
+        const source = Array.isArray(u.officeDocumentExports) ? u.officeDocumentExports : [];
+        const recent = source.filter((value) => {
+            const time = typeof value === 'number' ? value : Date.parse(value);
+            return Number.isFinite(time) && time > cutoff && time <= now;
+        });
+        if (recent.length !== source.length) {
+            u.officeDocumentExports = recent;
+            flushSync();
+        }
+        const used = recent.length;
+        const unlimited = cap === 0;
+        return {
+            ok: unlimited || used < cap,
+            used,
+            limit: cap,
+            unlimited,
+            remaining: unlimited ? null : Math.max(0, cap - used),
+            resetsAt: recent.length ? new Date((typeof recent[0] === 'number' ? recent[0] : Date.parse(recent[0])) + OFFICE_DOCUMENT_WINDOW_MS).toISOString() : null
+        };
+    }
+
+    function recordOfficeDocumentExport(deviceId) {
+        if (!deviceId) return { ok: false, used: 0, limit: 2, unlimited: false, remaining: 2, resetsAt: null };
+        const current = getOfficeDocumentAllowance(deviceId);
+        if (!current.ok) return current;
+        const u = ensureUsage(deviceId);
+        u.officeDocumentExports.push(Date.now());
+        flushSync();
+        return getOfficeDocumentAllowance(deviceId);
+    }
+
     function checkImageAllowed(deviceId) {
         if (!deviceId) {
             return {
@@ -1547,6 +1589,7 @@ function createPlansStore(dataDir, options = {}) {
         const otherUsed = roundUsd(thinkUsed + e16Used);
         const otherCap = roundUsd(thinkShareCap + expert16Cap);
         const imagineDef = PLAN_DEFS[effective.plan] || PLAN_DEFS.free;
+        const officeDocuments = deviceId ? getOfficeDocumentAllowance(deviceId) : { used: 0, limit: Number(OFFICE_DOCUMENT_CAPS[effective.plan]) || 2, unlimited: effective.plan === 'max' };
         const baseDef = getPlanDef(effective.plan);
         const stacked = effective.plan !== 'free' && (
             roundUsd(effective.caps.fastUsd) !== roundUsd(baseDef.fastUsd) ||
@@ -1566,6 +1609,8 @@ function createPlansStore(dataDir, options = {}) {
             imagineSearchesPerDay: Number(imagineDef.imagineSearchesPerDay) || 0,
             imagineImagesPerDay: Number(imagineDef.imagineImagesPerDay) || 0,
             imagineVideosPerDay: Number(imagineDef.imagineVideosPerDay) || 0,
+            officeDocumentsPer3Days: officeDocuments.limit,
+            officeDocumentsUsed: officeDocuments.used,
             talkMinutes: Number(effective.def.talkMinutes) || 0,
             talkPeriod: effective.def.talkPeriod || (effective.plan === 'free' ? 'weekly' : 'period'),
             modes,
@@ -1621,6 +1666,8 @@ function createPlansStore(dataDir, options = {}) {
                 imagineSearchesToday: Number(u.imagineSearchesToday) || 0,
                 imagineImagesToday: Number(u.imagineImagesToday) || 0,
                 imagineVideosToday: Number(u.imagineVideosToday) || 0,
+                officeDocumentsUsed: officeDocuments.used,
+                officeDocumentsLimit: officeDocuments.limit,
                 imagesLeft: Math.max(0, imagesCap - imagesUsed),
                 talkSecondsUsed: talkUsed,
                 talkCapSeconds: talkCapSec,
@@ -1759,6 +1806,13 @@ function createPlansStore(dataDir, options = {}) {
         imagineQuota('imagineImages', 'Imagine images', u.imagineImagesToday || 0, imagineImageCap, 'Daily Pexels image-result allowance (UTC).');
         imagineQuota('imagineVideos', 'Imagine videos', u.imagineVideosToday || 0, imagineVideoCap, 'Daily Pexels video-result allowance (UTC).');
 
+        const documentQuota = quotaRow('officeDocuments', 'Word & PowerPoint', '3 days', status.officeDocumentsUsed || 0, status.officeDocumentsPer3Days || 0, 'Created files in a rolling 3-day window.');
+        const documentLimit = Number(status.officeDocumentsPer3Days) || 0;
+        documentQuota.displayMeta = documentLimit === 0
+            ? 'Unlimited'
+            : (Number(status.officeDocumentsUsed || 0) + ' of ' + documentLimit + ' used · ' + Math.max(0, documentLimit - Number(status.officeDocumentsUsed || 0)) + ' left in 3 days');
+        quotas.push(documentQuota);
+
         if ((u.imagesCap || 0) > 0) {
             quotas.push(quotaRow(
                 'images',
@@ -1766,7 +1820,7 @@ function createPlansStore(dataDir, options = {}) {
                 'daily',
                 u.imagesToday || 0,
                 u.imagesCap || 0,
-                'Daily image count (UTC). Documents/files are unlimited.'
+                'Daily image count (UTC). Document uploads remain unlimited.'
             ));
         }
 
@@ -2523,6 +2577,8 @@ function createPlansStore(dataDir, options = {}) {
         recordImage,
         checkImagineAllowed,
         recordImagine,
+        getOfficeDocumentAllowance,
+        recordOfficeDocumentExport,
         checkTalkAllowed,
         recordTalk,
         recordSpend,

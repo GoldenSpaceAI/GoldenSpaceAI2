@@ -7513,6 +7513,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 link.click();
                 link.remove();
                 setTimeout(function() { URL.revokeObjectURL(url); }, 30000);
+                try { if (typeof loadPlanStatus === 'function') await loadPlanStatus(); } catch (_) {}
             } catch (error) {
                 showToast(escapeHtmlRaw(error.message || 'Could not download the file.'), 'err', 5000);
             } finally {

@@ -1091,6 +1091,7 @@ function createPlansStore(dataDir, options = {}) {
             paymentRequestId: null,
             caps: null,
             stackMode: null,
+            queuedSubscriptions: Array.isArray(sub.queuedSubscriptions) ? sub.queuedSubscriptions.slice() : [],
             demotedAt: new Date().toISOString(),
             demoteReason: String(reason || 'budget_exhausted').slice(0, 200)
         };

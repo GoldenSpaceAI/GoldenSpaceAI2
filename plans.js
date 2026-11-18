@@ -2218,6 +2218,7 @@ function createPlansStore(dataDir, options = {}) {
             livePlan: (live && live.plan) || 'free',
             effectivePlan: p.effectivePlan || (live && live.plan) || p.plan,
             amount: p.amount,
+            billingPeriod: p.billingPeriod || 'monthly',
             status: p.status,
             createdAt: p.createdAt || null,
             decidedAt: p.decidedAt || null,

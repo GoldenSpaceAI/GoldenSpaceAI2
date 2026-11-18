@@ -592,7 +592,9 @@
   function fmtUsd(n) {
     const v = Number(n);
     if (!isFinite(v) || v <= 0) return '$0.00';
-    if (v < 0.01) return '$' + v.toFixed(4);
+    if (v < 0.0001) return '$' + v.toFixed(8);
+    if (v < 0.01) return '$' + v.toFixed(6);
+    if (v < 1) return '$' + v.toFixed(4);
     return '$' + v.toFixed(2);
   }
 

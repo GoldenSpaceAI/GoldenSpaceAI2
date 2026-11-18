@@ -4233,11 +4233,34 @@
                 width: min(104px, 26vw);
                 max-height: 110px;
             }
+            .empty-state .empty-chips {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: min(420px, 100%);
+            }
             .empty-state .empty-chip {
+                width: 100%;
+                min-height: 38px;
                 padding: 7px 10px;
                 font-size: 11.5px;
             }
-            .mic-dictate-label {
+            .composer-tools.mobile-only {
+                width: auto;
+                align-self: flex-start;
+                flex-wrap: nowrap;
+                margin: 0 0 4px 8px;
+            }
+            .composer-tools .model-selector {
+                flex: 0 0 auto;
+                min-width: 0;
+            }
+            .composer-tools .model-btn {
+                width: auto;
+                min-height: 32px;
+                justify-content: center;
+                padding: 6px 11px;
+            }
+            .input-btn.mic-dictate .mic-dictate-label {
                 display: none;
             }
             .input-btn.mic-dictate {

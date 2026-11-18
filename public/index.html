@@ -4309,6 +4309,26 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         .product-tour-card a{color:var(--gold-light);font-weight:700}
         html.light .product-tour-card a{color:#846200}
         @media(max-width:520px){.product-tour-overlay{padding:10px}.product-tour-card{border-radius:19px;padding:22px 18px}.product-tour-actions{gap:6px}.product-tour-skip{font-size:13px}.product-tour-btn{padding:10px 13px}.product-tour-progress{margin-bottom:22px}}
+
+        .interactive-visuals{display:grid;gap:16px;margin:18px 0}
+        .visualization-card{border:1px solid var(--gold-line);border-radius:17px;padding:17px;background:linear-gradient(145deg,rgba(212,175,55,.08),transparent 55%),var(--black-light,#141414);color:var(--text,#f4f4f4)}
+        html.light .visualization-card{background:#fffefa;color:#201b12}
+        .visualization-title{font-size:16px;font-weight:750;margin:0 0 5px}
+        .visualization-description{font-size:13px;color:var(--text-muted,#9a9a9a);line-height:1.5;margin:0 0 14px}
+        .wave-svg,.graph-svg{display:block;width:100%;height:auto;overflow:visible;border-radius:12px;background:rgba(128,128,128,.055)}
+        .visual-grid{stroke:rgba(145,145,145,.2);stroke-width:1}
+        .visual-axis{stroke:rgba(145,145,145,.55);stroke-width:1.2}
+        .wave-path,.graph-path{fill:none;stroke:#d4af37;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+        .graph-path{stroke:#44c8b8}
+        .visual-label{fill:currentColor;font-size:12px;opacity:.72}
+        .wave-readouts{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+        .wave-readout{padding:7px 10px;border:1px solid var(--border,#333);border-radius:10px;font-size:12px}
+        .wave-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px}
+        .wave-control{display:grid;gap:6px;font-size:12px}
+        .wave-control span{display:flex;justify-content:space-between;gap:6px}
+        .wave-control input{width:100%;accent-color:#d4af37}
+        .wave-play{margin-top:12px;border:1px solid var(--gold-line);border-radius:10px;padding:8px 12px;background:var(--gold-soft);color:inherit;font:inherit;font-weight:700;cursor:pointer}
+        @media(max-width:620px){.wave-controls{grid-template-columns:1fr}.visualization-card{padding:13px}}
 </style>
 </head>
 <body>
@@ -6782,9 +6802,12 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                     const messages = (extra && extra.messages) ? extra.messages : c.messages;
                     const latestUser = messages.slice().reverse().find(function(m) { return m && m.role === 'user'; });
                     if (!latestUser) return '';
-                    if (isQuizGenerationRequest(latestUser.content)) return '\n\n' + interactiveQuizInstruction(requestedQuizQuestionCount(latestUser.content));
+                    const quizIntent = isQuizGenerationRequest(latestUser.content);
                     const formats = requestedDocumentFormats(latestUser.content);
-                    return formats ? '\n\n' + documentGenerationInstruction(formats) : '';
+                    const specific = quizIntent
+                        ? '\n\n' + interactiveQuizInstruction(requestedQuizQuestionCount(latestUser.content))
+                        : (formats ? '\n\n' + documentGenerationInstruction(formats) : '');
+                    return specific + '\n\n' + interactiveVisualizationInstruction();
                 })(),
                 mode: MODELS[currentModel].apiMode,
                 agents: MODELS[currentModel].agents || 4,
@@ -7222,6 +7245,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 let finalText = softCleanLatexClient(finalFull || streamedText || '');
                 let parsedQuiz = null;
                 let parsedArtifact = null;
+                let parsedVisualization = null;
                 if (isDocumentReply && String(finalText).trim()) {
                     parsedArtifact = parseDocumentArtifact(finalText, documentFormats);
                     finalText = parsedArtifact ? 'Your designed file is ready. Use the download button below to save it.' : 'I could not prepare the downloadable document this time. Please try asking for the PowerPoint or Word document again.';
@@ -7255,6 +7279,10 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                         throw fbErr;
                     }
                 }
+                if (!isQuizReply && !isDocumentReply && String(finalText).trim()) {
+                    parsedVisualization = parseInteractiveVisualization(finalText);
+                    if (parsedVisualization) finalText = parsedVisualization.text || 'Here is an interactive visual to explore.';
+                }
                 if (!String(finalText).trim()) {
                     finalText = friendlyError(errMsg || 'empty reply');
                     if (!chromeReady) {
@@ -7284,17 +7312,18 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                     chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
                     if (parsedQuiz) chats[currentChatId].messages[chats[currentChatId].messages.length - 1].quiz = parsedQuiz;
                     if (parsedArtifact) chats[currentChatId].messages[chats[currentChatId].messages.length - 1].documentArtifact = parsedArtifact;
+                    if (parsedVisualization) chats[currentChatId].messages[chats[currentChatId].messages.length - 1].visualizations = parsedVisualization.visualizations;
                     persistActivityOnLastAi();
                     chats[currentChatId].updatedAt = new Date().toISOString();
                     saveChats();
-                    if (!parsedQuiz && !parsedArtifact && contentEl) {
+                    if (!parsedQuiz && !parsedArtifact && !parsedVisualization && contentEl) {
                         if (streamPaintRaf) { cancelAnimationFrame(streamPaintRaf); streamPaintRaf = null; }
                         contentEl.setAttribute('data-text', finalText);
                         contentEl.innerHTML = formatMarkdown(finalText);
                         renderMathIn(contentEl);
                     }
                     // Collapse activity panel for preview (still openable)
-                    if (!parsedQuiz && !parsedArtifact) mountActivityOnAi(false, true);
+                    if (!parsedQuiz && !parsedArtifact && !parsedVisualization) mountActivityOnAi(false, true);
                     else loadChat();
                 }
                 removeThinkingIndicator(thinkingId);
@@ -7694,6 +7723,47 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         };
 
 
+        function interactiveVisualizationInstruction() {
+            return 'For education, math, or science, decide whether an interactive visual would make this answer clearer. If the user explicitly asks for a graph/simulation, always provide one. You may also add one proactively when it clearly helps explain a concept. For a wave simulation return type "wave" with title, description, amplitude, frequency, wavelength and units. For a function/data graph return type "graph" with xLabel, yLabel, and 20–60 numeric points [{x,y}]. Return exactly one JSON object {"type":"interactive_visualization","text":"short helpful explanation","visualizations":[...]}, with no markdown fences, if creating visuals. Otherwise answer normally in text. Quiz and downloadable document requests must keep their existing JSON formats and must not be replaced by a visualization. Never include executable code or HTML in JSON.';
+        }
+
+        function parseInteractiveVisualization(text) {
+            try {
+                let raw = String(text || '').trim().replace(/^\x60{3}(?:json)?\s*/i, '').replace(/\s*\x60{3}$/i, '').trim();
+                const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
+                if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
+                const data = JSON.parse(raw);
+                if (!data || data.type !== 'interactive_visualization' || !Array.isArray(data.visualizations)) return null;
+                const visuals = data.visualizations.slice(0, 8).map(function(v) {
+                    if (!v || (v.type !== 'wave' && v.type !== 'graph')) return null;
+                    const clean = {
+                        type: v.type,
+                        title: String(v.title || (v.type === 'wave' ? 'Wave simulation' : 'Interactive graph')).slice(0, 160),
+                        description: String(v.description || '').slice(0, 500)
+                    };
+                    if (v.type === 'wave') {
+                        clean.amplitude = Math.max(0.1, Math.min(5, Number(v.amplitude) || 2));
+                        clean.frequency = Math.max(0.1, Math.min(5, Number(v.frequency) || 1));
+                        clean.wavelength = Math.max(0.2, Math.min(10, Number(v.wavelength) || 4));
+                        clean.amplitudeUnit = String(v.amplitudeUnit || 'cm').slice(0, 16);
+                        clean.frequencyUnit = String(v.frequencyUnit || 'Hz').slice(0, 16);
+                        clean.wavelengthUnit = String(v.wavelengthUnit || 'm').slice(0, 16);
+                        clean.time = 0;
+                    } else {
+                        clean.xLabel = String(v.xLabel || 'x').slice(0, 40);
+                        clean.yLabel = String(v.yLabel || 'y').slice(0, 40);
+                        clean.points = (Array.isArray(v.points) ? v.points : []).slice(0, 100).map(function(p) {
+                            return { x: Number(p && p.x), y: Number(p && p.y) };
+                        }).filter(function(p) { return Number.isFinite(p.x) && Number.isFinite(p.y); });
+                        if (clean.points.length < 2) return null;
+                    }
+                    return clean;
+                }).filter(Boolean);
+                if (!visuals.length) return null;
+                return { text: String(data.text || 'Here is an interactive visual to explore.'), visualizations: visuals };
+            } catch (_) { return null; }
+        }
+
         function interactiveQuizInstruction(count) {
             const total = Math.max(1, Math.min(100, Number(count) || 5));
             return 'When the latest user message asks for a quiz, create an interactive multiple-choice quiz using the conversation and any attached study material as the source. The requested quiz length is exactly ' + total + ' questions. Return ONLY valid JSON with this shape: {"title":"short topic title","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction and why"}]}. Include exactly ' + total + ' useful questions, 4 concise options per question, one correctIndex from 0 to 3, and a clear explanation for each answer. Do not use Markdown fences or any text outside the JSON.';
@@ -7718,6 +7788,104 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 if (questions.some(function(q) { return !q; })) return null;
                 return { title: String(data.title || 'Knowledge check').trim(), questions: questions, currentIndex: 0, answers: new Array(questions.length).fill(null) };
             } catch (e) { return null; }
+        }
+
+        function wavePath(sim) {
+            const amp = Math.max(0.1, Math.min(5, Number(sim.amplitude) || 2));
+            const freq = Math.max(0.1, Math.min(5, Number(sim.frequency) || 1));
+            const lambda = Math.max(0.2, Math.min(10, Number(sim.wavelength) || 4));
+            const time = Number(sim.time) || 0;
+            const centerY = 106, scale = (amp / 5) * 76, left = 42, width = 680;
+            let d = '';
+            for (let i = 0; i <= 160; i++) {
+                const f = i / 160 * 2;
+                const x = left + f * width;
+                const y = centerY - scale * Math.sin(2 * Math.PI * (f - freq * time));
+                d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+            }
+            return d.trim();
+        }
+        function renderInteractiveVisualizationHtml(visuals, messageIndex) {
+            if (!Array.isArray(visuals) || !visuals.length) return '';
+            const cards = visuals.map(function(sim, visualIndex) {
+                const title = escapeHtmlRaw(sim.title || 'Interactive visual');
+                const desc = sim.description ? '<p class="visualization-description">' + escapeHtmlRaw(sim.description) + '</p>' : '';
+                if (sim.type === 'wave') {
+                    const a = Number(sim.amplitude) || 2, f = Number(sim.frequency) || 1, l = Number(sim.wavelength) || 4;
+                    return '<section class="visualization-card wave-simulation" data-message-index="' + messageIndex + '" data-visual-index="' + visualIndex + '">' +
+                        '<h3 class="visualization-title">' + title + '</h3>' + desc +
+                        '<svg class="wave-svg" viewBox="0 0 760 220" role="img" aria-label="Animated wave graph">' +
+                        '<path class="visual-grid" d="M42 30H722 M42 68H722 M42 106H722 M42 144H722 M42 182H722"></path>' +
+                        '<path class="visual-axis" d="M42 106H722 M42 24V188"></path>' +
+                        '<text class="visual-label" x="370" y="207">Distance · 2 wavelengths</text>' +
+                        '<text class="visual-label" x="8" y="20">Amplitude</text>' +
+                        '<path class="wave-path" d="' + wavePath(sim) + '"></path></svg>' +
+                        '<div class="wave-readouts"><span class="wave-readout">Frequency <b class="wave-frequency-value">' + f.toFixed(1) + ' ' + escapeHtmlRaw(sim.frequencyUnit || 'Hz') + '</b></span>' +
+                        '<span class="wave-readout">Amplitude <b class="wave-amplitude-value">' + a.toFixed(1) + ' ' + escapeHtmlRaw(sim.amplitudeUnit || 'cm') + '</b></span>' +
+                        '<span class="wave-readout">Wavelength <b class="wave-wavelength-value">' + l.toFixed(1) + ' ' + escapeHtmlRaw(sim.wavelengthUnit || 'm') + '</b></span>' +
+                        '<span class="wave-readout">Wave speed <b class="wave-speed-value">' + (f*l).toFixed(2) + ' ' + escapeHtmlRaw(sim.wavelengthUnit || 'm') + '/' + escapeHtmlRaw(sim.frequencyUnit || 's⁻¹') + '</b></span></div>' +
+                        '<div class="wave-controls">' +
+                        '<label class="wave-control"><span>Frequency <b>' + f.toFixed(1) + '</b></span><input type="range" min="0.1" max="5" step="0.1" value="' + f + '" aria-label="Control frequency" oninput="handleWaveControl(this,\'frequency\')"></label>' +
+                        '<label class="wave-control"><span>Amplitude <b>' + a.toFixed(1) + '</b></span><input type="range" min="0.1" max="5" step="0.1" value="' + a + '" aria-label="Control amplitude" oninput="handleWaveControl(this,\'amplitude\')"></label>' +
+                        '<label class="wave-control"><span>Wavelength <b>' + l.toFixed(1) + '</b></span><input type="range" min="0.2" max="10" step="0.1" value="' + l + '" aria-label="Control wavelength" oninput="handleWaveControl(this,\'wavelength\')"></label>' +
+                        '</div><button type="button" class="wave-play" onclick="toggleWavePlayback(this)">▶ Play wave</button></section>';
+                }
+                const pts = sim.points || [];
+                const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+                let minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs), minY=Math.min.apply(null,ys), maxY=Math.max.apply(null,ys);
+                if (minX===maxX) { minX-=1; maxX+=1; } if (minY===maxY) { minY-=1; maxY+=1; }
+                const padY=(maxY-minY)*.08, left=55, top=24, width=670, height=165;
+                const path=pts.map((p,i)=>((i?'L':'M')+(left+(p.x-minX)/(maxX-minX)*width).toFixed(1)+' '+(top+height-(p.y-minY+padY)/(maxY-minY+2*padY)*height).toFixed(1))).join(' ');
+                return '<section class="visualization-card"><h3 class="visualization-title">'+title+'</h3>'+desc+
+                    '<svg class="graph-svg" viewBox="0 0 760 230" role="img" aria-label="'+escapeAttr(sim.title||'Graph')+'">'+
+                    '<path class="visual-grid" d="M55 24H725 M55 65H725 M55 106H725 M55 147H725 M55 189H725"></path><path class="visual-axis" d="M55 24V189H725"></path>'+
+                    '<path class="graph-path" d="'+path+'"></path><text class="visual-label" x="360" y="220">'+escapeHtmlRaw(sim.xLabel||'x')+'</text><text class="visual-label" transform="translate(15 125) rotate(-90)">'+escapeHtmlRaw(sim.yLabel||'y')+'</text></svg></section>';
+            }).join('');
+            return '<div class="interactive-visuals">' + cards + '</div>';
+        }
+        const activeWaveTimers = {};
+        function getWaveState(card) {
+            const messageIndex = Number(card && card.getAttribute('data-message-index'));
+            const visualIndex = Number(card && card.getAttribute('data-visual-index'));
+            const message = chats[currentChatId] && chats[currentChatId].messages[messageIndex];
+            const sim = message && message.visualizations && message.visualizations[visualIndex];
+            return { sim: sim, key: String(currentChatId) + ':' + messageIndex + ':' + visualIndex };
+        }
+        window.handleWaveControl = function(input, property) {
+            const card = input.closest('.wave-simulation'), state = getWaveState(card);
+            if (!state.sim || !['frequency','amplitude','wavelength'].includes(property)) return;
+            state.sim[property] = Number(input.value);
+            const label = input.closest('.wave-control').querySelector('span b');
+            if (label) label.textContent = Number(input.value).toFixed(1);
+            card.querySelector('.wave-frequency-value').textContent = state.sim.frequency.toFixed(1) + ' ' + state.sim.frequencyUnit;
+            card.querySelector('.wave-amplitude-value').textContent = state.sim.amplitude.toFixed(1) + ' ' + state.sim.amplitudeUnit;
+            card.querySelector('.wave-wavelength-value').textContent = state.sim.wavelength.toFixed(1) + ' ' + state.sim.wavelengthUnit;
+            card.querySelector('.wave-speed-value').textContent = (state.sim.frequency * state.sim.wavelength).toFixed(2) + ' ' + state.sim.wavelengthUnit + '/' + state.sim.frequencyUnit;
+            card.querySelector('.wave-path').setAttribute('d', wavePath(state.sim));
+            saveChats();
+        };
+        window.toggleWavePlayback = function(button) {
+            const card = button.closest('.wave-simulation'), state = getWaveState(card);
+            if (!state.sim) return;
+            if (activeWaveTimers[state.key]) {
+                clearInterval(activeWaveTimers[state.key]);
+                delete activeWaveTimers[state.key];
+                button.textContent = '▶ Play wave';
+                return;
+            }
+            button.textContent = '❚❚ Pause wave';
+            activeWaveTimers[state.key] = setInterval(function() {
+                const latest = chats[currentChatId] && chats[currentChatId].messages[Number(card.getAttribute('data-message-index'))];
+                const sim = latest && latest.visualizations && latest.visualizations[Number(card.getAttribute('data-visual-index'))];
+                if (!sim || !card.isConnected) {
+                    clearInterval(activeWaveTimers[state.key]); delete activeWaveTimers[state.key]; return;
+                }
+                sim.time = (Number(sim.time) || 0) + 0.06;
+                card.querySelector('.wave-path').setAttribute('d', wavePath(sim));
+            }, 60);
+        };
+        function stopWaveAnimations() {
+            Object.keys(activeWaveTimers).forEach(function(key) { clearInterval(activeWaveTimers[key]); delete activeWaveTimers[key]; });
         }
 
         function renderQuizHtml(quiz, messageIndex) {
@@ -7811,6 +7979,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>';
                 if (msg.quiz) inner += renderQuizHtml(msg.quiz, typeof index === 'number' ? index : -1);
                 if (msg.documentArtifact) inner += renderDocumentArtifactHtml(msg.documentArtifact, typeof index === 'number' ? index : -1);
+                if (msg.visualizations) inner += renderInteractiveVisualizationHtml(msg.visualizations, typeof index === 'number' ? index : -1);
                 const tAi = formatMsgTime(msg.timestamp);
                 inner += (tAi ? '<div class="msg-time">' + escapeHtmlRaw(tAi) + '</div>' : '') +
                     '<div class="message-actions">' +

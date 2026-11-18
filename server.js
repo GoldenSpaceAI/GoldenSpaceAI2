@@ -2917,6 +2917,7 @@ app.post('/api/upgrade/request', async (req, res) => {
     const result = plansStore.createPaymentRequest({
         deviceId,
         plan: body.plan,
+        billingPeriod: body.billingPeriod,
         phone: body.phone,
         email,
         userId: sessionUser.id,

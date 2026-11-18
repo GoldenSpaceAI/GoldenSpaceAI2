@@ -691,9 +691,9 @@
       return;
     }
     err.hidden = true;
-    document.getElementById('payAmount').textContent = '
+    document.getElementById('payAmount').textContent = '$' + priceFor(selected);
     document.getElementById('fromPhone').textContent = a;
-    document.getElementById('payPlan').textContent = selected.label + ' · 
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + priceFor(selected) + (billingPeriod === 'yearly' ? ' / year (12 months)' : ' / 30 days');
     showStep(4);
   });
 

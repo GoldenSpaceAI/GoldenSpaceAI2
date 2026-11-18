@@ -4723,7 +4723,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         }
         function planPeriodNote(data) {
             if (!data) return '';
-            if (data.plan === 'free') return 'Free Fast + images reset at UTC midnight. Talk (Live/speak-aloud) resets each UTC week. Documents unlimited.';
+            if (data.plan === 'free') return 'Free Fast + images reset at UTC midnight. Talk (Live/speak-aloud) resets each UTC week. Word and PowerPoint: 2 files per rolling 3 days.';
             if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Modes do not borrow. Images reset daily (UTC). Talk is per paid period.';
             return 'Paid mode allowances reset each paid period; images reset daily (UTC); Talk is per paid period.';
         }

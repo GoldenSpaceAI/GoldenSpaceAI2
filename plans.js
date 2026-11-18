@@ -2003,7 +2003,7 @@ function createPlansStore(dataDir, options = {}) {
         const store = read();
         // Block duplicate waiting requests for same account (or guest device)+plan
         const existingWaiting = store.payments.find(p => {
-            if (p.status !== 'waiting' || p.plan !== planId) return false;
+            if (p.status !== 'waiting' || p.plan !== planId || (p.billingPeriod || 'monthly') !== billing) return false;
             if (uid) {
                 return String(p.userId || '') === uid ||
                     (emailNorm && p.email === emailNorm) ||

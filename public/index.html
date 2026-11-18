@@ -7734,7 +7734,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
                 const data = JSON.parse(raw);
                 if (!data || data.type !== 'interactive_visualization' || !Array.isArray(data.visualizations)) return null;
-                const visuals = data.visualizations.slice(0, 8).map(function(v) {
+                const visuals = data.visualizations.map(function(v) {
                     if (!v || (v.type !== 'wave' && v.type !== 'graph')) return null;
                     const clean = {
                         type: v.type,

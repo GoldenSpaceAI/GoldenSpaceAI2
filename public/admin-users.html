@@ -375,6 +375,7 @@
 .announcement-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.announcement-actions .btn{min-height:42px}
 #broadcastFeedback:empty{display:none}
 @media(max-width:600px){.announcement-panel{padding:15px}.announcement-actions{display:grid}.announcement-actions .btn{width:100%}}
+.usage-detail-overlay{position:fixed;z-index:500;inset:0;display:grid;place-items:center;padding:18px}.usage-detail-overlay[hidden]{display:none}.usage-detail-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(4px)}.usage-detail-card{position:relative;z-index:1;width:min(700px,100%);max-height:min(88vh,850px);overflow:auto;padding:25px;border:1px solid var(--border);border-radius:18px;background:var(--panel);color:var(--text);box-shadow:var(--shadow)}.usage-detail-close{position:absolute;right:15px;top:14px;width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:var(--panel-elev);color:var(--text);font-size:21px;cursor:pointer}.usage-detail-title{margin:0 45px 5px 0;font-size:22px}.usage-detail-sub{margin:0 45px 20px 0;color:var(--muted);font-size:13px}.usage-detail-plan{display:flex;align-items:center;gap:10px;margin-bottom:18px}.usage-detail-plan .price{color:var(--muted);font-size:13px}.usage-detail-quotas{display:grid;gap:11px}.usage-detail-quota{padding:15px;border:1px solid var(--border);border-radius:13px;background:var(--panel-elev)}.usage-detail-quota-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline}.usage-detail-quota-head strong{font-size:14px}.usage-detail-quota-head span{font-size:12px;color:var(--muted)}.usage-detail-meta{margin-top:5px;font-size:13px}.usage-detail-bar{height:7px;margin-top:10px;overflow:hidden;border-radius:99px;background:var(--border)}.usage-detail-bar>i{display:block;height:100%;border-radius:inherit;background:var(--gold);min-width:0}.usage-detail-foot{display:flex;justify-content:space-between;gap:10px;margin-top:7px;color:var(--muted);font-size:11px}.usage-detail-note{margin:8px 0 0;color:var(--muted);font-size:11px}.user-row-clickable{cursor:pointer}.user-row-clickable:focus-visible td{outline:2px solid var(--gold);outline-offset:-2px}.user-row-open-hint{opacity:0;color:var(--gold);font-size:11px;transition:opacity .15s}.user-row-clickable:hover .user-row-open-hint,.user-row-clickable:focus-visible .user-row-open-hint{opacity:1}
 </style>
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js" defer></script>
@@ -517,6 +518,16 @@
         <div class="icon">∅</div>
         <h3 id="emptyTitle">No users found</h3>
         <p id="emptyHint">Accounts will appear here once people sign up.</p>
+      </div>
+      <div class="usage-detail-overlay" id="usageDetailOverlay" hidden>
+        <div class="usage-detail-backdrop" onclick="closeUsageDetail()"></div>
+        <section class="usage-detail-card" role="dialog" aria-modal="true" aria-labelledby="usageDetailTitle">
+          <button type="button" class="usage-detail-close" onclick="closeUsageDetail()" aria-label="Close">×</button>
+          <h2 class="usage-detail-title" id="usageDetailTitle">Account usage</h2>
+          <p class="usage-detail-sub" id="usageDetailSub">Read-only usage snapshot</p>
+          <div class="usage-detail-plan" id="usageDetailPlan"></div>
+          <div class="usage-detail-quotas" id="usageDetailQuotas"></div>
+        </section>
       </div>
     </div>
   </section>
@@ -792,10 +803,11 @@
         : fmtTalkMin(u.talkSecondsUsed);
       const talkPeriodLabel = (u.talkPeriod === 'weekly') ? 'week' : 'period';
       return (
-        '<tr>' +
+        '<tr class="user-row-clickable" data-user-id="' + escapeHtml(u.id || '') + '" tabindex="0" role="button" aria-label="View usage for ' + escapeHtml(u.email || 'account') + '">' +
           '<td class="email-cell">' +
             '<div class="email-main">' + escapeHtml(u.email || '—') + '</div>' +
             (u.name ? ('<div class="muted">' + escapeHtml(u.name) + '</div>') : '') +
+            '<div class="user-row-open-hint">View plan and usage →</div>' +
           '</td>' +
           '<td class="group-end">' +
             '<span class="mono">' + escapeHtml(u._device) + '</span>' + deviceMeta + locLine +
@@ -842,6 +854,54 @@
         '</tr>'
       );
     }).join('');
+  }
+
+  function closeUsageDetail() {
+    const overlay = document.getElementById('usageDetailOverlay');
+    if (overlay) overlay.hidden = true;
+  }
+
+  async function openUserUsage(userId) {
+    if (!userId) return;
+    const user = cache.find(item => String(item.id) === String(userId));
+    const overlay = document.getElementById('usageDetailOverlay');
+    const title = document.getElementById('usageDetailTitle');
+    const sub = document.getElementById('usageDetailSub');
+    const plan = document.getElementById('usageDetailPlan');
+    const quotas = document.getElementById('usageDetailQuotas');
+    title.textContent = user ? (user.name || user.email || 'Account usage') : 'Account usage';
+    sub.textContent = user ? (user.email || '') + ' · Read-only usage snapshot' : 'Read-only usage snapshot';
+    plan.innerHTML = '';
+    quotas.innerHTML = '<div class="muted">Loading current usage…</div>';
+    overlay.hidden = false;
+    try {
+      const { res, data } = await api('/api/admin/users/' + encodeURIComponent(userId) + '/usage');
+      if (!res.ok) throw new Error(data.error || 'Could not load usage.');
+      const badge = document.createElement('span');
+      badge.className = planPillClass(data.plan);
+      badge.textContent = data.label || planLabel(data.plan);
+      const price = document.createElement('span');
+      price.className = 'price';
+      price.textContent = Number(data.priceUsd) > 0 ? '$' + Number(data.priceUsd).toFixed(2) + ' plan' : 'Free plan';
+      plan.replaceChildren(badge, price);
+      sub.textContent = (user ? (user.email || '') + ' · ' : '') + (data.timezoneNote || 'Usage snapshot matches the user plan page.');
+      const rows = Array.isArray(data.quotas) ? data.quotas : [];
+      if (!rows.length) { quotas.innerHTML = '<div class="muted">No usage categories are available.</div>'; return; }
+      quotas.innerHTML = rows.map(row => {
+        const percent = Math.max(0, Math.min(100, Number(row.percent != null ? row.percent : row.used) || 0));
+        const summary = row.displayMeta || row.displayUsed || '';
+        const footer = [row.displayLeft, row.displayLimit].filter(Boolean).join(' · ');
+        return '<article class="usage-detail-quota">' +
+          '<div class="usage-detail-quota-head"><strong>' + escapeHtml(row.label || row.id || 'Usage') + '</strong><span>' + escapeHtml(row.period || '') + '</span></div>' +
+          '<div class="usage-detail-meta">' + escapeHtml(summary) + '</div>' +
+          '<div class="usage-detail-bar" role="progressbar" aria-valuenow="' + percent + '" aria-valuemin="0" aria-valuemax="100"><i style="width:' + percent + '%"></i></div>' +
+          '<div class="usage-detail-foot"><span>' + escapeHtml(footer) + '</span><span>' + percent + '%</span></div>' +
+          (row.note ? '<p class="usage-detail-note">' + escapeHtml(row.note) + '</p>' : '') +
+        '</article>';
+      }).join('');
+    } catch (error) {
+      quotas.innerHTML = '<div class="muted">' + escapeHtml(error.message || 'Could not load usage.') + '</div>';
+    }
   }
 
   function refilter() { renderRows(); }
@@ -897,6 +957,17 @@
   document.getElementById('refreshBtn').addEventListener('click', () => {
     loadUsers();
   });
+
+  document.getElementById('rows').addEventListener('click', (event) => {
+    const row = event.target.closest('tr[data-user-id]');
+    if (row) openUserUsage(row.dataset.userId);
+  });
+  document.getElementById('rows').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const row = event.target.closest('tr[data-user-id]');
+    if (row) { event.preventDefault(); openUserUsage(row.dataset.userId); }
+  });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeUsageDetail(); });
 
   document.getElementById('searchInput').addEventListener('input', refilter);
   document.getElementById('planFilter').addEventListener('change', refilter);

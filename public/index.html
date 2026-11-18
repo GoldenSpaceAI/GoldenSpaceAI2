@@ -6659,7 +6659,7 @@
                 customInstructions: liveAwareInstructions() + (function() {
                     const messages = (extra && extra.messages) ? extra.messages : c.messages;
                     const latestUser = messages.slice().reverse().find(function(m) { return m && m.role === 'user'; });
-                    return latestUser && isQuizGenerationRequest(latestUser.content) ? '\\n\\n' + interactiveQuizInstruction() : '';
+                    return latestUser && isQuizGenerationRequest(latestUser.content) ? '\n\n' + interactiveQuizInstruction() : '';
                 })(),
                 mode: MODELS[currentModel].apiMode,
                 agents: MODELS[currentModel].agents || 4,
@@ -7394,7 +7394,7 @@
         }
 
         function isQuizGenerationRequest(text) {
-            return /\\b(?:quiz me|give me (?:a )?quiz|make (?:me )?(?:a )?quiz|create (?:me )?(?:a )?quiz|test me(?: on)?|quiz on this)\\b/i.test(String(text || ''));
+            return /\b(?:quiz me|give me (?:a )?quiz|make (?:me )?(?:a )?quiz|create (?:me )?(?:a )?quiz|test me(?: on)?|quiz on this)\b/i.test(String(text || ''));
         }
 
         function interactiveQuizInstruction() {
@@ -7403,7 +7403,7 @@
 
         function parseInteractiveQuiz(text) {
             try {
-                let raw = String(text || '').trim().replace(/^\x60{3}(?:json)?\\s*/i, '').replace(/\\s*\x60{3}$/i, '').trim();
+                let raw = String(text || '').trim().replace(/^\x60{3}(?:json)?\s*/i, '').replace(/\s*\x60{3}$/i, '').trim();
                 const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
                 if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
                 const data = JSON.parse(raw);

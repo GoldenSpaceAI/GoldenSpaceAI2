@@ -503,7 +503,7 @@
               <th class="sortable group-end" data-sort="plan">Plan <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="talkSecondsUsed">Talk min <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayTokens">Tokens <span class="sort-ind">▼</span></th>
-              <th class="sortable num group-end" data-sort="todaySpendUsd">$ spent <span class="sort-ind">▼</span></th>
+              <th class="sortable num group-end" data-sort="todaySpendUsd" title="Provider-reported xAI charges plus rate-calculated DeepSeek usage; text-only fallbacks and legacy totals are labeled estimates">$ API cost <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="imagineImagesToday">Imagine use <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayGrokSpendUsd">Grok $ <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayDeepseekSpendUsd">DeepSeek $ <span class="sort-ind">▼</span></th>
@@ -828,7 +828,9 @@
           '<td class="num group-end">' +
             '<div class="metric-stack align-end">' +
               '<span class="primary">' + escapeHtml(fmtUsd(u.todaySpendUsd)) + ' today</span>' +
-              '<span class="secondary">' + escapeHtml(fmtUsd(u.totalSpendUsd)) + ' total</span>' +
+              '<span class="secondary">reported ' + escapeHtml(fmtUsd(u.todayProviderReportedSpendUsd)) + ' · token-rate ' + escapeHtml(fmtUsd(u.todayTokenRatedSpendUsd)) + '</span>' +
+              '<span class="secondary">estimated ' + escapeHtml(fmtUsd(u.todayEstimatedSpendUsd)) + ' today · ' + escapeHtml(fmtUsd(u.totalSpendUsd)) + ' total</span>' +
+              '<span class="secondary">historical estimate ' + escapeHtml(fmtUsd(u.totalEstimatedSpendUsd)) + ' total</span>' +
             '</div>' +
           '</td>' +
           '<td class="num imagine-cell">' +

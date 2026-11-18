@@ -605,10 +605,2107 @@
         '<li class="' + (b.ok ? '' : 'muted') + '">' + b.text + '</li>'
       ).join('');
       return (
-        '<button type="button" class="plan-card' + (p.featured ? ' featured' : '') + '" data-id="' + p.id + '" aria-label="' + p.label + ' plan $' + p.price + '">' +
+        '<button type="button" class="plan-card' + (p.featured ? ' featured' : '') + '" data-id="' + p.id + '" aria-label="' + p.label + ' plan ' +
           (p.featured ? '<span class="badge">Most popular</span>' : '') +
           '<div class="head"><h3>' + p.label + '</h3><span class="select-mark">Selected</span></div>' +
-          '<div class="price"><span class="amt">
+          '<div class="price"><span class="amt">$' + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const selectedBtn = root.querySelector('.plan-card[data-id="' + ((selected && selected.id) || 'pro') + '"]');
+    if (selectedBtn) selectedBtn.click();
+  }
+
+  document.querySelectorAll('.billing-option').forEach(function(btn) { btn.addEventListener('click', function() { billingPeriod = btn.getAttribute('data-period') === 'yearly' ? 'yearly' : 'monthly'; document.querySelectorAll('.billing-option').forEach(function(b) { b.classList.toggle('active', b === btn); }); renderPlans(); }); });
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · 
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          billingPeriod: billingPeriod,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(selected);
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(selected) + (billingPeriod === 'yearly' ? ' / year (12 months)' : ' / 30 days');
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(selected);
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const selectedBtn = root.querySelector('.plan-card[data-id="' + ((selected && selected.id) || 'pro') + '"]');
+    if (selectedBtn) selectedBtn.click();
+  }
+
+  document.querySelectorAll('.billing-option').forEach(function(btn) { btn.addEventListener('click', function() { billingPeriod = btn.getAttribute('data-period') === 'yearly' ? 'yearly' : 'monthly'; document.querySelectorAll('.billing-option').forEach(function(b) { b.classList.toggle('active', b === btn); }); renderPlans(); }); });
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · 
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          billingPeriod: billingPeriod,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(selected);
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(selected) + (billingPeriod === 'yearly' ? ' / year (12 months)' : ' / 30 days');
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(selected);
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
+          '<ul>' + lis + '</ul>' +
+        '</button>'
+      );
+    }).join('');
+    root.querySelectorAll('.plan-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected = PLANS.find(p => p.id === btn.getAttribute('data-id'));
+        root.querySelectorAll('.plan-card').forEach(b => b.classList.toggle('selected', b === btn));
+        const cta = document.getElementById('toStep2');
+        cta.disabled = !selected;
+        if (selected) cta.textContent = 'Continue with ' + selected.label;
+        updateStackPreview();
+      });
+    });
+    const proBtn = root.querySelector('.plan-card[data-id="pro"]');
+    if (proBtn) proBtn.click();
+  }
+
+  document.getElementById('toStep2').addEventListener('click', () => {
+    if (!selected) return;
+    showStep(2);
+  });
+
+  document.getElementById('acceptPolicies').addEventListener('change', (e) => {
+    document.getElementById('toStep3').disabled = !e.target.checked;
+  });
+  document.getElementById('toStep3').addEventListener('click', () => {
+    if (!document.getElementById('acceptPolicies').checked) return;
+    showStep(3);
+  });
+
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+
+  document.getElementById('toStep4').addEventListener('click', () => {
+    const a = digits(document.getElementById('phone1').value);
+    const b = digits(document.getElementById('phone2').value);
+    const err = document.getElementById('phoneErr');
+    if (a.length < 7 || a.length > 15) {
+      err.hidden = false; err.textContent = 'Enter a valid OMT Pay number.';
+      return;
+    }
+    if (a !== b) {
+      err.hidden = false; err.textContent = 'Numbers must match.';
+      return;
+    }
+    err.hidden = true;
+    document.getElementById('payAmount').textContent = '$' + selected.price;
+    document.getElementById('fromPhone').textContent = a;
+    document.getElementById('payPlan').textContent = selected.label + ' · $' + selected.price + ' / 30 days';
+    showStep(4);
+  });
+
+  document.getElementById('amountSent').addEventListener('click', async () => {
+    const err = document.getElementById('submitErr');
+    err.hidden = true;
+    const btn = document.getElementById('amountSent');
+    btn.disabled = true;
+    try {
+      if (!(await ensureLoggedIn({ redirect: false }))) {
+        throw new Error('Log in to submit an upgrade request.');
+      }
+      const res = await fetch('/api/upgrade/request', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': ensureClientId()
+        },
+        body: JSON.stringify({
+          plan: selected.id,
+          phone: digits(document.getElementById('phone1').value),
+          acceptedPolicies: true
+        })
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        redirectToLogin();
+        throw new Error(data.error || 'Log in to upgrade.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || data.reply || 'Could not create request');
+      }
+      document.getElementById('waitingStatus').hidden = false;
+      btn.textContent = 'Request submitted';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message || 'Failed';
+      btn.disabled = false;
+    }
+  });
+
+  function redirectToLogin() {
+    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  }
+
+  async function ensureLoggedIn(opts) {
+    const doRedirect = !opts || opts.redirect !== false;
+    try {
+      const res = await fetch('/api/auth/status', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.user && data.user.id) {
+        const hint = document.getElementById('accountEmailHint');
+        if (hint && data.user.email) {
+          hint.textContent = 'Status emails go to your account: ' + data.user.email;
+        }
+        return true;
+      }
+    } catch (e) {}
+    if (doRedirect) redirectToLogin();
+    return false;
+  }
+
+  async function loadStatus() {
+    const textEl = document.getElementById('currentPlanText') || document.getElementById('currentPlan');
+    try {
+      const res = await fetch('/api/plan', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Client-Id': ensureClientId() }
+      });
+      const data = await res.json();
+      planStatus = data || null;
+      const end = data.endsAt ? new Date(data.endsAt).toLocaleDateString() : '';
+      const stacked = data.stacking && data.stacking.stacked;
+      textEl.textContent = data.label
+        ? (data.label + (stacked ? ' · stacked' : '') + (end ? (' · until ' + end) : ''))
+        : 'Free';
+      updateStackPreview();
+    } catch (e) {
+      planStatus = { plan: 'free' };
+      textEl.textContent = 'Free';
+      updateStackPreview();
+    }
+  }
+
+  ensureClientId();
+  ensureLoggedIn({ redirect: true }).then(function(ok) {
+    if (!ok) return;
+    renderPlans();
+    loadStatus();
+  });
+})();
+</script>
+</body>
+</html>
+ + priceFor(p) + '">' +
+          (p.featured ? '<span class="badge">Most popular</span>' : '') +
+          '<div class="head"><h3>' + p.label + '</h3><span class="select-mark">Selected</span></div>' +
+          '<div class="price"><span class="amt">$' + priceFor(p) + '</span><span class="per">USD</span></div>' +
+          '<div class="billing">' + (billingPeriod === 'yearly' ? 'per year · 12 months of access · monthly allowances renew' : 'per 30 days') + ' · OMT Pay · no auto-renew</div>' +
+          '<div class="mode-row" aria-hidden="true">' + modes + '</div>' +
           '<ul>' + lis + '</ul>' +
         '</button>'
       );

@@ -4278,6 +4278,37 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
 
 .document-artifact{display:flex;align-items:center;gap:14px;margin:18px 0 8px;padding:16px;border:1px solid rgba(212,175,55,.25);border-radius:16px;background:linear-gradient(125deg,rgba(212,175,55,.11),rgba(212,175,55,.025) 48%,rgba(80,106,125,.08));box-shadow:0 12px 34px rgba(0,0,0,.13)}.document-artifact-mark{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(140deg,#f4d03f,#c49b28);color:#171209;font-size:22px}.document-artifact-copy{display:grid;gap:5px;flex:1;min-width:0}.document-artifact-copy strong{font-size:14px;overflow-wrap:anywhere}.document-artifact-copy span{color:var(--muted,#aaa);font-size:12px}.document-theme-picker{display:flex;align-items:center;gap:8px;color:var(--muted,#aaa);font-size:11px;font-weight:700}.document-theme-picker select{max-width:170px;min-height:36px;padding:0 28px 0 10px;border:1px solid rgba(212,175,55,.3);border-radius:9px;background:rgba(20,20,20,.65);color:inherit;font:inherit;cursor:pointer}.document-theme-picker select:focus-visible{outline:2px solid #d4af37;outline-offset:2px}html.light .document-theme-picker select{background:#fffefa;color:#201b12;border-color:rgba(125,94,26,.25)}.document-artifact-actions{display:flex;gap:8px;flex-wrap:wrap}.document-download{border:1px solid rgba(212,175,55,.42);border-radius:10px;padding:10px 13px;background:rgba(212,175,55,.12);color:inherit;font-weight:700;font-size:12px;cursor:pointer}.document-download:hover:not(:disabled){background:rgba(212,175,55,.2)}.document-download:disabled{opacity:.6;cursor:wait}html.light .document-artifact{box-shadow:0 10px 25px rgba(45,35,10,.06)}
 @media(max-width:620px){.document-artifact{align-items:flex-start;flex-wrap:wrap;padding:13px}.document-artifact-copy{padding-top:3px}.document-artifact-actions{width:100%;padding-left:56px}.document-download{flex:1}}
+
+        .product-tour-overlay{position:fixed;inset:0;z-index:2500;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.72);backdrop-filter:blur(8px)}
+        .product-tour-overlay.open{display:flex}
+        .product-tour-card{width:min(100%,720px);max-height:min(88vh,760px);overflow:auto;border:1px solid var(--gold-line);border-radius:24px;background:var(--black-light);color:var(--text);box-shadow:0 28px 90px rgba(0,0,0,.45);padding:clamp(20px,4vw,36px);position:relative}
+        html.light .product-tour-card{background:#fff;color:#242321;border-color:rgba(184,134,11,.34)}
+        .product-tour-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+        .product-tour-brand{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+        .product-tour-count{font-size:13px;color:var(--text-muted)}
+        html.light .product-tour-count{color:#777}
+        .product-tour-progress{height:4px;border-radius:99px;background:var(--border);overflow:hidden;margin-bottom:28px}
+        .product-tour-progress span{display:block;height:100%;border-radius:inherit;background:var(--gold);transition:width .2s ease}
+        .product-tour-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:var(--gold-soft);color:var(--gold-light);font-size:25px;margin-bottom:18px}
+        html.light .product-tour-icon{color:#9a7200}
+        .product-tour-card h2{font-size:clamp(24px,4vw,34px);line-height:1.15;margin:0 0 12px;letter-spacing:-.03em}
+        .product-tour-copy{font-size:16px;line-height:1.65;color:var(--text-muted);margin:0}
+        html.light .product-tour-copy{color:#5e5b53}
+        .product-tour-example{margin-top:20px;padding:16px 18px;border:1px solid var(--gold-line);border-radius:15px;background:var(--gold-soft);font-size:14px;line-height:1.55}
+        .product-tour-example strong{display:block;color:var(--gold-light);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+        html.light .product-tour-example strong{color:#846200}
+        .product-tour-actions{display:flex;align-items:center;gap:10px;margin-top:28px}
+        .product-tour-actions .spacer{flex:1}
+        .product-tour-btn{border:1px solid var(--border);border-radius:12px;padding:11px 17px;background:transparent;color:var(--text);font:inherit;font-weight:700;cursor:pointer}
+        html.light .product-tour-btn{color:#242321}
+        .product-tour-btn.primary{background:var(--gold);color:#17140b;border-color:var(--gold)}
+        .product-tour-btn:disabled{opacity:.4;cursor:default}
+        .product-tour-skip{border:0;background:transparent;color:var(--text-muted);font:inherit;padding:10px 4px;cursor:pointer}
+        .product-tour-close{position:absolute;right:18px;top:18px;width:38px;height:38px;border:0;border-radius:11px;background:transparent;color:var(--text-muted);font-size:25px;cursor:pointer}
+        .product-tour-close:hover{background:var(--gold-soft);color:var(--text)}
+        .product-tour-card a{color:var(--gold-light);font-weight:700}
+        html.light .product-tour-card a{color:#846200}
+        @media(max-width:520px){.product-tour-overlay{padding:10px}.product-tour-card{border-radius:19px;padding:22px 18px}.product-tour-actions{gap:6px}.product-tour-skip{font-size:13px}.product-tour-btn{padding:10px 13px}.product-tour-progress{margin-bottom:22px}}
 </style>
 </head>
 <body>
@@ -4557,12 +4588,30 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                         <div id="settingsRequests"></div>
                     </div>
                     <div class="settings-actions">
+                        <button type="button" onclick="openProductTutorial(true)">Take the product tour again</button>
                         <a class="primary" href="/upgrade">Upgrade / renew</a>
                         <a href="/my-plan">Full plan &amp; request status</a>
                         <button type="button" class="danger" id="settingsLogoutBtn" onclick="logoutAccount()">Log out</button>
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="product-tour-overlay" id="productTourOverlay" role="dialog" aria-modal="true" aria-labelledby="productTourTitle" aria-describedby="productTourCopy">
+            <section class="product-tour-card">
+                <button type="button" class="product-tour-close" aria-label="Close tutorial" onclick="finishProductTutorial()">×</button>
+                <div class="product-tour-top"><span class="product-tour-brand">GoldenSpaceAI · Quick tour</span><span class="product-tour-count" id="productTourCount"></span></div>
+                <div class="product-tour-progress" aria-hidden="true"><span id="productTourProgress"></span></div>
+                <div class="product-tour-icon" id="productTourIcon" aria-hidden="true"></div>
+                <h2 id="productTourTitle"></h2>
+                <p class="product-tour-copy" id="productTourCopy"></p>
+                <div class="product-tour-example" id="productTourExample"></div>
+                <div class="product-tour-actions">
+                    <button type="button" class="product-tour-skip" onclick="finishProductTutorial()">Skip tour</button>
+                    <span class="spacer"></span>
+                    <button type="button" class="product-tour-btn" id="productTourBack" onclick="stepProductTutorial(-1)">Back</button>
+                    <button type="button" class="product-tour-btn primary" id="productTourNext" onclick="stepProductTutorial(1)">Next</button>
+                </div>
+            </section>
         </div>
         <div class="toast-host" id="toastHost" aria-live="polite"></div>
         <div class="overlay" id="overlay" onclick="toggleChatsPanel()"></div>
@@ -5311,6 +5360,70 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 box.innerHTML = '';
             }
         }
+        const productTourSlides = [
+            { icon:'✦', title:'Start with a clear request', copy:'Use the chat like a helpful study partner. Write what you need in your own words, add the subject or level, and ask follow-up questions whenever you want more detail.', example:'Try: “Explain photosynthesis for a 9th-grade student, then give me a short summary.”' },
+            { icon:'▧', title:'Add images and files', copy:'Use the photo button to attach an image, or the file button for supported documents. Then ask the AI to describe a picture, explain a diagram, summarize a PDF, or help with your notes. Video files are not accepted in chat; use Imagine to find videos.', example:'Try: “Explain the labels in this image and tell me what each part does.”' },
+            { icon:'▤', title:'Make presentations, Word files, and quizzes', copy:'Ask in chat for a downloadable PowerPoint or Word document and describe the topic, audience, length, and style you want. To study interactively, ask for a quiz; answer each question and the AI will correct you.', example:'Try: “Create a 6-slide PowerPoint about Malala Yousafzai with a clean, colorful design.”  ·  “Quiz me on cell biology with 5 questions, one at a time.”' },
+            { icon:'◉', title:'Find images and videos in Imagine', copy:'Open Imagine from the chat bar, describe the subject and style, and choose Images or Videos. Open a result to view it, or download the items you want.', example:'Try: “Find cinematic videos of Beirut at sunset” or “Find watercolor illustrations of the solar system.”' , link:'/imagine', linkText:'Open Imagine' },
+            { icon:'▣', title:'Keep work together in Projects', copy:'Open Projects in the chat sidebar and create a project. Give it a name, choose a color, and add instructions such as your class, preferred language, or writing style. Chats in that project can use those instructions as ongoing context.', example:'Example instructions: “I’m studying Grade 10 biology. Explain new terms simply and include a short recap.”' },
+            { icon:'◷', title:'Check usage and request a plan', copy:'Open the Settings gear to see your plan and remaining usage. Use Upgrade / renew to choose a plan and submit a plan request; follow its status under Plan requests or Full plan & request status. Plan access is applied after review.', example:'Your usage page shows your chat, Imagine, talk, and document limits for your account.', link:'/upgrade', linkText:'View plans' }
+        ];
+        let productTourIndex = 0;
+        let productTourSessionSeen = false;
+        function productTourKey() {
+            const user = authState && authState.user;
+            const identity = user && (user.id || user.email);
+            return identity ? 'gsa_tutorial_v1_' + String(identity).toLowerCase().replace(/[^a-z0-9_-]/g, '_') : null;
+        }
+        function renderProductTutorial() {
+            const s = productTourSlides[productTourIndex];
+            if (!s) return;
+            document.getElementById('productTourIcon').textContent = s.icon;
+            document.getElementById('productTourTitle').textContent = s.title;
+            document.getElementById('productTourCopy').textContent = s.copy;
+            const ex = document.getElementById('productTourExample');
+            ex.innerHTML = '<strong>Example</strong>' + s.example + (s.link ? '<div style="margin-top:10px"><a href="' + s.link + '" onclick="finishProductTutorial()">' + s.linkText + ' →</a></div>' : '');
+            document.getElementById('productTourCount').textContent = (productTourIndex + 1) + ' of ' + productTourSlides.length;
+            document.getElementById('productTourProgress').style.width = (((productTourIndex + 1) / productTourSlides.length) * 100) + '%';
+            document.getElementById('productTourBack').disabled = productTourIndex === 0;
+            document.getElementById('productTourNext').textContent = productTourIndex === productTourSlides.length - 1 ? 'Finish' : 'Next';
+        }
+        function openProductTutorial(force) {
+            const overlay = document.getElementById('productTourOverlay');
+            if (!overlay) return;
+            const key = productTourKey();
+            if (!force && (!key || productTourSessionSeen)) return;
+            if (!force && key) {
+                try { if (localStorage.getItem(key)) return; } catch (e) {}
+            }
+            productTourIndex = 0;
+            productTourSessionSeen = true;
+            renderProductTutorial();
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('productTourNext').focus();
+        }
+        function finishProductTutorial() {
+            const key = productTourKey();
+            if (key) { try { localStorage.setItem(key, '1'); } catch (e) {} }
+            productTourSessionSeen = true;
+            const overlay = document.getElementById('productTourOverlay');
+            if (overlay) overlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        function stepProductTutorial(direction) {
+            productTourIndex = Math.max(0, Math.min(productTourSlides.length - 1, productTourIndex + Number(direction || 0)));
+            renderProductTutorial();
+            if (productTourIndex === productTourSlides.length - 1) document.getElementById('productTourNext').focus();
+        }
+        function maybeOpenProductTutorial() {
+            if (!authState || !authState.user) return;
+            openProductTutorial(false);
+        }
+        document.addEventListener('keydown', function(event) {
+            const overlay = document.getElementById('productTourOverlay');
+            if (event.key === 'Escape' && overlay && overlay.classList.contains('open')) finishProductTutorial();
+        });
         async function refreshAuthStatus() {
             try {
                 const res = await apiFetch('/api/auth/status', { method: 'GET', cache: 'no-store' });
@@ -5327,6 +5440,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false, liveLoginBlockedBy: [] };
             }
             renderAuthCard();
+            maybeOpenProductTutorial();
         }
         function startGoogleLogin() {
             window.location.href = '/login';

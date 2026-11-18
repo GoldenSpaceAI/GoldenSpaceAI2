@@ -5344,9 +5344,14 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
             clearGuestChatSession();
             chats = {};
             currentChatId = null;
+            // Hide account projects and chats after sign-out; the saved account data remains in the cloud.
+            projects = [];
+            activeProjectId = null;
+            try { localStorage.removeItem('goldenspaceai2_active_project'); } catch (e) {}
+            renderProjectsList();
             createNewChat();
             renderChatsList();
-            showToast('Logged out — guest chats are temporary (not saved)', 'ok', 2800);
+            showToast('Signed out. Your saved chats are hidden until you sign back in.', 'ok', 3200);
         }
         async function handleAuthQueryFlags() {
             try {

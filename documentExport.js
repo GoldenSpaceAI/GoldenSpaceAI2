@@ -3,13 +3,30 @@
 const JSZip = require('jszip');
 
 const EMU = 914400;
+const THEMES = {
+    midnight: { bg: '101827', alt: '0D1623', card: '1A2A3B', card2: '1B2D40', accent: 'D4AF37', accent2: '63C7B2', accent3: '8AB4F8', accent4: 'E39B83', accent5: 'A88BE8', accent6: 'C7D0DB', text: 'F7F5EF', body: 'E9EDF1', muted: 'BAC5D1', footer: '92A0AF', title: '172232', wordBody: '263347', secondary: '617184', tertiary: '3D5065', soft: 'F7F1E0', soft2: 'EEF2F6', border: '344457', shade: '233B50', shade2: '1B2B3F' },
+    editorial: { bg: 'F7F3EA', alt: 'EFE9DF', card: 'FFFDFA', card2: 'F1E8DB', accent: 'A64036', accent2: '28686C', accent3: '466F9B', accent4: 'B76D45', accent5: '75659A', accent6: '6B665F', text: '27231F', body: '38342F', muted: '6B665F', footer: '847B70', title: '28231F', wordBody: '38342F', secondary: '746D64', tertiary: '514B44', soft: 'F2E8DC', soft2: 'E9E3DA', border: 'D8CEBE', shade: 'E9DED0', shade2: 'E3D5C4' },
+    ocean: { bg: '0C2236', alt: '102B43', card: '163950', card2: '1D455C', accent: '41C6B7', accent2: '71AEE8', accent3: '7DD3C7', accent4: 'E7A87D', accent5: 'B2A2E6', accent6: 'C8DCE4', text: 'F1F8FA', body: 'E2EFF3', muted: 'B4D0DA', footer: '8BAAB8', title: '12334D', wordBody: '254C61', secondary: '5A788A', tertiary: '3F6175', soft: 'DCEFF0', soft2: 'E7F1F5', border: '345B70', shade: '1B4259', shade2: '183C53' },
+    minimal: { bg: 'F8FAFC', alt: 'EEF2F7', card: 'FFFFFF', card2: 'EEF2F7', accent: '3867D6', accent2: 'D16A51', accent3: '4285A8', accent4: '9B6DB5', accent5: 'D69B2D', accent6: '536274', text: '17202B', body: '263241', muted: '5B6675', footer: '7D8794', title: '17202B', wordBody: '263241', secondary: '657181', tertiary: '475363', soft: 'E8EFFC', soft2: 'E9EEF4', border: 'D6DEE8', shade: 'E6ECF5', shade2: 'DCE5F0' }
+};
+let activePalette = THEMES.midnight;
+function paletteHex(color) {
+    const p = activePalette || THEMES.midnight, value = String(color || '').replace(/^#/, '').toUpperCase();
+    const map = {
+        '101827':p.bg,'0D1623':p.alt,'172232':p.title,'1A2A3B':p.card,'1B2D40':p.card2,'1A2738':p.card2,'18283A':p.card,'21364A':p.card2,'233B50':p.shade,'1B2B3F':p.shade2,'344457':p.border,
+        'D4AF37':p.accent,'A37A11':p.accent,'63C7B2':p.accent2,'8AB4F8':p.accent3,'E39B83':p.accent4,'A88BE8':p.accent5,'C7D0DB':p.accent6,
+        'F7F5EF':p.text,'F4F0E7':p.text,'E9EDF1':p.body,'E2E7EC':p.body,'BAC5D1':p.muted,'92A0AF':p.footer,'8491A0':p.footer,
+        '263347':p.wordBody,'617184':p.secondary,'33465B':p.tertiary,'3D5065':p.tertiary,'748496':p.secondary,'F7F1E0':p.soft,'EEF2F6':p.soft2
+    };
+    return map[value] || value;
+}
 const esc = (value) => String(value == null ? '' : value)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 const inch = (value) => String(Math.round(Number(value) * EMU));
 const hex = (value, fallback) => {
-    const v = String(value || fallback || '').replace(/^#/, '').toUpperCase();
-    return /^[0-9A-F]{6}$/.test(v) ? v : (fallback || 'D4AF37');
+    const v = paletteHex(value || fallback || '');
+    return /^[0-9A-F]{6}$/.test(v) ? v : paletteHex(fallback || activePalette.accent);
 };
 const safeText = (value, max) => String(value || '').replace(/\u0000/g, '').trim().slice(0, max || 4000);
 const arr = (value) => Array.isArray(value) ? value.map((v) => safeText(v, 700)).filter(Boolean).slice(0, 8) : [];
@@ -41,6 +58,7 @@ function normalizeArtifact(artifact) {
     return {
         title: safeText(artifact.title, 180) || 'GoldenSpaceAI Presentation',
         subtitle: safeText(artifact.subtitle, 400),
+        theme: Object.prototype.hasOwnProperty.call(THEMES, artifact.theme) ? artifact.theme : 'midnight',
         slides: normalized
     };
 }
@@ -73,7 +91,7 @@ function groupTree(shapes) {
     return '<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>' + shapes.join('') + '</p:spTree>';
 }
 function coverSlide(data, slideNo, total, closing) {
-    const bg = closing ? '172232' : '101827';
+    const bg = closing ? '0D1623' : '101827';
     const c = [shape(2, 'Gold accent', 0.72, 0.84, 0.12, 5.65, 'D4AF37', 'roundRect'),
         shape(3, 'Backdrop arc', 9.15, 0.52, 3.5, 3.5, '1B2B3F', 'ellipse'),
         shape(4, 'Backdrop highlight', 10.1, 1.48, 1.6, 1.6, '233B50', 'ellipse')];
@@ -142,6 +160,7 @@ function contentSlide(s, slideNo, total) {
     return slideXml(bg, c);
 }
 function slideXml(bg, shapes) {
+    bg = hex(bg);
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         '<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="' + bg + '"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>' +
         groupTree(shapes) + '</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
@@ -159,7 +178,11 @@ function powerpointXml(data) {
     zip.file('ppt/slideMasters/_rels/slideMaster1.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>');
     zip.file('ppt/slideLayouts/slideLayout1.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank" preserve="1"><p:cSld name="Blank">' + grp + '</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>');
     zip.file('ppt/slideLayouts/_rels/slideLayout1.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>');
-    zip.file('ppt/theme/theme1.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="GoldenSpaceAI"><a:themeElements><a:clrScheme name="GoldenSpaceAI"><a:dk1><a:srgbClr val="101827"/></a:dk1><a:lt1><a:srgbClr val="F7F5EF"/></a:lt1><a:dk2><a:srgbClr val="0D1623"/></a:dk2><a:lt2><a:srgbClr val="E9EDF1"/></a:lt2><a:accent1><a:srgbClr val="D4AF37"/></a:accent1><a:accent2><a:srgbClr val="63C7B2"/></a:accent2><a:accent3><a:srgbClr val="8AB4F8"/></a:accent3><a:accent4><a:srgbClr val="E39B83"/></a:accent4><a:accent5><a:srgbClr val="A88BE8"/></a:accent5><a:accent6><a:srgbClr val="C7D0DB"/></a:accent6><a:hlink><a:srgbClr val="8AB4F8"/></a:hlink><a:folHlink><a:srgbClr val="A88BE8"/></a:folHlink></a:clrScheme><a:fontScheme name="GoldenSpaceAI"><a:majorFont><a:latin typeface="Aptos Display"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Aptos"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="GoldenSpaceAI"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:lumMod val="80000"/></a:schemeClr></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:lumMod val="60000"/></a:schemeClr></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:lumMod val="95000"/></a:schemeClr></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:lumMod val="90000"/></a:schemeClr></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>');
+    const themeXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="GoldenSpaceAI"><a:themeElements><a:clrScheme name="GoldenSpaceAI"><a:dk1><a:srgbClr val="101827"/></a:dk1><a:lt1><a:srgbClr val="F7F5EF"/></a:lt1><a:dk2><a:srgbClr val="0D1623"/></a:dk2><a:lt2><a:srgbClr val="E9EDF1"/></a:lt2><a:accent1><a:srgbClr val="D4AF37"/></a:accent1><a:accent2><a:srgbClr val="63C7B2"/></a:accent2><a:accent3><a:srgbClr val="8AB4F8"/></a:accent3><a:accent4><a:srgbClr val="E39B83"/></a:accent4><a:accent5><a:srgbClr val="A88BE8"/></a:accent5><a:accent6><a:srgbClr val="C7D0DB"/></a:accent6><a:hlink><a:srgbClr val="8AB4F8"/></a:hlink><a:folHlink><a:srgbClr val="A88BE8"/></a:folHlink></a:clrScheme><a:fontScheme name="GoldenSpaceAI"><a:majorFont><a:latin typeface="Aptos Display"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Aptos"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="GoldenSpaceAI"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:lumMod val="80000"/></a:schemeClr></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:lumMod val="60000"/></a:schemeClr></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:lumMod val="95000"/></a:schemeClr></a:solidFill><a:solidFill><a:schemeClr val="phClr"><a:lumMod val="90000"/></a:schemeClr></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>'; 
+    .replaceAll('101827', activePalette.bg).replaceAll('0D1623', activePalette.alt).replaceAll('F7F5EF', activePalette.text).replaceAll('E9EDF1', activePalette.body)
+    .replaceAll('D4AF37', activePalette.accent).replaceAll('63C7B2', activePalette.accent2).replaceAll('8AB4F8', activePalette.accent3)
+    .replaceAll('E39B83', activePalette.accent4).replaceAll('A88BE8', activePalette.accent5).replaceAll('C7D0DB', activePalette.accent6);
+    zip.file('ppt/theme/theme1.xml', themeXml);
     data.slides.forEach((s, i) => {
         const xml = i === 0 ? coverSlide(Object.assign({}, s, { title: data.title || s.title, subtitle: data.subtitle || s.subtitle }), i + 1, count, false)
             : (i === count - 1 && s.layout === 'closing' ? coverSlide(s, i + 1, count, true) : contentSlide(s, i + 1, count));
@@ -215,6 +238,7 @@ function wordXml(data) {
 
 async function createOfficeDocument(artifact, format) {
     const data = normalizeArtifact(artifact);
+    activePalette = THEMES[data.theme] || THEMES.midnight;
     if (format === 'pptx') return powerpointXml(data);
     if (format === 'docx') return wordXml(data);
     throw new Error('Choose PowerPoint or Word format.');

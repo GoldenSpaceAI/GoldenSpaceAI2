@@ -7425,7 +7425,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
 
         function documentGenerationInstruction(formats) {
             const formatsText = formats.join(' and ');
-            return 'The user asked for a polished downloadable ' + formatsText + ' deliverable. Create substantial, presentation-ready content with strong hierarchy and specific visual direction. Return ONLY valid JSON with this shape: {"title":"...","subtitle":"...","slides":[{"layout":"title|content|stat|quote|compare|closing","eyebrow":"short section label","title":"...","subtitle":"...","bullets":["..."],"body":"...","stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"brief visual treatment"}]}. Create 6 to 12 slides with concise, useful content; mix layouts where appropriate; use meaningful facts and avoid filler. Include enough structure that each slide has a visual focal point. Do not return Markdown fences or text outside JSON.';
+            return 'The user asked for a polished downloadable ' + formatsText + ' deliverable. Create substantial, presentation-ready content with strong hierarchy and specific visual direction. Return ONLY valid JSON with this shape: {"title":"...","subtitle":"...","slides":[{"layout":"title|content|stat|quote|compare|closing","eyebrow":"short section label","title":"...","subtitle":"...","bullets":["..."],"body":"...","stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"brief visual treatment"}]}. Create 6 to 12 slides with concise, useful content; mix layouts where appropriate; use meaningful facts and avoid filler. Include enough structure that each slide has a visual focal point. For BOTH PowerPoint and Word, always use the top-level slides array; each item is a slide or a Word section. Do not use sections/pages as the array key. Do not return Markdown fences or text outside JSON.';
         }
 
         function parseDocumentArtifact(text, formats) {
@@ -7434,17 +7434,29 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
                 if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
                 const data = JSON.parse(raw);
-                if (!data || !Array.isArray(data.slides) || data.slides.length < 3 || data.slides.length > 30) return null;
-                const slides = data.slides.map(function(slide) {
-                    if (!slide || !String(slide.title || '').trim()) return null;
-                    const list = function(v) { return Array.isArray(v) ? v.map(function(x) { return String(x || '').trim(); }).filter(Boolean).slice(0, 8) : []; };
+                if (!data || typeof data !== 'object') return null;
+                const source = [data.slides, data.sections, data.pages, data.chapters, data.content]
+                    .find(function(value) { return Array.isArray(value); });
+                if (!source || source.length < 1 || source.length > 30) return null;
+                const list = function(v) {
+                    if (Array.isArray(v)) return v.map(function(x) { return typeof x === 'string' ? x.trim() : String(x || '').trim(); }).filter(Boolean).slice(0, 8);
+                    if (typeof v === 'string' && v.trim()) return v.split(/\n+/).map(function(x) { return x.replace(/^[-*•#\s]+/, '').trim(); }).filter(Boolean).slice(0, 8);
+                    return [];
+                };
+                const slides = source.map(function(item, index) {
+                    const slide = typeof item === 'string' ? { body: item } : (item || {});
+                    const bodyValue = slide.body || slide.text || slide.content || slide.description || slide.paragraph || '';
+                    const body = Array.isArray(bodyValue) ? bodyValue.join('\n') : String(bodyValue || '').trim();
+                    const title = String(slide.title || slide.heading || slide.name || slide.section || slide.subtitle || '').trim()
+                        || (body ? body.split(/\n|[.!?]\s/)[0].slice(0, 120) : 'Section ' + (index + 1));
+                    if (!title) return null;
                     return {
                         layout: String(slide.layout || 'content').toLowerCase(),
-                        eyebrow: String(slide.eyebrow || '').slice(0, 90),
-                        title: String(slide.title).trim().slice(0, 220),
+                        eyebrow: String(slide.eyebrow || slide.label || '').slice(0, 90),
+                        title: title.slice(0, 220),
                         subtitle: String(slide.subtitle || '').slice(0, 400),
-                        body: String(slide.body || '').slice(0, 5000),
-                        bullets: list(slide.bullets),
+                        body: body.slice(0, 5000),
+                        bullets: list(slide.bullets || slide.keyPoints || slide.points),
                         stat: String(slide.stat || '').slice(0, 180),
                         leftTitle: String(slide.leftTitle || '').slice(0, 160),
                         leftBullets: list(slide.leftBullets),
@@ -7452,10 +7464,20 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                         rightBullets: list(slide.rightBullets),
                         quote: String(slide.quote || '').slice(0, 700),
                         attribution: String(slide.attribution || '').slice(0, 160),
-                        visual: String(slide.visual || '').slice(0, 300)
+                        visual: String(slide.visual || slide.visualDirection || '').slice(0, 300)
                     };
                 });
                 if (slides.some(function(slide) { return !slide; })) return null;
+                while (slides.length < 3) {
+                    const previous = slides[slides.length - 1];
+                    slides.push({
+                        layout: slides.length === 2 ? 'closing' : 'content',
+                        eyebrow: slides.length === 2 ? 'SUMMARY' : 'KEY POINTS',
+                        title: slides.length === 2 ? 'Key takeaways' : 'Key insights',
+                        body: slides.length === 2 ? 'A concise recap of the ideas covered in this document.' : previous.body,
+                        bullets: previous.bullets.slice()
+                    });
+                }
                 return { title: String(data.title || 'GoldenSpaceAI Presentation').slice(0, 180), subtitle: String(data.subtitle || '').slice(0, 400), formats: formats.slice(), theme: 'midnight', slides: slides };
             } catch (e) { return null; }
         }

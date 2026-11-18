@@ -520,9 +520,9 @@
         <p id="emptyHint">Accounts will appear here once people sign up.</p>
       </div>
       <div class="usage-detail-overlay" id="usageDetailOverlay" hidden>
-        <div class="usage-detail-backdrop" onclick="closeUsageDetail()"></div>
+        <div class="usage-detail-backdrop"></div>
         <section class="usage-detail-card" role="dialog" aria-modal="true" aria-labelledby="usageDetailTitle">
-          <button type="button" class="usage-detail-close" onclick="closeUsageDetail()" aria-label="Close">×</button>
+          <button type="button" class="usage-detail-close" aria-label="Close">×</button>
           <h2 class="usage-detail-title" id="usageDetailTitle">Account usage</h2>
           <p class="usage-detail-sub" id="usageDetailSub">Read-only usage snapshot</p>
           <div class="usage-detail-plan" id="usageDetailPlan"></div>
@@ -860,6 +860,9 @@
     const overlay = document.getElementById('usageDetailOverlay');
     if (overlay) overlay.hidden = true;
   }
+
+  document.querySelector('.usage-detail-close').addEventListener('click', closeUsageDetail);
+  document.querySelector('.usage-detail-backdrop').addEventListener('click', closeUsageDetail);
 
   async function openUserUsage(userId) {
     if (!userId) return;

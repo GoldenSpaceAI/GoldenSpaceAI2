@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin-page
+Disallow: /admin-users
+Disallow: /my-plan
+Disallow: /login
+Disallow: /api/
+
+Sitemap: https://www.goldenspaceai.space/sitemap.xml

@@ -1014,6 +1014,20 @@ function appendUnsavedBodyTurns(stored, body) {
  *   [... last RECENT_WINDOW raw messages]
  * Guests: no account memory; summary only if client/body provides one or chat exists.
  */
+function latestUserPromptText(body) {
+    const messages = Array.isArray(body && body.messages) ? body.messages : [];
+    const latest = messages.slice().reverse().find((m) => m && m.role === 'user');
+    return latest && typeof latest.content === 'string' ? latest.content : '';
+}
+function isQuizGenerationPrompt(body) {
+    return /\b(?:quiz me|test me|test my knowledge|practice (?:quiz|test)|ask me (?:some )?questions|quiz\s+(?:me\s+)?(?:on|about|from|using)|(?:give|make|create|generate|build|prepare|start|write|do)\b[^.!?]{0,60}\bquizzes?\b|(?:i|we)\s+(?:want|need)\b[^.!?]{0,35}\bquizzes?\b|\bquizzes?\s+(?:about|on|from|for)\b)/i.test(latestUserPromptText(body));
+}
+function isOfficeDocumentPrompt(body) {
+    const text = latestUserPromptText(body);
+    return /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you)\b/i.test(text)
+        && /\b(?:presentation|powerpoint|pptx|slides?|word document|word file|docx|report|handout|essay)\b/i.test(text);
+}
+
 async function resolveContextPack(req) {
     const body = req.body || {};
     const user = auth && auth.readUserFromReq(req);
@@ -1077,11 +1091,8 @@ async function resolveContextPack(req) {
         summaryMessageCount = updated.summarizedCount;
     }
 
-    const latestUserMessage = bodyMessages.slice().reverse().find((m) => m && m.role === 'user');
-    const latestUserText = latestUserMessage && typeof latestUserMessage.content === 'string' ? latestUserMessage.content : '';
-    const quizIntent = /\b(?:quiz me|test me|test my knowledge|practice (?:quiz|test)|ask me (?:some )?questions|quiz\s+(?:me\s+)?(?:on|about|from|using)|(?:give|make|create|generate|build|prepare|start|write|do)\b[^.!?]{0,60}\bquizzes?\b|(?:i|we)\s+(?:want|need)\b[^.!?]{0,35}\bquizzes?\b|\bquizzes?\s+(?:about|on|from|for)\b)/i.test(latestUserText);
-    const documentIntent = /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you)\b/i.test(latestUserText)
-        && /\b(?:presentation|powerpoint|pptx|slides?|word document|word file|docx|report|handout|essay)\b/i.test(latestUserText);
+    const quizIntent = isQuizGenerationPrompt(body);
+    const documentIntent = isOfficeDocumentPrompt(body);
     let effectiveInstructions = String(body.customInstructions || '');
     if (quizIntent && !effectiveInstructions.includes('exactly 5 useful questions')) {
         effectiveInstructions += '\n\nCreate an interactive quiz from the conversation context. Return ONLY valid JSON in this exact form: {"title":"topic","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction"}]}. Include exactly 5 questions, 4 concise answer choices each, one correctIndex from 0 to 3, and an explanation for each. No Markdown or surrounding text.';
@@ -1746,6 +1757,7 @@ app.post('/api/chat/stream', async (req, res) => {
             }
         }
 
+        const structuredRequest = isQuizGenerationPrompt(req.body) ? 'quiz' : (isOfficeDocumentPrompt(req.body) ? 'document' : null);
         const abortCtrl = new AbortController();
         const timeoutId = setTimeout(() => abortCtrl.abort(), UPSTREAM_TIMEOUT_MS);
         let clientClosed = false;
@@ -1766,6 +1778,10 @@ app.post('/api/chat/stream', async (req, res) => {
                 stream: true,
                 stream_options: { include_usage: true }
             };
+            if (structuredRequest) {
+                createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
+                if ((activeConfig.provider || provider) === 'deepseek') createArgs.response_format = { type: 'json_object' };
+            }
             if (safeMode === 'smart') createArgs.reasoning_effort = 'high';
             return activeClient.chat.completions.create(createArgs, { signal: abortCtrl.signal });
         }
@@ -1777,6 +1793,10 @@ app.post('/api/chat/stream', async (req, res) => {
                 ...chatTokenLimitParams(activeConfig.provider || provider, activeConfig.maxTokens),
                 ...chatTemperatureParams(activeConfig.provider || provider, activeConfig.model, activeConfig.temperature),
             };
+            if (structuredRequest) {
+                fallbackArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
+                if ((activeConfig.provider || provider) === 'deepseek') fallbackArgs.response_format = { type: 'json_object' };
+            }
             if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
             const completion = await withTimeout(
                 activeClient.chat.completions.create(fallbackArgs),

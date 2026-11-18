@@ -663,8 +663,12 @@
 
   document.querySelectorAll('.billing-option').forEach(function(btn) { btn.addEventListener('click', function() { billingPeriod = btn.getAttribute('data-period') === 'yearly' ? 'yearly' : 'monthly'; document.querySelectorAll('.billing-option').forEach(function(b) { b.classList.toggle('active', b === btn); }); renderPlans(); }); });
 
-  document.getElementById('toStep2').addEventListener('click', () => {
+  document.getElementById('toStep2').addEventListener('click', async () => {
     if (!selected) return;
+    if (!(await ensureLoggedIn({ redirect: false }))) {
+      redirectToLogin(true);
+      return;
+    }
     showStep(2);
   });
 
@@ -737,9 +741,14 @@
     }
   });
 
-  function redirectToLogin() {
-    try { sessionStorage.setItem('gsa_post_login', '/upgrade'); } catch (e) {}
-    window.location.replace('/login?next=' + encodeURIComponent('/upgrade'));
+  function redirectToLogin(continuePurchase) {
+    let destination = '/upgrade';
+    if (continuePurchase && selected) {
+      destination += '?plan=' + encodeURIComponent(selected.id) +
+        '&billing=' + encodeURIComponent(billingPeriod) + '&continue=1';
+    }
+    try { sessionStorage.setItem('gsa_post_login', destination); } catch (e) {}
+    window.location.replace('/login?next=' + encodeURIComponent(destination));
   }
 
   async function ensureLoggedIn(opts) {
@@ -783,10 +792,14 @@
   }
 
   ensureClientId();
-  ensureLoggedIn({ redirect: true }).then(function(ok) {
-    if (!ok) return;
-    renderPlans();
-    loadStatus();
+  const upgradeParams = new URLSearchParams(window.location.search);
+  if (upgradeParams.get('billing') === 'yearly') billingPeriod = 'yearly';
+  const planFromReturn = upgradeParams.get('plan');
+  if (planFromReturn) selected = PLANS.find(function(p) { return p.id === planFromReturn; }) || null;
+  renderPlans();
+  ensureLoggedIn({ redirect: false }).then(function(ok) {
+    if (ok) loadStatus();
+    if (ok && upgradeParams.get('continue') === '1') showStep(2);
   });
 })();
 </script>

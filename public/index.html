@@ -7790,6 +7790,11 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
             } catch (e) { return null; }
         }
 
+        function waveSpeedUnit(sim) {
+            const waveUnit = String(sim.wavelengthUnit || 'm');
+            const freqUnit = String(sim.frequencyUnit || 'Hz');
+            return waveUnit + (freqUnit.toLowerCase() === 'hz' ? '/s' : '·' + freqUnit);
+        }
         function wavePath(sim) {
             const amp = Math.max(0.1, Math.min(5, Number(sim.amplitude) || 2));
             const freq = Math.max(0.1, Math.min(5, Number(sim.frequency) || 1));
@@ -7798,9 +7803,10 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
             const centerY = 106, scale = (amp / 5) * 76, left = 42, width = 680;
             let d = '';
             for (let i = 0; i <= 160; i++) {
-                const f = i / 160 * 2;
-                const x = left + f * width;
-                const y = centerY - scale * Math.sin(2 * Math.PI * (f - freq * time));
+                const fraction = i / 160;
+                const distance = fraction * 10;
+                const x = left + fraction * width;
+                const y = centerY - scale * Math.sin(2 * Math.PI * (distance / lambda - freq * time));
                 d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
             }
             return d.trim();
@@ -7817,13 +7823,13 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                         '<svg class="wave-svg" viewBox="0 0 760 220" role="img" aria-label="Animated wave graph">' +
                         '<path class="visual-grid" d="M42 30H722 M42 68H722 M42 106H722 M42 144H722 M42 182H722"></path>' +
                         '<path class="visual-axis" d="M42 106H722 M42 24V188"></path>' +
-                        '<text class="visual-label" x="370" y="207">Distance · 2 wavelengths</text>' +
-                        '<text class="visual-label" x="8" y="20">Amplitude</text>' +
+                        '<text class="visual-label" x="370" y="207">Distance (' + escapeHtmlRaw(sim.wavelengthUnit || 'm') + ')</text>' +
+                        '<text class="visual-label" x="8" y="20">Amplitude (' + escapeHtmlRaw(sim.amplitudeUnit || 'cm') + ')</text>' +
                         '<path class="wave-path" d="' + wavePath(sim) + '"></path></svg>' +
                         '<div class="wave-readouts"><span class="wave-readout">Frequency <b class="wave-frequency-value">' + f.toFixed(1) + ' ' + escapeHtmlRaw(sim.frequencyUnit || 'Hz') + '</b></span>' +
                         '<span class="wave-readout">Amplitude <b class="wave-amplitude-value">' + a.toFixed(1) + ' ' + escapeHtmlRaw(sim.amplitudeUnit || 'cm') + '</b></span>' +
                         '<span class="wave-readout">Wavelength <b class="wave-wavelength-value">' + l.toFixed(1) + ' ' + escapeHtmlRaw(sim.wavelengthUnit || 'm') + '</b></span>' +
-                        '<span class="wave-readout">Wave speed <b class="wave-speed-value">' + (f*l).toFixed(2) + ' ' + escapeHtmlRaw(sim.wavelengthUnit || 'm') + '/' + escapeHtmlRaw(sim.frequencyUnit || 's⁻¹') + '</b></span></div>' +
+                        '<span class="wave-readout">Wave speed <b class="wave-speed-value">' + (f*l).toFixed(2) + ' ' + escapeHtmlRaw(waveSpeedUnit(sim)) + '</b></span></div>' +
                         '<div class="wave-controls">' +
                         '<label class="wave-control"><span>Frequency <b>' + f.toFixed(1) + '</b></span><input type="range" min="0.1" max="5" step="0.1" value="' + f + '" aria-label="Control frequency" oninput="handleWaveControl(this,\'frequency\')"></label>' +
                         '<label class="wave-control"><span>Amplitude <b>' + a.toFixed(1) + '</b></span><input type="range" min="0.1" max="5" step="0.1" value="' + a + '" aria-label="Control amplitude" oninput="handleWaveControl(this,\'amplitude\')"></label>' +
@@ -7860,7 +7866,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
             card.querySelector('.wave-frequency-value').textContent = state.sim.frequency.toFixed(1) + ' ' + state.sim.frequencyUnit;
             card.querySelector('.wave-amplitude-value').textContent = state.sim.amplitude.toFixed(1) + ' ' + state.sim.amplitudeUnit;
             card.querySelector('.wave-wavelength-value').textContent = state.sim.wavelength.toFixed(1) + ' ' + state.sim.wavelengthUnit;
-            card.querySelector('.wave-speed-value').textContent = (state.sim.frequency * state.sim.wavelength).toFixed(2) + ' ' + state.sim.wavelengthUnit + '/' + state.sim.frequencyUnit;
+            card.querySelector('.wave-speed-value').textContent = (state.sim.frequency * state.sim.wavelength).toFixed(2) + ' ' + waveSpeedUnit(state.sim);
             card.querySelector('.wave-path').setAttribute('d', wavePath(state.sim));
             saveChats();
         };

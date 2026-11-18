@@ -117,23 +117,23 @@ function contentSlide(s, slideNo, total) {
     } else {
         const bullets = s.bullets.slice(0, 6);
         const twoCols = bullets.length > 4;
+        const hasVisual = !!s.visual;
+        const bodyPanelHeight = bullets.length ? 1.55 : (hasVisual ? 3.05 : 3.55);
         if (s.body) {
-            c.push(shape(id++, 'Content body panel', 0.82, bodyY, 11.65, s.visual ? 2.5 : 3.45, '18283A', 'roundRect'));
-            c.push(textBox(id++, 'Body copy', 1.14, bodyY + 0.34, 10.95, s.visual ? 1.8 : 2.75, [para(s.body, { size: 1500, color: 'E9EDF1', after: 0 })]));
+            c.push(shape(id++, 'Content body panel', 0.82, bodyY, 11.65, bodyPanelHeight, '18283A', 'roundRect'));
+            c.push(textBox(id++, 'Body copy', 1.14, bodyY + 0.28, 10.95, Math.max(0.85, bodyPanelHeight - 0.48), [para(s.body, { size: 1500, color: 'E9EDF1', after: 0 })]));
         }
         if (bullets.length) {
-            const top = s.body ? bodyY + 2.9 : bodyY + 0.18;
+            const top = s.body ? bodyY + bodyPanelHeight + 0.2 : bodyY + 0.18;
+            const availableBottom = hasVisual ? 5.55 : 6.58;
+            const bulletHeight = Math.max(1.15, availableBottom - top);
             const per = twoCols ? Math.ceil(bullets.length / 2) : bullets.length;
             [0, twoCols ? 1 : 0].forEach((col) => {
                 const chosen = twoCols ? bullets.slice(col * per, (col + 1) * per) : bullets;
                 if (!chosen.length) return;
                 const x = twoCols ? (col ? 6.75 : 0.84) : 0.9;
-                c.push(textBox(id++, 'Key points ' + col, x, top, twoCols ? 5.7 : 11.2, Math.max(1.45, 3.05 - (top - bodyY)), chosen.map((b) => para('•  ' + b, { size: twoCols ? 1150 : 1300, color: 'E9EDF1', after: twoCols ? 650 : 780 }))));
+                c.push(textBox(id++, 'Key points ' + col, x, top, twoCols ? 5.7 : 11.2, bulletHeight, chosen.map((b) => para('•  ' + b, { size: twoCols ? 1150 : 1300, color: 'E9EDF1', after: twoCols ? 650 : 780 }))));
             });
-        }
-        if (s.visual) {
-            c.push(shape(id++, 'Visual focus card', 0.82, 5.7, 11.65, 0.63, '21364A', 'roundRect'));
-            c.push(textBox(id++, 'Visual cue', 1.06, 5.83, 11.12, 0.34, [para('VISUAL  ·  ' + s.visual, { size: 850, color: '9EB3C7', after: 0 })]));
         }
     }
     c.push(shape(id++, 'Footer divider', 0.8, 6.72, 11.65, 0.018, '344457'));

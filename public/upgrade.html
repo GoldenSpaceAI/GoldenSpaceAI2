@@ -637,7 +637,7 @@
         '<li class="' + (b.ok ? '' : 'muted') + '">' + b.text + '</li>'
       ).join('');
       return (
-        '<button type="button" class="plan-card' + (p.featured ? ' featured' : '') + '" data-id="' + p.id + '" aria-label="' + p.label + ' plan ' +
+        '<button type="button" class="plan-card' + (p.featured ? ' featured' : '') + '" data-id="' + p.id + '" aria-label="' + p.label + ' plan $' + priceFor(p) + '">' +
           (p.featured ? '<span class="badge">Most popular</span>' : '') +
           '<div class="head"><h3>' + p.label + '</h3><span class="select-mark">Selected</span></div>' +
           '<div class="price"><span class="amt">$' + priceFor(p) + '</span><span class="per">USD</span></div>' +

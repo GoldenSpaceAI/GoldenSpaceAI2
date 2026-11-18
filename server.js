@@ -1098,7 +1098,7 @@ async function resolveContextPack(req) {
         effectiveInstructions += '\n\nCreate an interactive quiz from the conversation context. Return ONLY valid JSON in this exact form: {"title":"topic","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction"}]}. Include exactly 5 questions, 4 concise answer choices each, one correctIndex from 0 to 3, and an explanation for each. No Markdown or surrounding text.';
     }
     if (documentIntent && !effectiveInstructions.includes('"slides":')) {
-        effectiveInstructions += '\n\nCreate a polished downloadable Office document based on the user request. Return ONLY valid JSON shaped like {"title":"...","subtitle":"...","slides":[{"layout":"title|content|stat|quote|compare|closing","eyebrow":"...","title":"...","subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. Create 6 to 12 concise, substantial slides with varied visual layouts and no filler. Do not return markdown fences or prose.';
+        effectiveInstructions += '\n\nCreate a polished downloadable Office document based on the user request. Return ONLY valid JSON shaped like {"title":"...","subtitle":"...","slides":[{"layout":"title|content|stat|quote|compare|closing","eyebrow":"...","title":"...","subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. Create 6 to 12 concise, substantial slides with varied visual layouts and no filler. For BOTH PowerPoint and Word, always use the top-level slides array; each item is a slide or a Word section. Do not use sections/pages as the array key. Do not return markdown fences or prose.';
     }
     const packed = buildPackedMessages({
         messages: bodyMessages.length ? bodyMessages : historyForSummary,
@@ -1803,7 +1803,7 @@ app.post('/api/chat/stream', async (req, res) => {
             };
             if (structuredRequest) {
                 createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
-                if ((activeConfig.provider || provider) === 'deepseek') createArgs.response_format = { type: 'json_object' };
+                if (['deepseek', 'grok'].includes(activeConfig.provider || provider)) createArgs.response_format = { type: 'json_object' };
             }
             if (safeMode === 'smart') createArgs.reasoning_effort = 'high';
             return activeClient.chat.completions.create(createArgs, { signal: abortCtrl.signal });
@@ -1818,7 +1818,7 @@ app.post('/api/chat/stream', async (req, res) => {
             };
             if (structuredRequest) {
                 fallbackArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
-                if ((activeConfig.provider || provider) === 'deepseek') fallbackArgs.response_format = { type: 'json_object' };
+                if (['deepseek', 'grok'].includes(activeConfig.provider || provider)) fallbackArgs.response_format = { type: 'json_object' };
             }
             if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
             const completion = await withTimeout(

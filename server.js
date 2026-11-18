@@ -560,12 +560,15 @@ function messagesTextForEstimate(messages) {
 }
 
 function spendFromUsageOrEstimate(model, usage, promptMessages, replyText, provider) {
+    const prov = normalizeProvider(provider, model);
     const counts = extractTokenCounts(usage);
     const base = (counts.promptTokens > 0 || counts.completionTokens > 0)
-        ? costFromProviderUsage(model, usage)
+        ? costFromProviderUsage(model, usage, prov, new Date())
         : estimateCostFromTexts(model, messagesTextForEstimate(promptMessages), replyText || '');
-    const prov = normalizeProvider(provider, model || (base && base.model));
-    return Object.assign({}, base, { provider: prov });
+    return Object.assign({}, base, {
+        provider: prov,
+        costSource: base.costSource || 'estimated_text'
+    });
 }
 
 function sendFreshJson(res, body) {

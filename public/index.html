@@ -4270,6 +4270,11 @@
             }
         }
 
+
+/* Interactive quiz cards */
+.quiz-card{margin:20px 0 8px;padding:20px;border:1px solid rgba(212,175,55,.24);border-radius:18px;background:linear-gradient(145deg,rgba(212,175,55,.09),transparent 52%),var(--panel,#141414);box-shadow:0 14px 38px rgba(0,0,0,.14)}
+.quiz-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.quiz-title{font-weight:750;font-size:15px;letter-spacing:.01em}.quiz-progress{color:var(--muted,#9c9c9c);font-size:12px}.quiz-question{font-size:17px;line-height:1.55;font-weight:650;margin:0 0 14px}.quiz-options{display:grid;gap:9px}.quiz-option{display:flex;align-items:flex-start;gap:11px;width:100%;padding:12px 14px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(255,255,255,.035);color:inherit;text-align:left;line-height:1.45;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}.quiz-option:hover:not(:disabled){border-color:rgba(212,175,55,.62);background:rgba(212,175,55,.08);transform:translateY(-1px)}.quiz-option:focus-visible,.quiz-next:focus-visible{outline:2px solid #d4af37;outline-offset:2px}.quiz-option:disabled{cursor:default;opacity:1}.quiz-option.is-correct{border-color:#2da77b;background:rgba(45,167,123,.12)}.quiz-option.is-wrong{border-color:#d16b64;background:rgba(209,107,100,.12)}.quiz-letter{display:grid;place-items:center;flex:0 0 24px;height:24px;border:1px solid currentColor;border-radius:50%;font-size:11px;font-weight:750;color:#d4af37}.quiz-feedback{margin-top:13px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.045);font-size:13px;line-height:1.55;color:var(--text,#eee)}.quiz-feedback strong{display:block;margin-bottom:3px}.quiz-next{margin-top:12px;border:0;border-radius:11px;padding:11px 16px;background:linear-gradient(140deg,#f4d03f,#c49b28);color:#171209;font-weight:750;cursor:pointer}.quiz-results{text-align:center;padding:8px 0 3px}.quiz-score{font-size:26px;font-weight:800;margin:8px 0}.quiz-review{margin-top:16px;text-align:left;display:grid;gap:10px}.quiz-review-item{padding:12px 14px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.03);font-size:13px;line-height:1.5}.quiz-review-item strong{display:block;margin-bottom:5px}.quiz-review-item p{margin:3px 0;color:var(--muted,#aaa)}html.light .quiz-card{box-shadow:0 12px 30px rgba(45,35,10,.07)}html.light .quiz-option,html.light .quiz-review-item{border-color:rgba(40,35,20,.12);background:rgba(50,40,15,.025)}html.light .quiz-feedback{background:rgba(50,40,15,.045)}
+@media(max-width:600px){.quiz-card{padding:15px;margin-top:16px}.quiz-question{font-size:16px}.quiz-option{padding:11px 12px}}
 </style>
 </head>
 <body>
@@ -6651,7 +6656,11 @@
                 chatId: currentChatId,
                 rollingSummary: c.rollingSummary || '',
                 summaryMessageCount: Number(c.summaryMessageCount) || 0,
-                customInstructions: liveAwareInstructions(),
+                customInstructions: liveAwareInstructions() + (function() {
+                    const messages = (extra && extra.messages) ? extra.messages : c.messages;
+                    const latestUser = messages.slice().reverse().find(function(m) { return m && m.role === 'user'; });
+                    return latestUser && isQuizGenerationRequest(latestUser.content) ? '\\n\\n' + interactiveQuizInstruction() : '';
+                })(),
                 mode: MODELS[currentModel].apiMode,
                 agents: MODELS[currentModel].agents || 4,
                 webSearch: webSearchEnabled,
@@ -6834,6 +6843,8 @@
         }
 
         async function requestAiReply(imgToSend) {
+            const lastUserForQuiz = (chats[currentChatId] && chats[currentChatId].messages || []).slice().reverse().find(function(m) { return m && m.role === 'user'; });
+            const isQuizReply = !!(lastUserForQuiz && isQuizGenerationRequest(lastUserForQuiz.content));
             const thinkingId = showThinkingIndicator(initialThinkingStatus());
             streamAbort = new AbortController();
             let streamedText = '';
@@ -6953,6 +6964,7 @@
             }
 
             function paintStream() {
+                if (isQuizReply) { setThinkingStatus(thinkingId, 'generating'); return; }
                 streamTargetText = streamedText;
                 if (liveModeActive) {
                     updateLiveAiTranscript(streamedText);
@@ -7074,6 +7086,11 @@
                 if (errMsg && !streamedText) throw new Error(errMsg);
                 // Prefer server soft-cleaned `full` when present (KaTeX dash normalize); else stream.
                 let finalText = softCleanLatexClient(finalFull || streamedText || '');
+                let parsedQuiz = null;
+                if (isQuizReply && String(finalText).trim()) {
+                    parsedQuiz = parseInteractiveQuiz(finalText);
+                    finalText = parsedQuiz ? 'I made a five-question quiz from our conversation. Choose an answer to begin.' : 'I could not format that as an interactive quiz this time. Please ask me to try again.';
+                }
                 // Only non-stream rescue when the SSE connection died without a done frame.
                 // If doneFlag is set, the server already ran empty-fallback — don't double-wait.
                 if (!String(finalText).trim() && !errMsg && !doneFlag) {
@@ -7126,17 +7143,19 @@
                         chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
                     }
                     chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
+                    if (parsedQuiz) chats[currentChatId].messages[chats[currentChatId].messages.length - 1].quiz = parsedQuiz;
                     persistActivityOnLastAi();
                     chats[currentChatId].updatedAt = new Date().toISOString();
                     saveChats();
-                    if (contentEl) {
+                    if (!parsedQuiz && contentEl) {
                         if (streamPaintRaf) { cancelAnimationFrame(streamPaintRaf); streamPaintRaf = null; }
                         contentEl.setAttribute('data-text', finalText);
                         contentEl.innerHTML = formatMarkdown(finalText);
                         renderMathIn(contentEl);
                     }
                     // Collapse activity panel for preview (still openable)
-                    mountActivityOnAi(false, true);
+                    if (!parsedQuiz) mountActivityOnAi(false, true);
+                    else loadChat();
                 }
                 removeThinkingIndicator(thinkingId);
                 markLastAiActions();
@@ -7374,6 +7393,89 @@
             div.addEventListener('pointercancel', clear);
         }
 
+        function isQuizGenerationRequest(text) {
+            return /\\b(?:quiz me|give me (?:a )?quiz|make (?:me )?(?:a )?quiz|create (?:me )?(?:a )?quiz|test me(?: on)?|quiz on this)\\b/i.test(String(text || ''));
+        }
+
+        function interactiveQuizInstruction() {
+            return 'When the latest user message asks for a quiz, create an interactive multiple-choice quiz using the conversation and any attached study material as the source. Return ONLY valid JSON, with exactly this shape: {"title":"short topic title","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction and why"}]}. Include exactly 5 useful questions, 4 concise options per question, one correctIndex from 0 to 3, and a clear explanation for each answer. Do not use Markdown fences or any text outside the JSON.';
+        }
+
+        function parseInteractiveQuiz(text) {
+            try {
+                let raw = String(text || '').trim().replace(/^\x60{3}(?:json)?\\s*/i, '').replace(/\\s*\x60{3}$/i, '').trim();
+                const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
+                if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
+                const data = JSON.parse(raw);
+                if (!data || !Array.isArray(data.questions) || data.questions.length !== 5) return null;
+                const questions = data.questions.map(function(q) {
+                    if (!q || !Array.isArray(q.options) || q.options.length < 2 || q.options.length > 5) return null;
+                    const correctIndex = Number(q.correctIndex);
+                    const question = String(q.question || q.prompt || '').trim();
+                    const options = q.options.map(function(v) { return String(v || '').trim(); });
+                    if (!question || options.some(function(v) { return !v; }) || !Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length) return null;
+                    return { question: question, options: options, correctIndex: correctIndex, explanation: String(q.explanation || '').trim() };
+                });
+                if (questions.some(function(q) { return !q; })) return null;
+                return { title: String(data.title || 'Knowledge check').trim(), questions: questions, currentIndex: 0, answers: [null, null, null, null, null] };
+            } catch (e) { return null; }
+        }
+
+        function renderQuizHtml(quiz, messageIndex) {
+            const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+            const answers = Array.isArray(quiz.answers) ? quiz.answers : [];
+            const idx = Math.max(0, Math.min(Number(quiz.currentIndex) || 0, questions.length));
+            let html = '<section class="quiz-card" aria-label="Interactive quiz">';
+            if (idx >= questions.length) {
+                const score = questions.reduce(function(total, q, i) { return total + (Number(answers[i]) === Number(q.correctIndex) ? 1 : 0); }, 0);
+                html += '<div class="quiz-results"><div class="quiz-title">' + escapeHtmlRaw(quiz.title || 'Quiz complete') + '</div><div class="quiz-score">' + score + ' / ' + questions.length + '</div><div class="quiz-progress">Quiz complete · Review your answers</div></div><div class="quiz-review">';
+                questions.forEach(function(q, i) {
+                    const picked = Number(answers[i]);
+                    const right = picked === Number(q.correctIndex);
+                    html += '<div class="quiz-review-item"><strong>' + (right ? '✓ ' : '• ') + escapeHtmlRaw(q.question) + '</strong><p>Your answer: ' + escapeHtmlRaw(q.options[picked] || 'Not answered') + '</p><p>Correct answer: ' + escapeHtmlRaw(q.options[q.correctIndex]) + '</p>' + (q.explanation ? '<p>' + escapeHtmlRaw(q.explanation) + '</p>' : '') + '</div>';
+                });
+                html += '</div></section>';
+                return html;
+            }
+            const q = questions[idx];
+            const selected = answers[idx] === null || answers[idx] === undefined ? null : Number(answers[idx]);
+            html += '<div class="quiz-head"><span class="quiz-title">' + escapeHtmlRaw(quiz.title || 'Quick quiz') + '</span><span class="quiz-progress">Question ' + (idx + 1) + ' of ' + questions.length + '</span></div>';
+            html += '<h3 class="quiz-question">' + escapeHtmlRaw(q.question) + '</h3><div class="quiz-options">';
+            q.options.forEach(function(option, oi) {
+                const correct = oi === Number(q.correctIndex);
+                const wrongPick = selected === oi && !correct;
+                const cls = correct && selected !== null ? ' is-correct' : (wrongPick ? ' is-wrong' : '');
+                html += '<button type="button" class="quiz-option' + cls + '" ' + (selected !== null ? 'disabled' : '') + ' onclick="handleQuizAnswer(this,' + messageIndex + ',' + oi + ')"><span class="quiz-letter">' + String.fromCharCode(65 + oi) + '</span><span>' + escapeHtmlRaw(option) + '</span></button>';
+            });
+            html += '</div>';
+            if (selected !== null) {
+                const correct = selected === Number(q.correctIndex);
+                html += '<div class="quiz-feedback" role="status"><strong>' + (correct ? 'Correct!' : 'Not quite.') + '</strong>' + (correct ? '' : 'Correct answer: ' + escapeHtmlRaw(q.options[q.correctIndex]) + '. ') + escapeHtmlRaw(q.explanation || '') + '</div><button type="button" class="quiz-next" onclick="handleQuizNext(this,' + messageIndex + ')">' + (idx === questions.length - 1 ? 'See results' : 'Next question') + ' →</button>';
+            }
+            html += '</section>';
+            return html;
+        }
+
+        window.handleQuizAnswer = function(button, messageIndex, optionIndex) {
+            const msg = chats[currentChatId] && chats[currentChatId].messages[messageIndex];
+            if (!msg || !msg.quiz) return;
+            const quiz = msg.quiz, idx = Number(quiz.currentIndex) || 0;
+            if (quiz.answers[idx] !== null && quiz.answers[idx] !== undefined) return;
+            quiz.answers[idx] = Number(optionIndex);
+            saveChats();
+            const card = button.closest('.quiz-card');
+            if (card) card.outerHTML = renderQuizHtml(quiz, messageIndex);
+        };
+
+        window.handleQuizNext = function(button, messageIndex) {
+            const msg = chats[currentChatId] && chats[currentChatId].messages[messageIndex];
+            if (!msg || !msg.quiz) return;
+            msg.quiz.currentIndex = Math.min(msg.quiz.questions.length, (Number(msg.quiz.currentIndex) || 0) + 1);
+            saveChats();
+            const card = button.closest('.quiz-card');
+            if (card) card.outerHTML = renderQuizHtml(msg.quiz, messageIndex);
+        };
+
         function renderMessage(msg, index, returnEl) {
             const container = document.getElementById('messagesContainer');
             const empty = container.querySelector('.empty-state');
@@ -7408,6 +7510,7 @@
                     div.innerHTML = inner;
                 } else {
                 inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>';
+                if (msg.quiz) inner += renderQuizHtml(msg.quiz, typeof index === 'number' ? index : -1);
                 const tAi = formatMsgTime(msg.timestamp);
                 inner += (tAi ? '<div class="msg-time">' + escapeHtmlRaw(tAi) + '</div>' : '') +
                     '<div class="message-actions">' +

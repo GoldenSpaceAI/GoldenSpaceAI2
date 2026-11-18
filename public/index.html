@@ -6782,14 +6782,20 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                     const messages = (extra && extra.messages) ? extra.messages : c.messages;
                     const latestUser = messages.slice().reverse().find(function(m) { return m && m.role === 'user'; });
                     if (!latestUser) return '';
-                    if (isQuizGenerationRequest(latestUser.content)) return '\n\n' + interactiveQuizInstruction();
+                    if (isQuizGenerationRequest(latestUser.content)) return '\n\n' + interactiveQuizInstruction(requestedQuizQuestionCount(latestUser.content));
                     const formats = requestedDocumentFormats(latestUser.content);
                     return formats ? '\n\n' + documentGenerationInstruction(formats) : '';
                 })(),
                 mode: MODELS[currentModel].apiMode,
                 agents: MODELS[currentModel].agents || 4,
                 webSearch: webSearchEnabled,
-                image: (extra && extra.image !== undefined) ? extra.image : undefined
+                image: (extra && extra.image !== undefined) ? extra.image : undefined,
+                quizQuestionCount: (function() {
+                    const messages = (extra && extra.messages) ? extra.messages : c.messages;
+                    const latestUser = messages.slice().reverse().find(function(m) { return m && m.role === 'user'; });
+                    return latestUser && isQuizGenerationRequest(latestUser.content)
+                        ? requestedQuizQuestionCount(latestUser.content) : undefined;
+                })()
             };
             if (liveModeActive) body.live = true;
             return body;
@@ -6970,6 +6976,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         async function requestAiReply(imgToSend) {
             const lastUserForQuiz = (chats[currentChatId] && chats[currentChatId].messages || []).slice().reverse().find(function(m) { return m && m.role === 'user'; });
             const isQuizReply = !!(lastUserForQuiz && isQuizGenerationRequest(lastUserForQuiz.content));
+            const quizQuestionCount = isQuizReply ? requestedQuizQuestionCount(lastUserForQuiz.content) : 0;
             const documentFormats = lastUserForQuiz ? requestedDocumentFormats(lastUserForQuiz.content) : null;
             const isDocumentReply = !!documentFormats;
             const thinkingId = showThinkingIndicator(initialThinkingStatus());
@@ -7220,8 +7227,8 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                     finalText = parsedArtifact ? 'Your designed file is ready. Use the download button below to save it.' : 'I could not prepare the downloadable document this time. Please try asking for the PowerPoint or Word document again.';
                 }
                 if (isQuizReply && String(finalText).trim()) {
-                    parsedQuiz = parseInteractiveQuiz(finalText);
-                    finalText = parsedQuiz ? 'I made a five-question quiz from our conversation. Choose an answer to begin.' : 'I could not format that as an interactive quiz this time. Please ask me to try again.';
+                    parsedQuiz = parseInteractiveQuiz(finalText, quizQuestionCount);
+                    finalText = parsedQuiz ? 'I made your ' + quizQuestionCount + '-question quiz from our conversation. Choose an answer to begin.' : 'I could not format that as an interactive quiz this time. Please ask me to try again.';
                 }
                 // Only non-stream rescue when the SSE connection died without a done frame.
                 // If doneFlag is set, the server already ran empty-fallback — don't double-wait.
@@ -7528,7 +7535,30 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
 
         function isQuizGenerationRequest(text) {
             const value = String(text || '').trim();
-            return /\b(?:quiz me|test me|test my knowledge|practice (?:quiz|test)|ask me (?:some )?questions|quiz(?:\s+me)?\s+(?:on|about|from|using)|(?:give|make|create|generate|build|prepare|start|write|do)\b[^.!?]{0,60}\bquizzes?\b|(?:i|we)\s+(?:want|need)\b[^.!?]{0,35}\bquizzes?\b|\bquizzes?\s+(?:about|on|from|for)\b)\b/i.test(value);
+            return /\b(?:quiz me|test me|test my knowledge|practice (?:quiz|test)|ask me (?:some )?questions|(?:quiz|test)\s+(?:me\s+)?(?:on|about|from|using)|(?:give|make|create|generate|build|prepare|start|write|do)\b[^.!?]{0,80}\b(?:quizzes?|tests?)\b|(?:i|we)\s+(?:want|need)\b[^.!?]{0,45}\b(?:quizzes?|tests?)\b|\b(?:quizzes?|tests?)\s+(?:about|on|from|for)\b)\b/i.test(value);
+        }
+
+        function requestedQuizQuestionCount(text) {
+            const value = String(text || '').toLowerCase();
+            let match = value.match(/\b(\d{1,3})\s*(?:questions?|qs?)\b/) ||
+                value.match(/\b(\d{1,3})[-\s]?question\s+(?:quiz|test)\b/) ||
+                value.match(/\b(?:quiz|test)\b[^.!?\d]{0,32}(\d{1,3})\b/);
+            if (match) {
+                const n = Number(match[1]);
+                return Number.isFinite(n) && n > 0 ? Math.min(100, n) : 5;
+            }
+            const wordNumbers = {zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90, hundred:100};
+            const words = value.match(/\b((?:(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|and)[ -]?){1,5})\s+questions?\b/);
+            if (!words) return 5;
+            let total = 0;
+            words[1].replace(/-/g, ' ').split(/\s+/).filter(Boolean).forEach(function(word) {
+                if (word === 'and') return;
+                if (word === 'hundred') { total = (total || 1) * 100; return; }
+                const n = wordNumbers[word] || 0;
+                if (n >= 20 && n < 100) total = Math.floor(total / 100) * 100 + n;
+                else total += n;
+            });
+            return total > 0 ? Math.min(100, total) : 5;
         }
 
         function requestedDocumentFormats(text) {
@@ -7664,17 +7694,19 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         };
 
 
-        function interactiveQuizInstruction() {
-            return 'When the latest user message asks for a quiz, create an interactive multiple-choice quiz using the conversation and any attached study material as the source. Return ONLY valid JSON, with exactly this shape: {"title":"short topic title","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction and why"}]}. Include exactly 5 useful questions, 4 concise options per question, one correctIndex from 0 to 3, and a clear explanation for each answer. Do not use Markdown fences or any text outside the JSON.';
+        function interactiveQuizInstruction(count) {
+            const total = Math.max(1, Math.min(100, Number(count) || 5));
+            return 'When the latest user message asks for a quiz, create an interactive multiple-choice quiz using the conversation and any attached study material as the source. The requested quiz length is exactly ' + total + ' questions. Return ONLY valid JSON with this shape: {"title":"short topic title","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction and why"}]}. Include exactly ' + total + ' useful questions, 4 concise options per question, one correctIndex from 0 to 3, and a clear explanation for each answer. Do not use Markdown fences or any text outside the JSON.';
         }
 
-        function parseInteractiveQuiz(text) {
+        function parseInteractiveQuiz(text, expectedCount) {
             try {
                 let raw = String(text || '').trim().replace(/^\x60{3}(?:json)?\s*/i, '').replace(/\s*\x60{3}$/i, '').trim();
                 const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
                 if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
                 const data = JSON.parse(raw);
-                if (!data || !Array.isArray(data.questions) || data.questions.length !== 5) return null;
+                const requiredCount = Math.max(1, Math.min(100, Number(expectedCount) || 5));
+                if (!data || !Array.isArray(data.questions) || data.questions.length !== requiredCount) return null;
                 const questions = data.questions.map(function(q) {
                     if (!q || !Array.isArray(q.options) || q.options.length < 2 || q.options.length > 5) return null;
                     const correctIndex = Number(q.correctIndex);
@@ -7684,7 +7716,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                     return { question: question, options: options, correctIndex: correctIndex, explanation: String(q.explanation || '').trim() };
                 });
                 if (questions.some(function(q) { return !q; })) return null;
-                return { title: String(data.title || 'Knowledge check').trim(), questions: questions, currentIndex: 0, answers: [null, null, null, null, null] };
+                return { title: String(data.title || 'Knowledge check').trim(), questions: questions, currentIndex: 0, answers: new Array(questions.length).fill(null) };
             } catch (e) { return null; }
         }
 

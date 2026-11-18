@@ -19,6 +19,7 @@ const {
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const { extractUploadedFile, MAX_FILE_BYTES } = require('./fileExtract');
+const { createOfficeDocument } = require('./documentExport');
 const { createAuth } = require('./auth');
 const contextPack = require('./contextPack');
 const {
@@ -1076,9 +1077,21 @@ async function resolveContextPack(req) {
         summaryMessageCount = updated.summarizedCount;
     }
 
+    const latestUserMessage = bodyMessages.slice().reverse().find((m) => m && m.role === 'user');
+    const latestUserText = latestUserMessage && typeof latestUserMessage.content === 'string' ? latestUserMessage.content : '';
+    const quizIntent = /\b(?:quiz me|test me|test my knowledge|practice (?:quiz|test)|ask me (?:some )?questions|quiz\s+(?:me\s+)?(?:on|about|from|using)|(?:give|make|create|generate|build|prepare|start|write|do)\b[^.!?]{0,60}\bquizzes?\b|(?:i|we)\s+(?:want|need)\b[^.!?]{0,35}\bquizzes?\b|\bquizzes?\s+(?:about|on|from|for)\b)/i.test(latestUserText);
+    const documentIntent = /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you)\b/i.test(latestUserText)
+        && /\b(?:presentation|powerpoint|pptx|slides?|word document|word file|docx|report|handout|essay)\b/i.test(latestUserText);
+    let effectiveInstructions = String(body.customInstructions || '');
+    if (quizIntent && !effectiveInstructions.includes('exactly 5 useful questions')) {
+        effectiveInstructions += '\n\nCreate an interactive quiz from the conversation context. Return ONLY valid JSON in this exact form: {"title":"topic","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction"}]}. Include exactly 5 questions, 4 concise answer choices each, one correctIndex from 0 to 3, and an explanation for each. No Markdown or surrounding text.';
+    }
+    if (documentIntent && !effectiveInstructions.includes('"slides":')) {
+        effectiveInstructions += '\n\nCreate a polished downloadable Office document based on the user's request. Return ONLY valid JSON shaped like {"title":"...","subtitle":"...","slides":[{"layout":"title|content|stat|quote|compare|closing","eyebrow":"...","title":"...","subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. Create 6 to 12 concise, substantial slides with varied visual layouts and no filler. Do not return markdown fences or prose.';
+    }
     const packed = buildPackedMessages({
         messages: bodyMessages.length ? bodyMessages : historyForSummary,
-        customInstructions: body.customInstructions,
+        customInstructions: effectiveInstructions,
         accountMemory: user && user.id ? accountMemory : {},
         rollingSummary,
         image: body.image,
@@ -1244,6 +1257,29 @@ app.post('/api/extract-file', (req, res) => {
         }
     });
 });
+
+app.post('/api/documents/export', async (req, res) => {
+    try {
+        const format = String(req.body?.format || '').toLowerCase();
+        if (!['pptx', 'docx'].includes(format)) return res.status(400).json({ error: 'Choose PowerPoint or Word format.' });
+        const artifact = req.body?.artifact;
+        const bytes = JSON.stringify(artifact || {}).length;
+        if (bytes > 250000) return res.status(413).json({ error: 'This document is too large to export.' });
+        const file = await createOfficeDocument(artifact, format);
+        const base = String(artifact?.title || 'GoldenSpaceAI').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80) || 'GoldenSpaceAI';
+        res.setHeader('Content-Type', format === 'pptx'
+            ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', 'attachment; filename="' + base + '.' + format + '"');
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(file);
+    } catch (error) {
+        console.error('document export:', error.message || error);
+        return res.status(400).json({ error: error.message || 'Could not create the document.' });
+    }
+});
+
+
 
 
 // ==================== BUILT-IN BROWSER SPEECH ====================

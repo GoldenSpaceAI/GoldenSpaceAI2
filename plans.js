@@ -693,23 +693,36 @@ function createPlansStore(dataDir, options = {}) {
     function expireIfNeeded(deviceId) {
         const store = read();
         const sub = store.subscriptions[deviceId];
-        if (!sub || !sub.plan || sub.plan === 'free') return;
-        const ends = Date.parse(sub.endsAt || 0);
-        if (!Number.isFinite(ends) || Date.now() < ends) return;
-        const phone = normalizePhone(sub.phone);
-        if (phone && store.phoneIndex[phone] === deviceId) {
-            delete store.phoneIndex[phone];
+        if (!sub) return;
+        const now = Date.now();
+        const queued = Array.isArray(sub.queuedSubscriptions) ? sub.queuedSubscriptions.slice() : [];
+        const currentActive = sub.plan && sub.plan !== 'free' && Number.isFinite(Date.parse(sub.endsAt || '')) && now < Date.parse(sub.endsAt);
+        if (currentActive) return;
+        if (sub.plan && sub.plan !== 'free' && Date.parse(sub.endsAt || 0) > 0) {
+            const phone = normalizePhone(sub.phone);
+            if (phone && store.phoneIndex[phone] === deviceId) delete store.phoneIndex[phone];
+        } else if ((!sub.plan || sub.plan === 'free') && queued.length === 0) {
+            return;
         }
-        store.subscriptions[deviceId] = {
-            plan: 'free',
-            phone: null,
-            startsAt: null,
-            endsAt: null,
-            paymentRequestId: null,
-            caps: null,
-            stackMode: null,
-            expiredAt: new Date().toISOString()
-        };
+        const nextIndex = queued.findIndex(item => {
+            const end = Date.parse(item && item.endsAt || '');
+            return item && PLAN_DEFS[item.plan] && item.plan !== 'free' && Number.isFinite(end) && end > now && (Date.parse(item.startsAt || '') || 0) <= now;
+        });
+        if (nextIndex >= 0) {
+            const next = queued.splice(nextIndex, 1)[0];
+            const phone = normalizePhone(next.phone);
+            store.subscriptions[deviceId] = Object.assign({}, next, {
+                queuedSubscriptions: queued,
+                activatedAt: new Date().toISOString()
+            });
+            if (phone) store.phoneIndex[phone] = deviceId;
+        } else {
+            store.subscriptions[deviceId] = {
+                plan: 'free', phone: null, startsAt: null, endsAt: null,
+                paymentRequestId: null, caps: null, stackMode: null,
+                queuedSubscriptions: queued, expiredAt: new Date().toISOString()
+            };
+        }
         save();
     }
 
@@ -767,11 +780,17 @@ function createPlansStore(dataDir, options = {}) {
             // Admin / analytics: daily + lifetime (not reset by plan period)
             spendDay: d,
             todaySpendUsd: 0,
+            todayProviderReportedSpendUsd: 0,
+            todayTokenRatedSpendUsd: 0,
+            todayEstimatedSpendUsd: 0,
             todayTokens: 0,
             todayGrokSpendUsd: 0,
             todayOpenaiSpendUsd: 0,
             todayDeepseekSpendUsd: 0,
             totalSpendUsd: 0,
+            totalProviderReportedSpendUsd: 0,
+            totalTokenRatedSpendUsd: 0,
+            totalEstimatedSpendUsd: 0,
             totalTokens: 0,
             totalGrokSpendUsd: 0,
             totalOpenaiSpendUsd: 0,
@@ -802,7 +821,13 @@ function createPlansStore(dataDir, options = {}) {
             u.totalSpendUsd = roundUsd((Number(u.fastSpendUsd) || 0) + thinkShareUsed(u) + expert16Used(u));
         }
         if (u.totalTokens == null) u.totalTokens = 0;
+        if (u.totalProviderReportedSpendUsd == null) u.totalProviderReportedSpendUsd = 0;
+        if (u.totalTokenRatedSpendUsd == null) u.totalTokenRatedSpendUsd = 0;
+        if (u.totalEstimatedSpendUsd == null) u.totalEstimatedSpendUsd = Number(u.totalSpendUsd) || 0;
         if (u.todaySpendUsd == null) u.todaySpendUsd = 0;
+        if (u.todayProviderReportedSpendUsd == null) u.todayProviderReportedSpendUsd = 0;
+        if (u.todayTokenRatedSpendUsd == null) u.todayTokenRatedSpendUsd = 0;
+        if (u.todayEstimatedSpendUsd == null) u.todayEstimatedSpendUsd = u.todaySpendUsd;
         if (u.todayTokens == null) u.todayTokens = 0;
         if (u.todayGrokSpendUsd == null) u.todayGrokSpendUsd = 0;
         if (u.todayOpenaiSpendUsd == null) u.todayOpenaiSpendUsd = 0;
@@ -820,6 +845,9 @@ function createPlansStore(dataDir, options = {}) {
         if (u.spendDay !== day) {
             u.spendDay = day;
             u.todaySpendUsd = 0;
+            u.todayProviderReportedSpendUsd = 0;
+            u.todayTokenRatedSpendUsd = 0;
+            u.todayEstimatedSpendUsd = 0;
             u.todayTokens = 0;
             u.todayGrokSpendUsd = 0;
             u.todayOpenaiSpendUsd = 0;
@@ -851,11 +879,17 @@ function createPlansStore(dataDir, options = {}) {
                 ...imagineAdminUsage,
                 todayTokens: 0,
                 todaySpendUsd: 0,
+                todayProviderReportedSpendUsd: 0,
+                todayTokenRatedSpendUsd: 0,
+                todayEstimatedSpendUsd: 0,
                 todayGrokSpendUsd: 0,
                 todayOpenaiSpendUsd: 0,
                 todayDeepseekSpendUsd: 0,
                 totalTokens: 0,
                 totalSpendUsd: 0,
+                totalProviderReportedSpendUsd: 0,
+                totalTokenRatedSpendUsd: 0,
+                totalEstimatedSpendUsd: 0,
                 totalGrokSpendUsd: 0,
                 totalOpenaiSpendUsd: 0,
                 totalDeepseekSpendUsd: 0,
@@ -890,6 +924,9 @@ function createPlansStore(dataDir, options = {}) {
             ...imagineAdminUsage,
             todayTokens: todayActive ? (Number(u.todayTokens) || 0) : 0,
             todaySpendUsd: todayActive ? roundUsd(Number(u.todaySpendUsd) || 0) : 0,
+            todayProviderReportedSpendUsd: todayActive ? roundUsd(Number(u.todayProviderReportedSpendUsd) || 0) : 0,
+            todayTokenRatedSpendUsd: todayActive ? roundUsd(Number(u.todayTokenRatedSpendUsd) || 0) : 0,
+            todayEstimatedSpendUsd: todayActive ? roundUsd(Number(u.todayEstimatedSpendUsd) || 0) : 0,
             todayGrokSpendUsd: todayActive ? roundUsd(Number(u.todayGrokSpendUsd) || 0) : 0,
             todayOpenaiSpendUsd: todayActive ? roundUsd(Number(u.todayOpenaiSpendUsd) || 0) : 0,
             todayDeepseekSpendUsd: todayActive ? roundUsd(Number(u.todayDeepseekSpendUsd) || 0) : 0,
@@ -899,6 +936,9 @@ function createPlansStore(dataDir, options = {}) {
                     ? Number(u.totalSpendUsd) || 0
                     : (Number(u.fastSpendUsd) || 0) + thinkShareUsed(u) + expert16Used(u)
             ),
+            totalProviderReportedSpendUsd: roundUsd(Number(u.totalProviderReportedSpendUsd) || 0),
+            totalTokenRatedSpendUsd: roundUsd(Number(u.totalTokenRatedSpendUsd) || 0),
+            totalEstimatedSpendUsd: roundUsd(Number(u.totalEstimatedSpendUsd) || 0),
             totalGrokSpendUsd: roundUsd(Number(u.totalGrokSpendUsd) || 0),
             totalOpenaiSpendUsd: roundUsd(Number(u.totalOpenaiSpendUsd) || 0),
             totalDeepseekSpendUsd: roundUsd(Number(u.totalDeepseekSpendUsd) || 0),
@@ -1528,8 +1568,15 @@ function createPlansStore(dataDir, options = {}) {
         }
         u.otherSpendUsd = roundUsd(thinkShareUsed(u) + expert16Used(u));
         u.todaySpendUsd = roundUsd((Number(u.todaySpendUsd) || 0) + cost);
-        u.todayTokens = (Number(u.todayTokens) || 0) + tokens;
         u.totalSpendUsd = roundUsd((Number(u.totalSpendUsd) || 0) + cost);
+        const costSource = String((spend && spend.costSource) || 'token_rate');
+        const sourceBucket = costSource === 'provider_reported' ? 'ProviderReported'
+            : (costSource === 'estimated_text' ? 'Estimated' : 'TokenRated');
+        const todaySourceKey = 'today' + sourceBucket + 'SpendUsd';
+        const totalSourceKey = 'total' + sourceBucket + 'SpendUsd';
+        u[todaySourceKey] = roundUsd((Number(u[todaySourceKey]) || 0) + cost);
+        u[totalSourceKey] = roundUsd((Number(u[totalSourceKey]) || 0) + cost);
+        u.todayTokens = (Number(u.todayTokens) || 0) + tokens;
         u.totalTokens = (Number(u.totalTokens) || 0) + tokens;
         const provider = normalizeProvider(
             spend && spend.provider,
@@ -1550,6 +1597,7 @@ function createPlansStore(dataDir, options = {}) {
             kind,
             pool,
             costUsd: cost,
+            costSource,
             model: spend && spend.model ? String(spend.model) : null,
             provider: provider !== 'unknown' ? provider : null,
             promptTokens: spend && spend.promptTokens != null ? Number(spend.promptTokens) : null,
@@ -2294,47 +2342,65 @@ function createPlansStore(dataDir, options = {}) {
             };
         }
 
-        const startsAt = new Date();
+        const isSameActivePlan = stack.mode === 'same_stack' && currentSub &&
+            currentSub.plan === planId && Date.parse(currentSub.endsAt || 0) > Date.now();
         const periodMs = payment.billingPeriod === 'yearly' ? YEARLY_PERIOD_MS : PAID_PERIOD_MS;
-        const endsAt = new Date(startsAt.getTime() + periodMs);
-        store.subscriptions[ownerKey] = {
-            plan: stack.plan,
-            phone,
-            startsAt: startsAt.toISOString(),
-            endsAt: endsAt.toISOString(),
-            paymentRequestId: payment.id,
-            caps: cloneCaps(stack.capsAfter),
-            stackMode: stack.mode,
-            stackedFrom: stack.fromPlan,
-            stackedTo: stack.toPlan
-        };
+        let startsAt;
+        let endsAt;
+        let effectiveStackMode = stack.mode;
+        if (isSameActivePlan) {
+            // Add the purchase's base allowance immediately; keep current dates and spend intact.
+            const activeCaps = cloneCaps(stack.capsAfter);
+            const queue = Array.isArray(currentSub.queuedSubscriptions) ? currentSub.queuedSubscriptions.slice() : [];
+            const latestQueuedEnd = queue.reduce((latest, item) => Math.max(latest, Date.parse(item && item.endsAt || '') || 0), 0);
+            const currentEnd = Date.parse(currentSub.endsAt || '');
+            const queuedStartMs = Math.max(currentEnd, latestQueuedEnd);
+            startsAt = new Date(queuedStartMs);
+            endsAt = new Date(queuedStartMs + periodMs);
+            queue.push({
+                plan: planId, phone, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
+                paymentRequestId: payment.id, caps: capsFromPlanId(planId),
+                stackMode: 'grant_full', billingPeriod: payment.billingPeriod === 'yearly' ? 'yearly' : 'monthly'
+            });
+            store.subscriptions[ownerKey] = Object.assign({}, currentSub, {
+                caps: activeCaps,
+                queuedSubscriptions: queue,
+                stackMode: 'same_stack_queued'
+            });
+            effectiveStackMode = 'same_stack_queued';
+        } else {
+            startsAt = new Date();
+            endsAt = new Date(startsAt.getTime() + periodMs);
+            store.subscriptions[ownerKey] = Object.assign({
+                plan: stack.plan, phone, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
+                paymentRequestId: payment.id, caps: cloneCaps(stack.capsAfter), stackMode: stack.mode,
+                stackedFrom: stack.fromPlan, stackedTo: stack.toPlan
+            }, { queuedSubscriptions: currentSub && Array.isArray(currentSub.queuedSubscriptions) ? currentSub.queuedSubscriptions : [] });
+            // Reset the allowance counters only for a genuinely new active term.
+            const u = store.usage[ownerKey] || emptyUsageRow(utcDayKey(), startsAt.toISOString());
+            u.periodStartsAt = startsAt.toISOString();
+            u.day = utcDayKey();
+            u.fastSpendUsd = 0;
+            u.thinkShareSpendUsd = 0;
+            u.expert16SpendUsd = 0;
+            u.otherSpendUsd = 0;
+            u.fast = 0;
+            u.thinking = 0;
+            u.expert4 = 0;
+            u.expert16 = 0;
+            rollImageDay(u, utcDayKey());
+            u.talkPeriodKey = null;
+            rollTalkPeriod(u, stack.plan, startsAt.toISOString());
+            u.fastHalved = false;
+            store.usage[ownerKey] = u;
+        }
         store.phoneIndex[phone] = ownerKey;
-
-        // Reset period $ spend for this account/device owner (stacking adds caps; spend starts fresh for the new period window)
-        const u = store.usage[ownerKey] || emptyUsageRow(utcDayKey(), startsAt.toISOString());
-        u.periodStartsAt = startsAt.toISOString();
-        u.day = utcDayKey();
-        u.fastSpendUsd = 0;
-        u.thinkShareSpendUsd = 0;
-        u.expert16SpendUsd = 0;
-        u.otherSpendUsd = 0;
-        u.fast = 0;
-        u.thinking = 0;
-        u.expert4 = 0;
-        u.expert16 = 0;
-        // Daily image cap is UTC-day based — do not reset mid-day on approve
-        rollImageDay(u, utcDayKey());
-        // Talk minutes reset with the new paid period
-        u.talkPeriodKey = null;
-        rollTalkPeriod(u, stack.plan, startsAt.toISOString());
-        u.fastHalved = false;
-        store.usage[ownerKey] = u;
 
         payment.status = 'approved';
         payment.decidedAt = new Date().toISOString();
         payment.startsAt = startsAt.toISOString();
         payment.endsAt = endsAt.toISOString();
-        payment.stackMode = stack.mode;
+        payment.stackMode = effectiveStackMode;
         payment.stackedFrom = stack.fromPlan;
         payment.stackedTo = stack.toPlan;
         payment.capsBefore = cloneCaps(stack.capsBefore);
@@ -2348,7 +2414,7 @@ function createPlansStore(dataDir, options = {}) {
             ok: true,
             payment,
             subscription: store.subscriptions[ownerKey],
-            stacking: stack
+            stacking: Object.assign({}, stack, { mode: effectiveStackMode, scheduledStartsAt: startsAt.toISOString(), scheduledEndsAt: endsAt.toISOString() })
         };
     }
 
@@ -2487,11 +2553,17 @@ function createPlansStore(dataDir, options = {}) {
                 lastPaymentAt: (pay && pay.createdAt) || null,
                 todayTokens: usage.todayTokens,
                 todaySpendUsd: usage.todaySpendUsd,
+                todayProviderReportedSpendUsd: usage.todayProviderReportedSpendUsd,
+                todayTokenRatedSpendUsd: usage.todayTokenRatedSpendUsd,
+                todayEstimatedSpendUsd: usage.todayEstimatedSpendUsd,
                 todayGrokSpendUsd: usage.todayGrokSpendUsd,
                 todayOpenaiSpendUsd: usage.todayOpenaiSpendUsd,
                 todayDeepseekSpendUsd: usage.todayDeepseekSpendUsd,
                 totalTokens: usage.totalTokens,
                 totalSpendUsd: usage.totalSpendUsd,
+                totalProviderReportedSpendUsd: usage.totalProviderReportedSpendUsd,
+                totalTokenRatedSpendUsd: usage.totalTokenRatedSpendUsd,
+                totalEstimatedSpendUsd: usage.totalEstimatedSpendUsd,
                 totalGrokSpendUsd: usage.totalGrokSpendUsd,
                 totalOpenaiSpendUsd: usage.totalOpenaiSpendUsd,
                 totalDeepseekSpendUsd: usage.totalDeepseekSpendUsd,

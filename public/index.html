@@ -4168,6 +4168,21 @@
 .notification-empty{padding:22px 14px;text-align:center;color:var(--text-muted,#aaa);font-size:13px}
 .email-pref-row{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.5;color:var(--text-muted,#aaa)}
 .email-pref-row input{accent-color:var(--gold,#d4af37);margin-top:3px}
+        .chats-scroll-content {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+        .chats-scroll-content .chats-list {
+            flex: 0 0 auto;
+            min-height: 0;
+            overflow: visible;
+            -webkit-overflow-scrolling: auto;
+        }
+
 </style>
 </head>
 <body>
@@ -4240,6 +4255,7 @@
                 <div class="chat-search-wrap">
                     <input class="chat-search" id="chatSearch" type="search" placeholder="Search chats..." oninput="renderChatsList()" aria-label="Search chats">
                 </div>
+                <div class="chats-scroll-content">
                 <a class="imagine-nav-link" href="/imagine" aria-label="Open Imagine"><span aria-hidden="true">✦</span><span>Imagine</span><span class="imagine-nav-badge">MEDIA</span></a>
                 <div class="projects-section">
                     <div class="projects-section-head"><span>Projects</span><button type="button" onclick="openProjectEditor()" aria-label="Create project" title="Create project">+</button></div>
@@ -4247,6 +4263,7 @@
                     <div id="projectsList" class="projects-list"></div>
                 </div>
                 <div class="chats-list" id="chatsList"></div>
+                </div>
                 <div class="chats-panel-footer">
                     <div class="plan-strip" id="planStrip" aria-label="Plan usage">
                         <div class="plan-status-card" id="planStatusCard">

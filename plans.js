@@ -43,6 +43,8 @@ const {
 
 const OMT_DESTINATION = '81056987';
 const PAID_PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
+const YEARLY_PERIOD_MS = 365 * 24 * 60 * 60 * 1000;
+const YEARLY_PRICES = { plus: 59, pro: 115, max: 169 };
 
 /**
  * Plan defs — priceUsd is what the user pays via OMT (wallet-to-wallet).
@@ -964,7 +966,9 @@ function createPlansStore(dataDir, options = {}) {
             }
         }
 
-        const periodKey = effective.startsAt || null;
+        const subscriptionStart = Date.parse(effective.startsAt || '');
+        const cycleIndex = Number.isFinite(subscriptionStart) ? Math.max(0, Math.floor((Date.now() - subscriptionStart) / PAID_PERIOD_MS)) : 0;
+        const periodKey = Number.isFinite(subscriptionStart) ? new Date(subscriptionStart + cycleIndex * PAID_PERIOD_MS).toISOString() : null;
         if ((u.periodStartsAt || null) !== periodKey) {
             u.periodStartsAt = periodKey;
             u.fastSpendUsd = 0;
@@ -1970,12 +1974,14 @@ function createPlansStore(dataDir, options = {}) {
         return { ok: true, attached, migratedSub, ownerKey: ak };
     }
 
-    function createPaymentRequest({ deviceId, plan, phone, email, userId, ip, currentPlan } = {}) {
+    function createPaymentRequest({ deviceId, plan, billingPeriod, phone, email, userId, ip, currentPlan } = {}) {
         const planId = String(plan || '').toLowerCase();
         const def = PLAN_DEFS[planId];
         if (!def || planId === 'free') {
             return { ok: false, error: 'Choose Plus, Pro, or Max.' };
         }
+        const billing = billingPeriod === 'yearly' ? 'yearly' : 'monthly';
+        const amount = billing === 'yearly' ? YEARLY_PRICES[planId] : def.priceUsd;
         const normalized = normalizePhone(phone);
         if (!isValidOmtPhone(normalized)) {
             return { ok: false, error: 'Enter a valid OMT Pay wallet number.' };
@@ -2037,7 +2043,8 @@ function createPlansStore(dataDir, options = {}) {
             id: 'pay_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'),
             phone: normalized,
             plan: planId,
-            amount: def.priceUsd,
+            amount,
+            billingPeriod: billing,
             deviceId: deviceId || null,
             userId: uid || null,
             email: emailNorm,
@@ -2068,6 +2075,7 @@ function createPlansStore(dataDir, options = {}) {
             plan: p.plan,
             label: (PLAN_DEFS[p.plan] || {}).label || p.plan,
             amount: p.amount,
+            billingPeriod: p.billingPeriod || 'monthly',
             status: p.status, // waiting | approved | declined
             createdAt: p.createdAt || null,
             decidedAt: p.decidedAt || null,
@@ -2286,7 +2294,8 @@ function createPlansStore(dataDir, options = {}) {
         }
 
         const startsAt = new Date();
-        const endsAt = new Date(startsAt.getTime() + PAID_PERIOD_MS);
+        const periodMs = payment.billingPeriod === 'yearly' ? YEARLY_PERIOD_MS : PAID_PERIOD_MS;
+        const endsAt = new Date(startsAt.getTime() + periodMs);
         store.subscriptions[ownerKey] = {
             plan: stack.plan,
             phone,

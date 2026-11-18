@@ -7282,6 +7282,10 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 if (!isQuizReply && !isDocumentReply && String(finalText).trim()) {
                     parsedVisualization = parseInteractiveVisualization(finalText);
                     if (parsedVisualization) finalText = parsedVisualization.text || 'Here is an interactive visual to explore.';
+                    else if (lastUserForQuiz && isWaveSimulationRequest(lastUserForQuiz.content)) {
+                        parsedVisualization = createWaveSimulationFallback(lastUserForQuiz.content);
+                        finalText = parsedVisualization.text;
+                    }
                 }
                 if (!String(finalText).trim()) {
                     finalText = friendlyError(errMsg || 'empty reply');
@@ -7723,8 +7727,36 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         };
 
 
+        function isWaveSimulationRequest(text) {
+            const value = String(text || '');
+            return /\b(?:wave|waves|wavelength)\b[^.!?]{0,70}\b(?:sim|simulation|simulator|graph|visualization|animation)\b|\b(?:sim|simulation|simulator|simulate|graph|visualize)\b[^.!?]{0,70}\b(?:wave|waves|wavelength)\b/i.test(value);
+        }
+
+        function createWaveSimulationFallback(text) {
+            const value = String(text || '');
+            function readValue(label, fallback) {
+                const match = value.match(new RegExp('\\b' + label + '\\s*(?:of|=|:)?\\s*(\\d+(?:\\.\\d+)?)', 'i'));
+                return match ? Number(match[1]) : fallback;
+            }
+            return {
+                text: 'Here is an interactive wave simulator. Adjust frequency, amplitude, and wavelength, or play the wave to see how each value changes it.',
+                visualizations: [{
+                    type: 'wave',
+                    title: 'Interactive wave simulator',
+                    description: 'Wave speed = frequency × wavelength. Use the controls to explore the relationship.',
+                    amplitude: readValue('amplitude', 2),
+                    frequency: readValue('frequency', 1),
+                    wavelength: readValue('wavelength', 4),
+                    amplitudeUnit: 'cm',
+                    frequencyUnit: 'Hz',
+                    wavelengthUnit: 'm',
+                    time: 0
+                }]
+            };
+        }
+
         function interactiveVisualizationInstruction() {
-            return 'For education, math, or science, decide whether an interactive visual would make this answer clearer. If the user explicitly asks for a graph/simulation, always provide one. You may also add one proactively when it clearly helps explain a concept. For a wave simulation return type "wave" with title, description, amplitude, frequency, wavelength and units. For a function/data graph return type "graph" with xLabel, yLabel, and 20–60 numeric points [{x,y}]. Return exactly one JSON object {"type":"interactive_visualization","text":"short helpful explanation","visualizations":[...]}, with no markdown fences, if creating visuals. Otherwise answer normally in text. Quiz and downloadable document requests must keep their existing JSON formats and must not be replaced by a visualization. Never include executable code or HTML in JSON.';
+            return 'For education, math, or science, decide whether an interactive visual would make this answer clearer. If the user explicitly asks for a graph/simulation, return exactly one JSON object {"type":"interactive_visualization","text":"short helpful explanation","visualizations":[...]}. For a wave simulation use type "wave" with title, description, numeric amplitude, frequency, wavelength, and units. For a function/data graph use type "graph" with xLabel, yLabel, and 20–60 numeric points [{x,y}]. Do not return HTML, SVG markup, JavaScript, code, or markdown fences. You may also add a visual proactively when it clearly helps. If no visual helps, answer normally in text. Quiz and downloadable document requests keep their existing JSON formats.';
         }
 
         function parseInteractiveVisualization(text) {

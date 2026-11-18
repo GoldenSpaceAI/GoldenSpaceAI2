@@ -113,7 +113,7 @@ function contentSlide(s, slideNo, total) {
         c.push(textBox(id++, 'Statistic', 1.1, bodyY + 0.58, 4.45, 1.3, [para(s.stat, { size: 3300, color: 'D4AF37', bold: true, after: 0 })]));
         if (s.subtitle || s.body) c.push(textBox(id++, 'Statistic description', 1.16, bodyY + 2.1, 4.3, 0.9, [para(s.body || s.subtitle, { size: 1250, color: 'E2E7EC', after: 0 })]));
         const bullets = s.bullets.slice(0, 4);
-        if (bullets.length) c.push(textBox(id++, 'Statistic context', 6.2, bodyY + 0.1, 6.0, 3.2, bullets.map((b) => para('•  ' + b, { size: 1375, color: 'E9EDF1', after: 1050 })));
+        if (bullets.length) c.push(textBox(id++, 'Statistic context', 6.2, bodyY + 0.1, 6.0, 3.2, bullets.map((b) => para('•  ' + b, { size: 1375, color: 'E9EDF1', after: 1050 }))));
     } else {
         const bullets = s.bullets.slice(0, 6);
         const twoCols = bullets.length > 4;

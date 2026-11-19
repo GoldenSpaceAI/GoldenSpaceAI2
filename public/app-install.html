@@ -1,200 +1,95 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Install GoldenSpaceAI - Android App</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            background: linear-gradient(135deg, #0a0a0a, #1a1a0a, #0a0a0a);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-        }
-
-        .app-icon {
-            width: min(220px, 70%);
-            height: auto;
-            border-radius: 0;
-            margin-bottom: 20px;
-            object-fit: contain;
-            background: transparent;
-        }
-
-        h1 {
-            font-size: 28px;
-            color: #D4AF37;
-            margin-bottom: 8px;
-        }
-
-        .version {
-            color: #888;
-            font-size: 14px;
-            margin-bottom: 30px;
-        }
-
-        .download-btn {
-            display: inline-block;
-            background: linear-gradient(135deg, #D4AF37, #B8860B);
-            color: #0a0a0a;
-            padding: 18px 45px;
-            font-size: 20px;
-            font-weight: bold;
-            border-radius: 50px;
-            text-decoration: none;
-            box-shadow: 0 10px 40px rgba(212,175,55,0.3);
-            transition: 0.3s;
-            margin-bottom: 15px;
-            border: none;
-            cursor: pointer;
-        }
-
-        .download-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 15px 50px rgba(212,175,55,0.5);
-        }
-
-        .steps {
-            text-align: left;
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            padding: 25px;
-            margin-top: 30px;
-        }
-
-        .steps h3 {
-            color: #D4AF37;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .step {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 10px;
-            color: #ccc;
-            font-size: 14px;
-        }
-
-        .step-num {
-            background: #D4AF37;
-            color: #0a0a0a;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-
-        .warning {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-            color: #888;
-            font-size: 12px;
-            text-align: left;
-        }
-
-        @media (max-width: 480px) {
-            h1 { font-size: 24px; }
-            .download-btn { padding: 15px 35px; font-size: 18px; }
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101114">
+  <meta name="description" content="Install GoldenSpaceAI on your device for quick access.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="GoldenSpaceAI">
+  <title>Install GoldenSpaceAI</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/icon-192.png">
+  <style>
+    :root{color-scheme:dark;--gold:#e4c45d;--muted:#a8adb8;--line:#30333a;--surface:#191b20}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,#34301e 0,transparent 45%),#101114;color:#f5f5f6;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;padding:24px}
+    main{width:min(100%,560px);text-align:center}.brand{width:76px;height:76px;object-fit:contain;margin-bottom:12px}h1{font-size:clamp(28px,6vw,40px);line-height:1.1;margin:0 0 12px;letter-spacing:-.04em}.intro{color:var(--muted);margin:0 auto 26px;max-width:430px}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;text-align:left;box-shadow:0 20px 70px #0005}.card h2{font-size:18px;margin:0 0 6px}.card p{margin:0;color:var(--muted)}.steps{padding:0;margin:20px 0 0;list-style:none;counter-reset:step}.steps li{counter-increment:step;display:flex;gap:13px;align-items:flex-start;margin:15px 0;color:#e8e9ec}.steps li:before{content:counter(step);flex:0 0 27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#302b1a;color:var(--gold);font-weight:700;font-size:13px}.steps strong{color:#fff}.hint{font-size:13px!important;margin-top:18px!important;padding-top:15px;border-top:1px solid var(--line)}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:22px 0}.button{appearance:none;border:0;border-radius:12px;padding:13px 20px;background:var(--gold);color:#17150c;font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-decoration:none;cursor:pointer}.button.secondary{background:#282a30;color:#f4f4f5;border:1px solid #41434b}.button[hidden]{display:none}a.home{display:inline-block;color:var(--muted);margin-top:16px;text-decoration:none}a.home:hover{color:#fff}
+    @media(max-width:480px){body{padding:18px}.card{padding:19px;border-radius:16px}.brand{width:64px;height:64px}}
+  </style>
 </head>
 <body>
-    <div class="container">
-        <img src="/logo.png?v=20261003" alt="GoldenSpaceAI" class="app-icon" onerror="this.style.display='none'">
-        <h1>GoldenSpaceAI</h1>
-        <p class="version">Version 1.0 · Android App</p>
-
-        <button type="button" class="download-btn" id="pwaInstallBtn" style="display:none;">
-            📲 Install App
-        </button>
-        <p id="pwaHint" style="color:#aaa;font-size:13px;margin-bottom:18px;display:none;">One-tap install to your home screen</p>
-
-        <!-- DIRECT DOWNLOAD BUTTON -->
-        <a href="YOUR_GOOGLE_DRIVE_LINK_HERE" class="download-btn" id="downloadBtn">
-            📱 Download APK
-        </a>
-
-        <div class="steps">
-            <h3>📱 How to Install</h3>
-            <div class="step">
-                <span class="step-num">1</span>
-                <span>Tap the <strong>Download APK</strong> button above</span>
-            </div>
-            <div class="step">
-                <span class="step-num">2</span>
-                <span>Open the downloaded file from notifications</span>
-            </div>
-            <div class="step">
-                <span class="step-num">3</span>
-                <span>Tap <strong>Settings</strong> → Allow install from this source</span>
-            </div>
-            <div class="step">
-                <span class="step-num">4</span>
-                <span>Tap <strong>Install</strong> → Open & enjoy!</span>
-            </div>
-        </div>
-
-        <div class="warning">
-            ⚠️ <strong>Note:</strong> You may see "Blocked by Play Protect." This is normal. Tap <strong>"More details"</strong> → <strong>"Install anyway"</strong>.
-        </div>
+  <main>
+    <img class="brand" src="/apple-touch-icon.png" alt="GoldenSpaceAI">
+    <h1>Take GoldenSpaceAI with you</h1>
+    <p class="intro">Add it to your Home Screen or install it from your browser for quick, app-like access.</p>
+    <div class="actions">
+      <button class="button" id="installButton" type="button" hidden>Install GoldenSpaceAI</button>
+      <a class="button secondary" href="/">Open GoldenSpaceAI</a>
     </div>
-
-    <script>
-        let deferredPrompt = null;
-        const pwaBtn = document.getElementById('pwaInstallBtn');
-        const pwaHint = document.getElementById('pwaHint');
-        const downloadBtn = document.getElementById('downloadBtn');
-
-        window.addEventListener('beforeinstallprompt', function(e) {
-            e.preventDefault();
-            deferredPrompt = e;
-            pwaBtn.style.display = 'inline-block';
-            pwaHint.style.display = 'block';
-        });
-
-        pwaBtn.addEventListener('click', async function() {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            try {
-                await deferredPrompt.userChoice;
-            } catch (err) {}
-            deferredPrompt = null;
-            pwaBtn.style.display = 'none';
-            pwaHint.style.display = 'none';
-        });
-
-        // Auto-detect device and suggest best option
-        if (/Android/i.test(navigator.userAgent)) {
-            downloadBtn.style.display = 'inline-block';
-        } else if (/iPhone|iPad/i.test(navigator.userAgent)) {
-            downloadBtn.textContent = '📱 Add to Home Screen';
-            downloadBtn.href = '#';
-            downloadBtn.onclick = function() {
-                alert('On iPhone/iPad:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down → "Add to Home Screen"\n3. Tap Add');
-                return false;
-            };
+    <section class="card" aria-live="polite">
+      <h2 id="guideTitle">Add to your device</h2>
+      <p id="guideLead">Choose your browser's share or menu button.</p>
+      <ol class="steps" id="guideSteps"></ol>
+      <p class="hint" id="guideHint"></p>
+    </section>
+    <a class="home" href="/">Back to GoldenSpaceAI</a>
+  </main>
+  <script>
+    (function(){
+      var ua=navigator.userAgent||'';
+      var ios=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+      var android=/Android/i.test(ua);
+      var chrome=/CriOS|Chrome/i.test(ua);
+      var title=document.getElementById('guideTitle');
+      var lead=document.getElementById('guideLead');
+      var list=document.getElementById('guideSteps');
+      var hint=document.getElementById('guideHint');
+      var button=document.getElementById('installButton');
+      function show(heading,description,steps,note){
+        title.textContent=heading;lead.textContent=description;
+        steps.forEach(function(step){var li=document.createElement('li');li.textContent=step;list.appendChild(li)});
+        hint.textContent=note;
+      }
+      if(ios){
+        if(chrome){
+          show('Install from Chrome on iPhone or iPad','Chrome adds the site to your Home Screen from its Share menu.',[
+            'Open this page in Chrome on your iPhone or iPad.',
+            'Tap the Share button beside the address bar.',
+            'Choose “Add to Home Screen”. If it is not visible, scroll the share options.',
+            'Keep the name GoldenSpaceAI, then tap “Add”.'
+          ],'This creates a Home Screen app shortcut; iOS does not download an APK.');
+        }else{
+          show('Install from Safari on iPhone or iPad','Add GoldenSpaceAI directly to your Home Screen.',[
+            'Tap the Share button in Safari.',
+            'Scroll down and tap “Add to Home Screen”.',
+            'Turn on “Open as Web App” if shown, then tap “Add”.'
+          ],'If “Add to Home Screen” is missing, scroll to Edit Actions and add it.');
         }
-    </script>
+      }else if(android){
+        show('Install on Android','Use the browser’s install option to add GoldenSpaceAI to your device.',[
+          'Tap “Install GoldenSpaceAI” if the button appears.',
+          'Otherwise open the browser menu (⋮) and choose “Install app” or “Add to Home screen”.',
+          'Confirm the install.'
+        ],'No separate APK download is needed.');
+      }else{
+        show('Install on your computer','Use the browser’s built-in install option for an app window.',[
+          'Click “Install GoldenSpaceAI” if the button appears.',
+          'Otherwise open your browser menu and choose “Install page as app” or “Install GoldenSpaceAI”.'
+        ],'The install option depends on browser support. You can always open the website directly.');
+      }
+      var deferred=null;
+      window.addEventListener('beforeinstallprompt',function(event){event.preventDefault();deferred=event;button.hidden=false});
+      button.addEventListener('click',async function(){
+        if(!deferred)return;
+        var prompt=deferred;deferred=null;button.hidden=true;
+        try{await prompt.prompt();await prompt.userChoice}catch(_){button.hidden=false}
+      });
+      window.addEventListener('appinstalled',function(){button.hidden=true});
+      if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
+    })();
+  </script>
 </body>
 </html>

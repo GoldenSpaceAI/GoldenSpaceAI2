@@ -9874,7 +9874,10 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         function openInstallHelp() {
             if (!installHelpOverlay || !installHelpBody) return;
             if (isIosInstallDevice()) {
-                installHelpBody.textContent = 'On iPhone or iPad, tap Share, then tap Add to Home Screen.';
+                var isChromeIos = /CriOS/i.test(navigator.userAgent || '');
+                installHelpBody.textContent = isChromeIos
+                    ? 'In Chrome on iPhone or iPad, tap the Share button beside the address bar, choose “Add to Home Screen” (scroll the options if needed), then tap “Add”. iOS adds it from the Home Screen; it is not an APK download.'
+                    : 'On iPhone or iPad, tap Share, choose “Add to Home Screen”, turn on “Open as Web App” if shown, then tap “Add”.';
             } else {
                 installHelpBody.textContent = 'Open the browser menu, then choose Add to Home Screen or Install app.';
             }

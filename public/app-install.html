@@ -12,30 +12,31 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="icon" href="/icon-192.png">
   <style>
-    :root{color-scheme:dark;--gold:#e4c45d;--muted:#a8adb8;--line:#30333a;--surface:#191b20}
+    :root{color-scheme:dark;--gold:#e4c45d;--muted:#a8adb8;--line:#30333a;--surface:#191b20;--surface-2:#202228}
     *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,#34301e 0,transparent 45%),#101114;color:#f5f5f6;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;padding:24px}
-    main{width:min(100%,560px);text-align:center}.brand{width:76px;height:76px;object-fit:contain;margin-bottom:12px}h1{font-size:clamp(28px,6vw,40px);line-height:1.1;margin:0 0 12px;letter-spacing:-.04em}.intro{color:var(--muted);margin:0 auto 26px;max-width:430px}
-    .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;text-align:left;box-shadow:0 20px 70px #0005}.card h2{font-size:18px;margin:0 0 6px}.card p{margin:0;color:var(--muted)}.steps{padding:0;margin:20px 0 0;list-style:none;counter-reset:step}.steps li{counter-increment:step;display:flex;gap:13px;align-items:flex-start;margin:15px 0;color:#e8e9ec}.steps li:before{content:counter(step);flex:0 0 27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#302b1a;color:var(--gold);font-weight:700;font-size:13px}.steps strong{color:#fff}.hint{font-size:13px!important;margin-top:18px!important;padding-top:15px;border-top:1px solid var(--line)}
-    .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:22px 0}.button{appearance:none;border:0;border-radius:12px;padding:13px 20px;background:var(--gold);color:#17150c;font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-decoration:none;cursor:pointer}.button.secondary{background:#282a30;color:#f4f4f5;border:1px solid #41434b}.button[hidden]{display:none}a.home{display:inline-block;color:var(--muted);margin-top:16px;text-decoration:none}a.home:hover{color:#fff}
+    main{width:min(100%,620px)}.hero{text-align:center;padding:8px 12px 26px}.brand{width:70px;height:70px;object-fit:contain;margin-bottom:14px}h1{font-size:clamp(28px,6vw,40px);line-height:1.1;margin:0 0 12px;letter-spacing:-.04em}.intro{color:var(--muted);margin:0 auto;max-width:440px}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;text-align:left;box-shadow:0 20px 70px #0005}.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.card h2{font-size:18px;margin:0 0 6px}.card p{margin:0;color:var(--muted)}.badge{color:var(--gold);background:#302b1a;border:1px solid #5d4c20;border-radius:99px;padding:5px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+    .steps{padding:0;margin:20px 0 0;list-style:none;counter-reset:step}.steps li{counter-increment:step;display:flex;gap:13px;align-items:flex-start;margin:14px 0;color:#e8e9ec}.steps li:before{content:counter(step);flex:0 0 27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#302b1a;color:var(--gold);font-weight:700;font-size:13px}.hint{font-size:13px!important;margin-top:18px!important;padding-top:15px;border-top:1px solid var(--line)}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 0}.button{appearance:none;border:0;border-radius:12px;padding:13px 20px;background:var(--gold);color:#17150c;font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-decoration:none;cursor:pointer}.button.secondary{background:var(--surface-2);color:#f4f4f5;border:1px solid #41434b}.button[hidden]{display:none}.footer{text-align:center}a.home{display:inline-block;color:var(--muted);margin-top:18px;text-decoration:none}a.home:hover{color:#fff}
     @media(max-width:480px){body{padding:18px}.card{padding:19px;border-radius:16px}.brand{width:64px;height:64px}}
   </style>
 </head>
 <body>
   <main>
-    <img class="brand" src="/apple-touch-icon.png" alt="GoldenSpaceAI">
-    <h1>Take GoldenSpaceAI with you</h1>
-    <p class="intro">Add it to your Home Screen or install it from your browser for quick, app-like access.</p>
-    <div class="actions">
-      <button class="button" id="installButton" type="button" hidden>Install GoldenSpaceAI</button>
-      <a class="button secondary" href="/">Open GoldenSpaceAI</a>
-    </div>
+    <header class="hero">
+      <img class="brand" src="/apple-touch-icon.png" alt="GoldenSpaceAI">
+      <h1>Install GoldenSpaceAI</h1>
+      <p class="intro">Get quick, app-like access from your phone, tablet, or computer.</p>
+    </header>
     <section class="card" aria-live="polite">
-      <h2 id="guideTitle">Add to your device</h2>
+      <div class="card-head"><div><h2 id="guideTitle">Add to your device</h2>
       <p id="guideLead">Choose your browser's share or menu button.</p>
+      </div><span class="badge">SECURE WEB APP</span></div>
       <ol class="steps" id="guideSteps"></ol>
       <p class="hint" id="guideHint"></p>
     </section>
-    <a class="home" href="/">Back to GoldenSpaceAI</a>
+    <div class="actions"><button class="button" id="installButton" type="button" hidden>Install GoldenSpaceAI</button><a class="button secondary" href="/">Open GoldenSpaceAI</a></div>
+    <footer class="footer"><a class="home" href="/">Back to GoldenSpaceAI</a></footer>
   </main>
   <script>
     (function(){

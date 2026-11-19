@@ -6,6 +6,7 @@
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const webpush = require('web-push');
+const { renderBrandedEmail } = require('./mail');
 
 const SESSION_COOKIE = 'gsa_session';
 const SESSION_DAYS = 30;
@@ -488,8 +489,15 @@ function createAuth(options = {}) {
             return { ok: false, error: 'Email login is not configured. Set RESEND_API_KEY.' };
         }
         const subject = 'GoldenSpaceAI login code';
-        const text = `Your GoldenSpaceAI login code is: ${code}\n\nDon't share this code with anyone. If you didn't request it, please ignore this message.\n\n— GoldenSpaceAI Team`;
-        const html = `<p>Your GoldenSpaceAI login code is:</p><p style="font-size:28px;letter-spacing:6px;font-weight:700;">${code}</p><p>Don't share this code with anyone. If you didn't request it, please ignore this message.</p><p>— GoldenSpaceAI Team</p>`;
+        const text = `Your GoldenSpaceAI sign-in code is: ${code}\n\nThis code expires in 10 minutes. Never share it with anyone. If you did not request it, you can ignore this email.\n\nGoldenSpaceAI Support`;
+        const html = renderBrandedEmail({
+            preheader: 'Your secure sign-in code is ready.',
+            title: 'Sign in to GoldenSpaceAI',
+            paragraphs: ['Enter this code on the sign-in page to continue.', 'It expires in 10 minutes. Never share it with anyone, including GoldenSpaceAI staff. If you did not request it, you can ignore this email.'],
+            status: { label: 'Sign-in verification', tone: 'neutral' },
+            details: [{ label: 'Your sign-in code', value: code, kind: 'code' }],
+            footer: 'This one-time code can only be used once.'
+        });
 
         const from = emailFromAddress();
         const resp = await fetch('https://api.resend.com/emails', {
@@ -524,18 +532,24 @@ function createAuth(options = {}) {
         if (!norm || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm)) {
             return { ok: false, skipped: true, error: 'No email' };
         }
-        const whenUtc = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
-        const subject = 'New login to your GoldenSpaceAI account';
+        const when = new Intl.DateTimeFormat('en-US', {
+            dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Beirut'
+        }).format(new Date()) + ' Beirut time';
+        const subject = 'New sign-in to your GoldenSpaceAI account';
         const text =
-            `Someone just signed in to your GoldenSpaceAI account.\n\n` +
-            `Time: ${whenUtc}\n\n` +
-            `If this was you, you can ignore this message. If you did not sign in, consider securing your email account.\n\n` +
-            `— GoldenSpaceAI Team`;
-        const html =
-            `<p>Someone just signed in to your GoldenSpaceAI account.</p>` +
-            `<p><strong>Time:</strong> ${whenUtc}</p>` +
-            `<p>If this was you, you can ignore this message. If you did not sign in, consider securing your email account.</p>` +
-            `<p>— GoldenSpaceAI Team</p>`;
+            `A new sign-in to your GoldenSpaceAI account was detected.\n\n` +
+            `Time: ${when}\n\n` +
+            `If this was you, no action is needed. If you do not recognize this sign-in, secure your email account and contact support.\n\n` +
+            `GoldenSpaceAI Support`;
+        const html = renderBrandedEmail({
+            preheader: 'A new sign-in to your account was detected.',
+            title: 'New sign-in to your account',
+            paragraphs: ['A new sign-in to your GoldenSpaceAI account was detected.', 'If this was you, no action is needed. If you do not recognize this sign-in, secure your email account and contact support.'],
+            status: { label: 'Account security notice', tone: 'warning' },
+            details: [{ label: 'Time', value: when }],
+            action: { label: 'Open GoldenSpaceAI', url: 'https://www.goldenspaceai.space/' },
+            footer: 'This security notice is sent when a new sign-in is detected.'
+        });
         const from = emailFromAddress();
         const resp = await fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -1151,7 +1165,13 @@ function createAuth(options = {}) {
                 const url = base + '/api/email/unsubscribe?uid=' + encodeURIComponent(uid) + '&token=' + encodeURIComponent(token);
                 return {
                     from, to: [user.email], subject: safeTitle,
-                    html: '<main style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#242424"><h2>' + safe(safeTitle) + '</h2><p style="line-height:1.6">' + htmlMessage + '</p><hr><p style="font-size:12px;color:#666">GoldenSpaceAI account announcement. <a href="' + url + '">Unsubscribe from announcement emails</a>.</p></main>',
+                    html: renderBrandedEmail({
+                        preheader: safeTitle,
+                        title: safeTitle,
+                        paragraphs: [safeMessage],
+                        footer: 'You are receiving this account announcement because email announcements are enabled in your preferences.',
+                        footerLink: { label: 'Unsubscribe from announcement emails', url: url }
+                    }),
                     text: safeTitle + '\n\n' + safeMessage + '\n\nUnsubscribe: ' + url,
                     headers: { 'List-Unsubscribe': '<' + url + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
                 };

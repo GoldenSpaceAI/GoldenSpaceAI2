@@ -1086,7 +1086,15 @@ function createAuth(options = {}) {
         const safe = text => String(text || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
         const safeTitle = String(title || 'GoldenSpaceAI usage update').slice(0, 120);
         const safeMessage = String(message || '').slice(0, 4000);
-        const html = '<main style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#242424"><h2>' + safe(safeTitle) + '</h2><p style="line-height:1.6">' + safe(safeMessage).replace(/\r?\n/g, '<br>') + '</p><hr><p style="font-size:12px;color:#666">Manage this email preference: <a href="' + url + '">unsubscribe</a>.</p></main>';
+        const html = renderBrandedEmail({
+            preheader: safeTitle,
+            title: safeTitle,
+            paragraphs: [safeMessage],
+            status: { label: 'Account update', tone: 'neutral' },
+            action: { label: 'Open GoldenSpaceAI', url: base + '/' },
+            footer: 'This account notice was also saved in your GoldenSpaceAI notifications.',
+            footerLink: { label: 'Unsubscribe from announcement emails', url: url }
+        });
         const response = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: 'Bearer ' + env('RESEND_API_KEY'), 'Content-Type': 'application/json' },

@@ -1058,6 +1058,11 @@ function isOfficeDocumentPrompt(body) {
         && /\b(?:presentation|powerpoint|pptx|slides?|word|docx|document|report|handout|essay)\b/i.test(text) && !/\bword\s+problem\b/i.test(text);
 }
 
+function isRunnableCodePrompt(body) {
+    const text = latestUserPromptText(body);
+    return /(?:complete|single|one)\s+self-contained\s+html|embedded\s+css\s+and\s+javascript|begin(?:ning)?\s+with\s+<!doctype\s+html>|runnable\s+(?:html|preview|project)/i.test(text);
+}
+
 async function resolveContextPack(req) {
     const body = req.body || {};
     const user = auth && auth.readUserFromReq(req);
@@ -1492,6 +1497,11 @@ app.post('/api/chat', async (req, res) => {
             content: 'You are ' + identityName + ', part of GoldenSpaceAI. ' + identityInstructions + ' When asked about the underlying provider, answer truthfully: Fast normally uses DeepSeek and can fall back to Grok; Thinking and Expert use Grok. Never say you are OpenAI or ChatGPT. Do not invent capabilities beyond this mode description.'
         });
         const useWebSearch = webSearch === true;
+        const structuredRequest = isQuizGenerationPrompt(req.body)
+            ? 'quiz'
+            : (isOfficeDocumentPrompt(req.body)
+                ? 'document'
+                : (isRunnableCodePrompt(req.body) ? 'code' : null));
 
         console.log(`Mode: ${safeMode} | Provider: ${target.provider} | Model: ${target.config.model} | Web: ${useWebSearch ? 'ON' : 'OFF'} | msgs: ${conversationMessages.length} | planKind=${usageKind}${autoTitle ? ' | autoTitle' : ''}`);
 
@@ -1553,6 +1563,12 @@ app.post('/api/chat', async (req, res) => {
                     ...chatTokenLimitParams(provider, config.maxTokens),
                     ...chatTemperatureParams(provider, config.model, config.temperature),
                 };
+                if (structuredRequest) {
+                    createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
+                    if (structuredRequest !== 'code' && ['deepseek', 'grok'].includes(provider)) {
+                        createArgs.response_format = { type: 'json_object' };
+                    }
+                }
                 let completion = await withTimeout(
                     client.chat.completions.create(createArgs),
                     UPSTREAM_TIMEOUT_MS,
@@ -1810,7 +1826,7 @@ app.post('/api/chat/stream', async (req, res) => {
             }
         }
 
-        const structuredRequest = isQuizGenerationPrompt(req.body) ? 'quiz' : (isOfficeDocumentPrompt(req.body) ? 'document' : null);
+        const structuredRequest = isQuizGenerationPrompt(req.body) ? 'quiz' : (isOfficeDocumentPrompt(req.body) ? 'document' : (isRunnableCodePrompt(req.body) ? 'code' : null));
         const abortCtrl = new AbortController();
         const timeoutId = setTimeout(() => abortCtrl.abort(), UPSTREAM_TIMEOUT_MS);
         let clientClosed = false;
@@ -1833,7 +1849,7 @@ app.post('/api/chat/stream', async (req, res) => {
             };
             if (structuredRequest) {
                 createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
-                if (['deepseek', 'grok'].includes(activeConfig.provider || provider)) createArgs.response_format = { type: 'json_object' };
+                if (structuredRequest !== 'code' && ['deepseek', 'grok'].includes(activeConfig.provider || provider)) createArgs.response_format = { type: 'json_object' };
             }
             if (safeMode === 'smart') createArgs.reasoning_effort = 'high';
             return activeClient.chat.completions.create(createArgs, { signal: abortCtrl.signal });
@@ -1848,7 +1864,7 @@ app.post('/api/chat/stream', async (req, res) => {
             };
             if (structuredRequest) {
                 fallbackArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
-                if (['deepseek', 'grok'].includes(activeConfig.provider || provider)) fallbackArgs.response_format = { type: 'json_object' };
+                if (structuredRequest !== 'code' && ['deepseek', 'grok'].includes(activeConfig.provider || provider)) fallbackArgs.response_format = { type: 'json_object' };
             }
             if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
             const completion = await withTimeout(

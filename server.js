@@ -3598,6 +3598,37 @@ app.post('/api/studio/edit-image', async (req, res) => {
     }
 });
 
+app.get('/api/studio/image-download', async (req, res) => {
+    try {
+        const raw = String(req.query.url || '').trim();
+        const parsed = new URL(raw);
+        const host = parsed.hostname.toLowerCase();
+        const allowed = host === 'images.pexels.com' || host.endsWith('.pexels.com') || host === 'imgen.x.ai' || host.endsWith('.x.ai');
+        if (parsed.protocol !== 'https:' || !allowed) return res.status(400).json({ error: 'This image source cannot be downloaded.' });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
+        let response;
+        try {
+            response = await fetch(parsed.toString(), { signal: controller.signal });
+        } finally {
+            clearTimeout(timeout);
+        }
+        if (!response.ok) return res.status(502).json({ error: 'The image source is temporarily unavailable.' });
+        const type = String(response.headers.get('content-type') || 'image/jpeg').split(';')[0];
+        if (!type.startsWith('image/')) return res.status(400).json({ error: 'The requested file is not an image.' });
+        const data = Buffer.from(await response.arrayBuffer());
+        if (data.length > 20 * 1024 * 1024) return res.status(413).json({ error: 'This image is too large to download.' });
+        const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
+        res.setHeader('Content-Type', type);
+        res.setHeader('Content-Disposition', 'attachment; filename="GoldenSpaceAI-image.' + ext + '"');
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        return res.send(data);
+    } catch (error) {
+        console.error('studio image download:', error.message);
+        return res.status(400).json({ error: 'The image could not be downloaded.' });
+    }
+});
+
 // ==================== PEXELS IMAGINE SEARCH ====================
 const imagineRateBuckets = new Map();
 const imagineCache = new Map();

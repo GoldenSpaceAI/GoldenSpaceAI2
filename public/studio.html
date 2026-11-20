@@ -12,7 +12,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 .sidebar{border-right:1px solid var(--line);background:color-mix(in srgb,var(--panel) 93%,transparent);padding:18px 14px;display:flex;flex-direction:column;gap:18px;min-width:0}
 .logo{display:flex;align-items:center;gap:11px;color:inherit;text-decoration:none;padding:6px}.logo-mark{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#f5d96c,#a57813);display:grid;place-items:center;color:#191304;font-weight:950}.logo strong{font-size:15px}
 .new-chat{width:100%;border:1px solid var(--line);background:var(--panel2);color:inherit;border-radius:13px;padding:11px 12px;text-align:left;cursor:pointer;font-weight:750}.new-chat:hover{border-color:rgba(221,184,63,.55)}
-.side-label{font-size:12px;color:var(--muted);letter-spacing:.09em;font-weight:800;padding:0 8px}.side-nav{display:grid;gap:5px}.side-nav a{color:var(--muted);text-decoration:none;padding:10px 11px;border-radius:10px}.side-nav a:hover,.side-nav a.active{color:var(--text);background:var(--panel2)}.side-foot{margin-top:auto;display:grid;gap:6px}
+.side-label{font-size:12px;color:var(--muted);letter-spacing:.09em;font-weight:800;padding:0 8px}.side-nav{display:grid;gap:5px}.side-nav a{color:var(--muted);text-decoration:none;padding:10px 11px;border-radius:10px}.side-nav a:hover,.side-nav a.active{color:var(--text);background:var(--panel2)}.account-card{margin-top:auto;border:1px solid rgba(221,184,63,.24);background:linear-gradient(145deg,rgba(221,184,63,.09),rgba(221,184,63,.025));border-radius:16px;padding:13px;display:grid;gap:8px}.account-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.account-top strong{font-size:16px;color:#e2bd43}.account-top span{font-size:10px;font-weight:900;letter-spacing:.09em;border:1px solid rgba(221,184,63,.38);color:#e2bd43;padding:3px 6px;border-radius:999px}.account-usage,.studio-usage{font-size:12px;color:var(--muted)}.usage-track{height:6px;border-radius:99px;background:var(--panel2);overflow:hidden}.usage-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#a87914,#edcc55);border-radius:inherit}.account-email{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.account-card a{color:#e5c450;text-decoration:none;font-size:12px;font-weight:800}.top-plan{color:#e4c654;text-decoration:none;border:1px solid rgba(221,184,63,.28);background:rgba(221,184,63,.07);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:850}.side-foot{display:grid;gap:6px}
 .workspace{position:relative;min-width:0;display:flex;flex-direction:column;height:100dvh;background:radial-gradient(circle at 50% 0,rgba(221,184,63,.045),transparent 34%)}
 .topbar{height:64px;padding:0 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);flex:0 0 auto}.title-line{display:flex;align-items:center;gap:10px}.title-line strong{font-size:15px}.badge{font-size:11px;font-weight:850;letter-spacing:.08em;color:#f5d76b;background:rgba(221,184,63,.1);border:1px solid rgba(221,184,63,.24);padding:4px 7px;border-radius:999px}.top-actions{display:flex;gap:7px}.icon-btn{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:10px;padding:8px 10px;cursor:pointer}
 .chat{flex:1;overflow:auto;padding:28px max(24px,calc((100% - 820px)/2)) 170px;scroll-behavior:smooth}.empty{min-height:62vh;display:grid;place-content:center;text-align:center}.orb{width:52px;height:52px;margin:0 auto 18px;border-radius:17px;background:linear-gradient(145deg,#f1d66a,#a87812);box-shadow:0 15px 50px rgba(221,184,63,.18);display:grid;place-items:center;color:#1b1505;font-size:24px;font-weight:900}.empty h1{font-size:30px;letter-spacing:-.035em;margin:0 0 8px}.empty p{color:var(--muted);max-width:540px;margin:0 auto 22px}.starter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-width:650px}.starter{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;padding:13px;text-align:left;cursor:pointer}.starter span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
@@ -24,7 +24,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 .plus-menu{position:absolute;left:10px;bottom:73px;width:280px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);display:none;z-index:20}.plus-menu.open{display:block}.tool{width:100%;border:0;background:transparent;color:inherit;padding:10px;border-radius:10px;display:grid;grid-template-columns:34px 1fr;text-align:left;cursor:pointer}.tool:hover{background:var(--panel2)}.tool-icon{width:29px;height:29px;border-radius:9px;background:rgba(221,184,63,.11);color:#e6c556;display:grid;place-items:center}.tool strong,.tool small{display:block}.tool small{color:var(--muted);font-size:12px;margin-top:1px}
 .preview{display:none;height:100dvh;border-left:1px solid var(--line);background:var(--panel);min-width:0}.preview-open .preview{display:flex;flex-direction:column}.preview-head{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px}.preview-title{min-width:0}.preview-title strong,.preview-title span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.preview-title span{font-size:12px;color:var(--muted)}.preview-actions{display:flex;gap:7px}.preview-actions button{border:1px solid var(--line);background:var(--panel2);color:inherit;padding:8px 10px;border-radius:9px;cursor:pointer;font-size:13px}.preview-body{flex:1;overflow:auto;padding:22px;background:var(--bg)}
 .doc-page{max-width:760px;min-height:900px;margin:0 auto;background:white;color:#1a1a1a;border-radius:4px;padding:64px 70px;box-shadow:0 10px 40px #0004}.doc-page h1{font-size:34px;line-height:1.15;margin:0 0 10px}.doc-page .subtitle{color:#766328;font-size:17px;margin-bottom:40px}.doc-section{margin:0 0 30px}.doc-section h2{font-size:21px;margin:0 0 10px}.doc-section p,.doc-section li{font-size:15px;line-height:1.7}.slide{position:relative;aspect-ratio:16/9;max-width:920px;margin:0 auto 22px;padding:7% 8%;overflow:hidden;border-radius:12px;background:radial-gradient(circle at 88% 12%,rgba(221,184,63,.22),transparent 28%),linear-gradient(145deg,#111521,#252b3e);color:white;box-shadow:0 14px 45px #0005;border:1px solid rgba(255,255,255,.08)}.slide:after{content:'';position:absolute;right:-8%;bottom:-22%;width:38%;aspect-ratio:1;border-radius:50%;background:rgba(221,184,63,.08)}.deck-viewer{min-height:100%;display:grid;grid-template-rows:1fr auto;gap:14px}.deck-canvas{display:grid;place-items:center;min-height:0}.deck-nav{display:flex;align-items:center;justify-content:center;gap:12px;position:sticky;bottom:0;padding:10px;border:1px solid var(--line);border-radius:13px;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(14px)}.deck-nav button{border:1px solid var(--line);background:var(--panel2);color:inherit;padding:8px 13px;border-radius:9px;cursor:pointer}.deck-nav span{min-width:120px;text-align:center;color:var(--muted);font-size:13px}.slide .eyebrow{color:#e2bd43;font-size:12px;letter-spacing:.15em}.slide h2{font-size:clamp(24px,3.4vw,46px);line-height:1.08;margin:12px 0}.slide li{margin:7px 0;color:#d8dbe2}
-.generated-image{max-width:100%;max-height:calc(100dvh - 150px);display:block;margin:auto;border-radius:14px;box-shadow:var(--shadow)}.media-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.media-card{background:var(--panel2);border-radius:12px;overflow:hidden}.media-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}.media-card a{display:block;color:inherit;text-decoration:none;padding:9px;font-size:12px}.code-preview{display:grid;grid-template-rows:minmax(220px,.8fr) minmax(260px,1.2fr);height:100%;gap:12px}.code-preview pre{margin:0;overflow:auto;padding:18px;border-radius:12px;background:#090b10;color:#dfe4ee;font:13px/1.55 ui-monospace,SFMono-Regular,monospace}.code-preview iframe{width:100%;height:100%;border:1px solid var(--line);border-radius:12px;background:white}
+.generated-image{max-width:100%;max-height:calc(100dvh - 150px);display:block;margin:auto;border-radius:14px;box-shadow:var(--shadow)}.media-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.media-card{background:var(--panel2);border-radius:12px;overflow:hidden}.media-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}.media-actions{display:flex;gap:6px;padding:8px}.media-card a,.media-card button{display:block;color:inherit;text-decoration:none;padding:7px 8px;font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer}.media-card button{color:#e2bd43}.code-preview{display:grid;grid-template-rows:minmax(220px,.8fr) minmax(260px,1.2fr);height:100%;gap:12px}.code-preview pre{margin:0;overflow:auto;padding:18px;border-radius:12px;background:#090b10;color:#dfe4ee;font:13px/1.55 ui-monospace,SFMono-Regular,monospace}.code-preview iframe{width:100%;height:100%;border:1px solid var(--line);border-radius:12px;background:white}
 .notice{padding:11px 13px;border:1px solid rgba(221,184,63,.22);background:rgba(221,184,63,.07);border-radius:11px;color:#dfc569;font-size:13px}
 .mobile-menu{display:none}
 @media(max-width:1180px){.app,.app.preview-open{grid-template-columns:74px 1fr}.sidebar{padding:16px 10px}.logo span,.new-chat span,.side-label,.side-nav span{display:none}.new-chat{text-align:center}.preview{position:fixed;inset:0 0 0 74px;z-index:30}.composer-wrap,.preview-open .composer-wrap{left:0;right:0}}
@@ -38,10 +38,18 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
  <a class="logo" href="/"><div class="logo-mark">G</div><span><strong>GoldenSpaceAI</strong><small style="display:block;color:var(--muted)">Studio</small></span></a>
  <button class="new-chat" id="newChat">＋ <span>New Studio chat</span></button>
  <div><div class="side-label">WORKSPACE</div><nav class="side-nav"><a class="active" href="/studio"><span>Studio chat</span></a><a href="/"><span>Standard chat</span></a><a href="/my-plan"><span>Usage & plan</span></a></nav></div>
+ <section class="account-card" id="accountCard">
+  <div class="account-top"><strong id="accountPlan">Loading…</strong><span id="accountBadge">—</span></div>
+  <div class="account-usage" id="accountUsage">Checking usage</div>
+  <div class="usage-track"><i id="usageFill"></i></div>
+  <div class="studio-usage" id="studioUsage">Studio images · —</div>
+  <div class="account-email" id="accountEmail">Account</div>
+  <a id="accountAction" href="/my-plan">View usage & plan</a>
+ </section>
  <div class="side-foot"><nav class="side-nav"><a href="/upgrade"><span>Upgrade plan</span></a><a href="/"><span>Back to GoldenSpaceAI</span></a></nav></div>
 </aside>
 <main class="workspace">
- <header class="topbar"><div class="title-line"><button class="icon-btn mobile-menu" onclick="location.href='/'">☰</button><strong>Studio</strong><span class="badge">ADVANCED</span></div><div class="top-actions"><button class="icon-btn" id="themeBtn">Light</button><button class="icon-btn" id="previewToggle" style="display:none">Preview</button></div></header>
+ <header class="topbar"><div class="title-line"><button class="icon-btn mobile-menu" onclick="location.href='/'">☰</button><strong>Studio</strong><span class="badge">ADVANCED</span></div><div class="top-actions"><a class="top-plan" id="topPlan" href="/my-plan">Usage</a><button class="icon-btn" id="themeBtn">Light</button><button class="icon-btn" id="previewToggle" style="display:none">Preview</button></div></header>
  <section class="chat" id="chat">
   <div class="empty" id="empty">
    <div><div class="orb">✦</div><h1>What should we create?</h1><p>Chat normally, or use the plus button to create documents, images, presentations, find media, and build runnable code—all in one conversation.</p>
@@ -140,6 +148,7 @@ async function sendMessage(){
  try{
   if(pending){await continueTask(text)}
   else if(selectedTool){await beginTask(selectedTool,text)}
+  else if(currentArtifact&&looksLikeArtifactEdit(text)){await editCurrentArtifact(text)}
   else await generalChat(text)
  }catch(e){add('assistant',e.message||'Something went wrong. Please try again.')}
  finally{busy=false;$('send').disabled=false;thinking(false)}
@@ -162,11 +171,11 @@ async function continueTask(details){
 async function planStudioTask(){
  const task=pending;if(!task)return;
  const kindNames={document:'PDF or Word document',presentation:'presentation',image:'AI image',code:'runnable code project'};
- const plannerPrompt='You are the planning intelligence inside GoldenSpaceAI Studio. The user wants to create a '+kindNames[task.type]+' about: "'+task.topic+'". Their additional answers so far are: "'+(task.details||'none yet')+'". Decide whether essential information is genuinely missing. Ask only for information that materially changes the result. Accept broad answers: "people" or "everyone" means a general-public audience. Infer sensible defaults instead of interrogating the user. Never repeat a question they already answered. For presentations, normally topic plus slide count plus a style is enough; audience can be inferred. For documents, topic plus format and approximate length is enough. For images, a clear visual request may be enough without questions. For code, a clear outcome may be enough and you can default to self-contained HTML/CSS/JavaScript. '+((task.rounds||0)>=2?'You already asked follow-up questions twice, so use reasonable defaults now and return ready. ':'')+'Return ONLY valid JSON with this exact shape: {"status":"clarify" or "ready","question":"one short natural question or empty","requirements":"a concise complete brief using the user answers and reasonable defaults"}. No Markdown and no text outside JSON.';
+ const plannerPrompt='You are the planning intelligence inside GoldenSpaceAI Studio. The user wants to create a '+kindNames[task.type]+' about: "'+task.topic+'". Their additional answers so far are: "'+(task.details||'none yet')+'". Decide whether essential information is genuinely missing. Ask only for information that materially changes the result. Accept broad answers: "people" or "everyone" means a general-public audience. Infer sensible defaults instead of interrogating the user. Never repeat a question they already answered. For presentations, normally topic plus slide count plus a style is enough; audience can be inferred. For documents, topic plus format and approximate length is enough. For images, a clear visual request may be enough without questions. For code, a clear outcome may be enough and you can default to self-contained HTML/CSS/JavaScript. '+((task.rounds||0)>=2?'You already asked follow-up questions twice, so use reasonable defaults now and return ready. ':'')+'Return ONLY valid JSON with this exact shape: {"status":"clarify" or "ready","question":"one short natural question or empty","choices":["2 to 4 short useful answers when clarifying"],"requirements":"a concise complete brief using the user answers and reasonable defaults"}. No Markdown and no text outside JSON.';
  let decision;
  try{decision=parseJSON(await apiChat(plannerPrompt))}catch(e){decision={status:'ready',question:'',requirements:[task.topic,task.details].filter(Boolean).join('. ')}}
  if(String(decision.status).toLowerCase()==='clarify'&&decision.question&&(task.rounds||0)<2){
-  add('assistant',String(decision.question).trim());return;
+  const choices=Array.isArray(decision.choices)?decision.choices.map(x=>String(x).trim()).filter(Boolean).slice(0,4):[];add('assistant',String(decision.question).trim(),choices);return;
  }
  const requirements=String(decision.requirements||[task.topic,task.details].filter(Boolean).join('. '));
  pending=null;
@@ -174,7 +183,37 @@ async function planStudioTask(){
  else if(task.type==='image')await createImage(task.topic,requirements);
  else if(task.type==='code')await createCode(task.topic,requirements)
 }
-async function apiChat(extra){
+function looksLikeArtifactEdit(text){
+ return /\b(edit|change|update|revise|rewrite|improve|fix|remove|replace|add|make it|turn it|recolor|resize|restyle|shorten|expand|clean up)\b/i.test(String(text||''));
+}
+async function editCurrentArtifact(request){
+ thinking(true);
+ if(currentArtifact.kind==='search'){
+  add('assistant','Choose one image in Preview first. I’ll use that exact photo as the source for your edit.');
+  renderArtifact(currentArtifact);return;
+ }
+ if(currentArtifact.kind==='image'){
+  const source=currentArtifact.data&&currentArtifact.data.url;if(!source)throw new Error('Open an image in Preview before asking me to edit it.');
+  const res=await fetch('/api/studio/edit-image',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({prompt:request,imageUrl:source})});
+  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'The image could not be edited.');
+  currentArtifact={kind:'image',data:data.image,meta:{used:data.used,limit:data.limit,edited:true}};
+  add('assistant','Done—I edited the existing image and replaced the Preview with the new version.');
+  renderArtifact(currentArtifact);loadStudioAccount();save();return;
+ }
+ if(currentArtifact.kind==='code'){
+  const prompt='Edit the existing runnable code according to this request: "'+request+'". Existing code follows:\n'+currentArtifact.data+'\nReturn ONLY one complete self-contained HTML document with embedded CSS and JavaScript. Keep everything that was not requested to change.';
+  let reply=await apiChat(prompt);reply=String(reply).replace(/^\s*`{3}(?:html)?/i,'').replace(/`{3}\s*$/,'').trim();if(!/<html|<!doctype/i.test(reply))throw new Error('I could not create a valid updated code preview.');
+  currentArtifact.data=reply;add('assistant','Done—I updated the existing code. The revised version is running in Preview.');renderArtifact(currentArtifact);save();return;
+ }
+ if(currentArtifact.kind==='document'||currentArtifact.kind==='presentation'){
+  const kind=currentArtifact.kind;
+  const prompt='Edit this existing '+kind+' according to the user request: "'+request+'". Existing artifact JSON: '+JSON.stringify(currentArtifact.data)+'. Return ONLY strict valid JSON with this same shape: {"title":"...","subtitle":"...","slides":[{"eyebrow":"...","title":"...","body":"...","bullets":["..."],"visual":"..."}]}. Preserve all content and slides that were not requested to change. Do not use Markdown fences.';
+  let reply=await apiChat(prompt),updated;
+  try{updated=parseJSON(reply)}catch(e){reply=await apiChat('Repair the previous edit into strict JSON only, with title, subtitle, and slides array. No explanation.');updated=parseJSON(reply)}
+  if(!Array.isArray(updated.slides)||!updated.slides.length)throw new Error('I could not create a valid updated preview.');
+  currentArtifact.data=updated;add('assistant','Done—I edited the existing '+kind+' directly. The updated version is open in Preview.');renderArtifact(currentArtifact);save();return;
+ }
+}async function apiChat(extra){
  const history=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.text}));
  history.push({role:'user',content:extra});
  const res=await fetch('/api/chat',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history})});
@@ -222,6 +261,32 @@ function saveVisibleDeckEdits(){
  if(!currentArtifact||currentArtifact.kind!=='presentation')return;const section=$('previewBody').querySelector('.slide');if(!section)return;const i=Number(section.dataset.i)||0,slide=currentArtifact.data.slides[i];if(!slide)return;slide.title=section.querySelector('h2')?.textContent.trim()||slide.title;slide.body=section.querySelector('p')?.textContent.trim()||'';slide.bullets=Array.from(section.querySelectorAll('li')).map(li=>li.textContent.trim()).filter(Boolean)
 }
 function moveDeck(step){if($('editBtn').textContent==='Save')saveVisibleDeckEdits();deckIndex+=step;renderDeckSlide();if($('editBtn').textContent==='Save')$('previewBody').querySelectorAll('[contenteditable]').forEach(x=>x.contentEditable='true')}
+function useSearchImage(index){
+ const item=currentArtifact&&currentArtifact.kind==='search'?currentArtifact.data[index]:null;if(!item)return;
+ const url=item.download||item.image||item.preview||item.url;if(!url)return;
+ currentArtifact={kind:'image',data:{url,mimeType:'image/jpeg'},meta:{source:'Pexels'}};
+ add('assistant','This photo is now active in Preview. Tell me what you want changed and I’ll edit this exact image.');
+ renderArtifact(currentArtifact);save()
+}
+async function loadStudioAccount(){
+ try{
+  const headers={'X-Client-Id':ensureClientId()};
+  const [planRes,studioRes,authRes]=await Promise.all([
+   fetch('/api/plan-status',{credentials:'same-origin',headers,cache:'no-store'}),
+   fetch('/api/studio/usage',{credentials:'same-origin',headers,cache:'no-store'}),
+   fetch('/api/auth/status',{credentials:'same-origin',headers,cache:'no-store'})
+  ]);
+  const plan=await planRes.json(),studio=await studioRes.json(),auth=await authRes.json();
+  const fast=(plan.quotas||[]).find(q=>q.id==='fast')||{percent:0,displayUsed:'0% used',displayLeft:'100% left',period:'this period'};
+  $('accountPlan').textContent=plan.label||plan.plan||'Free';$('accountBadge').textContent=String(plan.plan||'free').toUpperCase();
+  $('accountUsage').textContent='Fast · '+fast.displayUsed+' · '+fast.displayLeft;
+  $('usageFill').style.width=Math.max(0,Math.min(100,Number(fast.percent)||0))+'%';
+  $('studioUsage').textContent=studio.loggedIn?'Studio images · '+studio.used+' used · '+studio.remaining+' left today':'Studio images · sign in to create';
+  $('accountEmail').textContent=auth.user&&auth.user.email?auth.user.email:'Guest account';
+  $('accountAction').textContent=plan.plan==='free'?'Upgrade plan':'View usage & plan';
+  $('topPlan').textContent=(plan.label||'Free')+' · '+fast.displayUsed;
+ }catch(e){$('accountPlan').textContent='Account';$('accountUsage').textContent='Usage unavailable';$('topPlan').textContent='Usage'}
+}
 function openPreview(){if(!currentArtifact)return;$('app').classList.add('preview-open');$('previewToggle').style.display='inline-block'}
 function closePreview(){$('app').classList.remove('preview-open')}
 function renderArtifact(a){
@@ -231,7 +296,7 @@ function renderArtifact(a){
   if(a.kind==='presentation'){deckIndex=0;$('previewBody').innerHTML='<div class="deck-viewer"><div class="deck-canvas" id="deckCanvas"></div><div class="deck-nav"><button id="deckPrev">Previous</button><span id="deckCount"></span><button id="deckNext">Next</button></div></div>';renderDeckSlide();$('deckPrev').onclick=()=>moveDeck(-1);$('deckNext').onclick=()=>moveDeck(1)}
   else $('previewBody').innerHTML='<article class="doc-page"><h1 contenteditable="false">'+esc(d.title||'')+'</h1><div class="subtitle" contenteditable="false">'+esc(d.subtitle||'')+'</div>'+d.slides.map((s,i)=>'<section class="doc-section" data-i="'+i+'"><h2 contenteditable="false">'+esc(s.title||'')+'</h2>'+(s.body?'<p contenteditable="false">'+esc(s.body)+'</p>':'')+(Array.isArray(s.bullets)?'<ul>'+s.bullets.map(b=>'<li contenteditable="false">'+esc(b)+'</li>').join('')+'</ul>':'')+'</section>').join('')+'</article>';
  }else if(a.kind==='image'){$('previewName').textContent='Generated image';$('previewMeta').textContent=(a.meta?.used||0)+' of '+(a.meta?.limit||0)+' AI images today';$('previewBody').innerHTML='<img class="generated-image" src="'+esc(a.data.url)+'" alt="Generated image">'}
- else if(a.kind==='search'){$('previewName').textContent='Image search';$('previewMeta').textContent='Pexels · '+a.data.length+' results';$('previewBody').innerHTML='<div class="media-grid">'+a.data.map(x=>{const src=x.preview||x.src?.medium||x.src?.large||x.image||x.url||'';const href=x.download||x.image||x.src?.original||x.pexelsUrl||x.url||src;return '<article class="media-card"><img src="'+esc(src)+'" alt="'+esc(x.alt||a.topic||'Image')+'"><a href="'+esc(href)+'" target="_blank" rel="noopener">Open original</a></article>'}).join('')+'</div>'}
+ else if(a.kind==='search'){$('previewName').textContent='Image search';$('previewMeta').textContent='Choose a photo to use or edit';$('previewBody').innerHTML='<div class="media-grid">'+a.data.map((x,i)=>{const src=x.preview||x.src?.medium||x.src?.large||x.image||x.url||'';const href=x.download||x.image||x.src?.original||x.pexelsUrl||x.url||src;return '<article class="media-card"><img src="'+esc(src)+'" alt="'+esc(x.alt||a.topic||'Image')+'"><div class="media-actions"><button data-use-image="'+i+'">Use this image</button><a href="'+esc(href)+'" target="_blank" rel="noopener">Open original</a></div></article>'}).join('')+'</div>';$('previewBody').querySelectorAll('[data-use-image]').forEach(btn=>btn.onclick=()=>useSearchImage(Number(btn.dataset.useImage)))}
  else if(a.kind==='code'){$('previewName').textContent=a.title||'Code preview';$('previewMeta').textContent='Runnable HTML · sandboxed';$('previewBody').innerHTML='<div class="code-preview"><pre>'+esc(a.data)+'</pre><iframe sandbox="allow-scripts" title="Code preview"></iframe></div>';$('previewBody').querySelector('iframe').srcdoc=a.data}
  $('downloadBtn').textContent=a.kind==='document'&&a.format==='pdf'?'Print / Save PDF':'Download';save()
 }
@@ -295,6 +360,6 @@ document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.d
 $('closePreview').onclick=closePreview;$('previewToggle').onclick=openPreview;$('downloadBtn').onclick=downloadArtifact;$('editBtn').onclick=toggleEdit;
 $('newChat').onclick=()=>{if(confirm('Start a new Studio chat?')){messages=[];pending=null;currentArtifact=null;localStorage.removeItem('gsa_studio_chat');closePreview();renderMessages()}};
 $('themeBtn').onclick=()=>{document.documentElement.classList.toggle('light');const light=document.documentElement.classList.contains('light');$('themeBtn').textContent=light?'Dark':'Light';localStorage.setItem('gsa_theme',light?'light':'dark')};
-if(localStorage.getItem('gsa_theme')==='light'){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}load();
+if(localStorage.getItem('gsa_theme')==='light'){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}load();loadStudioAccount();
 </script>
 </body></html>

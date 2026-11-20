@@ -4330,8 +4330,8 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         .wave-play{margin-top:12px;border:1px solid var(--gold-line);border-radius:10px;padding:8px 12px;background:var(--gold-soft);color:inherit;font:inherit;font-weight:700;cursor:pointer}
         @media(max-width:620px){.wave-controls{grid-template-columns:1fr}.visualization-card{padding:13px}}
 </style>
-</head>
-<body>
+  <link rel="stylesheet" href="/polish.css?v=1">\n</head>
+<body class="gsa-polished">
     <div class="app-container">
         <div class="top-bar">
             <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>
@@ -4402,7 +4402,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                     <input class="chat-search" id="chatSearch" type="search" placeholder="Search chats..." oninput="renderChatsList()" aria-label="Search chats">
                 </div>
                 <div class="chats-scroll-content">
-                <a class="imagine-nav-link" href="/imagine" aria-label="Open Imagine"><span aria-hidden="true">✦</span><span>Imagine</span><span class="imagine-nav-badge">MEDIA</span></a>
+                <a class="imagine-nav-link" href="/studio" aria-label="Open Studio"><span aria-hidden="true">✦</span><span>Studio</span><span class="imagine-nav-badge">CREATE</span></a>
                 <div class="projects-section">
                     <div class="projects-section-head"><span>Projects</span><button type="button" onclick="openProjectEditor()" aria-label="Create project" title="Create project">+</button></div>
                     <button type="button" class="project-row project-all active" id="allChatsProjectBtn" onclick="selectProject(null)"><span>All chats</span><span id="allChatsCount" class="project-count"></span></button>

@@ -4332,6 +4332,16 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
 </style>
   <link rel="stylesheet" href="/polish.css?v=1">\n</head>
 <body class="gsa-polished">
+    <script>
+      (function removeStrayNewlineToken(){
+        var node=document.body.firstChild;
+        while(node&&node.nodeType===3){
+          var next=node.nextSibling;
+          if(String(node.nodeValue||'').trim()==='\\n') node.remove();
+          node=next;
+        }
+      })();
+    </script>
     <div class="app-container">
         <div class="top-bar">
             <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>

@@ -2408,6 +2408,49 @@ async function migrateJsonChatsToPostgres(ownerKey) {
     return { migrated };
 }
 
+app.get('/api/studio/projects', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try { return res.json({ projects: await auth.listStudioProjects(ownerKey), workspace: 'studio' }); }
+    catch (error) { console.error('studio projects list:', error.message); return res.status(500).json({ error: 'Could not load Studio projects.' }); }
+});
+
+app.get('/api/studio/projects/:id', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const project = (await auth.listStudioProjects(ownerKey)).find(item => item.id === req.params.id);
+        return project ? res.json({ project, workspace: 'studio' }) : res.status(404).json({ error: 'Studio project not found.' });
+    } catch (error) { console.error('studio project:', error.message); return res.status(500).json({ error: 'Could not load the Studio project.' }); }
+});
+
+app.post('/api/studio/projects', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const result = await auth.createStudioProject(ownerKey, req.body || {});
+        return res.status(result.ok ? 201 : 400).json(result);
+    } catch (error) { console.error('studio project create:', error.message); return res.status(500).json({ ok: false, error: 'Could not create Studio project.' }); }
+});
+
+app.put('/api/studio/projects/:id', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const result = await auth.updateStudioProject(ownerKey, req.params.id, req.body || {});
+        return res.status(result.ok ? 200 : 404).json(result);
+    } catch (error) { console.error('studio project update:', error.message); return res.status(500).json({ ok: false, error: 'Could not update Studio project.' }); }
+});
+
+app.delete('/api/studio/projects/:id', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const result = await auth.deleteStudioProject(ownerKey, req.params.id);
+        return res.status(result.ok ? 200 : 404).json(result);
+    } catch (error) { console.error('studio project delete:', error.message); return res.status(500).json({ ok: false, error: 'Could not delete Studio project.' }); }
+});
+
 app.get('/api/projects', async (req, res) => {
     const ownerKey = resolveChatOwnerKey(req, res);
     if (!ownerKey) return;

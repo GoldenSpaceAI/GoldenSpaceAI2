@@ -75,6 +75,18 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 <script>
 const $=id=>document.getElementById(id);
 let messages=[],selectedTool=null,pending=null,currentArtifact=null,busy=false;
+let studioClientId='';
+function ensureClientId(){
+ try{
+  studioClientId=localStorage.getItem('goldenspaceai2_client_id')||'';
+  if(!/^[a-zA-Z0-9_-]{1,128}$/.test(studioClientId)){
+   studioClientId='c_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12);
+   localStorage.setItem('goldenspaceai2_client_id',studioClientId);
+  }
+ }catch(e){if(!studioClientId)studioClientId='c_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12)}
+ return studioClientId;
+}
+function studioHeaders(extra){return Object.assign({'Content-Type':'application/json','X-Client-Id':ensureClientId()},extra||{})}
 const toolLabels={document:'PDF / Word document',presentation:'Presentation',image:'AI image',search:'Image search',code:'Code workspace'};
 function save(){try{localStorage.setItem('gsa_studio_chat',JSON.stringify({messages,pending,currentArtifact}))}catch(e){}}
 function load(){try{const x=JSON.parse(localStorage.getItem('gsa_studio_chat')||'{}');messages=Array.isArray(x.messages)?x.messages:[];pending=x.pending||null;currentArtifact=x.currentArtifact||null}catch(e){}renderMessages();if(currentArtifact)renderArtifact(currentArtifact)}
@@ -123,7 +135,7 @@ async function continueTask(details){
 async function apiChat(extra){
  const history=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.text}));
  history.push({role:'user',content:extra});
- const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history})});
+ const res=await fetch('/api/chat',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history})});
  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.reply||data.error||'GoldenSpaceAI could not reply.');return data.reply||data.error||''
 }
 async function generalChat(){
@@ -139,12 +151,12 @@ async function createDocument(type,topic,details){
  renderArtifact(currentArtifact);save()
 }
 async function createImage(topic,details){
- const res=await fetch('/api/studio/generate-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({prompt:topic+'. '+details})});
+ const res=await fetch('/api/studio/generate-image',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({prompt:topic+'. '+details})});
  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'The image could not be generated.');
  currentArtifact={kind:'image',data:data.image,meta:{used:data.used,limit:data.limit}};add('assistant','Your image is ready in Preview. If you want another version, tell me what to change.');renderArtifact(currentArtifact);save()
 }
 async function searchImages(topic){
- thinking(true);const res=await fetch('/api/imagine/search?type=photo&query='+encodeURIComponent(topic),{credentials:'same-origin'});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||data.error||'Image search failed.');
+ thinking(true);const res=await fetch('/api/imagine/search?type=photo&query='+encodeURIComponent(topic),{credentials:'same-origin',headers:{'X-Client-Id':ensureClientId()}});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||data.error||'Image search failed.');
  const items=(data.results||data.items||data.photos||[]).slice(0,12);currentArtifact={kind:'search',data:items,topic};add('assistant','I found '+items.length+' images for “'+topic+'”. Open Preview to see and download them.');renderArtifact(currentArtifact);save()
 }
 async function createCode(topic,details){
@@ -169,7 +181,7 @@ async function downloadArtifact(){
  const a=currentArtifact;if(!a)return;
  if(a.kind==='document'&&a.format==='pdf'){window.print();return}
  if(a.kind==='document'||a.kind==='presentation'){
-  const format=a.kind==='presentation'?'pptx':'docx';const res=await fetch('/api/documents/export',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({format,artifact:a.data})});if(!res.ok){const e=await res.json().catch(()=>({}));alert(e.error||'Could not build the file.');return}const blob=await res.blob();downloadBlob(blob,(a.data.title||'GoldenSpaceAI').replace(/[^a-z0-9]+/gi,'-')+'.'+format);return
+  const format=a.kind==='presentation'?'pptx':'docx';const res=await fetch('/api/documents/export',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({format,artifact:a.data})});if(!res.ok){const e=await res.json().catch(()=>({}));alert(e.error||'Could not build the file.');return}const blob=await res.blob();downloadBlob(blob,(a.data.title||'GoldenSpaceAI').replace(/[^a-z0-9]+/gi,'-')+'.'+format);return
  }
  if(a.kind==='image'){const link=document.createElement('a');link.href=a.data.url;link.target='_blank';link.download='GoldenSpaceAI-image.jpg';link.click();return}
  if(a.kind==='code')downloadBlob(new Blob([a.data],{type:'text/html'}),(a.title||'GoldenSpaceAI-code').replace(/[^a-z0-9]+/gi,'-')+'.html')

@@ -187,7 +187,13 @@ function parseJSON(text){let raw=String(text||'').replace(/^\s*\x60{3}(?:json)?/
 async function createDocument(type,topic,details){
  const format=type==='presentation'?'presentation':'document';
  const extra='Create a polished '+format+' about "'+topic+'". Requirements: '+details+'. Return ONLY valid JSON: {"title":"...","subtitle":"...","slides":[{"eyebrow":"...","title":"...","body":"...","bullets":["..."],"visual":"..."}]}. For a presentation match the requested slide count. For a document, each slides item is one page or section and should contain substantial factual writing. Use specific, accurate information, strong hierarchy, and no filler. No Markdown fences.';
- const reply=await apiChat(extra),data=parseJSON(reply);data.slides=Array.isArray(data.slides)?data.slides:[];if(!data.slides.length)throw new Error('The document preview was empty. Please try again.');
+ let reply=await apiChat(extra),data;
+ try{data=parseJSON(reply)}
+ catch(firstError){
+  const repair='The previous document response was not valid JSON. Recreate the same requested deliverable now. Return ONLY strict valid JSON with double-quoted keys and strings in this shape: {"title":"...","subtitle":"...","slides":[{"eyebrow":"...","title":"...","body":"...","bullets":["..."],"visual":"..."}]}. Do not explain, do not use Markdown fences, and do not include text before or after the JSON.';
+  reply=await apiChat(repair);data=parseJSON(reply)
+ }
+ data.slides=Array.isArray(data.slides)?data.slides:[];if(!data.slides.length)throw new Error('I could not create a valid preview this time. Please press Retry.');
  currentArtifact={kind:type==='presentation'?'presentation':'document',format:/word|docx/i.test(details)?'docx':(/pdf/i.test(details)?'pdf':(type==='presentation'?'pptx':'docx')),data};
  add('assistant','Your '+(type==='presentation'?'presentation':'document')+' is ready in Preview. You can review it, edit the text, download it, or keep chatting and ask me to improve any part.');
  renderArtifact(currentArtifact);save()

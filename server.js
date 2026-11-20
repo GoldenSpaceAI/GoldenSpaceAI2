@@ -207,7 +207,10 @@ if (process.env.DEEPSEEK_API_KEY) {
 
 // Recent raw turns sent to the model (summary + account memory cover older context).
 const HISTORY_WINDOW = RECENT_WINDOW;
-const DEEPSEEK_FAST_MODEL = process.env.DEEPSEEK_FAST_MODEL || 'deepseek-flash';
+const CONFIGURED_DEEPSEEK_FAST_MODEL = String(process.env.DEEPSEEK_FAST_MODEL || 'deepseek-chat').trim();
+const DEEPSEEK_FAST_MODEL = CONFIGURED_DEEPSEEK_FAST_MODEL.toLowerCase() === 'deepseek-flash'
+    ? 'deepseek-chat'
+    : CONFIGURED_DEEPSEEK_FAST_MODEL;
 const GROK_FAST_MODEL = 'grok-4.3';
 
 const MODELS = {
@@ -425,9 +428,23 @@ function resolveChatTarget(mode) {
     return { safeMode, config, client: deepseekClient, provider: 'deepseek', allowGrokFallback: !!process.env.GROK_API_KEY && !!grok };
 }
 
+function providerResultHasVisibleText(result) {
+    if (!result || typeof result !== 'object') return false;
+    const candidate = result.reply !== undefined ? result.reply : result.text;
+    const text = String(candidate || '').trim();
+    return !!text && text !== 'No response generated.';
+}
+
 async function runWithProviderFallback(target, runFn) {
     try {
         const result = await runFn(target.client, target.config, target.provider);
+        if (target.provider === 'deepseek' && target.allowGrokFallback && !providerResultHasVisibleText(result)) {
+            console.warn(`DeepSeek Fast returned no visible answer — falling back to Grok ${GROK_FAST_MODEL}`);
+            const grokConfig = { ...target.config, model: GROK_FAST_MODEL, provider: 'grok' };
+            const rescued = await runFn(grok, grokConfig, 'grok');
+            if (rescued && typeof rescued === 'object') rescued.usedGrokFallback = true;
+            return rescued;
+        }
         if (result && typeof result === 'object' && result.usedGrokFallback === undefined) {
             result.usedGrokFallback = false;
         }
@@ -1994,6 +2011,20 @@ app.post('/api/chat/stream', async (req, res) => {
                         sendSse({ done: true });
                         return res.end();
                     }
+                }
+
+                if (!clientClosed && !full.trim() && provider === 'deepseek' && allowGrokFallback) {
+                    console.warn('DeepSeek stream returned no visible answer — trying Grok');
+                    provider = 'grok';
+                    config = { ...config, model: GROK_FAST_MODEL, provider: 'grok' };
+                    client = grok;
+                    allowGrokFallback = false;
+                    usedGrokFallback = true;
+                    const rescued = await nonStreamCompletion(client, config, 'Stream empty Grok rescue');
+                    full = softCleanLatex(rescued.text || '') || '';
+                    if (rescued.usage) streamUsage = rescued.usage;
+                    if (full) sendSse({ text: full });
+                    streamMark('empty_grok_rescue');
                 }
             }
 

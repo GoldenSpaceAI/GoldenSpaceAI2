@@ -555,7 +555,7 @@ async function showStudioHome(){
       <p>Work on presentations, documents, images, and code. Give each project its own instructions and conversation.</p>
       <div class="studio-hero-actions"><button class="primary" id="studioNewProject" type="button">New project</button><a href="/studio/chat">Open Studio chat</a></div>
      </div>
-     <div class="studio-home-stats" aria-label="Workspace summary">
+     <div class="studio-home-stats" id="studioHomeStats" aria-label="Workspace summary" hidden>
       <div class="studio-home-stat"><strong id="studioProjectCount">—</strong><span>Projects</span></div>
       <div class="studio-home-stat"><strong id="studioHomeUsage">—</strong><span>Studio images left today</span></div>
      </div>
@@ -583,6 +583,7 @@ async function showStudioHome(){
   const data=await res.json();
   const projects=Array.isArray(data.projects)?data.projects:[];
   $('studioProjectCount').textContent=projects.length;
+  $('studioHomeStats').hidden=false;
   grid.innerHTML=projects.length?projects.map(project=>{
    const color=/^#[a-f0-9]{6}$/i.test(project.color)?project.color:'#d4af37';
    return '<a class="studio-project-card" href="/studio/chat?project='+encodeURIComponent(project.id)+'" style="--project-color:'+color+'"><div class="studio-project-icon" aria-hidden="true">'+esc(project.icon||'📁')+'</div><h3>'+esc(project.name)+'</h3><p>'+esc(project.instructions||'No project instructions yet.')+'</p><small>Open project</small></a>';

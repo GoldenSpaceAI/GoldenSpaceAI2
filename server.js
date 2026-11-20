@@ -3452,6 +3452,9 @@ app.get('/chat21.html', (req, res) => {
 app.get('/studio', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'studio.html'));
 });
+app.get('/studio/chat', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'studio.html'));
+});
 app.get('/studio.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'studio.html'));
 });

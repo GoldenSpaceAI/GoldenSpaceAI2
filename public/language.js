@@ -12,6 +12,9 @@
     'Compare AI models, voice time, media, and document allowances. Choose monthly or yearly access with a one-time OMT Pay transfer.':'قارن بين النماذج وحدود المحادثات الصوتية والوسائط والمستندات، ثم اختر اشتراكًا شهريًا أو سنويًا وادفع عبر OMT Pay.','Credits never expire and only extend features already included in your current plan. They never unlock Studio or premium models.':'يبقى رصيدك متاحًا دون انتهاء صلاحية، ويمنحك استخدامًا إضافيًا للميزات المشمولة في اشتراكك الحالي. إضافة الرصيد لا تفتح ميزات أو نماذج غير مشمولة في اشتراكك.',
     'Your OMT Pay number':'رقم محفظة OMT Pay الخاصة بك','Review and accept':'المراجعة والموافقة','Send payment via OMT Pay':'الدفع عبر OMT Pay','Amount sent':'أرسلت المبلغ','Amount':'المبلغ','Send to':'التحويل إلى','From (your OMT)':'من محفظتك','Plan':'الاشتراك','Confirm OMT Pay number':'تأكيد رقم محفظة OMT Pay','Enter the wallet number you will send payment from. We use it to match your transfer.':'أدخل رقم المحفظة التي سترسل المبلغ منها حتى نتمكن من مطابقة التحويل مع طلبك.','Wallet-to-wallet transfer. No screenshots required.':'تحويل بين المحافظ، ولا تحتاج إلى إرسال صورة للتحويل.'
   };
+  Object.assign(words, {
+    'Export':'تصدير','Export chat':'تصدير المحادثة','Open Studio':'فتح الاستوديو','Upgrade to Plus':'الترقية إلى بلس','Loading usage…':'جارٍ تحميل بيانات الاستخدام…','Loading your plan…':'جارٍ تحميل تفاصيل اشتراكك…','Fast · Quick · vision & files':'السريع · للصور والملفات','Message GoldenSpaceAI…':'اكتب رسالتك لجولدن سبيس…','Live':'صوتي','Search chats':'البحث في المحادثات','Tap to rename chat':'اضغط لتغيير اسم المحادثة','Chat title':'عنوان المحادثة','AI assistant':'مساعد الذكاء الاصطناعي','Switch to dark theme':'التبديل إلى المظهر الداكن','Switch to light theme':'التبديل إلى المظهر الفاتح','Toggle theme':'تغيير المظهر','Next: Plus — Thinking + Talk 5 min + 10 images/day.':'مع بلس: وضع التفكير و٥ دقائق للمحادثة الصوتية و١٠ صور يوميًا.','Continue with Plus':'المتابعة مع بلس','Continue with Pro':'المتابعة مع برو','Continue with Max':'المتابعة مع ماكس','per 30 days · OMT Pay · no auto-renew':'لكل ٣٠ يومًا · الدفع عبر OMT Pay · دون تجديد تلقائي','per year · 12 months of access · monthly allowances renew · OMT Pay · no auto-renew':'اشتراك سنوي لمدة ١٢ شهرًا · تتجدد حدود الاستخدام شهريًا · الدفع عبر OMT Pay · دون تجديد تلقائي','Fast + Thinking':'السريع والتفكير','Fast + Thinking + Expert 4':'السريع والتفكير وفريق من ٤ خبراء','Fast + Thinking + Expert 4 + Expert 16':'السريع والتفكير وفريقا ٤ و١٦ خبيرًا','Expert 4 / Expert 16 not included':'فريقا ٤ و١٦ خبيرًا غير مشمولين','Expert 16 not included':'فريق ١٦ خبيرًا غير مشمول','Expert 4 combines four AI agents into one answer':'يجمع فريق الخبراء إجابات ٤ وكلاء ذكاء اصطناعي في إجابة واحدة','Word + PowerPoint: unlimited':'ملفات Word وPowerPoint دون حد لعدد الملفات','Word + PowerPoint: 5 files per 3 days':'ملفات Word وPowerPoint: خمسة ملفات كل ٣ أيام','Word + PowerPoint: 10 files per 3 days':'ملفات Word وPowerPoint: عشرة ملفات كل ٣ أيام'
+  });
   var original = new WeakMap(), attributes = new WeakMap();
   var skip = 'script,style,code,pre,textarea,[contenteditable],#chatsList,#liveTranscript,.message,.studio-message,.message-content,[data-user-content]';
   function translate(root) {
@@ -20,7 +23,14 @@
       if (!n.parentElement || n.parentElement.closest(skip)) continue;
       var current = n.nodeValue, saved = original.get(n);
       if (!saved || (current !== saved.en && current !== saved.ar)) {
-        var trimmed = current.trim(); if (!words[trimmed]) continue;
+        var trimmed = current.trim();
+        if (!words[trimmed]) {
+          var usage = trimmed.match(/^Fast · (\d+)% used · (\d+)% left · (today|this period)$/);
+          if (usage) words[trimmed] = 'السريع · استُخدم ' + usage[1] + '٪ · المتبقي ' + usage[2] + '٪ · ' + (usage[3] === 'today' ? 'اليوم' : 'الفترة الحالية');
+          var split = trimmed.match(/^\$(\d+(?:\.\d+)?) each: Chat · Studio · Media · Documents$/);
+          if (split) words[trimmed] = split[1] + ' دولار لكل قسم: المحادثة · الاستوديو · الوسائط · المستندات';
+        }
+        if (!words[trimmed]) continue;
         saved = { en: current, ar: current.replace(trimmed, words[trimmed]) }; original.set(n, saved);
       }
       var target = lang === 'ar' ? saved.ar : saved.en;

@@ -347,6 +347,48 @@
 <script src="/theme.js" defer></script>
   <link rel="stylesheet" href="/polish.css?v=1">
   <link rel="stylesheet" href="/product.css?v=20261120-1">
+
+<style id="organized-plans">
+body.gsa-upgrade main{max-width:1140px;padding-top:48px}
+.gsa-upgrade .hero{margin-bottom:30px}
+.gsa-upgrade .hero h1{font-size:clamp(30px,4vw,46px);letter-spacing:-.045em;margin:12px 0}
+.section-kicker{display:block;font-size:10px;font-weight:750;letter-spacing:.16em;color:var(--gold);margin-bottom:8px}
+.gsa-upgrade .hero .sub{max-width:620px;margin:0 auto;color:var(--muted);font-size:15px}
+.gsa-upgrade .free-strip{margin:24px auto 0;text-align:left;max-width:860px;font-size:12px;padding:14px 18px;border-radius:12px;background:var(--panel)}
+.gsa-upgrade .step-rail{max-width:680px;margin:28px auto 40px}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 20px}
+.section-heading h2{margin:0;font-size:23px;letter-spacing:-.025em}
+.section-heading p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.payment-badge{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:99px;padding:8px 12px;white-space:nowrap}
+.gsa-upgrade .billing-switch{margin:0 0 24px}
+.gsa-upgrade .plans{gap:18px;align-items:stretch}
+.gsa-upgrade .plan-card{padding:28px 24px;border-radius:18px;box-shadow:none;display:flex;flex-direction:column;text-align:left}
+.gsa-upgrade .plan-card h3{font-size:22px;letter-spacing:-.03em}
+.gsa-upgrade .plan-card .price{margin-top:18px}
+.gsa-upgrade .plan-card .price .amt{font-size:44px;line-height:1.15;letter-spacing:-.055em}
+.gsa-upgrade .plan-card .billing{font-size:11px;line-height:1.6;min-height:36px;margin:10px 0 18px}
+.gsa-upgrade .plan-card .mode-row{padding-bottom:18px;border-bottom:1px solid var(--border);margin-bottom:8px;min-height:70px}
+.gsa-upgrade .plan-card ul{margin-top:12px;font-size:13px;line-height:1.65}
+.gsa-upgrade .plan-card li{margin-bottom:11px}
+.gsa-upgrade .cta-row{justify-content:flex-end;margin-top:22px}
+.gsa-upgrade .cta-row .btn{min-width:240px}
+.gsa-upgrade .stack-note{border-radius:14px;font-size:12px}
+.credit-section{margin-top:36px;border:1px solid var(--border);border-radius:18px;background:var(--panel);overflow:hidden}
+.credit-section summary{padding:24px;cursor:pointer;display:flex;justify-content:space-between;gap:18px;align-items:center;list-style:none}
+.credit-section summary::-webkit-details-marker{display:none}
+.credit-section summary strong{display:block;font-size:18px;letter-spacing:-.02em;margin-bottom:6px}
+.credit-section summary span span:last-child{font-size:13px;color:var(--muted)}
+.expand-indicator{font-size:25px;color:var(--gold)}
+.credit-section[open] .expand-indicator{transform:rotate(45deg)}
+.gsa-upgrade .credit-topup{margin:0;padding:24px;border:0;border-top:1px solid var(--border);border-radius:0;box-shadow:none}
+.credit-topup h3{margin:0 0 8px;font-size:17px}
+.credit-topup .lead{font-size:13px;max-width:720px;color:var(--muted)}
+.credit-fields{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}
+.credit-fields input{width:100%;max-width:100%;min-height:46px}
+.credit-allocation{grid-column:2;grid-row:1;align-self:end;padding:13px 16px;border-radius:10px;background:var(--bg);border:1px solid var(--border);font-size:12px;line-height:1.6;color:var(--text)}
+.plan-help{padding:28px 0;display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px}
+@media(max-width:700px){body.gsa-upgrade main{padding-top:30px}.section-heading{align-items:flex-start;flex-direction:column;gap:12px}.gsa-upgrade .plans{grid-template-columns:1fr}.gsa-upgrade .plan-card{padding:24px}.gsa-upgrade .plan-card .mode-row{min-height:0}.gsa-upgrade .cta-row .btn{width:100%}.credit-fields{grid-template-columns:1fr}.credit-allocation{grid-column:auto;grid-row:auto}.credit-section summary,.gsa-upgrade .credit-topup{padding:20px}.plan-help{flex-direction:column}.billing-option span{display:block;margin-left:0}}
+</style>
 </head>
 <body class="gsa-polished gsa-site-page gsa-upgrade">
 <header class="topnav">
@@ -368,7 +410,7 @@
 
 <main>
   <section class="hero">
-    <h1>Choose your plan</h1>
+    <span class="section-kicker">GOLDENSPACEAI MEMBERSHIP</span><h1>More room for your ideas.</h1>
     <p class="sub">Compare AI models, voice time, media, and document allowances. Choose monthly or yearly access with a one-time OMT Pay transfer.</p>
     <div class="hero-meta">
       <div class="current-pill" id="currentPlan"><span class="dot" aria-hidden="true"></span><span id="currentPlanText">Loading your plan…</span></div>
@@ -388,8 +430,8 @@
   </div>
 
   <section class="step active" id="step1">
+    <div class="section-heading"><div><h2>Find your plan</h2><p>Choose the tools and capacity that fit your day.</p></div><span class="payment-badge">OMT Pay · No auto-renewal</span></div>
     <div class="billing-switch" role="group" aria-label="Billing period"><button type="button" class="billing-option active" data-period="monthly">Monthly</button><button type="button" class="billing-option" data-period="yearly">Yearly <span>Pay once · 12 months</span></button></div>
-    <div class="panel credit-topup" style="margin-top:24px"><h2>Add usage credits</h2><p class="lead">Credits never expire and only extend features already included in your current plan. They never unlock Studio or premium models.</p><label class="field" for="creditAmount">Amount (USD, $2–$200)</label><input id="creditAmount" type="number" min="2" max="200" step="0.01" value="2"><div class="stack-preview" id="creditSplit">$0.50 each: Chat · Studio · Media · Documents</div><label class="field" for="creditPhone">OMT Pay wallet number</label><input id="creditPhone" type="tel" inputmode="numeric" placeholder="e.g. 81xxxxxx"><button class="btn primary" type="button" id="creditRequest">Request credit top-up</button><p class="err" id="creditErr" hidden></p><p class="status" id="creditStatus" hidden></p></div>
     <div class="plans" id="plans"></div>
     <div class="cta-row">
       <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
@@ -399,6 +441,13 @@
       <div class="stack-preview" id="stackPreview"></div>
     </div>
     <p class="footnote">Offers match <a href="/terms">Terms §3</a>. Separate allowances — no borrowing between modes. List prices only.</p>
+    <details class="credit-section">
+      <summary><span><span class="section-kicker">EXTRA CAPACITY</span><strong>Need a little more usage?</strong><span>Explore credit top-ups for your current plan.</span></span><span class="expand-indicator" aria-hidden="true">+</span></summary>
+          <div class="panel credit-topup"><h3>Add usage credits</h3><p class="lead">Credits never expire and only extend features already included in your current plan. They never unlock Studio or premium models.</p><div class="credit-fields"><div><label class="field" for="creditAmount">Amount (USD, $2–$200)</label><input id="creditAmount" type="number" min="2" max="200" step="0.01" value="2"></div><div class="credit-allocation" id="creditSplit">$0.50 each: Chat · Studio · Media · Documents</div><div><label class="field" for="creditPhone">OMT Pay wallet number</label><input id="creditPhone" type="tel" inputmode="numeric" placeholder="e.g. 81xxxxxx"></div></div><button class="btn primary" type="button" id="creditRequest">Request credit top-up</button><p class="err" id="creditErr" hidden></p><p class="status" id="creditStatus" hidden></p></div>
+
+    </details>
+    <div class="plan-help"><span>Questions about your subscription?</span><a href="/my-plan">View your plan &amp; payment history →</a></div>
+
   </section>
 
   <section class="step" id="step3">

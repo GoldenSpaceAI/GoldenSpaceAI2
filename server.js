@@ -557,6 +557,7 @@ function holdUsage(deviceId, kind, opts) {
             committed = true;
             try {
                 const recorded = plansStore.recordSpend(deviceId, kind, spend || {});
+                if (opts && opts.feature) plansStore.recordFeatureUsage(deviceId, opts.feature);
                 if (hasImage) {
                     try { plansStore.recordImage(deviceId); } catch (e) {
                         console.error('recordImage failed:', e.message);
@@ -1454,7 +1455,7 @@ app.post('/api/chat', async (req, res) => {
         const deviceId = capGate.deviceId;
         // Reserve before the model call so parallel sends cannot bypass the cap.
         // Rolled back in finally unless the reply is a real success.
-        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage });
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null });
 
         activeProvider = resolveMode(mode).config.provider;
         let target;
@@ -1654,7 +1655,7 @@ app.post('/api/chat/stream', async (req, res) => {
         const usageKind = capGate.kind;
         const deviceId = capGate.deviceId;
         let usedGrokFallback = false;
-        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage });
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null });
 
         let target;
         try {
@@ -2902,6 +2903,20 @@ app.get('/api/credits', (req, res) => {
     return res.json({ ok: true, credits: plansStore.getCredits(plansStore.accountOwnerKey(user.id)) });
 });
 
+app.get('/api/feature-usage', async (req, res) => {
+    const owner = resolvePlanOwnerKey(req) || getClientId(req);
+    if (!owner) return res.status(400).json({ error: 'Missing client identifier.' });
+    const usage = plansStore.getFeatureUsage(owner);
+    const account = studioAccount(req);
+    if (account) {
+        try {
+            const images = await readStudioUsage(owner);
+            usage.images = { today: images.used, limit: account.limit, remaining: Math.max(0, account.limit - images.used) };
+        } catch (_) { usage.images = { today: null, unavailable: true }; }
+    } else usage.images = { today: 0, limit: 0, requiresLogin: true };
+    sendFreshJson(res, { ok: true, usage });
+});
+
 app.post('/api/credits/request', (req, res) => {
     const user = auth && auth.readUserFromReq(req);
     if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Log in before buying credits.', loginUrl: '/login?next=%2Fupgrade' });
@@ -3954,3 +3969,4 @@ startServer().catch((e) => {
     console.error('Failed to start server:', e);
     process.exit(1);
 });
+

@@ -4332,6 +4332,36 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
 </style>
   <link rel="stylesheet" href="/polish.css?v=1">
   <link rel="stylesheet" href="/product.css?v=20261120-1">
+<style id="live-professional-polish">
+.live-page{background:radial-gradient(900px 520px at 50% 8%,rgba(212,175,55,.09),transparent 62%),var(--bg,#0a0a0a)}
+.live-page-top{padding:20px clamp(22px,5vw,64px);border-bottom:1px solid rgba(255,255,255,.08)}
+.live-page-brand{gap:14px}
+.live-brand-mark{filter:drop-shadow(0 8px 18px rgba(212,175,55,.15))}
+.live-page-brand .live-title{font-size:18px;letter-spacing:-.02em}
+.live-page-brand .live-subtitle{font-size:12px;opacity:.68}
+.live-fast-badge{border:1px solid rgba(212,175,55,.45);background:rgba(212,175,55,.1);padding:6px 10px;border-radius:999px;font-size:11px;letter-spacing:.05em}
+.live-page-exit{border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 14px;font-size:12px}
+.live-page-center{padding-top:clamp(34px,7vh,80px);gap:15px}
+.live-orb-wrap{transform:scale(1.08);margin-bottom:8px}
+.live-status{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.live-hint{max-width:470px;font-size:13px;line-height:1.6;opacity:.7}
+.live-session-meta{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:8px;color:var(--muted,#888);font-size:11px}
+.live-session-meta span{border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:6px 10px;background:rgba(255,255,255,.035)}
+.live-transcript{width:min(760px,calc(100% - 40px));margin:28px auto 0;border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:18px;background:rgba(255,255,255,.025);box-shadow:0 18px 60px rgba(0,0,0,.2)}
+.live-transcript:empty{min-height:92px;display:flex;align-items:center;justify-content:center}
+.live-transcript:empty::before{content:'Your conversation will appear here';color:var(--muted,#888);font-size:13px}
+.live-bubble{max-width:min(620px,88%);padding:12px 15px;border-radius:16px;line-height:1.5;font-size:14px;margin:9px 0}
+.live-bubble.user{background:rgba(212,175,55,.14);border:1px solid rgba(212,175,55,.26)}
+.live-bubble.ai{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09)}
+.live-page-bottom{padding:20px 22px 28px}
+.live-actions{gap:10px}
+.live-btn{min-height:44px;border-radius:12px;padding:0 18px;font-weight:700}
+.live-btn.secondary{border:1px solid rgba(255,255,255,.14)}
+html.light .live-page{background:radial-gradient(900px 520px at 50% 8%,rgba(212,175,55,.14),transparent 62%),var(--bg)}
+html.light .live-session-meta span{border-color:rgba(0,0,0,.1);background:rgba(0,0,0,.025)}
+html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,255,.62)}
+@media(max-width:600px){.live-page-top{padding:16px}.live-page-center{padding-top:38px}.live-transcript{width:calc(100% - 24px);margin-top:20px}.live-page-bottom{padding-left:12px;padding-right:12px}.live-actions{width:100%}.live-btn{flex:1}}
+</style>
 </head>
 <body class="gsa-polished gsa-chat">
     <script>
@@ -4685,6 +4715,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                     <span class="live-phase-pill" data-phase="speaking">Speak</span>
                 </div>
                 <p class="live-hint" id="liveHint">Speak naturally. Pause to send. Replies stay short for voice — text and audio follow together.</p>
+                <div class="live-session-meta" id="liveSessionMeta" aria-live="polite"><span id="liveSessionState">Auto-listening</span><span id="liveSessionTime">00:00</span><span>Tap mute to pause</span></div>
             </div>
             <div class="live-transcript" id="liveTranscript" aria-live="polite"></div>
             <div class="live-page-bottom">
@@ -4733,6 +4764,8 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         let liveTtsOffset = 0;
         let liveTtsChain = Promise.resolve();
         let liveTtsGeneration = 0;
+        let liveSessionStartedAt = 0;
+        let liveSessionTimer = null;
         let liveTtsPrefetches = []; // in-flight / ready TTS blobs for seamless sentence handoff
         const LIVE_SILENCE_MS = 650;
         const TTS_PLAYBACK_SPEED = 1.25;
@@ -8355,6 +8388,16 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
         }
 
 
+        function updateLiveSessionMeta() {
+            const time = document.getElementById('liveSessionTime');
+            const state = document.getElementById('liveSessionState');
+            if (time && liveSessionStartedAt) {
+                const seconds = Math.max(0, Math.floor((Date.now() - liveSessionStartedAt) / 1000));
+                time.textContent = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
+            }
+            if (state) state.textContent = liveMuted ? 'Paused' : (liveMicOpen ? 'Auto-listening' : (liveSending || isSending ? 'Preparing reply' : 'Ready for you'));
+        }
+
         function showLivePage(show) {
             const el = document.getElementById('livePage');
             if (!el) return;
@@ -8469,6 +8512,7 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 p.classList.toggle('on', on);
                 p.classList.toggle('listen', on && phase === 'listening');
             }
+            updateLiveSessionMeta();
             if (!status) return;
             const map = {
                 ready: liveMuted ? 'Muted — tap Unmute when ready' : 'Ready',
@@ -8521,6 +8565,9 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 try { cancelVoiceInput(); } catch (e) {}
             }
             liveModeActive = true;
+            liveSessionStartedAt = Date.now();
+            clearInterval(liveSessionTimer);
+            liveSessionTimer = setInterval(updateLiveSessionMeta, 1000);
             liveMicOpen = false;
             liveSending = false;
             liveMuted = false;
@@ -8575,6 +8622,9 @@ html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;ba
                 liveSpeakWait = null;
             }
             liveModeActive = false;
+            clearInterval(liveSessionTimer);
+            liveSessionTimer = null;
+            liveSessionStartedAt = 0;
             document.body.classList.remove('live-chat-on');
             showLivePage(false);
             setLivePhase('ready');

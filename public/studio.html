@@ -219,8 +219,10 @@ async function editCurrentArtifact(request){
  }
  if(currentArtifact.kind==='code'){
   const prompt='Edit the existing runnable code according to this request: "'+request+'". Existing code follows:\n'+currentArtifact.data+'\nReturn ONLY one complete self-contained HTML document with embedded CSS and JavaScript. Keep everything that was not requested to change.';
-  let reply=await apiChat(prompt);reply=String(reply).replace(/^\s*`{3}(?:html)?/i,'').replace(/`{3}\s*$/,'').trim();if(!/<html|<!doctype/i.test(reply))throw new Error('I could not create a valid updated code preview.');
-  currentArtifact.data=reply;add('assistant','Done—I updated the existing code. Open the revised runnable version below.',[],currentArtifact);renderArtifact(currentArtifact);save();return;
+  let reply=await apiChat(prompt),html=extractRunnableHtml(reply);
+  if(!html){reply=await apiChat('Repair the previous response into one complete self-contained HTML document only. Begin with <!DOCTYPE html>, include embedded CSS and JavaScript, and end with </html>.');html=extractRunnableHtml(reply)}
+  if(!html)throw new Error('I could not create a valid updated code preview this time. Press Retry.');
+  currentArtifact.data=html;add('assistant','Done—I updated the existing code. Open the revised runnable version below.',[],currentArtifact);renderArtifact(currentArtifact);save();return;
  }
  if(currentArtifact.kind==='document'||currentArtifact.kind==='presentation'){
   const kind=currentArtifact.kind;
@@ -238,6 +240,12 @@ async function editCurrentArtifact(request){
 }
 async function generalChat(){
  thinking(true);const reply=await apiChat('Reply as GoldenSpaceAI Studio. Be concise, polished, and highly organized. Use short paragraphs, meaningful bold labels, and real Markdown lists when useful. Never print escaped Markdown such as \\*\\*bold\\*\\*. Do not repeat greetings, do not offer unnecessary options, and do not ask a follow-up question unless the missing answer materially changes the result.');add('assistant',reply)
+}
+function extractRunnableHtml(text){
+ let raw=String(text||'').trim().replace(/^\s*`{3}(?:html)?/i,'').replace(/`{3}\s*$/,'').trim().replace(/\\(?=<\/?(?:html|head|body|style|script|div|canvas|!doctype))/gi,'');
+ const start=raw.search(/<!doctype\s+html|<html\b/i),end=raw.toLowerCase().lastIndexOf('</html>');
+ if(start>=0)return raw.slice(start,end>=start?end+7:undefined).trim();
+ return '';
 }
 function parseJSON(text){let raw=String(text||'').replace(/^\s*\x60{3}(?:json)?/i,'').replace(/\x60{3}\s*$/,'').trim(),a=raw.indexOf('{'),b=raw.lastIndexOf('}');if(a<0||b<=a)throw new Error('I could not structure the preview. Ask me to try again.');return JSON.parse(raw.slice(a,b+1))}
 async function createDocument(type,topic,details){
@@ -265,8 +273,13 @@ async function searchImages(topic){
 }
 async function createCode(topic,details){
  const extra='Build "'+topic+'". Requirements: '+details+'. Return ONLY one complete self-contained HTML document with embedded CSS and JavaScript. Make it polished, responsive, accessible, and runnable. No explanation outside the code.';
- let reply=await apiChat(extra);reply=String(reply).replace(/^\s*\x60{3}(?:html)?/i,'').replace(/\x60{3}\s*$/,'').trim();if(!/<html|<!doctype/i.test(reply))throw new Error('I could not prepare a runnable preview. Ask me to try again.');
- currentArtifact={kind:'code',data:reply,title:topic};add('assistant','The code is ready and running. Open the project below to preview, edit, or download it.',[],currentArtifact);renderArtifact(currentArtifact);save()
+ let reply=await apiChat(extra),html=extractRunnableHtml(reply);
+ if(!html){
+  reply=await apiChat('The previous response was not a complete runnable file. Rebuild the same requested project now. Return ONLY a complete self-contained HTML document beginning with <!DOCTYPE html> and ending with </html>, with all CSS and JavaScript embedded. No Markdown fence and no explanation.');
+  html=extractRunnableHtml(reply)
+ }
+ if(!html)throw new Error('I could not prepare the runnable preview this time. Press Retry and I will rebuild it.');
+ currentArtifact={kind:'code',data:html,title:topic};add('assistant','The code is ready and running. Open the project below to preview, edit, or download it.',[],currentArtifact);renderArtifact(currentArtifact);save()
 }
 function renderDeckSlide(){
  if(!currentArtifact||currentArtifact.kind!=='presentation')return;

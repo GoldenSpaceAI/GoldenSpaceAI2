@@ -13,7 +13,7 @@
     'Your OMT Pay number':'رقم محفظة OMT Pay الخاصة بك','Review and accept':'المراجعة والموافقة','Send payment via OMT Pay':'الدفع عبر OMT Pay','Amount sent':'أرسلت المبلغ','Amount':'المبلغ','Send to':'التحويل إلى','From (your OMT)':'من محفظتك','Plan':'الاشتراك','Confirm OMT Pay number':'تأكيد رقم محفظة OMT Pay','Enter the wallet number you will send payment from. We use it to match your transfer.':'أدخل رقم المحفظة التي سترسل المبلغ منها حتى نتمكن من مطابقة التحويل مع طلبك.','Wallet-to-wallet transfer. No screenshots required.':'تحويل بين المحافظ، ولا تحتاج إلى إرسال صورة للتحويل.'
   };
   var original = new WeakMap(), attributes = new WeakMap();
-  var skip = 'script,style,code,pre,textarea,[contenteditable],#messagesContainer,#liveTranscript,.messages,.message,.studio-message,.message-content,[data-user-content]';
+  var skip = 'script,style,code,pre,textarea,[contenteditable],#chatsList,#liveTranscript,.message,.studio-message,.message-content,[data-user-content]';
   function translate(root) {
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n;
     while ((n = walker.nextNode())) {

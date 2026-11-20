@@ -2415,6 +2415,24 @@ app.get('/api/studio/projects', async (req, res) => {
     catch (error) { console.error('studio projects list:', error.message); return res.status(500).json({ error: 'Could not load Studio projects.' }); }
 });
 
+app.get('/api/studio/projects/:id/chat', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const chat = await auth.getStudioProjectChat(ownerKey, req.params.id);
+        return res.json({ chat: chat || { messages: [], pending: null, currentArtifact: null }, workspace: 'studio' });
+    } catch (error) { console.error('studio chat load:', error.message); return res.status(500).json({ error: 'Could not load Studio chat.' }); }
+});
+
+app.put('/api/studio/projects/:id/chat', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const result = await auth.saveStudioProjectChat(ownerKey, req.params.id, req.body || {});
+        return res.status(result.ok ? 200 : 404).json(result);
+    } catch (error) { console.error('studio chat save:', error.message); return res.status(500).json({ ok: false, error: 'Could not save Studio chat.' }); }
+});
+
 app.get('/api/studio/projects/:id', async (req, res) => {
     const ownerKey = resolveChatOwnerKey(req, res);
     if (!ownerKey) return;

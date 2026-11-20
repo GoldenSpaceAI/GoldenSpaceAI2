@@ -82,7 +82,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
  </div></div>
 </main>
 <aside class="preview" id="preview">
- <header class="preview-head"><div class="preview-title"><strong id="previewName">Preview</strong><span id="previewMeta">Live artifact</span></div><div class="preview-actions"><span class="design-count" id="designCount" style="display:none">1,152 designs</span><select id="themeSelect" aria-label="Presentation theme" style="display:none"></select><button id="remixDesign" style="display:none">Remix design</button><button id="editBtn" style="display:none">Edit</button><button id="downloadBtn" style="display:none">Download</button><button id="closePreview">Close</button></div></header>
+ <header class="preview-head"><div class="preview-title"><strong id="previewName">Preview</strong><span id="previewMeta">Live artifact</span></div><div class="preview-actions"><span class="design-count" id="designCount" style="display:none">1,248 designs</span><select id="themeSelect" aria-label="Presentation theme" style="display:none"></select><button id="remixDesign" style="display:none">Remix design</button><button id="editBtn" style="display:none">Edit</button><button id="downloadBtn" style="display:none">Download</button><button id="closePreview">Close</button></div></header>
  <div class="preview-body" id="previewBody"><div class="notice">Your document, image, search results, or runnable code will appear here.</div></div>
 </aside>
 </div>
@@ -363,7 +363,11 @@ function renderDeckSlide(){
  const layout=s.layout||(deckIndex===0?'cover':(deckIndex===slides.length-1?'closing':'content')),bullets=Array.isArray(s.bullets)?s.bullets:[],motif=(Number(d.designSeed)||0)%8;
  const style='--sbg:'+theme.bg+';--salt:'+theme.alt+';--scard:'+theme.card+';--saccent:'+theme.accent+';--saccent2:'+theme.accent2+';--stext:'+theme.text+';--sbody:'+theme.body+';--smuted:'+theme.muted;
  let content='';
- if(layout==='quote'&&s.quote){
+ if(layout==='cover'){
+  content='';
+ }else if(layout==='closing'){
+  content='<div class="slide-steps">'+bullets.slice(0,3).map(b=>'<div class="slide-step">'+esc(b)+'</div>').join('')+'</div>';
+ }else if(layout==='quote'&&s.quote){
   content='<div class="slide-quote">“'+esc(s.quote)+'”</div>'+(s.attribution?'<div class="slide-attribution">— '+esc(s.attribution)+'</div>':'');
  }else if(layout==='stat'&&s.stat){
   content='<div class="slide-grid"><div><div class="slide-stat">'+esc(s.stat)+'</div>'+(s.body?'<p>'+esc(s.body)+'</p>':'')+'</div><div class="slide-panel"><h3>Why it matters</h3><ul>'+bullets.map(b=>'<li>'+esc(b)+'</li>').join('')+'</ul></div></div>';

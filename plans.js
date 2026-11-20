@@ -2025,6 +2025,33 @@ function createPlansStore(dataDir, options = {}) {
         return { ok: true, attached, migratedSub, ownerKey: ak };
     }
 
+    function recordFeatureUsage(ownerKey, feature) {
+        if (!ownerKey || !['images', 'documents', 'code'].includes(feature)) return;
+        const u = ensureUsage(ownerKey);
+        const day = utcDayKey();
+        if (!u.featureUsage || u.featureUsage.day !== day) u.featureUsage = { day, images: 0, documents: 0, code: 0 };
+        u.featureUsage[feature] = (Number(u.featureUsage[feature]) || 0) + 1;
+        if (!u.featureTotals) u.featureTotals = {};
+        u.featureTotals[feature] = (Number(u.featureTotals[feature]) || 0) + 1;
+        save();
+        flushSync();
+    }
+
+    function getFeatureUsage(ownerKey) {
+        const u = ensureUsage(ownerKey);
+        const today = u.featureUsage && u.featureUsage.day === utcDayKey() ? u.featureUsage : {};
+        const office = getOfficeDocumentAllowance(ownerKey);
+        const def = getEffectivePlan(ownerKey).def;
+        return {
+            day: utcDayKey(), resetTimezone: 'UTC',
+            images: { today: Number(today.images) || 0 },
+            documents: { today: Number(today.documents) || 0, exportsUsed: office.used, exportLimit: office.limit, unlimitedExports: office.unlimited, resetsAt: office.resetsAt },
+            code: { today: Number(today.code) || 0, limit: null },
+            pexels: { searches: Number(u.imagineSearchesToday) || 0, searchLimit: Number(def.imagineSearchesPerDay) || Number((PLAN_DEFS[getEffectivePlan(ownerKey).plan] || {}).imagineSearchesPerDay) || 0, images: Number(u.imagineImagesToday) || 0, videos: Number(u.imagineVideosToday) || 0 },
+            note: 'Feature activity is tracked separately. AI requests use the shared model allowance.'
+        };
+    }
+
     function getCredits(ownerKey) {
         const store = read();
         const c = store.credits[ownerKey] || {};
@@ -2334,6 +2361,7 @@ function createPlansStore(dataDir, options = {}) {
         if (payment.status === 'approved') {
             return { ok: true, payment, already: true };
         }
+        if (payment.status !== 'waiting') return { ok: false, error: 'Only waiting payment requests can be approved.' };
 
         const phone = normalizePhone(payment.phone);
         const ownerKey = paymentOwnerKey(payment);
@@ -2469,6 +2497,7 @@ function createPlansStore(dataDir, options = {}) {
         if (payment.status === 'declined') {
             return { ok: true, payment, already: true };
         }
+        if (payment.kind === 'credits' && payment.status !== 'waiting') return { ok: false, error: 'Approved credits require a separate refund adjustment.' };
 
         const reason = String((opts && opts.reason) || '').trim();
         if (!reason) {
@@ -2734,6 +2763,8 @@ function createPlansStore(dataDir, options = {}) {
         getMyPlan,
         getPayment,
         getCredits,
+        getFeatureUsage,
+        recordFeatureUsage,
         createCreditRequest,
         approvePayment,
         declinePayment,
@@ -2807,3 +2838,4 @@ module.exports = {
     MODEL_PRICING,
     DEFAULT_PRICING
 };
+

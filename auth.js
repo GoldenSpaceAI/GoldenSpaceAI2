@@ -226,6 +226,17 @@ function createAuth(options = {}) {
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         PRIMARY KEY (owner_key, project_id)
                     );
+                    CREATE TABLE IF NOT EXISTS studio_projects (
+                        owner_key TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        instructions TEXT NOT NULL DEFAULT '',
+                        color TEXT NOT NULL DEFAULT '#d4af37',
+                        icon TEXT NOT NULL DEFAULT '📁',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (owner_key, project_id)
+                    );
                     CREATE TABLE IF NOT EXISTS user_memory (
                         user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
                         facts JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -995,6 +1006,63 @@ function createAuth(options = {}) {
         } finally { client.release(); }
     }
 
+    async function listStudioProjects(ownerKey) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return [];
+        const r = await p.query(
+            `SELECT project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"
+             FROM studio_projects WHERE owner_key = $1 ORDER BY updated_at DESC`,
+            [String(ownerKey)]
+        );
+        return r.rows.map(row => ({ id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) }));
+    }
+
+    async function createStudioProject(ownerKey, project) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Studio projects are unavailable.' };
+        const item = project || {};
+        const id = String(item.id || ('studio_project_' + crypto.randomUUID())).slice(0, 100);
+        const name = String(item.name || '').trim().slice(0, 100);
+        const instructions = String(item.instructions || '').trim().slice(0, 8000);
+        const color = projectColor(item.color);
+        const icon = projectIcon(item.icon);
+        if (!name) return { ok: false, error: 'Add a project name.' };
+        const r = await p.query(
+            `INSERT INTO studio_projects (owner_key, project_id, name, instructions, color, icon)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"`,
+            [String(ownerKey), id, name, instructions, color, icon]
+        );
+        const row = r.rows[0];
+        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
+    }
+
+    async function updateStudioProject(ownerKey, projectId, project) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Studio projects are unavailable.' };
+        const item = project || {};
+        const name = String(item.name || '').trim().slice(0, 100);
+        const instructions = String(item.instructions || '').trim().slice(0, 8000);
+        const color = projectColor(item.color);
+        const icon = projectIcon(item.icon);
+        if (!name) return { ok: false, error: 'Add a project name.' };
+        const r = await p.query(
+            `UPDATE studio_projects SET name=$3, instructions=$4, color=$5, icon=$6, updated_at=NOW()
+             WHERE owner_key=$1 AND project_id=$2
+             RETURNING project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"`,
+            [String(ownerKey), String(projectId), name, instructions, color, icon]
+        );
+        if (!r.rows[0]) return { ok: false, error: 'Studio project not found.' };
+        const row = r.rows[0];
+        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
+    }
+
+    async function deleteStudioProject(ownerKey, projectId) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Studio projects are unavailable.' };
+        const r = await p.query('DELETE FROM studio_projects WHERE owner_key=$1 AND project_id=$2', [String(ownerKey), String(projectId)]);
+        return { ok: true, deleted: r.rowCount > 0 };
+    }
+
     async function createNotification(userId, item) {
         const p = getPool();
         if (!userId || !p || !(await ensureSchema())) return { ok: false, error: 'Notifications are unavailable.' };
@@ -1281,6 +1349,10 @@ function createAuth(options = {}) {
         createProject,
         updateProject,
         deleteProject,
+        listStudioProjects,
+        createStudioProject,
+        updateStudioProject,
+        deleteStudioProject,
         savePushSubscription,
         removePushSubscription,
         sendPushToUser,

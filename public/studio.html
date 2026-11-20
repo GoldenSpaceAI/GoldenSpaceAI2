@@ -2,58 +2,185 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#090b10"><meta name="description" content="Create images and find media with GoldenSpaceAI Studio.">
-<title>Studio · GoldenSpaceAI</title><link rel="icon" href="/logo.png?v=20261003"><link rel="stylesheet" href="/polish.css?v=1">
+<meta name="color-scheme" content="dark light"><title>Studio · GoldenSpaceAI</title>
+<link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/polish.css?v=1">
 <style>
-:root{color-scheme:dark;--bg:#090b10;--panel:#11141b;--panel2:#171b23;--line:rgba(255,255,255,.085);--gold:#d8b756;--text:#f4f6f8;--muted:#9ba5b3}
-*{box-sizing:border-box}body{margin:0;min-height:100vh}.shell{width:min(1420px,100%);margin:auto;padding:18px clamp(14px,3vw,42px) 60px}.top{display:flex;align-items:center;justify-content:space-between;padding:2px 0 18px;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none;font-weight:800}.brand img{width:32px;height:36px;object-fit:contain}.top nav{display:flex;align-items:center;gap:8px}.navlink{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-size:14px}.navlink:hover{background:var(--panel2);color:var(--text)}
-.hero{padding:52px 0 28px;display:flex;align-items:end;justify-content:space-between;gap:25px}.eyebrow{color:var(--gold);font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.hero h1{font-size:clamp(38px,6vw,72px);line-height:1;margin:10px 0 13px;max-width:800px}.hero p{color:var(--muted);max-width:650px;margin:0;font-size:16px}.workspace{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px}.rail,.main{background:var(--panel);border:1px solid var(--line);border-radius:20px}.rail{padding:13px;height:max-content}.tool{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:0;background:transparent;color:var(--muted);padding:12px;border-radius:11px;cursor:pointer;font-weight:700}.tool:hover{background:var(--panel2);color:var(--text)}.tool.active{background:rgba(216,183,86,.13);color:var(--gold)}.tool span:first-child{width:23px;text-align:center}.soon{margin-left:auto;font-size:10px;border:1px solid var(--line);border-radius:99px;padding:2px 6px;color:var(--muted)}.rail-note{border-top:1px solid var(--line);margin-top:10px;padding:14px 10px 4px;color:var(--muted);font-size:12px;line-height:1.55}
-.main{min-height:590px;padding:clamp(18px,3vw,30px)}.pane[hidden]{display:none}.pane-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:22px}.pane-head h2{font-size:25px;margin:0 0 6px}.pane-head p{color:var(--muted);margin:0}.usage{font-size:12px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);padding:8px 11px;border-radius:99px;white-space:nowrap}
-.prompt{display:flex;align-items:flex-end;gap:10px;border:1px solid var(--line);background:var(--panel2);padding:10px;border-radius:16px}.prompt:focus-within{border-color:rgba(216,183,86,.55)}textarea{flex:1;resize:vertical;min-height:74px;max-height:180px;background:transparent;border:0!important;color:var(--text);padding:10px;outline:0;line-height:1.5}.primary{height:45px;padding:0 18px;border:0;border-radius:11px;background:var(--gold);color:#17140b;font-weight:800;cursor:pointer}.primary:disabled{opacity:.55;cursor:wait}.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.chip{border:1px solid var(--line);background:transparent;color:var(--muted);padding:7px 10px;border-radius:99px;cursor:pointer;font-size:12px}.chip:hover{border-color:var(--gold);color:var(--text)}.status{min-height:24px;margin:16px 2px;color:var(--muted);font-size:14px}.status.error{color:#ffaaa2}
-.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.filters select{background:var(--panel2);color:var(--text);padding:10px 32px 10px 11px;border:1px solid var(--line)}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.media{overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}.thumb{aspect-ratio:4/3;background:#08090c;display:grid;place-items:center;overflow:hidden}.thumb img,.thumb video{width:100%;height:100%;object-fit:cover}.meta{padding:11px;display:flex;gap:8px;align-items:center;justify-content:space-between}.meta span{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.action{color:var(--text);text-decoration:none;border:1px solid var(--line);padding:7px 10px;border-radius:8px;font-size:12px;font-weight:700}.empty{display:grid;place-items:center;text-align:center;min-height:310px;color:var(--muted);border:1px dashed var(--line);border-radius:15px;padding:30px}.empty strong{display:block;color:var(--text);font-size:18px;margin-bottom:6px}.generated{max-width:760px}.generated .thumb{aspect-ratio:auto;min-height:300px}.generated img{max-height:650px;object-fit:contain}.future{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}.future-card{background:var(--panel2);border:1px solid var(--line);border-radius:15px;padding:19px}.future-card h3{margin:0 0 7px}.future-card p{color:var(--muted);font-size:14px;margin:0;line-height:1.55}
-@media(max-width:850px){.workspace{grid-template-columns:1fr}.rail{display:flex;overflow-x:auto;gap:5px}.tool{width:auto;white-space:nowrap}.rail-note{display:none}.grid{grid-template-columns:repeat(2,1fr)}.hero{padding-top:38px}.top nav .navlink:first-child{display:none}}
-@media(max-width:540px){.shell{padding:12px 12px 40px}.top nav{gap:2px}.navlink{font-size:12px;padding:8px}.hero{padding:34px 2px 22px}.hero h1{font-size:42px}.main{padding:15px;border-radius:15px}.pane-head{display:block}.usage{display:inline-block;margin-top:11px}.prompt{display:block}.primary{width:100%;margin-top:8px}.grid,.future{grid-template-columns:1fr}.thumb{aspect-ratio:1/1}}
-</style></head>
+:root{--bg:#080a0f;--panel:#10131b;--panel2:#151923;--line:rgba(255,255,255,.09);--text:#f4f4f1;--muted:#969ba8;--gold:#ddb83f;--gold2:#9f7920;--good:#4bd394;--danger:#ff7d7d;--shadow:0 24px 80px rgba(0,0,0,.35)}
+html.light{--bg:#f5f3ed;--panel:#fff;--panel2:#f8f7f3;--line:rgba(35,28,12,.12);--text:#191812;--muted:#6c6b65;--shadow:0 24px 70px rgba(74,57,12,.12)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template-columns:260px minmax(420px,1fr);transition:grid-template-columns .25s}.app.preview-open{grid-template-columns:220px minmax(400px,.82fr) minmax(420px,1.18fr)}
+.sidebar{border-right:1px solid var(--line);background:color-mix(in srgb,var(--panel) 93%,transparent);padding:18px 14px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.logo{display:flex;align-items:center;gap:11px;color:inherit;text-decoration:none;padding:6px}.logo-mark{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#f5d96c,#a57813);display:grid;place-items:center;color:#191304;font-weight:950}.logo strong{font-size:15px}
+.new-chat{width:100%;border:1px solid var(--line);background:var(--panel2);color:inherit;border-radius:13px;padding:11px 12px;text-align:left;cursor:pointer;font-weight:750}.new-chat:hover{border-color:rgba(221,184,63,.55)}
+.side-label{font-size:12px;color:var(--muted);letter-spacing:.09em;font-weight:800;padding:0 8px}.side-nav{display:grid;gap:5px}.side-nav a{color:var(--muted);text-decoration:none;padding:10px 11px;border-radius:10px}.side-nav a:hover,.side-nav a.active{color:var(--text);background:var(--panel2)}.side-foot{margin-top:auto;display:grid;gap:6px}
+.workspace{min-width:0;display:flex;flex-direction:column;height:100dvh;background:radial-gradient(circle at 50% 0,rgba(221,184,63,.045),transparent 34%)}
+.topbar{height:64px;padding:0 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);flex:0 0 auto}.title-line{display:flex;align-items:center;gap:10px}.title-line strong{font-size:15px}.badge{font-size:11px;font-weight:850;letter-spacing:.08em;color:#f5d76b;background:rgba(221,184,63,.1);border:1px solid rgba(221,184,63,.24);padding:4px 7px;border-radius:999px}.top-actions{display:flex;gap:7px}.icon-btn{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:10px;padding:8px 10px;cursor:pointer}
+.chat{flex:1;overflow:auto;padding:28px max(24px,calc((100% - 820px)/2)) 170px;scroll-behavior:smooth}.empty{min-height:62vh;display:grid;place-content:center;text-align:center}.orb{width:52px;height:52px;margin:0 auto 18px;border-radius:17px;background:linear-gradient(145deg,#f1d66a,#a87812);box-shadow:0 15px 50px rgba(221,184,63,.18);display:grid;place-items:center;color:#1b1505;font-size:24px;font-weight:900}.empty h1{font-size:30px;letter-spacing:-.035em;margin:0 0 8px}.empty p{color:var(--muted);max-width:540px;margin:0 auto 22px}.starter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-width:650px}.starter{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;padding:13px;text-align:left;cursor:pointer}.starter span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.message{max-width:820px;margin:0 auto 26px;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px}.avatar{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--panel2);font-size:12px;font-weight:900}.message.user .avatar{background:rgba(221,184,63,.13);color:#e7c755}.message-body{min-width:0}.message-head{font-size:13px;font-weight:800;margin:4px 0 7px}.message-copy{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text)}.message-copy.muted{color:var(--muted)}.thinking{display:inline-flex;gap:5px}.thinking i{width:6px;height:6px;background:var(--gold);border-radius:50%;animation:pulse 1s infinite}.thinking i:nth-child(2){animation-delay:.15s}.thinking i:nth-child(3){animation-delay:.3s}@keyframes pulse{50%{opacity:.25;transform:translateY(-2px)}}
+.quick-answers{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.quick-answers button{border:1px solid var(--line);background:var(--panel2);color:inherit;padding:8px 11px;border-radius:999px;cursor:pointer;font-size:13px}
+.composer-wrap{position:absolute;left:260px;right:0;bottom:0;padding:48px max(20px,calc((100% - 850px)/2)) max(18px,env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 38%);transition:left .25s,right .25s;pointer-events:none}.preview-open .composer-wrap{left:220px;right:calc((100vw - 220px)*.54)}
+.composer{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:10px;box-shadow:var(--shadow);position:relative}.task-chip{display:none;align-items:center;gap:7px;width:max-content;max-width:100%;padding:6px 9px;margin:0 0 7px 44px;border-radius:9px;background:rgba(221,184,63,.1);color:#e8c95d;font-size:12px;font-weight:800}.task-chip.on{display:flex}.task-chip button{border:0;background:none;color:inherit;cursor:pointer}
+.compose-row{display:grid;grid-template-columns:38px 1fr 42px;align-items:end;gap:7px}.plus{width:38px;height:38px;border:0;border-radius:11px;background:transparent;color:var(--muted);font-size:25px;cursor:pointer}.plus:hover{background:var(--panel2);color:var(--text)}textarea{width:100%;max-height:180px;min-height:38px;resize:none;border:0;outline:0;background:transparent;color:var(--text);padding:7px 4px}.send{width:39px;height:39px;border:0;border-radius:12px;background:var(--gold);color:#191304;cursor:pointer;font-weight:950}.send:disabled{opacity:.35;cursor:default}.hint{font-size:11px;color:var(--muted);text-align:center;margin-top:7px}
+.plus-menu{position:absolute;left:10px;bottom:73px;width:280px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);display:none;z-index:20}.plus-menu.open{display:block}.tool{width:100%;border:0;background:transparent;color:inherit;padding:10px;border-radius:10px;display:grid;grid-template-columns:34px 1fr;text-align:left;cursor:pointer}.tool:hover{background:var(--panel2)}.tool-icon{width:29px;height:29px;border-radius:9px;background:rgba(221,184,63,.11);color:#e6c556;display:grid;place-items:center}.tool strong,.tool small{display:block}.tool small{color:var(--muted);font-size:12px;margin-top:1px}
+.preview{display:none;height:100dvh;border-left:1px solid var(--line);background:var(--panel);min-width:0}.preview-open .preview{display:flex;flex-direction:column}.preview-head{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px}.preview-title{min-width:0}.preview-title strong,.preview-title span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.preview-title span{font-size:12px;color:var(--muted)}.preview-actions{display:flex;gap:7px}.preview-actions button{border:1px solid var(--line);background:var(--panel2);color:inherit;padding:8px 10px;border-radius:9px;cursor:pointer;font-size:13px}.preview-body{flex:1;overflow:auto;padding:22px;background:var(--bg)}
+.doc-page{max-width:760px;min-height:900px;margin:0 auto;background:white;color:#1a1a1a;border-radius:4px;padding:64px 70px;box-shadow:0 10px 40px #0004}.doc-page h1{font-size:34px;line-height:1.15;margin:0 0 10px}.doc-page .subtitle{color:#766328;font-size:17px;margin-bottom:40px}.doc-section{margin:0 0 30px}.doc-section h2{font-size:21px;margin:0 0 10px}.doc-section p,.doc-section li{font-size:15px;line-height:1.7}.slide{aspect-ratio:16/9;max-width:850px;margin:0 auto 18px;padding:7% 8%;border-radius:10px;background:linear-gradient(145deg,#131621,#23283a);color:white;box-shadow:0 12px 40px #0005}.slide .eyebrow{color:#e2bd43;font-size:12px;letter-spacing:.15em}.slide h2{font-size:clamp(24px,3.4vw,46px);line-height:1.08;margin:12px 0}.slide li{margin:7px 0;color:#d8dbe2}
+.generated-image{max-width:100%;max-height:calc(100dvh - 150px);display:block;margin:auto;border-radius:14px;box-shadow:var(--shadow)}.media-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.media-card{background:var(--panel2);border-radius:12px;overflow:hidden}.media-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}.media-card a{display:block;color:inherit;text-decoration:none;padding:9px;font-size:12px}.code-preview{display:grid;grid-template-rows:minmax(220px,.8fr) minmax(260px,1.2fr);height:100%;gap:12px}.code-preview pre{margin:0;overflow:auto;padding:18px;border-radius:12px;background:#090b10;color:#dfe4ee;font:13px/1.55 ui-monospace,SFMono-Regular,monospace}.code-preview iframe{width:100%;height:100%;border:1px solid var(--line);border-radius:12px;background:white}
+.notice{padding:11px 13px;border:1px solid rgba(221,184,63,.22);background:rgba(221,184,63,.07);border-radius:11px;color:#dfc569;font-size:13px}
+.mobile-menu{display:none}
+@media(max-width:1050px){.app,.app.preview-open{grid-template-columns:74px 1fr}.sidebar{padding:16px 10px}.logo span,.new-chat span,.side-label,.side-nav span{display:none}.new-chat{text-align:center}.preview{position:fixed;inset:0 0 0 74px;z-index:30}.composer-wrap,.preview-open .composer-wrap{left:74px;right:0}}
+@media(max-width:680px){.app,.app.preview-open{display:block}.sidebar{display:none}.topbar{height:56px;padding:0 13px}.mobile-menu{display:block}.chat{padding:22px 15px 155px}.empty{min-height:56vh}.empty h1{font-size:25px}.starter-grid{grid-template-columns:1fr}.composer-wrap,.preview-open .composer-wrap{left:0;right:0;padding-left:10px;padding-right:10px}.preview{inset:0}.preview-head{height:58px}.preview-body{padding:10px}.doc-page{padding:34px 24px;min-height:760px}.media-grid{grid-template-columns:1fr}.hint{display:none}}
+@media print{body *{visibility:hidden}.preview,.preview *{visibility:visible}.preview{display:block!important;position:absolute!important;inset:0!important;border:0}.preview-head{display:none}.preview-body{padding:0;background:white}.doc-page{box-shadow:none;max-width:none;border-radius:0}}
+</style>
+</head>
 <body class="gsa-polished">
-<main class="shell">
-<header class="top"><a class="brand" href="/"><img src="/logo.png?v=20261003" alt="">GoldenSpaceAI</a><nav><a class="navlink" href="/">Chat</a><a class="navlink" href="/my-plan">Usage</a><a class="navlink" href="/upgrade">Plans</a></nav></header>
-<section class="hero"><div><div class="eyebrow">Creative workspace</div><h1>GoldenSpaceAI Studio</h1><p>Create original images, explore Pexels media, and build the visual parts of your projects in one focused workspace.</p></div></section>
-<section class="workspace">
-<aside class="rail" aria-label="Studio tools">
-<button class="tool active" data-pane="generate"><span>✦</span>Generate image</button>
-<button class="tool" data-pane="search"><span>⌕</span>Search media</button>
-<button class="tool" data-pane="future"><span>▤</span>Artifacts <span class="soon">NEXT</span></button>
-<div class="rail-note">AI images use the lowest-cost Grok Imagine model. Pexels search remains available for free stock media.</div>
+<div class="app" id="app">
+<aside class="sidebar">
+ <a class="logo" href="/"><div class="logo-mark">G</div><span><strong>GoldenSpaceAI</strong><small style="display:block;color:var(--muted)">Studio</small></span></a>
+ <button class="new-chat" id="newChat">＋ <span>New Studio chat</span></button>
+ <div><div class="side-label">WORKSPACE</div><nav class="side-nav"><a class="active" href="/studio"><span>Studio chat</span></a><a href="/"><span>Standard chat</span></a><a href="/my-plan"><span>Usage & plan</span></a></nav></div>
+ <div class="side-foot"><nav class="side-nav"><a href="/upgrade"><span>Upgrade plan</span></a><a href="/"><span>Back to GoldenSpaceAI</span></a></nav></div>
 </aside>
-<div class="main">
-<section class="pane" id="generatePane">
-<div class="pane-head"><div><h2>Generate an image</h2><p>Describe an original visual. GoldenSpaceAI creates one image per request.</p></div><span class="usage" id="aiUsage">Loading allowance…</span></div>
-<form id="generateForm"><div class="prompt"><textarea id="generatePrompt" maxlength="800" required placeholder="A cinematic view of Beirut at dusk, warm window lights, deep blue sky, editorial photography…"></textarea><button class="primary" id="generateBtn">Generate</button></div></form>
-<div class="chips"><button class="chip" type="button">Editorial product photo</button><button class="chip" type="button">Presentation hero image</button><button class="chip" type="button">Minimal 3D illustration</button><button class="chip" type="button">Cinematic landscape</button></div>
-<div class="status" id="generateStatus"></div><div id="generatedResult" class="generated"></div>
-</section>
-<section class="pane" id="searchPane" hidden>
-<div class="pane-head"><div><h2>Search Pexels</h2><p>Find existing photos and videos, preview them, and download the originals.</p></div><span class="usage" id="searchUsage">Loading allowance…</span></div>
-<div class="filters"><select id="mediaType"><option value="photo">Images</option><option value="video">Videos</option></select><select id="orientation"><option value="">Any orientation</option><option value="landscape">Landscape</option><option value="portrait">Portrait</option><option value="square">Square</option></select></div>
-<form id="searchForm"><div class="prompt"><textarea id="searchPrompt" maxlength="160" required placeholder="Students collaborating in a modern classroom…"></textarea><button class="primary" id="searchBtn">Search</button></div></form>
-<div class="status" id="searchStatus"></div><div class="grid" id="searchResults"></div>
-</section>
-<section class="pane" id="futurePane" hidden>
-<div class="pane-head"><div><h2>Artifacts workspace</h2><p>The next Studio release will bring editable deliverables into this workspace.</p></div></div>
-<div class="future"><article class="future-card"><h3>Presentations</h3><p>Preview slides, edit text and layouts, ask AI for revisions, and export a valid PowerPoint.</p></article><article class="future-card"><h3>Documents and PDFs</h3><p>Edit structured documents, review pages, and export DOCX or PDF.</p></article><article class="future-card"><h3>Code preview</h3><p>Generate code, run it in an isolated preview, inspect files, and request changes.</p></article><article class="future-card"><h3>Version history</h3><p>Compare AI edits, undo changes, restore versions, and download the final artifact.</p></article></div>
-</section>
-</div></section></main>
+<main class="workspace">
+ <header class="topbar"><div class="title-line"><button class="icon-btn mobile-menu" onclick="location.href='/'">☰</button><strong>Studio</strong><span class="badge">ADVANCED</span></div><div class="top-actions"><button class="icon-btn" id="themeBtn">Light</button><button class="icon-btn" id="previewToggle" style="display:none">Preview</button></div></header>
+ <section class="chat" id="chat">
+  <div class="empty" id="empty">
+   <div><div class="orb">✦</div><h1>What should we create?</h1><p>Chat normally, or use the plus button to create documents, images, presentations, find media, and build runnable code—all in one conversation.</p>
+   <div class="starter-grid">
+    <button class="starter" data-tool="document"><strong>Create a school document</strong><span>GoldenSpaceAI asks about format, pages, and audience</span></button>
+    <button class="starter" data-tool="image"><strong>Generate an original image</strong><span>Describe the idea, then refine its style</span></button>
+    <button class="starter" data-tool="presentation"><strong>Design a presentation</strong><span>Preview slides, revise, and download</span></button>
+    <button class="starter" data-tool="code"><strong>Build and preview code</strong><span>Write, run, and improve a web experience</span></button>
+   </div></div>
+  </div>
+  <div id="messages"></div>
+ </section>
+ <div class="composer-wrap"><div class="composer">
+  <div class="task-chip" id="taskChip"><span id="taskName"></span><button id="clearTask">×</button></div>
+  <div class="plus-menu" id="plusMenu">
+   <button class="tool" data-tool="document"><span class="tool-icon">▤</span><span><strong>Create PDF or Word</strong><small>Reports, essays, and handouts</small></span></button>
+   <button class="tool" data-tool="presentation"><span class="tool-icon">▥</span><span><strong>Create presentation</strong><small>Designed slides with preview</small></span></button>
+   <button class="tool" data-tool="image"><span class="tool-icon">✦</span><span><strong>Generate image</strong><small>Original AI image</small></span></button>
+   <button class="tool" data-tool="search"><span class="tool-icon">⌕</span><span><strong>Search images</strong><small>Photos from Pexels</small></span></button>
+   <button class="tool" data-tool="code"><span class="tool-icon">⌘</span><span><strong>Build code</strong><small>Preview runnable HTML</small></span></button>
+  </div>
+  <div class="compose-row"><button class="plus" id="plusBtn" aria-label="Create or attach">＋</button><textarea id="input" rows="1" placeholder="Message GoldenSpaceAI Studio"></textarea><button class="send" id="send" aria-label="Send">↑</button></div>
+  <div class="hint">GoldenSpaceAI may ask a few questions before creating the final result.</div>
+ </div></div>
+</main>
+<aside class="preview" id="preview">
+ <header class="preview-head"><div class="preview-title"><strong id="previewName">Preview</strong><span id="previewMeta">Live artifact</span></div><div class="preview-actions"><button id="editBtn" style="display:none">Edit</button><button id="downloadBtn" style="display:none">Download</button><button id="closePreview">Close</button></div></header>
+ <div class="preview-body" id="previewBody"><div class="notice">Your document, image, search results, or runnable code will appear here.</div></div>
+</aside>
+</div>
 <script>
-(function(){
-'use strict';
-function id(x){return document.getElementById(x)}
-function clientId(){try{var v=localStorage.getItem('goldenspaceai2_client_id');if(!v){v='c_'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('goldenspaceai2_client_id',v)}return v}catch(_){return 'c_'+Date.now().toString(36)}}
-function headers(json){var h={'X-Client-Id':clientId(),'Accept':'application/json'};if(json)h['Content-Type']='application/json';return h}
-document.querySelectorAll('.tool').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.tool').forEach(function(x){x.classList.remove('active')});b.classList.add('active');document.querySelectorAll('.pane').forEach(function(x){x.hidden=true});id(b.dataset.pane+'Pane').hidden=false})});
-document.querySelectorAll('#generatePane .chip').forEach(function(b){b.addEventListener('click',function(){id('generatePrompt').value=b.textContent;id('generatePrompt').focus()})});
-async function loadUsage(){try{var r=await fetch('/api/studio/usage',{headers:headers(),credentials:'same-origin'}),d=await r.json();id('aiUsage').textContent=d.loggedIn?(d.remaining+' of '+d.limit+' AI images left today'):'Log in to generate';}catch(_){id('aiUsage').textContent='Allowance unavailable'}try{var r2=await fetch('/api/plan-status',{headers:headers(),credentials:'same-origin'}),d2=await r2.json(),q=Array.isArray(d2.quotas)?d2.quotas:[];var f=q.find(function(x){return x.id==='imagineSearches'});id('searchUsage').textContent=f?f.displayMeta:'Plan allowance';}catch(_){id('searchUsage').textContent='Plan allowance'}}
-id('generateForm').addEventListener('submit',async function(e){e.preventDefault();var prompt=id('generatePrompt').value.trim(),btn=id('generateBtn'),status=id('generateStatus'),out=id('generatedResult');if(!prompt)return;btn.disabled=true;status.className='status';status.textContent='Creating your image…';out.innerHTML='';try{var r=await fetch('/api/studio/generate-image',{method:'POST',credentials:'same-origin',headers:headers(true),body:JSON.stringify({prompt:prompt})}),d=await r.json();if(!r.ok)throw new Error(d.error||'Image generation failed.');var card=document.createElement('article');card.className='media';var thumb=document.createElement('div');thumb.className='thumb';var img=document.createElement('img');img.src=d.image.url;img.alt=prompt;thumb.appendChild(img);var meta=document.createElement('div');meta.className='meta';var label=document.createElement('span');label.textContent='Created with GoldenSpaceAI';var a=document.createElement('a');a.className='action';a.href=d.image.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Download';meta.append(label,a);card.append(thumb,meta);out.appendChild(card);status.textContent='Image ready.';id('aiUsage').textContent=d.remaining+' of '+d.limit+' AI images left today'}catch(err){status.className='status error';status.textContent=err.message}finally{btn.disabled=false}});
-id('searchForm').addEventListener('submit',async function(e){e.preventDefault();var prompt=id('searchPrompt').value.trim(),btn=id('searchBtn'),status=id('searchStatus'),grid=id('searchResults'),type=id('mediaType').value;if(!prompt)return;btn.disabled=true;status.className='status';status.textContent='Searching Pexels…';grid.innerHTML='';try{var p=new URLSearchParams({query:prompt,type:type,page:'1'}),o=id('orientation').value;if(o)p.set('orientation',o);var r=await fetch('/api/imagine/search?'+p,{headers:headers(),credentials:'same-origin'}),d=await r.json();if(!r.ok)throw new Error(d.message||'Search failed.');(d.results||[]).forEach(function(item){var card=document.createElement('article');card.className='media';var thumb=document.createElement('div');thumb.className='thumb';var image=document.createElement('img');image.src=item.preview||item.poster||item.image;image.alt=item.alt||'Pexels media';thumb.appendChild(image);var meta=document.createElement('div');meta.className='meta';var label=document.createElement('span');label.textContent=item.photographer||'Pexels';var a=document.createElement('a');a.className='action';a.href=item.download;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Download';meta.append(label,a);card.append(thumb,meta);grid.appendChild(card)});status.textContent=(d.results||[]).length+' results found.';if(d.usage)id('searchUsage').textContent=d.usage.searchesRemaining+' searches left today'}catch(err){status.className='status error';status.textContent=err.message}finally{btn.disabled=false}});
-var tool=new URLSearchParams(location.search).get('tool');if(tool==='search')document.querySelector('[data-pane="search"]').click();loadUsage();
-})();
-</script></body></html>
+const $=id=>document.getElementById(id);
+let messages=[],selectedTool=null,pending=null,currentArtifact=null,busy=false;
+const toolLabels={document:'PDF / Word document',presentation:'Presentation',image:'AI image',search:'Image search',code:'Code workspace'};
+function save(){try{localStorage.setItem('gsa_studio_chat',JSON.stringify({messages,pending,currentArtifact}))}catch(e){}}
+function load(){try{const x=JSON.parse(localStorage.getItem('gsa_studio_chat')||'{}');messages=Array.isArray(x.messages)?x.messages:[];pending=x.pending||null;currentArtifact=x.currentArtifact||null}catch(e){}renderMessages();if(currentArtifact)renderArtifact(currentArtifact)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function add(role,text,quick){messages.push({role,text,quick:quick||[],at:new Date().toISOString()});renderMessages();save()}
+function renderMessages(){
+ $('empty').style.display=messages.length?'none':'grid';
+ $('messages').innerHTML=messages.map((m,i)=>'<article class="message '+m.role+'"><div class="avatar">'+(m.role==='user'?'You':'G')+'</div><div class="message-body"><div class="message-head">'+(m.role==='user'?'You':'GoldenSpaceAI Studio')+'</div><div class="message-copy">'+esc(m.text)+'</div>'+(m.quick&&m.quick.length?'<div class="quick-answers">'+m.quick.map(q=>'<button onclick="useQuick('+i+',\\''+esc(q).replace(/'/g,"\\\\'")+'\\')">'+esc(q)+'</button>').join('')+'</div>':'')+'</div></article>').join('');
+ $('chat').scrollTop=$('chat').scrollHeight;
+}
+window.useQuick=(i,q)=>{$('input').value=q;autoSize();sendMessage()}
+function thinking(on){const old=$('thinking');if(old)old.remove();if(on){$('messages').insertAdjacentHTML('beforeend','<article class="message" id="thinking"><div class="avatar">G</div><div class="message-body"><div class="message-head">GoldenSpaceAI Studio</div><div class="thinking"><i></i><i></i><i></i></div></div></article>');$('chat').scrollTop=$('chat').scrollHeight}}
+function selectTool(tool){
+ selectedTool=tool;$('taskName').textContent=toolLabels[tool];$('taskChip').classList.add('on');$('plusMenu').classList.remove('open');
+ const prompts={document:'What is the document about?',presentation:'What should the presentation explain?',image:'What image would you like to create?',search:'What images should I find?',code:'What should I build?'};
+ $('input').placeholder=prompts[tool];$('input').focus()
+}
+function clearTool(){selectedTool=null;$('taskChip').classList.remove('on');$('input').placeholder='Message GoldenSpaceAI Studio'}
+async function sendMessage(){
+ const text=$('input').value.trim();if(!text||busy)return;$('input').value='';autoSize();add('user',text);busy=true;$('send').disabled=true;
+ try{
+  if(pending){await continueTask(text)}
+  else if(selectedTool){await beginTask(selectedTool,text)}
+  else await generalChat(text)
+ }catch(e){add('assistant',e.message||'Something went wrong. Please try again.')}
+ finally{busy=false;$('send').disabled=false;thinking(false)}
+}
+async function beginTask(tool,topic){
+ clearTool();
+ if(tool==='search'){await searchImages(topic);return}
+ pending={type:tool,topic,stage:'details'};
+ if(tool==='document')add('assistant','I can make that. What type of document do you want—PDF or Word—and about how many pages? You can also tell me the audience and style.', ['PDF · 5 pages · school report','Word · 3 pages · professional','PDF · 2 pages · simple handout']);
+ if(tool==='presentation')add('assistant','How many slides should it have, who is it for, and what visual style do you want?', ['8 slides · school · modern','12 slides · professional · elegant','6 slides · simple and colorful']);
+ if(tool==='image')add('assistant','What style and shape should I use? Add any colors, mood, or important details.', ['Cinematic · landscape','Clean 3D illustration · square','Editorial photo · portrait']);
+ if(tool==='code')add('assistant','What should it be built with, and what should users be able to do? I can preview HTML, CSS, and JavaScript directly.', ['HTML/CSS/JS · interactive','Single HTML page · polished','Responsive dashboard · dark and light']);
+ save()
+}
+async function continueTask(details){
+ const task=pending;pending=null;thinking(true);
+ if(task.type==='document'||task.type==='presentation')await createDocument(task.type,task.topic,details);
+ else if(task.type==='image')await createImage(task.topic,details);
+ else if(task.type==='code')await createCode(task.topic,details);
+ save()
+}
+async function apiChat(extra){
+ const history=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.text}));
+ history.push({role:'user',content:extra});
+ const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history})});
+ const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.reply||data.error||'GoldenSpaceAI could not reply.');return data.reply||data.error||''
+}
+async function generalChat(){
+ thinking(true);const reply=await apiChat('Reply naturally and helpfully. This is GoldenSpaceAI Studio, an advanced creative workspace.');add('assistant',reply)
+}
+function parseJSON(text){let raw=String(text||'').replace(/^\s*\x60{3}(?:json)?/i,'').replace(/\x60{3}\s*$/,'').trim(),a=raw.indexOf('{'),b=raw.lastIndexOf('}');if(a<0||b<=a)throw new Error('I could not structure the preview. Ask me to try again.');return JSON.parse(raw.slice(a,b+1))}
+async function createDocument(type,topic,details){
+ const format=type==='presentation'?'presentation':'document';
+ const extra='Create a polished '+format+' about "'+topic+'". Requirements: '+details+'. Return ONLY valid JSON: {"title":"...","subtitle":"...","slides":[{"eyebrow":"...","title":"...","body":"...","bullets":["..."],"visual":"..."}]}. For a presentation match the requested slide count. For a document, each slides item is one page or section and should contain substantial factual writing. Use specific, accurate information, strong hierarchy, and no filler. No Markdown fences.';
+ const reply=await apiChat(extra),data=parseJSON(reply);data.slides=Array.isArray(data.slides)?data.slides:[];if(!data.slides.length)throw new Error('The document preview was empty. Please try again.');
+ currentArtifact={kind:type==='presentation'?'presentation':'document',format:/word|docx/i.test(details)?'docx':(/pdf/i.test(details)?'pdf':(type==='presentation'?'pptx':'docx')),data};
+ add('assistant','Your '+(type==='presentation'?'presentation':'document')+' is ready in Preview. You can review it, edit the text, download it, or keep chatting and ask me to improve any part.');
+ renderArtifact(currentArtifact);save()
+}
+async function createImage(topic,details){
+ const res=await fetch('/api/studio/generate-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({prompt:topic+'. '+details})});
+ const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'The image could not be generated.');
+ currentArtifact={kind:'image',data:data.image,meta:{used:data.used,limit:data.limit}};add('assistant','Your image is ready in Preview. If you want another version, tell me what to change.');renderArtifact(currentArtifact);save()
+}
+async function searchImages(topic){
+ thinking(true);const res=await fetch('/api/imagine/search?type=photo&query='+encodeURIComponent(topic),{credentials:'same-origin'});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||data.error||'Image search failed.');
+ const items=(data.items||data.photos||[]).slice(0,12);currentArtifact={kind:'search',data:items,topic};add('assistant','I found '+items.length+' images for “'+topic+'”. Open Preview to see and download them.');renderArtifact(currentArtifact);save()
+}
+async function createCode(topic,details){
+ const extra='Build "'+topic+'". Requirements: '+details+'. Return ONLY one complete self-contained HTML document with embedded CSS and JavaScript. Make it polished, responsive, accessible, and runnable. No explanation outside the code.';
+ let reply=await apiChat(extra);reply=String(reply).replace(/^\s*\x60{3}(?:html)?/i,'').replace(/\x60{3}\s*$/,'').trim();if(!/<html|<!doctype/i.test(reply))throw new Error('I could not prepare a runnable preview. Ask me to try again.');
+ currentArtifact={kind:'code',data:reply,title:topic};add('assistant','The code is ready and running in Preview. You can inspect it, download the HTML, or ask me to change the design or behavior.');renderArtifact(currentArtifact);save()
+}
+function openPreview(){if(!currentArtifact)return;$('app').classList.add('preview-open');$('previewToggle').style.display='inline-block'}
+function closePreview(){$('app').classList.remove('preview-open')}
+function renderArtifact(a){
+ currentArtifact=a;openPreview();$('editBtn').style.display='none';$('downloadBtn').style.display='inline-block';
+ if(a.kind==='document'||a.kind==='presentation'){
+  const d=a.data;$('previewName').textContent=d.title||'Untitled';$('previewMeta').textContent=a.kind==='presentation'?d.slides.length+' slides':d.slides.length+' sections · '+a.format.toUpperCase();$('editBtn').style.display='inline-block';
+  if(a.kind==='presentation')$('previewBody').innerHTML=d.slides.map((s,i)=>'<section class="slide" data-i="'+i+'"><div class="eyebrow">'+esc(s.eyebrow||'GOLDENSPACEAI')+'</div><h2 contenteditable="false">'+esc(s.title||'')+'</h2>'+(s.body?'<p contenteditable="false">'+esc(s.body)+'</p>':'')+(Array.isArray(s.bullets)?'<ul>'+s.bullets.map(b=>'<li contenteditable="false">'+esc(b)+'</li>').join('')+'</ul>':'')+'</section>').join('');
+  else $('previewBody').innerHTML='<article class="doc-page"><h1 contenteditable="false">'+esc(d.title||'')+'</h1><div class="subtitle" contenteditable="false">'+esc(d.subtitle||'')+'</div>'+d.slides.map((s,i)=>'<section class="doc-section" data-i="'+i+'"><h2 contenteditable="false">'+esc(s.title||'')+'</h2>'+(s.body?'<p contenteditable="false">'+esc(s.body)+'</p>':'')+(Array.isArray(s.bullets)?'<ul>'+s.bullets.map(b=>'<li contenteditable="false">'+esc(b)+'</li>').join('')+'</ul>':'')+'</section>').join('')+'</article>';
+ }else if(a.kind==='image'){$('previewName').textContent='Generated image';$('previewMeta').textContent=(a.meta?.used||0)+' of '+(a.meta?.limit||0)+' AI images today';$('previewBody').innerHTML='<img class="generated-image" src="'+esc(a.data.url)+'" alt="Generated image">'}
+ else if(a.kind==='search'){$('previewName').textContent='Image search';$('previewMeta').textContent='Pexels · '+a.data.length+' results';$('previewBody').innerHTML='<div class="media-grid">'+a.data.map(x=>{const src=x.src?.medium||x.src?.large||x.image||x.url||'';const href=x.src?.original||x.url||src;return '<article class="media-card"><img src="'+esc(src)+'" alt="'+esc(x.alt||a.topic||'Image')+'"><a href="'+esc(href)+'" target="_blank" rel="noopener">Open original</a></article>'}).join('')+'</div>'}
+ else if(a.kind==='code'){$('previewName').textContent=a.title||'Code preview';$('previewMeta').textContent='Runnable HTML · sandboxed';$('previewBody').innerHTML='<div class="code-preview"><pre>'+esc(a.data)+'</pre><iframe sandbox="allow-scripts" title="Code preview"></iframe></div>';$('previewBody').querySelector('iframe').srcdoc=a.data}
+ $('downloadBtn').textContent=a.kind==='document'&&a.format==='pdf'?'Print / Save PDF':'Download';save()
+}
+async function downloadArtifact(){
+ const a=currentArtifact;if(!a)return;
+ if(a.kind==='document'&&a.format==='pdf'){window.print();return}
+ if(a.kind==='document'||a.kind==='presentation'){
+  const format=a.kind==='presentation'?'pptx':'docx';const res=await fetch('/api/documents/export',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({format,artifact:a.data})});if(!res.ok){const e=await res.json().catch(()=>({}));alert(e.error||'Could not build the file.');return}const blob=await res.blob();downloadBlob(blob,(a.data.title||'GoldenSpaceAI').replace(/[^a-z0-9]+/gi,'-')+'.'+format);return
+ }
+ if(a.kind==='image'){const link=document.createElement('a');link.href=a.data.url;link.target='_blank';link.download='GoldenSpaceAI-image.jpg';link.click();return}
+ if(a.kind==='code')downloadBlob(new Blob([a.data],{type:'text/html'}),(a.title||'GoldenSpaceAI-code').replace(/[^a-z0-9]+/gi,'-')+'.html')
+}
+function downloadBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function toggleEdit(){const editing=$('editBtn').textContent==='Save';$('previewBody').querySelectorAll('[contenteditable]').forEach(x=>x.contentEditable=editing?'false':'true');$('editBtn').textContent=editing?'Edit':'Save';if(editing)add('assistant','Your manual preview edits are saved visually. You can now download the updated version.')}
+function autoSize(){$('input').style.height='auto';$('input').style.height=Math.min(180,$('input').scrollHeight)+'px'}
+$('plusBtn').onclick=e=>{e.stopPropagation();$('plusMenu').classList.toggle('open')};document.addEventListener('click',e=>{if(!$('plusMenu').contains(e.target)&&e.target!==$('plusBtn'))$('plusMenu').classList.remove('open')});
+document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));$('clearTask').onclick=clearTool;$('send').onclick=sendMessage;$('input').oninput=autoSize;$('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}};
+$('closePreview').onclick=closePreview;$('previewToggle').onclick=openPreview;$('downloadBtn').onclick=downloadArtifact;$('editBtn').onclick=toggleEdit;
+$('newChat').onclick=()=>{if(confirm('Start a new Studio chat?')){messages=[];pending=null;currentArtifact=null;localStorage.removeItem('gsa_studio_chat');closePreview();renderMessages()}};
+$('themeBtn').onclick=()=>{document.documentElement.classList.toggle('light');const light=document.documentElement.classList.contains('light');$('themeBtn').textContent=light?'Dark':'Light';localStorage.setItem('gsa_theme',light?'light':'dark')};
+if(localStorage.getItem('gsa_theme')==='light'){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}load();
+</script>
+</body></html>

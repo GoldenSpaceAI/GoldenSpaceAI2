@@ -42,3 +42,5 @@
     if (e.key === KEY && (e.newValue === 'light' || e.newValue === 'dark')) apply(e.newValue);
   });
 })();
+
+(function(){var s=document.createElement('script');s.src='/language.js?v=20261120';document.head.appendChild(s);})();

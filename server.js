@@ -3514,6 +3514,90 @@ app.post('/api/studio/generate-image', async (req, res) => {
     }
 });
 
+app.post('/api/studio/edit-image', async (req, res) => {
+    const account = studioAccount(req);
+    if (!account) return res.status(401).json({ error: 'Sign in to edit images in Studio.', loginUrl: '/login?next=%2Fstudio' });
+
+    const prompt = String(req.body && req.body.prompt || '').trim().replace(/\s+/g, ' ');
+    const imageUrl = String(req.body && req.body.imageUrl || '').trim();
+    if (prompt.length < 3 || prompt.length > 800) return res.status(400).json({ error: 'Describe the image edit in 3 to 800 characters.' });
+    if (!/^https:\/\//i.test(imageUrl) || imageUrl.length > 3000) return res.status(400).json({ error: 'Choose a valid image to edit.' });
+    if (isBlockedImagineQuery(prompt)) return res.status(400).json({ error: 'Access blocked for this word or phrase. Try a different edit.' });
+    const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'Studio image editing is not configured yet.' });
+
+    const editCostUsd = 0.022;
+    let pool;
+    try {
+        pool = await ensureStudioUsageTable();
+        if (!pool) return res.status(503).json({ error: 'Studio usage storage is unavailable.' });
+        const reserved = await pool.query(`
+            INSERT INTO studio_image_usage (owner_key, day_key, images_used, cost_usd)
+            VALUES ($1, CURRENT_DATE, 1, $2)
+            ON CONFLICT (owner_key, day_key) DO UPDATE
+            SET images_used = studio_image_usage.images_used + 1,
+                cost_usd = studio_image_usage.cost_usd + EXCLUDED.cost_usd,
+                updated_at = NOW()
+            WHERE studio_image_usage.images_used < $3
+            RETURNING images_used, cost_usd
+        `, [account.ownerKey, editCostUsd, account.limit]);
+        if (!reserved.rows.length) {
+            notifyAccountQuota(req, 'Studio image limit reached',
+                'You have used all ' + account.limit + ' Studio AI images available today on your ' + account.plan + ' plan.',
+                'studio-images:' + new Date().toISOString().slice(0, 10), 'usage_limit');
+            return res.status(429).json({ error: 'You have reached today\'s Studio image limit.', used: account.limit, limit: account.limit, remaining: 0 });
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 90000);
+        let response;
+        try {
+            response = await fetch('https://api.x.ai/v1/images/edits', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: STUDIO_IMAGE_MODEL,
+                    prompt,
+                    image: { url: imageUrl, type: 'image_url' },
+                    response_format: 'url'
+                }),
+                signal: controller.signal
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.data || !payload.data[0] || !payload.data[0].url) {
+            throw new Error((payload && (payload.error && payload.error.message || payload.error)) || 'Image provider rejected the edit.');
+        }
+        const url = String(payload.data[0].url || '');
+        if (!/^https:\/\//i.test(url)) throw new Error('Image provider returned an invalid URL.');
+        const used = Number(reserved.rows[0].images_used) || 1;
+        return res.json({
+            image: { url, mimeType: payload.data[0].mime_type || 'image/jpeg' },
+            used,
+            limit: account.limit,
+            remaining: Math.max(0, account.limit - used),
+            model: STUDIO_IMAGE_MODEL,
+            edited: true
+        });
+    } catch (error) {
+        if (pool) {
+            try {
+                await pool.query(`
+                    UPDATE studio_image_usage
+                    SET images_used = GREATEST(0, images_used - 1),
+                        cost_usd = GREATEST(0, cost_usd - $2),
+                        updated_at = NOW()
+                    WHERE owner_key = $1 AND day_key = CURRENT_DATE
+                `, [account.ownerKey, editCostUsd]);
+            } catch (_) {}
+        }
+        console.error('studio image edit:', error.message);
+        return res.status(502).json({ error: 'The image could not be edited this time. Please try again.' });
+    }
+});
+
 // ==================== PEXELS IMAGINE SEARCH ====================
 const imagineRateBuckets = new Map();
 const imagineCache = new Map();

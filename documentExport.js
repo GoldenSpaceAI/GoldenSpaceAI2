@@ -7,9 +7,29 @@ const THEMES = {
     midnight: { bg: '101827', alt: '0D1623', card: '1A2A3B', card2: '1B2D40', accent: 'D4AF37', accent2: '63C7B2', accent3: '8AB4F8', accent4: 'E39B83', accent5: 'A88BE8', accent6: 'C7D0DB', text: 'F7F5EF', body: 'E9EDF1', muted: 'BAC5D1', footer: '92A0AF', title: '172232', wordBody: '263347', secondary: '617184', tertiary: '3D5065', soft: 'F7F1E0', soft2: 'EEF2F6', border: '344457', shade: '233B50', shade2: '1B2B3F' },
     editorial: { bg: 'F7F3EA', alt: 'EFE9DF', card: 'FFFDFA', card2: 'F1E8DB', accent: 'A64036', accent2: '28686C', accent3: '466F9B', accent4: 'B76D45', accent5: '75659A', accent6: '6B665F', text: '27231F', body: '38342F', muted: '6B665F', footer: '847B70', title: '28231F', wordBody: '38342F', secondary: '746D64', tertiary: '514B44', soft: 'F2E8DC', soft2: 'E9E3DA', border: 'D8CEBE', shade: 'E9DED0', shade2: 'E3D5C4' },
     ocean: { bg: '0C2236', alt: '102B43', card: '163950', card2: '1D455C', accent: '41C6B7', accent2: '71AEE8', accent3: '7DD3C7', accent4: 'E7A87D', accent5: 'B2A2E6', accent6: 'C8DCE4', text: 'F1F8FA', body: 'E2EFF3', muted: 'B4D0DA', footer: '8BAAB8', title: '12334D', wordBody: '254C61', secondary: '5A788A', tertiary: '3F6175', soft: 'DCEFF0', soft2: 'E7F1F5', border: '345B70', shade: '1B4259', shade2: '183C53' },
-    minimal: { bg: 'F8FAFC', alt: 'EEF2F7', card: 'FFFFFF', card2: 'EEF2F7', accent: '3867D6', accent2: 'D16A51', accent3: '4285A8', accent4: '9B6DB5', accent5: 'D69B2D', accent6: '536274', text: '17202B', body: '263241', muted: '5B6675', footer: '7D8794', title: '17202B', wordBody: '263241', secondary: '657181', tertiary: '475363', soft: 'E8EFFC', soft2: 'E9EEF4', border: 'D6DEE8', shade: 'E6ECF5', shade2: 'DCE5F0' }
+    minimal: { bg: 'F8FAFC', alt: 'EEF2F7', card: 'FFFFFF', card2: 'EEF2F7', accent: '3867D6', accent2: 'D16A51', accent3: '4285A8', accent4: '9B6DB5', accent5: 'D69B2D', accent6: '536274', text: '17202B', body: '263241', muted: '5B6675', footer: '7D8794', title: '17202B', wordBody: '263241', secondary: '657181', tertiary: '475363', soft: 'E8EFFC', soft2: 'E9EEF4', border: 'D6DEE8', shade: 'E6ECF5', shade2: 'DCE5F0' },
+    heritage: { bg: '241713', alt: '301F19', card: '3A2720', card2: '493128', accent: 'D8A84E', accent2: 'A7C6A1', accent3: 'D7825F', accent4: '8DA9C4', accent5: 'BE9BD3', accent6: 'E4D7C5', text: 'FFF8EC', body: 'F3E6D2', muted: 'CEBDA7', footer: 'A9957E', title: '38241E', wordBody: '4B342A', secondary: '7E6958', tertiary: '604B3D', soft: 'F6EAD8', soft2: 'EFE4D7', border: '65493A', shade: '53382C', shade2: '422B23' },
+    science: { bg: '071A2D', alt: '0A243A', card: '10334B', card2: '12405C', accent: '37D5FF', accent2: '80ED99', accent3: '79A7FF', accent4: 'FFB86B', accent5: 'C29BFF', accent6: 'CBEAF3', text: 'F3FCFF', body: 'DDF4FA', muted: 'A7CBD8', footer: '7DA6B7', title: '0E3148', wordBody: '244B5F', secondary: '577989', tertiary: '3C6274', soft: 'E0F6FA', soft2: 'E9F3F6', border: '28566D', shade: '16435A', shade2: '10364D' },
+    forest: { bg: '10251D', alt: '163127', card: '1D3D30', card2: '244A39', accent: 'A8D66D', accent2: '59C3A5', accent3: '89B8E8', accent4: 'E2A36F', accent5: 'B09AD8', accent6: 'D7E4D9', text: 'F6FBF3', body: 'E6F0E5', muted: 'B9CEBA', footer: '8EAA92', title: '18392B', wordBody: '2B4E3C', secondary: '607A68', tertiary: '456453', soft: 'E8F2DF', soft2: 'EDF3EB', border: '385E49', shade: '28543F', shade2: '204533' },
+    royal: { bg: '17122E', alt: '211941', card: '2A2250', card2: '352A62', accent: 'F0C75E', accent2: '79D0C3', accent3: '9DB5FF', accent4: 'EF9A7A', accent5: 'D5A5FF', accent6: 'DFD8F2', text: 'FBF9FF', body: 'ECE8F7', muted: 'C7BEDD', footer: '9E94BA', title: '251D48', wordBody: '40375D', secondary: '746B8A', tertiary: '584E72', soft: 'F1EAF9', soft2: 'F0EDF5', border: '4D4370', shade: '3B3068', shade2: '2E2758' },
+    sunset: { bg: '30141B', alt: '421B23', card: '53252E', card2: '62303A', accent: 'FFB84D', accent2: 'FF7B72', accent3: '88B7E8', accent4: 'FFD08A', accent5: 'DFA6E8', accent6: 'F3D9D7', text: 'FFF9F5', body: 'F8E8E3', muted: 'D9BDB8', footer: 'B8938D', title: '4B2029', wordBody: '61353C', secondary: '8B6566', tertiary: '704B50', soft: 'F9E9DF', soft2: 'F4ECEA', border: '75434A', shade: '65323B', shade2: '542731' },
+    monochrome: { bg: '111111', alt: '1A1A1A', card: '242424', card2: '303030', accent: 'FFFFFF', accent2: 'BEBEBE', accent3: '969696', accent4: 'D4D4D4', accent5: 'A8A8A8', accent6: 'E2E2E2', text: 'FFFFFF', body: 'E8E8E8', muted: 'B8B8B8', footer: '929292', title: '202020', wordBody: '343434', secondary: '666666', tertiary: '4C4C4C', soft: 'F1F1F1', soft2: 'E8E8E8', border: '444444', shade: '343434', shade2: '2A2A2A' },
+    classroom: { bg: '14332F', alt: '1B423D', card: '23524B', card2: '2C6259', accent: 'FFD166', accent2: '6EE7C1', accent3: '83B8F4', accent4: 'FF9B85', accent5: 'CBB2FE', accent6: 'E0EFEA', text: 'FFFDF4', body: 'EDF6F2', muted: 'BED8D0', footer: '94B8AE', title: '204B45', wordBody: '345D56', secondary: '68847D', tertiary: '4E7068', soft: 'FFF2C9', soft2: 'E8F3EF', border: '47736A', shade: '32665D', shade2: '28554E' },
+    corporate: { bg: '10223E', alt: '162C4D', card: '1E395F', card2: '274872', accent: '5DA9FF', accent2: '5ED0B6', accent3: '8FB8FF', accent4: 'FFAA76', accent5: 'B8A0F2', accent6: 'D8E4F3', text: 'F7FAFF', body: 'E7EEF8', muted: 'B7C6DA', footer: '8DA1BA', title: '193552', wordBody: '2B4964', secondary: '61758C', tertiary: '456078', soft: 'E8F1FF', soft2: 'EDF1F6', border: '3A5A7A', shade: '294A70', shade2: '203B60' },
+    creative: { bg: '24122F', alt: '321741', card: '422052', card2: '522964', accent: 'FF6FB5', accent2: '50E3C2', accent3: '7DB1FF', accent4: 'FFB56B', accent5: 'C993FF', accent6: 'EADAF0', text: 'FFF8FF', body: 'F4E7F7', muted: 'D1BBD8', footer: 'AD92B5', title: '3B1D49', wordBody: '563663', secondary: '806788', tertiary: '684D70', soft: 'FBE4F2', soft2: 'F3EAF5', border: '684376', shade: '5A2E6A', shade2: '482455' }
 };
+const FONT_SYSTEMS = [
+    { display: 'Aptos Display', body: 'Aptos' }, { display: 'Arial', body: 'Arial' },
+    { display: 'Georgia', body: 'Georgia' }, { display: 'Trebuchet MS', body: 'Trebuchet MS' },
+    { display: 'Verdana', body: 'Verdana' }, { display: 'Century Gothic', body: 'Arial' },
+    { display: 'Cambria', body: 'Calibri' }, { display: 'Tahoma', body: 'Tahoma' },
+    { display: 'Times New Roman', body: 'Arial' }, { display: 'Gill Sans', body: 'Arial' },
+    { display: 'Baskerville', body: 'Georgia' }, { display: 'Calibri', body: 'Calibri' }
+];
 let activePalette = THEMES.midnight;
+let activeDesignSeed = 0;
+let activeMotif = 0;
+let activeFonts = FONT_SYSTEMS[0];
 function paletteHex(color) {
     const p = activePalette || THEMES.midnight, value = String(color || '').replace(/^#/, '').toUpperCase();
     const map = {
@@ -65,6 +85,7 @@ function normalizeArtifact(artifact) {
         title: safeText(artifact.title, 180) || 'GoldenSpaceAI Presentation',
         subtitle: safeText(artifact.subtitle, 400),
         theme: Object.prototype.hasOwnProperty.call(THEMES, artifact.theme) ? artifact.theme : 'midnight',
+        designSeed: Math.max(0, Math.min(95, Number(artifact.designSeed) || 0)),
         slides: normalized
     };
 }
@@ -76,8 +97,9 @@ function para(text, opts) {
     const bold = opts.bold ? ' b="1"' : '';
     const align = opts.align ? ' algn="' + opts.align + '"' : '';
     const after = Number.isFinite(opts.after) ? opts.after : 500;
+    const typeface = opts.typeface || (opts.bold && size >= 2200 ? activeFonts.display : activeFonts.body);
     return '<a:p><a:pPr' + align + '><a:lnSpc><a:spcPct val="108000"/></a:lnSpc><a:spcAft><a:spcPts val="' + after + '"/></a:spcAft></a:pPr>' +
-        '<a:r><a:rPr lang="en-US" sz="' + size + '"' + bold + ' dirty="0"><a:solidFill><a:srgbClr val="' + color + '"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t xml:space="preserve">' + esc(text) + '</a:t></a:r>' +
+        '<a:r><a:rPr lang="en-US" sz="' + size + '"' + bold + ' dirty="0"><a:solidFill><a:srgbClr val="' + color + '"/></a:solidFill><a:latin typeface="' + esc(typeface) + '"/></a:rPr><a:t xml:space="preserve">' + esc(text) + '</a:t></a:r>' +
         '<a:endParaRPr lang="en-US" sz="' + size + '"/></a:p>';
 }
 function textBox(id, name, x, y, w, h, paragraphs, opts) {
@@ -98,9 +120,12 @@ function groupTree(shapes) {
 }
 function coverSlide(data, slideNo, total, closing) {
     const bg = closing ? '0D1623' : '101827';
-    const c = [shape(2, 'Gold accent', 0.72, 0.84, 0.12, 5.65, 'D4AF37', 'roundRect'),
-        shape(3, 'Backdrop arc', 9.15, 0.52, 3.5, 3.5, '1B2B3F', 'ellipse'),
-        shape(4, 'Backdrop highlight', 10.1, 1.48, 1.6, 1.6, '233B50', 'ellipse')];
+    const rightMotif = activeMotif % 2 === 1;
+    const accentX = rightMotif ? 12.48 : 0.72;
+    const arcX = activeMotif % 3 === 0 ? 9.15 : (activeMotif % 3 === 1 ? 8.45 : 9.75);
+    const c = [shape(2, 'Theme accent', accentX, 0.84, 0.12, 5.65, 'D4AF37', 'roundRect'),
+        shape(3, 'Backdrop motif', arcX, 0.52, 3.5, 3.5, activeMotif % 2 ? '233B50' : '1B2B3F', activeMotif % 4 === 3 ? 'roundRect' : 'ellipse'),
+        shape(4, 'Backdrop highlight', arcX + 0.95, 1.48, 1.6, 1.6, activeMotif % 2 ? '1B2B3F' : '233B50', activeMotif % 4 === 2 ? 'roundRect' : 'ellipse')];
     const label = data.eyebrow || (closing ? 'KEY TAKEAWAYS' : 'GOLDENSPACEAI  ·  PRESENTATION');
     c.push(textBox(5, 'Eyebrow', 1.15, 1.12, 9.2, 0.38, [para(label.toUpperCase(), { size: 1050, color: 'D4AF37', bold: true, after: 0 })]));
     c.push(textBox(6, 'Title', 1.12, 1.72, 10.4, 2.05, [para(data.title, { size: closing ? 3200 : 3500, color: 'F7F5EF', bold: true, after: 300 })]));
@@ -112,7 +137,14 @@ function coverSlide(data, slideNo, total, closing) {
 }
 function contentSlide(s, slideNo, total) {
     const bg = slideNo % 2 ? '101827' : '0D1623';
-    const c = [shape(2, 'Top accent', 0, 0, 13.333, 0.07, 'D4AF37')];
+    const motifSpecs = [
+        [0, 0, 13.333, 0.07, 'rect'], [0, 0, 0.12, 7.5, 'rect'],
+        [0.78, 0.18, 2.8, 0.08, 'roundRect'], [11.85, 0.28, 0.58, 0.58, 'ellipse'],
+        [0.42, 6.95, 12.45, 0.06, 'rect'], [12.55, 0, 0.16, 7.5, 'rect'],
+        [0.68, 0.25, 0.42, 0.42, 'roundRect'], [10.2, 0.2, 2.25, 0.08, 'roundRect']
+    ];
+    const ms = motifSpecs[activeMotif % motifSpecs.length];
+    const c = [shape(2, 'Design motif', ms[0], ms[1], ms[2], ms[3], 'D4AF37', ms[4])];
     c.push(textBox(3, 'Section', 0.78, 0.48, 9.2, 0.32, [para((s.eyebrow || 'INSIGHT').toUpperCase(), { size: 950, color: 'D4AF37', bold: true, after: 0 })]));
     c.push(textBox(4, 'Title', 0.76, 0.9, 11.7, 0.86, [para(s.title, { size: 2550, color: 'F7F5EF', bold: true, after: 0 })]));
     if (s.subtitle) c.push(textBox(5, 'Subtitle', 0.8, 1.75, 11.3, 0.55, [para(s.subtitle, { size: 1300, color: 'BAC5D1', after: 0 })]));
@@ -247,6 +279,9 @@ function wordXml(data) {
 async function createOfficeDocument(artifact, format) {
     const data = normalizeArtifact(artifact);
     activePalette = THEMES[data.theme] || THEMES.midnight;
+    activeDesignSeed = data.designSeed;
+    activeMotif = activeDesignSeed % 8;
+    activeFonts = FONT_SYSTEMS[Math.floor(activeDesignSeed / 8) % FONT_SYSTEMS.length];
     if (format === 'pptx') return powerpointXml(data);
     if (format === 'docx') return wordXml(data);
     throw new Error('Choose PowerPoint or Word format.');

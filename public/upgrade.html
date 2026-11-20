@@ -389,6 +389,7 @@
 
   <section class="step active" id="step1">
     <div class="billing-switch" role="group" aria-label="Billing period"><button type="button" class="billing-option active" data-period="monthly">Monthly</button><button type="button" class="billing-option" data-period="yearly">Yearly <span>Pay once · 12 months</span></button></div>
+    <div class="panel credit-topup" style="margin-top:24px"><h2>Add usage credits</h2><p class="lead">Credits never expire and only extend features already included in your current plan. They never unlock Studio or premium models.</p><label class="field" for="creditAmount">Amount (USD, $2–$200)</label><input id="creditAmount" type="number" min="2" max="200" step="0.01" value="2"><div class="stack-preview" id="creditSplit">$0.50 each: Chat · Studio · Media · Documents</div><label class="field" for="creditPhone">OMT Pay wallet number</label><input id="creditPhone" type="tel" inputmode="numeric" placeholder="e.g. 81xxxxxx"><button class="btn primary" type="button" id="creditRequest">Request credit top-up</button><p class="err" id="creditErr" hidden></p><p class="status" id="creditStatus" hidden></p></div>
     <div class="plans" id="plans"></div>
     <div class="cta-row">
       <button class="btn primary" id="toStep2" disabled>Continue with selected plan</button>
@@ -706,6 +707,20 @@
       err.textContent = e.message || 'Failed';
       btn.disabled = false;
     }
+  });
+
+  const creditAmount = document.getElementById('creditAmount');
+  const creditSplit = document.getElementById('creditSplit');
+  function updateCreditSplit() { const n = Math.max(2, Math.min(200, Number(creditAmount.value) || 2)); creditSplit.textContent = '$' + (n / 4).toFixed(2) + ' each: Chat · Studio · Media · Documents'; }
+  creditAmount.addEventListener('input', updateCreditSplit); updateCreditSplit();
+  document.getElementById('creditRequest').addEventListener('click', async function() {
+    const err = document.getElementById('creditErr'); const status = document.getElementById('creditStatus'); err.hidden = true; status.hidden = true;
+    try {
+      const res = await fetch('/api/credits/request', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Client-Id': ensureClientId() }, body: JSON.stringify({ amount: Number(creditAmount.value), phone: digits(document.getElementById('creditPhone').value) }) });
+      const data = await res.json(); if (res.status === 401) { redirectToLogin(false); return; }
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Could not create credit request.');
+      status.textContent = 'Request created. Send $' + Number(creditAmount.value).toFixed(2) + ' via OMT Pay to 81056987; credits are added after confirmation.'; status.hidden = false;
+    } catch (e) { err.textContent = e.message; err.hidden = false; }
   });
 
   function redirectToLogin(continuePurchase) {

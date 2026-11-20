@@ -237,6 +237,18 @@ function createAuth(options = {}) {
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         PRIMARY KEY (owner_key, project_id)
                     );
+                    CREATE TABLE IF NOT EXISTS studio_project_chats (
+                        owner_key TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        pending JSONB DEFAULT NULL,
+                        artifact JSONB DEFAULT NULL,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (owner_key, project_id),
+                        CONSTRAINT studio_project_chats_project_fk
+                            FOREIGN KEY (owner_key, project_id)
+                            REFERENCES studio_projects(owner_key, project_id) ON DELETE CASCADE
+                    );
                     CREATE TABLE IF NOT EXISTS user_memory (
                         user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
                         facts JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -1063,6 +1075,42 @@ function createAuth(options = {}) {
         return { ok: true, deleted: r.rowCount > 0 };
     }
 
+    async function getStudioProjectChat(ownerKey, projectId) {
+        const p = getPool();
+        if (!ownerKey || !projectId || !p || !(await ensureSchema())) return null;
+        const r = await p.query(
+            `SELECT messages, pending, artifact, updated_at AS "updatedAt"
+             FROM studio_project_chats WHERE owner_key=$1 AND project_id=$2`,
+            [String(ownerKey), String(projectId)]
+        );
+        if (!r.rows[0]) return null;
+        return {
+            messages: Array.isArray(r.rows[0].messages) ? r.rows[0].messages : [],
+            pending: r.rows[0].pending || null,
+            currentArtifact: r.rows[0].artifact || null,
+            updatedAt: tsIso(r.rows[0].updatedAt)
+        };
+    }
+
+    async function saveStudioProjectChat(ownerKey, projectId, chat) {
+        const p = getPool();
+        if (!ownerKey || !projectId || !p || !(await ensureSchema())) return { ok: false, error: 'Studio chat storage is unavailable.' };
+        const item = chat || {};
+        const messages = Array.isArray(item.messages) ? item.messages.slice(-80) : [];
+        const pending = item.pending || null;
+        const artifact = item.currentArtifact || null;
+        const project = await p.query('SELECT 1 FROM studio_projects WHERE owner_key=$1 AND project_id=$2', [String(ownerKey), String(projectId)]);
+        if (!project.rowCount) return { ok: false, error: 'Studio project not found.' };
+        const r = await p.query(
+            `INSERT INTO studio_project_chats (owner_key, project_id, messages, pending, artifact, updated_at)
+             VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,NOW())
+             ON CONFLICT (owner_key, project_id) DO UPDATE SET messages=EXCLUDED.messages, pending=EXCLUDED.pending, artifact=EXCLUDED.artifact, updated_at=NOW()
+             RETURNING updated_at AS "updatedAt"`,
+            [String(ownerKey), String(projectId), JSON.stringify(messages), JSON.stringify(pending), JSON.stringify(artifact)]
+        );
+        return { ok: true, updatedAt: tsIso(r.rows[0]?.updatedAt) };
+    }
+
     async function createNotification(userId, item) {
         const p = getPool();
         if (!userId || !p || !(await ensureSchema())) return { ok: false, error: 'Notifications are unavailable.' };
@@ -1353,6 +1401,8 @@ function createAuth(options = {}) {
         createStudioProject,
         updateStudioProject,
         deleteStudioProject,
+        getStudioProjectChat,
+        saveStudioProjectChat,
         savePushSubscription,
         removePushSubscription,
         sendPushToUser,

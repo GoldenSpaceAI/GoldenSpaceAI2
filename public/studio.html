@@ -39,13 +39,14 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 @media(max-width:680px){.app,.app.preview-open{display:block}.sidebar{display:none}.topbar{height:56px;padding:0 13px}.mobile-menu{display:block}.chat{padding:22px 15px 155px}.empty{min-height:56vh}.empty h1{font-size:25px}.starter-grid{grid-template-columns:1fr}.composer-wrap,.preview-open .composer-wrap{left:0;right:0;padding-left:10px;padding-right:10px}.preview{inset:0}.preview-head{height:58px}.preview-body{padding:10px}.doc-page{padding:34px 24px;min-height:760px}.media-grid{grid-template-columns:1fr}.hint{display:none}}
 @media print{body *{visibility:hidden}.preview,.preview *{visibility:visible}.preview{display:block!important;position:absolute!important;inset:0!important;border:0}.preview-head{display:none}.preview-body{padding:0;background:white}.doc-page{box-shadow:none;max-width:none;border-radius:0}}
 </style>
+  <link rel="stylesheet" href="/product.css?v=20261120-1">
 </head>
-<body class="gsa-polished">
+<body class="gsa-polished gsa-studio">
 <div class="app" id="app">
 <aside class="sidebar">
  <a class="logo" href="/"><div class="logo-mark">G</div><span><strong>GoldenSpaceAI</strong><small style="display:block;color:var(--muted)">Studio</small></span></a>
  <button class="new-chat" id="newChat">＋ <span>New Studio chat</span></button>
- <div><div class="side-label">WORKSPACE</div><nav class="side-nav"><a class="active" href="/studio"><span>Studio workspace</span></a></nav></div>
+ <div><div class="side-label">WORKSPACE</div><nav class="side-nav"><a class="studio-rail-home" href="/studio" aria-label="Studio projects" title="Studio projects">▦ <span>Projects</span></a></nav></div>
  <section class="account-card" id="accountCard">
   <div class="account-top"><strong id="accountPlan">Loading…</strong><span id="accountBadge">—</span></div>
   <div class="account-usage" id="accountUsage">Checking usage</div>
@@ -56,7 +57,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
  </section>
 </aside>
 <main class="workspace">
- <header class="topbar"><div class="title-line"><button class="icon-btn mobile-menu" onclick="location.href='/'">☰</button><strong>Studio</strong><span class="badge">ADVANCED</span></div><div class="top-actions"><a class="icon-btn top-chat" href="/" aria-label="Open main chat">Chat</a><a class="top-plan" id="topPlan" href="/my-plan">Usage</a><button class="icon-btn" id="themeBtn">Light</button><button class="icon-btn" id="previewToggle" style="display:none">Preview</button></div></header>
+ <header class="topbar"><div class="title-line"><button class="icon-btn mobile-menu" onclick="location.href='/studio'" aria-label="Studio projects">▦</button><strong>Studio</strong><span class="badge">ADVANCED</span></div><div class="top-actions"><a class="icon-btn top-chat" href="/" aria-label="Open main chat">Chat</a><a class="top-plan" id="topPlan" href="/my-plan">Usage</a><button class="icon-btn" id="themeBtn">Light</button><button class="icon-btn" id="previewToggle" style="display:none">Preview</button></div></header>
  <section class="chat" id="chat">
   <div class="empty" id="empty">
    <div><div class="orb">✦</div><h1>What should we create?</h1><p>Chat normally, or use the plus button to create documents, images, presentations, find media, and build runnable code—all in one conversation.</p>
@@ -79,7 +80,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
    <button class="tool" data-tool="code"><span class="tool-icon">⌘</span><span><strong>Build code</strong><small>Preview runnable HTML</small></span></button>
   </div>
   <div class="compose-row"><button class="plus" id="plusBtn" aria-label="Create or attach">＋</button><textarea id="input" rows="1" placeholder="Message GoldenSpaceAI Studio"></textarea><button class="mic" id="micBtn" aria-label="Dictate message" title="Dictate">●</button><button class="send" id="send" aria-label="Send">↑</button></div>
-  <div class="hint">GoldenSpaceAI may ask a few questions before creating the final result.</div>
+  <div class="hint">Review generated content before sharing it.</div>
  </div></div>
 </main>
 <aside class="preview" id="preview">
@@ -538,9 +539,57 @@ async function loadStudioProject(){
  try{const res=await fetch('/api/studio/projects/'+encodeURIComponent(studioProjectId),{credentials:'same-origin'});const data=await res.json();if(data.project){studioProjectInstructions=data.project.instructions||'';const title=document.querySelector('.title-line strong');if(title)title.textContent=data.project.name;document.title=data.project.name+' · Studio';const badge=document.querySelector('.title-line .badge');if(badge)badge.textContent='PROJECT'}}catch(e){}
 }
 async function showStudioHome(){
- document.querySelector('.app').style.display='none';document.body.insertAdjacentHTML('afterbegin','<main class="studio-home"><div class="studio-home-shell"><header class="studio-home-header"><div class="studio-home-brand"><div class="logo-mark">G</div><div><strong>GoldenSpaceAI Studio</strong><span>Your focused workspace for projects, files, and polished outputs</span></div></div><div class="studio-home-actions"><a href="/">Main chat</a><a href="/my-plan">Usage & plan</a><button class="primary" id="studioNewProject">＋ New project</button></div></header><section class="studio-home-intro"><div><h1>Your Studio projects</h1><p>Keep each subject, client, or class in its own workspace. Instructions and generated files stay organized together.</p></div><div class="studio-home-stats"><div class="studio-home-stat"><strong id="studioProjectCount">—</strong><span>Projects</span></div><div class="studio-home-stat"><strong id="studioHomeUsage">—</strong><span>Fast usage</span></div></div></section><section class="studio-project-grid" id="studioProjectGrid"><div class="studio-project-empty">Loading your Studio projects…</div></section></div></main>');
+ document.querySelector('.app').style.display='none';
+ document.body.insertAdjacentHTML('afterbegin', `
+  <main class="studio-home">
+   <div class="studio-home-shell">
+    <header class="studio-home-header">
+     <div class="studio-home-brand"><div class="logo-mark" aria-hidden="true">G</div><strong>GoldenSpaceAI Studio</strong></div>
+     <nav class="studio-home-actions" aria-label="Studio navigation">
+      <a href="/">Main chat</a><a href="/my-plan">Usage &amp; plan</a><button id="studioHomeTheme" type="button">Light mode</button>
+     </nav>
+    </header>
+    <section class="studio-home-intro">
+     <div>
+      <h1>Your creative workspace</h1>
+      <p>Work on presentations, documents, images, and code. Give each project its own instructions and conversation.</p>
+      <div class="studio-hero-actions"><button class="primary" id="studioNewProject" type="button">New project</button><a href="/studio/chat">Open Studio chat</a></div>
+     </div>
+     <div class="studio-home-stats" aria-label="Workspace summary">
+      <div class="studio-home-stat"><strong id="studioProjectCount">—</strong><span>Projects</span></div>
+      <div class="studio-home-stat"><strong id="studioHomeUsage">—</strong><span>Studio images left today</span></div>
+     </div>
+    </section>
+    <h2 class="studio-section-title">Projects</h2>
+    <section class="studio-project-grid" id="studioProjectGrid" aria-label="Projects"><div class="studio-project-empty" role="status">Loading your projects…</div></section>
+   </div>
+  </main>`);
+ const themeButton=$('studioHomeTheme');
+ const updateThemeLabel=()=>{themeButton.textContent=document.documentElement.classList.contains('light')?'Dark mode':'Light mode'};
+ themeButton.onclick=()=>{$('themeBtn').click();updateThemeLabel()};
+ updateThemeLabel();
  $('studioNewProject').onclick=studioModal;
- const grid=$('studioProjectGrid');try{const res=await fetch('/api/studio/projects',{credentials:'same-origin'});const data=await res.json();if(!res.ok){grid.innerHTML='<div class="studio-project-empty">Sign in to create and sync Studio projects.</div>';return}const projects=Array.isArray(data.projects)?data.projects:[];$('studioProjectCount').textContent=projects.length;$('studioHomeUsage').textContent='See usage';grid.innerHTML=projects.length?projects.map(p=>'<article class="studio-project-card" data-project="'+esc(p.id)+'" style="--project-color:'+esc(p.color)+'"><div class="studio-project-card-top"><div class="studio-project-icon">'+esc(p.icon||'📁')+'</div><span style="color:'+esc(p.color)+'">●</span></div><h3>'+esc(p.name)+'</h3><p>'+esc(p.instructions||'No project instructions yet.')+'</p><small>Open Studio workspace →</small></article>').join(''):'<div class="studio-project-empty"><strong>No Studio projects yet.</strong><br>Create one to keep chats and artifacts organized.</div>';grid.querySelectorAll('[data-project]').forEach(card=>card.onclick=()=>location.href='/studio/chat?project='+encodeURIComponent(card.dataset.project))}catch(e){grid.innerHTML='<div class="studio-project-empty">Projects are temporarily unavailable.</div>'}
+ const grid=$('studioProjectGrid');
+ fetch('/api/studio/usage',{credentials:'same-origin',cache:'no-store',headers:{'X-Client-Id':ensureClientId()}})
+  .then(res=>res.ok?res.json():null).then(usage=>{if(usage?.loggedIn)$('studioHomeUsage').textContent=String(usage.remaining)}).catch(()=>{});
+ try {
+  const res=await fetch('/api/studio/projects',{credentials:'same-origin',cache:'no-store'});
+  if(res.status===401){
+   grid.innerHTML='<div class="studio-project-empty"><strong>Sign in to save projects.</strong><br><a href="/login?next=%2Fstudio">Sign in to GoldenSpaceAI</a></div>';
+   $('studioNewProject').onclick=()=>{location.href='/login?next=%2Fstudio'};
+   return;
+  }
+  if(!res.ok)throw new Error('Projects could not load');
+  const data=await res.json();
+  const projects=Array.isArray(data.projects)?data.projects:[];
+  $('studioProjectCount').textContent=projects.length;
+  grid.innerHTML=projects.length?projects.map(project=>{
+   const color=/^#[a-f0-9]{6}$/i.test(project.color)?project.color:'#d4af37';
+   return '<a class="studio-project-card" href="/studio/chat?project='+encodeURIComponent(project.id)+'" style="--project-color:'+color+'"><div class="studio-project-icon" aria-hidden="true">'+esc(project.icon||'📁')+'</div><h3>'+esc(project.name)+'</h3><p>'+esc(project.instructions||'No project instructions yet.')+'</p><small>Open project</small></a>';
+  }).join(''):'<div class="studio-project-empty">Create a project to keep its instructions and work together.</div>';
+ }catch(error){
+  grid.innerHTML='<div class="studio-project-empty" role="status">Projects are temporarily unavailable.</div>';
+ }
 }
 $('plusBtn').onclick=e=>{e.stopPropagation();$('plusMenu').classList.toggle('open')};document.addEventListener('click',e=>{if(!$('plusMenu').contains(e.target)&&e.target!==$('plusBtn'))$('plusMenu').classList.remove('open')});
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));$('clearTask').onclick=clearTool;$('send').onclick=sendMessage;$('micBtn').onclick=startDictation;$('input').oninput=autoSize;$('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}};
@@ -548,8 +597,8 @@ $('closePreview').onclick=closePreview;$('previewToggle').onclick=openPreview;$(
 $('themeSelect').onchange=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;currentArtifact.data.theme=$('themeSelect').value;renderDeckSlide();save()};
 $('remixDesign').onclick=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;currentArtifact.data.designSeed=((Number(currentArtifact.data.designSeed)||0)+1)%96;renderDeckSlide();save()};
 $('newChat').onclick=()=>{if(confirm('Start a new Studio chat?')){messages=[];pending=null;currentArtifact=null;localStorage.removeItem(studioStorageKey());closePreview();renderMessages()}};
-$('themeBtn').onclick=()=>{document.documentElement.classList.toggle('light');const light=document.documentElement.classList.contains('light');$('themeBtn').textContent=light?'Dark':'Light';localStorage.setItem('gsa_theme',light?'light':'dark')};
-if(localStorage.getItem('gsa_theme')==='light'){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}
+$('themeBtn').onclick=()=>{document.documentElement.classList.toggle('light');const light=document.documentElement.classList.contains('light');$('themeBtn').textContent=light?'Dark':'Light';try{localStorage.setItem('goldenspaceai2_theme',light?'light':'dark');localStorage.setItem('gsa_theme',light?'light':'dark')}catch(error){}};
+try{const theme=localStorage.getItem('goldenspaceai2_theme')||localStorage.getItem('gsa_theme');if(theme==='light'||(!theme&&matchMedia('(prefers-color-scheme: light)').matches)){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}}catch(error){}
 if(isStudioPhone())showStudioPhoneBlock();
 else if(location.pathname==='/studio'&&!location.search)showStudioHome();
 else {load();loadStudioAccount();loadStudioProject();}

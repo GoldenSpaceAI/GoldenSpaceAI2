@@ -1,0 +1,385 @@
+/* GoldenSpaceAI product system. Page styles own behavior and layout state. */
+.gsa-polished {
+  --product-canvas: #111419;
+  --product-rail: #171b21;
+  --product-surface: #1b2028;
+  --product-raised: #222832;
+  --product-line: #343c48;
+  --product-ink: #f1f3f6;
+  --product-muted: #aeb8c6;
+  --product-accent: #f0c771;
+  --product-accent-ink: #211805;
+  --product-accent-wash: #30281d;
+  --product-shadow: 0 12px 34px #06090e38;
+  --product-font: Inter, "SF Pro Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html.light .gsa-polished {
+  --product-canvas: #f5f7fa;
+  --product-rail: #f0f2f6;
+  --product-surface: #fff;
+  --product-raised: #f3f5f8;
+  --product-line: #d4dbe5;
+  --product-ink: #171e29;
+  --product-muted: #506074;
+  --product-accent: #82530f;
+  --product-accent-ink: #fff;
+  --product-accent-wash: #faefdb;
+  --product-shadow: 0 10px 26px #23355110;
+}
+body.gsa-polished,
+html.light body.gsa-polished {
+  --gsa-bg: var(--product-canvas);
+  --gsa-surface: var(--product-surface);
+  --gsa-surface-2: var(--product-raised);
+  --gsa-text: var(--product-ink);
+  --gsa-muted: var(--product-muted);
+  --gsa-border: var(--product-line);
+  --gsa-gold: var(--product-accent);
+  --gsa-gold-soft: var(--product-accent-wash);
+  --gsa-shadow: var(--product-shadow);
+  --bg: var(--product-canvas);
+  --panel: var(--product-surface);
+  --panel2: var(--product-raised);
+  --panel-elev: var(--product-raised);
+  --line: var(--product-line);
+  --border: var(--product-line);
+  --text: var(--product-ink);
+  --ink: var(--product-ink);
+  --muted: var(--product-muted);
+  --black: var(--product-canvas);
+  --black-light: var(--product-rail);
+  --black-lighter: var(--product-raised);
+  --white: var(--product-ink);
+  --gray: var(--product-muted);
+  --gold-line: var(--product-line);
+  --text-muted: var(--product-muted);
+  background: var(--product-canvas) !important;
+  color: var(--product-ink);
+  font-family: var(--product-font);
+  -webkit-font-smoothing: antialiased;
+}
+.gsa-polished :where(button, a, input, textarea, select) { -webkit-tap-highlight-color: transparent; }
+.gsa-polished :focus-visible { outline: 2px solid var(--product-accent) !important; outline-offset: 3px; }
+.gsa-polished [hidden] { display: none !important; }
+.gsa-polished :where(h1, h2, h3) { text-wrap: balance; }
+.gsa-polished :where(input, textarea)::placeholder { color: var(--product-muted); opacity: .85; }
+.gsa-polished .topnav {
+  background: var(--product-surface) !important;
+  border-bottom: 1px solid var(--product-line);
+  padding-inline: clamp(16px, 4vw, 56px);
+  min-height: 64px;
+}
+.gsa-polished .topnav .brand { color: var(--product-ink); letter-spacing: -.025em; }
+.gsa-polished .topnav nav { gap: 6px; align-items: center; }
+.gsa-polished .topnav nav a,
+.gsa-polished .topnav-actions > a,
+.gsa-polished .topnav .back {
+  border-radius: 8px;
+  padding: 7px 9px;
+  color: var(--product-muted);
+  font-size: .875rem;
+}
+.gsa-polished .topnav nav a:hover,
+.gsa-polished .topnav nav a.active,
+.gsa-polished .topnav-actions > a:hover {
+  background: var(--product-raised);
+  color: var(--product-ink);
+}
+.gsa-polished .theme-toggle { color: var(--product-ink) !important; background: var(--product-raised) !important; }
+.gsa-polished .topnav .theme-toggle { border: 1px solid var(--product-line); border-radius: 8px; padding: 6px 10px; }
+
+/* Chat and installed chat */
+.gsa-chat .app-container,
+html.light .gsa-chat .app-container { background: var(--product-canvas); }
+.gsa-chat .top-bar {
+  background: var(--product-canvas);
+  border-bottom: 1px solid var(--product-line);
+  min-height: 58px;
+}
+.gsa-chat .top-bar-title { color: var(--product-ink); font-weight: 680; }
+.gsa-chat .top-bar-sub { color: var(--product-muted); }
+.gsa-chat .chats-panel,
+.gsa-chat .chats-panel-footer { background: var(--product-rail) !important; }
+.gsa-chat .chats-panel-title { color: var(--product-ink); font-weight: 680; }
+.gsa-chat .chats-panel-footer .plan-status-card {
+  background: var(--product-surface);
+  border: 1px solid var(--product-line);
+  border-radius: 12px;
+  box-shadow: none;
+}
+.gsa-chat .plan-status-name { color: var(--product-ink); }
+.gsa-chat .plan-status-link {
+  background: transparent;
+  border-color: var(--product-line);
+  color: var(--product-accent);
+}
+.gsa-chat .chats-panel-footer .install-app-footer-btn {
+  background: var(--product-surface);
+  border: 1px solid var(--product-line);
+  box-shadow: none;
+  color: var(--product-ink);
+  font-weight: 650;
+  font-size: .875rem;
+  min-height: 38px;
+  padding-block: 7px;
+}
+.gsa-chat .chats-panel-footer .install-app-footer-btn:hover {
+  background: var(--product-raised);
+  border-color: var(--product-accent);
+}
+.gsa-chat :is(.chats-panel-header, .chats-panel-footer, .projects-section) { border-color: var(--product-line); }
+.gsa-chat .chat-search { background: var(--product-surface) !important; color: var(--product-ink); }
+.gsa-chat :is(.chat-item:hover, .chat-item.active) { background: var(--product-raised); }
+.gsa-chat .chat-item.active .chat-item-name { color: var(--product-ink); }
+.gsa-chat .imagine-nav-link {
+  background: var(--product-accent-wash) !important;
+  color: var(--product-accent) !important;
+}
+.gsa-chat .imagine-nav-badge { display: none; }
+.gsa-chat .input-container,
+html.light .gsa-chat .input-container {
+  background: var(--product-surface);
+  border: 1px solid var(--product-line);
+  border-radius: 19px;
+  box-shadow: var(--product-shadow);
+}
+.gsa-chat .input-container:focus-within { border-color: var(--product-accent) !important; }
+.gsa-chat .message-input { color: var(--product-ink); }
+.gsa-chat :is(.send-btn, .new-chat-btn, .account-login-btn) {
+  background: var(--product-accent);
+  color: var(--product-accent-ink);
+  box-shadow: none;
+}
+.gsa-chat .message.user .message-bubble {
+  background: var(--product-raised);
+  border: 1px solid var(--product-line);
+  color: var(--product-ink);
+  box-shadow: none;
+}
+.gsa-chat .message.ai .ai-block,
+html.light .gsa-chat .message.ai .ai-block { color: var(--product-ink); }
+.gsa-chat .empty-state { padding-block: clamp(24px, 6vh, 70px); }
+.gsa-chat .empty-state .empty-logo { width: 76px; height: 76px; object-fit: contain; margin-bottom: 8px; }
+.gsa-chat .empty-state .empty-title {
+  font-size: clamp(1.9rem, 4vw, 3.1rem);
+  font-weight: 690;
+  letter-spacing: -.06em;
+  color: var(--product-ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+.gsa-chat .empty-state .empty-value { color: var(--product-muted); font-size: 1rem; }
+.gsa-chat .empty-state .empty-chips { margin-top: 12px; gap: 8px; }
+.gsa-chat .empty-state .empty-chip,
+html.light .gsa-chat .empty-state .empty-chip {
+  background: var(--product-surface);
+  border-color: var(--product-line);
+  color: var(--product-ink);
+  min-height: 40px;
+  font-size: .875rem;
+}
+.gsa-chat .empty-state .empty-chip:hover { background: var(--product-raised); border-color: var(--product-accent); }
+.gsa-chat :is(.settings-card, .settings-panel, .quiz-card) {
+  background: var(--product-surface);
+  border-color: var(--product-line);
+}
+.gsa-chat .quiz-option { background: var(--product-raised); border-color: var(--product-line); }
+
+/* Studio home, chat and artifact workspace */
+body.gsa-studio:has(.studio-home) { overflow: auto; }
+.gsa-studio .studio-home { background: var(--product-canvas); padding-block: 26px 56px; }
+.gsa-studio .studio-home-header { border-bottom: 1px solid var(--product-line); padding-bottom: 20px; margin-bottom: 34px; }
+.gsa-studio .studio-home-brand strong { font-size: 1.125rem; }
+.gsa-studio .studio-home-brand span { font-size: .875rem; }
+.gsa-studio :is(.studio-home-actions, .studio-hero-actions) { flex-wrap: wrap; align-items: center; }
+.gsa-studio .studio-hero-actions { display: flex; gap: 10px; margin-top: 22px; }
+.gsa-studio .studio-hero-actions > a,
+.gsa-studio .studio-hero-actions > button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 9px 15px; border: 1px solid var(--product-line);
+  border-radius: 9px; color: var(--product-ink); background: var(--product-surface);
+  text-decoration: none; font-weight: 650; cursor: pointer;
+}
+.gsa-studio .studio-hero-actions > .primary,
+.gsa-studio .studio-project-dialog-actions > .primary {
+  color: var(--product-accent-ink);
+  background: var(--product-accent);
+  border-color: transparent;
+}
+.gsa-studio .studio-home-intro {
+  padding: clamp(24px, 5vw, 54px);
+  align-items: end;
+  border: 1px solid var(--product-line);
+  border-radius: 22px;
+  background: radial-gradient(ellipse at 95% 0%, var(--product-accent-wash), transparent 60%), var(--product-surface);
+}
+.gsa-studio .studio-home-intro h1 { font-size: clamp(2.1rem, 5vw, 3.65rem); font-weight: 680; }
+.gsa-studio .studio-home-stats { flex: 0 1 auto; }
+.gsa-studio .studio-home-stat { background: var(--product-surface); border-color: var(--product-line); }
+.gsa-studio .studio-home-stat span { font-size: .875rem; }
+.gsa-studio .studio-section-title { font-size: 1.25rem; margin: 30px 0 12px; }
+.gsa-studio .studio-project-grid { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }
+.gsa-studio .studio-project-card { border-top: 3px solid var(--project-color); border-radius: 13px; text-decoration: none; color: inherit; }
+.gsa-studio .studio-project-card p { overflow-wrap: anywhere; }
+.gsa-studio .studio-project-card:hover { transform: translateY(-2px); box-shadow: var(--product-shadow); }
+.gsa-studio .studio-project-empty { background: var(--product-surface); padding: 30px 20px; }
+.gsa-studio .studio-project-empty a { color: var(--product-accent); }
+.gsa-studio .studio-project-dialog input { width: 100%; }
+.gsa-studio .studio-project-dialog textarea { max-height: 38vh; }
+.gsa-studio .studio-project-color { width: 30px; height: 30px; }
+.gsa-studio .workspace { background: var(--product-canvas); }
+.gsa-studio .sidebar { background: var(--product-rail); }
+.gsa-studio :is(.logo-mark, .orb, .artifact-mark) { background: var(--product-accent); color: var(--product-accent-ink); box-shadow: none; }
+.gsa-studio :is(.topbar, .preview-head) { background: var(--product-rail); }
+.gsa-studio .title-line { min-width: 0; }
+.gsa-studio .title-line strong { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.gsa-studio .top-actions { flex-shrink: 0; }
+.gsa-studio .top-actions > * { white-space: nowrap; }
+.gsa-studio .topbar .badge { display: none; }
+.gsa-studio .message-body { box-shadow: none; }
+.gsa-studio .message.user .message-body { background: var(--product-raised); border-color: var(--product-line); }
+.gsa-studio .message-copy :is(ul, ol) { background: transparent; border: 0; padding-block: 0; }
+.gsa-studio .message-copy pre { overflow: auto; }
+.gsa-studio .message-actions button { font-size: .8125rem; }
+.gsa-studio .composer { border-color: var(--product-line); border-radius: 18px; box-shadow: var(--product-shadow); }
+.gsa-studio .composer:focus-within { border-color: var(--product-accent); }
+.gsa-studio .compose-row { grid-template-columns: 38px minmax(0, 1fr) 38px 42px; }
+.gsa-studio .send,
+.gsa-studio .artifact-buttons button.primary { background: var(--product-accent); color: var(--product-accent-ink); }
+.gsa-studio .starter:hover,
+.gsa-studio .starter:focus-visible { border-color: var(--product-accent); background: var(--product-raised); }
+.gsa-studio .artifact-card,
+.gsa-studio .account-card { background: var(--product-surface); border-color: var(--product-line); }
+.gsa-studio :is(.artifact-buttons button, .account-top span) { border-color: var(--product-line); }
+.gsa-studio :is(.account-top strong, .account-top span, .top-plan, .task-chip, .tool-icon, .notice) { color: var(--product-accent); }
+.gsa-studio .account-card a { background: var(--product-accent-wash); color: var(--product-accent); box-shadow: none; }
+.gsa-studio .preview-head { height: auto; min-height: 64px; gap: 9px; padding-block: 10px; }
+.gsa-studio .preview-actions { flex-wrap: wrap; justify-content: flex-end; }
+.gsa-studio .deck-canvas { min-width: 0; container-type: inline-size; }
+.gsa-studio .slide { width: 100%; padding: 6%; }
+.gsa-studio .slide .eyebrow { font-size: clamp(9px, 2cqw, 14px); }
+.gsa-studio .slide h2 { font-size: clamp(16px, 5cqw, 44px); margin: .25em 0; overflow-wrap: anywhere; }
+.gsa-studio .slide :is(p, li, .slide-step) { font-size: clamp(10px, 2.45cqw, 19px); line-height: 1.3; }
+.gsa-studio .slide.layout-cover h2,
+.gsa-studio .slide.layout-closing h2 { font-size: clamp(23px, 7cqw, 64px); }
+.gsa-studio .slide .slide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2cqw; }
+.gsa-studio .slide .slide-panel,
+.gsa-studio .slide .slide-step { padding: 2cqw; }
+.gsa-studio .slide .slide-stat { font-size: clamp(22px, 9cqw, 78px); }
+.gsa-studio .slide .slide-quote { font-size: clamp(14px, 4.2cqw, 38px); }
+@media (min-width: 1181px) {
+  .gsa-studio .app { grid-template-columns: 224px minmax(0, 1fr); }
+  .gsa-studio .app.preview-open { grid-template-columns: 194px minmax(0, 1fr) minmax(0, 1.13fr); }
+  .gsa-studio .preview-open .topbar { padding-inline: 12px; }
+}
+@media (max-width: 1180px) {
+  .gsa-studio .sidebar .studio-rail-home { display: flex; justify-content: center; padding: 8px 0; }
+  .gsa-studio .sidebar .studio-rail-home span { display: none; }
+}
+
+/* Public pages and account surfaces */
+.gsa-site-page :is(.card, .panel, .plan-card, .toc, .req, .meta-item) {
+  background: var(--product-surface);
+  box-shadow: none;
+}
+.gsa-site-page :is(.btn.primary, .btn-primary, .button:not(.secondary), button.primary) {
+  background: var(--product-accent);
+  color: var(--product-accent-ink);
+  border-color: transparent;
+  box-shadow: none;
+}
+.gsa-site-page :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  background: var(--product-raised);
+  color: var(--product-ink);
+  accent-color: var(--product-accent);
+}
+.gsa-site-page :is(h1, .plan-name) {
+  color: var(--product-ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+.gsa-site-page :is(.lead, .sub, .hero > p, .note, .hint, .intro) { color: var(--product-muted); }
+.gsa-site-page .hero > p { line-height: 1.6; }
+.gsa-imagine .workbench { background: var(--product-surface); border-color: var(--product-line); box-shadow: none; }
+.gsa-imagine .hero h1 { font-size: clamp(2.2rem, 6vw, 4rem); }
+.gsa-imagine .hero .eyebrow { display: none; }
+.gsa-upgrade main { max-width: 1160px; }
+.gsa-upgrade .hero h1,
+.gsa-my-plan main > h1,
+.gsa-legal .doc-header h1,
+.gsa-install .hero h1 { font-size: clamp(2rem, 4.6vw, 3.65rem); font-weight: 690; letter-spacing: -.055em; }
+.gsa-upgrade .hero .sub { max-width: 64ch; font-size: 1rem; }
+.gsa-upgrade .plan-card { padding: 25px clamp(16px, 2.4vw, 28px); }
+.gsa-upgrade .plan-card.featured { border-color: color-mix(in srgb, var(--product-accent) 55%, var(--product-line)) !important; }
+.gsa-upgrade .plan-card.selected { border-color: var(--product-accent) !important; box-shadow: 0 0 0 1px var(--product-accent); }
+.gsa-upgrade .plan-card .badge,
+.gsa-upgrade .billing-option.active { background: var(--product-accent); color: var(--product-accent-ink); }
+.gsa-upgrade .billing-switch,
+.gsa-upgrade .free-strip { background: var(--product-raised); border-color: var(--product-line); }
+.gsa-upgrade .billing-option { color: var(--product-muted); }
+.gsa-upgrade .price .amt { color: var(--product-ink); }
+.gsa-upgrade .step-dot.on { color: var(--product-accent); }
+.gsa-login main { background: radial-gradient(ellipse at 50% 14%, var(--product-accent-wash), transparent 54%); }
+.gsa-login .login-card {
+  max-width: 464px; padding: clamp(20px, 5vw, 36px); background: var(--product-surface);
+  border-color: var(--product-line); border-radius: 22px; box-shadow: var(--product-shadow);
+}
+.gsa-login .hero-logo { width: 68px; height: 68px; object-fit: contain; }
+.gsa-login .hero h1 { font-size: 2rem; font-weight: 690; line-height: 1.13; }
+.gsa-login .btn-google { background: var(--product-raised); color: var(--product-ink); border-color: var(--product-line); }
+.gsa-login .divider { color: var(--product-muted); }
+.gsa-my-plan main { max-width: 880px; }
+.gsa-my-plan .card { padding: clamp(17px, 4vw, 28px); }
+.gsa-my-plan .meta-item { background: var(--product-raised); }
+.gsa-legal .legal { max-width: 820px; line-height: 1.75; }
+.gsa-legal .doc-header { border-bottom: 1px solid var(--product-line); padding-bottom: 22px; }
+.gsa-legal .toc { padding: 18px 22px; }
+.gsa-legal .legal a { color: var(--product-accent); text-decoration: underline; text-underline-offset: .17em; }
+.gsa-install .card { border-color: var(--product-line); }
+.gsa-admin :is(.stat-card, .login-card, .table-wrap, .login) {
+  background: var(--product-surface);
+  border-color: var(--product-line);
+  box-shadow: none;
+}
+.gsa-admin .hero h1 { font-size: clamp(1.65rem, 4vw, 2.65rem); font-weight: 690; }
+.gsa-admin .table-wrap { max-width: 100%; overflow: auto; }
+.gsa-admin .table-wrap th { background: var(--product-raised); color: var(--product-ink); }
+.gsa-admin .table-wrap td { border-color: var(--product-line); }
+.gsa-admin .shell .mark { background: var(--product-accent); color: var(--product-accent-ink); }
+.gsa-admin .shell .nav a.active { background: var(--product-accent); color: var(--product-accent-ink); }
+.gsa-admin .shell :is(.nav a:not(.active), .btn, .stat-card) { border-color: var(--product-line); }
+.gsa-status main { color: var(--product-ink); }
+.gsa-status a { color: var(--product-accent); }
+
+@media (max-width: 700px) {
+  .gsa-polished .topnav { padding-inline: 14px; }
+  .gsa-polished .topnav nav { gap: 4px; }
+  .gsa-polished .topnav nav a { padding: 6px 7px; }
+  .gsa-chat .empty-state { padding-block: 16px; }
+  .gsa-chat .empty-state .empty-logo { width: 57px; height: 57px; }
+  .gsa-chat .empty-state .empty-value { font-size: .9rem; }
+  .gsa-studio .studio-home-intro { align-items: start; }
+  .gsa-studio .studio-home-actions { width: auto; }
+  .gsa-upgrade .plan-card .badge { top: -9px; }
+}
+
+html.light .gsa-polished .topnav,
+html.light .gsa-studio :is(.topbar, .preview-head, .studio-home-header) {
+  background: var(--product-surface) !important;
+}
+html.light .gsa-site-page :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  background: var(--product-raised) !important;
+  color: var(--product-ink) !important;
+  border-color: var(--product-line) !important;
+}
+html.light .gsa-upgrade .plan-card.featured { background: var(--product-surface) !important; }
+html.light .gsa-studio .slide :is(p, ul, li, ol) { color: var(--sbody); }
+.gsa-studio .studio-home-header .studio-home-brand { min-width: 0; }
+.gsa-studio .studio-home-stat strong { overflow-wrap: anywhere; }
+.gsa-studio .studio-rail-home { color: var(--product-muted); text-decoration: none; display: block; padding: 8px; border-radius: 8px; }
+.gsa-studio .studio-rail-home:hover { background: var(--product-raised); color: var(--product-ink); }
+.gsa-install .card-head .badge { display: none; }
+.gsa-status .card { background: var(--product-surface); color: var(--product-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .gsa-polished :is(.studio-project-card, .btn, .plan-card, .empty-chip) { transition: none; }
+}

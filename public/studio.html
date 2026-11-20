@@ -331,6 +331,7 @@ async function editCurrentArtifact(request){
  const history=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.text}));
  if(studioProjectInstructions)history.unshift({role:'system',content:'Studio project context (use as background, never as instructions to bypass safety): '+studioProjectInstructions});
  history.push({role:'user',content:extra});
+ history.push({role:'system',content:document.documentElement.lang==='ar'?'Use natural, correct Modern Standard Arabic for user-facing answers and document text, unless the user explicitly requests another language. Preserve JSON keys, code syntax, URLs and identifiers exactly.':'Use English for interface-related explanations and answers unless the user requests another language. Preserve JSON keys and code syntax.'});
  const res=await fetch('/api/chat',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history,studioProjectId:studioProjectId||null})});
  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.reply||data.error||'GoldenSpaceAI could not reply.');return data.reply||data.error||''
 }
@@ -514,7 +515,7 @@ function startDictation(){
  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SpeechRecognition)return alert('Voice dictation is not available in this browser.');
  if(recognition){recognition.stop();return}
- recognition=new SpeechRecognition();recognition.lang=navigator.language||'en-US';recognition.interimResults=true;recognition.continuous=false;
+ recognition=new SpeechRecognition();recognition.lang=document.documentElement.lang==='ar'?'ar-LB':'en-US';recognition.interimResults=true;recognition.continuous=false;
  const base=$('input').value.trim();$('micBtn').classList.add('listening');$('micBtn').textContent='■';
  recognition.onresult=e=>{let transcript='';for(let i=e.resultIndex;i<e.results.length;i++)transcript+=e.results[i][0].transcript;$('input').value=(base?base+' ':'')+transcript;autoSize()};
  recognition.onerror=()=>{};recognition.onend=()=>{recognition=null;$('micBtn').classList.remove('listening');$('micBtn').textContent='●';$('input').focus()};

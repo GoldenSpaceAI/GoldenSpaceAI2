@@ -140,8 +140,9 @@ function preparePresentation(data,topic){
  });
  return data
 }
-function save(){try{localStorage.setItem('gsa_studio_chat',JSON.stringify({messages,pending,currentArtifact}))}catch(e){}}
-function load(){try{const x=JSON.parse(localStorage.getItem('gsa_studio_chat')||'{}');messages=Array.isArray(x.messages)?x.messages:[];pending=x.pending||null;currentArtifact=x.currentArtifact||null}catch(e){}renderMessages();if(currentArtifact)renderArtifact(currentArtifact)}
+function studioStorageKey(){return 'gsa_studio_chat_'+(studioProjectId||'default')}
+function save(){try{localStorage.setItem(studioStorageKey(),JSON.stringify({messages,pending,currentArtifact}))}catch(e){}}
+function load(){try{const x=JSON.parse(localStorage.getItem(studioStorageKey())||'{}');messages=Array.isArray(x.messages)?x.messages:[];pending=x.pending||null;currentArtifact=x.currentArtifact||null}catch(e){}renderMessages();if(currentArtifact)renderArtifact(currentArtifact)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function richText(value){
  const normalized=String(value||'')
@@ -526,7 +527,7 @@ document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.d
 $('closePreview').onclick=closePreview;$('previewToggle').onclick=openPreview;$('downloadBtn').onclick=()=>downloadArtifact($('downloadBtn'));$('editBtn').onclick=toggleEdit;
 $('themeSelect').onchange=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;currentArtifact.data.theme=$('themeSelect').value;renderDeckSlide();save()};
 $('remixDesign').onclick=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;currentArtifact.data.designSeed=((Number(currentArtifact.data.designSeed)||0)+1)%96;renderDeckSlide();save()};
-$('newChat').onclick=()=>{if(confirm('Start a new Studio chat?')){messages=[];pending=null;currentArtifact=null;localStorage.removeItem('gsa_studio_chat');closePreview();renderMessages()}};
+$('newChat').onclick=()=>{if(confirm('Start a new Studio chat?')){messages=[];pending=null;currentArtifact=null;localStorage.removeItem(studioStorageKey());closePreview();renderMessages()}};
 $('themeBtn').onclick=()=>{document.documentElement.classList.toggle('light');const light=document.documentElement.classList.contains('light');$('themeBtn').textContent=light?'Dark':'Light';localStorage.setItem('gsa_theme',light?'light':'dark')};
 if(localStorage.getItem('gsa_theme')==='light'){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}
 if(isStudioPhone())showStudioPhoneBlock();

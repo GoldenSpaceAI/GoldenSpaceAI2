@@ -82,7 +82,8 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function add(role,text,quick){messages.push({role,text,quick:quick||[],at:new Date().toISOString()});renderMessages();save()}
 function renderMessages(){
  $('empty').style.display=messages.length?'none':'grid';
- $('messages').innerHTML=messages.map((m,i)=>'<article class="message '+m.role+'"><div class="avatar">'+(m.role==='user'?'You':'G')+'</div><div class="message-body"><div class="message-head">'+(m.role==='user'?'You':'GoldenSpaceAI Studio')+'</div><div class="message-copy">'+esc(m.text)+'</div>'+(m.quick&&m.quick.length?'<div class="quick-answers">'+m.quick.map(q=>'<button onclick="useQuick('+i+',\\''+esc(q).replace(/'/g,"\\\\'")+'\\')">'+esc(q)+'</button>').join('')+'</div>':'')+'</div></article>').join('');
+ $('messages').innerHTML=messages.map((m)=>'<article class="message '+m.role+'"><div class="avatar">'+(m.role==='user'?'You':'G')+'</div><div class="message-body"><div class="message-head">'+(m.role==='user'?'You':'GoldenSpaceAI Studio')+'</div><div class="message-copy">'+esc(m.text)+'</div>'+(m.quick&&m.quick.length?'<div class="quick-answers">'+m.quick.map(q=>'<button data-quick="'+esc(q)+'">'+esc(q)+'</button>').join('')+'</div>':'')+'</div></article>').join('');
+ $('messages').querySelectorAll('[data-quick]').forEach(button=>button.addEventListener('click',()=>useQuick(0,button.dataset.quick)));
  $('chat').scrollTop=$('chat').scrollHeight;
 }
 window.useQuick=(i,q)=>{$('input').value=q;autoSize();sendMessage()}

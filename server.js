@@ -97,6 +97,7 @@ function isPauseExemptPath(pathname) {
     const p = String(pathname || '');
     if (p === '/admin-page' || p === '/admin-page.html') return true;
     if (p === '/admin-users' || p === '/admin-users.html') return true;
+    if (p === '/admin-income' || p === '/admin-income.html') return true;
     if (p.startsWith('/api/admin/')) return true;
     if (PAUSE_ASSET_EXEMPT.has(p)) return true;
     return false;
@@ -2999,6 +3000,10 @@ function requireAdmin(req, res) {
     }
     return true;
 }
+
+app.get('/admin-income', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin-income.html'));
+});
 
 app.get('/api/admin/income', async (req, res) => {
     if (!requireAdmin(req, res)) return;

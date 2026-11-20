@@ -145,7 +145,7 @@ async function createImage(topic,details){
 }
 async function searchImages(topic){
  thinking(true);const res=await fetch('/api/imagine/search?type=photo&query='+encodeURIComponent(topic),{credentials:'same-origin'});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||data.error||'Image search failed.');
- const items=(data.items||data.photos||[]).slice(0,12);currentArtifact={kind:'search',data:items,topic};add('assistant','I found '+items.length+' images for “'+topic+'”. Open Preview to see and download them.');renderArtifact(currentArtifact);save()
+ const items=(data.results||data.items||data.photos||[]).slice(0,12);currentArtifact={kind:'search',data:items,topic};add('assistant','I found '+items.length+' images for “'+topic+'”. Open Preview to see and download them.');renderArtifact(currentArtifact);save()
 }
 async function createCode(topic,details){
  const extra='Build "'+topic+'". Requirements: '+details+'. Return ONLY one complete self-contained HTML document with embedded CSS and JavaScript. Make it polished, responsive, accessible, and runnable. No explanation outside the code.';
@@ -161,7 +161,7 @@ function renderArtifact(a){
   if(a.kind==='presentation')$('previewBody').innerHTML=d.slides.map((s,i)=>'<section class="slide" data-i="'+i+'"><div class="eyebrow">'+esc(s.eyebrow||'GOLDENSPACEAI')+'</div><h2 contenteditable="false">'+esc(s.title||'')+'</h2>'+(s.body?'<p contenteditable="false">'+esc(s.body)+'</p>':'')+(Array.isArray(s.bullets)?'<ul>'+s.bullets.map(b=>'<li contenteditable="false">'+esc(b)+'</li>').join('')+'</ul>':'')+'</section>').join('');
   else $('previewBody').innerHTML='<article class="doc-page"><h1 contenteditable="false">'+esc(d.title||'')+'</h1><div class="subtitle" contenteditable="false">'+esc(d.subtitle||'')+'</div>'+d.slides.map((s,i)=>'<section class="doc-section" data-i="'+i+'"><h2 contenteditable="false">'+esc(s.title||'')+'</h2>'+(s.body?'<p contenteditable="false">'+esc(s.body)+'</p>':'')+(Array.isArray(s.bullets)?'<ul>'+s.bullets.map(b=>'<li contenteditable="false">'+esc(b)+'</li>').join('')+'</ul>':'')+'</section>').join('')+'</article>';
  }else if(a.kind==='image'){$('previewName').textContent='Generated image';$('previewMeta').textContent=(a.meta?.used||0)+' of '+(a.meta?.limit||0)+' AI images today';$('previewBody').innerHTML='<img class="generated-image" src="'+esc(a.data.url)+'" alt="Generated image">'}
- else if(a.kind==='search'){$('previewName').textContent='Image search';$('previewMeta').textContent='Pexels · '+a.data.length+' results';$('previewBody').innerHTML='<div class="media-grid">'+a.data.map(x=>{const src=x.src?.medium||x.src?.large||x.image||x.url||'';const href=x.src?.original||x.url||src;return '<article class="media-card"><img src="'+esc(src)+'" alt="'+esc(x.alt||a.topic||'Image')+'"><a href="'+esc(href)+'" target="_blank" rel="noopener">Open original</a></article>'}).join('')+'</div>'}
+ else if(a.kind==='search'){$('previewName').textContent='Image search';$('previewMeta').textContent='Pexels · '+a.data.length+' results';$('previewBody').innerHTML='<div class="media-grid">'+a.data.map(x=>{const src=x.preview||x.src?.medium||x.src?.large||x.image||x.url||'';const href=x.download||x.image||x.src?.original||x.pexelsUrl||x.url||src;return '<article class="media-card"><img src="'+esc(src)+'" alt="'+esc(x.alt||a.topic||'Image')+'"><a href="'+esc(href)+'" target="_blank" rel="noopener">Open original</a></article>'}).join('')+'</div>'}
  else if(a.kind==='code'){$('previewName').textContent=a.title||'Code preview';$('previewMeta').textContent='Runnable HTML · sandboxed';$('previewBody').innerHTML='<div class="code-preview"><pre>'+esc(a.data)+'</pre><iframe sandbox="allow-scripts" title="Code preview"></iframe></div>';$('previewBody').querySelector('iframe').srcdoc=a.data}
  $('downloadBtn').textContent=a.kind==='document'&&a.format==='pdf'?'Print / Save PDF':'Download';save()
 }
@@ -175,7 +175,22 @@ async function downloadArtifact(){
  if(a.kind==='code')downloadBlob(new Blob([a.data],{type:'text/html'}),(a.title||'GoldenSpaceAI-code').replace(/[^a-z0-9]+/gi,'-')+'.html')
 }
 function downloadBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
-function toggleEdit(){const editing=$('editBtn').textContent==='Save';$('previewBody').querySelectorAll('[contenteditable]').forEach(x=>x.contentEditable=editing?'false':'true');$('editBtn').textContent=editing?'Edit':'Save';if(editing)add('assistant','Your manual preview edits are saved visually. You can now download the updated version.')}
+function toggleEdit(){
+ const saving=$('editBtn').textContent==='Save';
+ if(saving&&currentArtifact&&(currentArtifact.kind==='document'||currentArtifact.kind==='presentation')){
+  const root=$('previewBody');
+  if(currentArtifact.kind==='document'){
+   currentArtifact.data.title=root.querySelector('.doc-page>h1')?.textContent.trim()||currentArtifact.data.title;
+   currentArtifact.data.subtitle=root.querySelector('.doc-page>.subtitle')?.textContent.trim()||currentArtifact.data.subtitle;
+   root.querySelectorAll('.doc-section').forEach((section,i)=>{const slide=currentArtifact.data.slides[i];if(!slide)return;slide.title=section.querySelector('h2')?.textContent.trim()||slide.title;slide.body=section.querySelector('p')?.textContent.trim()||'';slide.bullets=Array.from(section.querySelectorAll('li')).map(li=>li.textContent.trim()).filter(Boolean)});
+  }else{
+   root.querySelectorAll('.slide').forEach((section,i)=>{const slide=currentArtifact.data.slides[i];if(!slide)return;slide.title=section.querySelector('h2')?.textContent.trim()||slide.title;slide.body=section.querySelector('p')?.textContent.trim()||'';slide.bullets=Array.from(section.querySelectorAll('li')).map(li=>li.textContent.trim()).filter(Boolean)});
+  }
+  save();add('assistant','Your edits are saved. The download will use the updated content.');
+ }
+ $('previewBody').querySelectorAll('[contenteditable]').forEach(x=>x.contentEditable=saving?'false':'true');
+ $('editBtn').textContent=saving?'Edit':'Save';
+}
 function autoSize(){$('input').style.height='auto';$('input').style.height=Math.min(180,$('input').scrollHeight)+'px'}
 $('plusBtn').onclick=e=>{e.stopPropagation();$('plusMenu').classList.toggle('open')};document.addEventListener('click',e=>{if(!$('plusMenu').contains(e.target)&&e.target!==$('plusBtn'))$('plusMenu').classList.remove('open')});
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));$('clearTask').onclick=clearTool;$('send').onclick=sendMessage;$('input').oninput=autoSize;$('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}};

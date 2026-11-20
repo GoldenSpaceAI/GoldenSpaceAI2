@@ -2896,6 +2896,20 @@ app.get('/api/plan', (req, res) => {
     sendFreshJson(res, plansStore.getPlanPublic(ownerKey));
 });
 
+app.get('/api/credits', (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Login required.' });
+    return res.json({ ok: true, credits: plansStore.getCredits(plansStore.accountOwnerKey(user.id)) });
+});
+
+app.post('/api/credits/request', (req, res) => {
+    const user = auth && auth.readUserFromReq(req);
+    if (!user || !user.id) return res.status(401).json({ ok: false, error: 'Log in before buying credits.', loginUrl: '/login?next=%2Fupgrade' });
+    const body = req.body || {};
+    const result = plansStore.createCreditRequest({ deviceId: getClientId(req), userId: user.id, email: user.email, phone: body.phone, amount: body.amount, ip: clientIp(req) });
+    return res.status(result.ok ? 200 : 400).json(result);
+});
+
 app.get('/api/notifications', async (req, res) => {
     const user = auth && auth.readUserFromReq(req);
     if (!user || !user.id) return res.json({ ok: true, notifications: [], unread: 0, requiresLogin: true });

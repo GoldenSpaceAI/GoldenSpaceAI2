@@ -49,7 +49,9 @@
     document.head.appendChild(style);
     var box = document.createElement('div'); box.className = 'site-language';
     box.innerHTML = '<span aria-hidden="true">◎</span><select id="siteLanguage" aria-label="Language / اللغة"><option value="en">English</option><option value="ar">العربية</option></select>';
-    document.body.appendChild(box);
+    var host = document.querySelector('.topnav nav, .top-bar-actions, .live-page-top');
+    if (host) { box.style.position = 'static'; box.style.flexShrink = '0'; host.appendChild(box); }
+    else document.body.appendChild(box);
     box.querySelector('select').addEventListener('change',function(e){lang=e.target.value;try{localStorage.setItem(key,lang);}catch(_){} apply();});
     apply();
     var scheduled = false;

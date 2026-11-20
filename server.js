@@ -3000,6 +3000,92 @@ function requireAdmin(req, res) {
     return true;
 }
 
+app.get('/api/admin/income', async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+        let accounts = [];
+        if (auth && typeof auth.listUsersForAdmin === 'function') {
+            const listed = await auth.listUsersForAdmin();
+            if (listed && listed.ok) accounts = listed.users || [];
+        }
+        const users = plansStore.listUsersAdmin({ accounts });
+        const payments = plansStore.listPaymentsAdmin().filter(p => p.status === 'approved');
+        const studioByOwner = new Map();
+        const pool = await ensureStudioUsageTable();
+        if (pool) {
+            const studioRows = await pool.query(`
+                SELECT owner_key, COALESCE(SUM(cost_usd), 0) AS cost_usd, COALESCE(SUM(images_used), 0) AS images_used
+                FROM studio_image_usage
+                GROUP BY owner_key
+            `);
+            studioRows.rows.forEach(row => studioByOwner.set(String(row.owner_key), {
+                costUsd: Number(row.cost_usd) || 0,
+                images: Number(row.images_used) || 0
+            }));
+        }
+
+        const rowsByKey = new Map();
+        const keyFor = (userId, email) => userId ? 'u_' + String(userId) : 'e_' + String(email || '').trim().toLowerCase();
+        users.forEach(user => {
+            const key = keyFor(user.userId, user.email);
+            const studio = studioByOwner.get(user.userId ? 'u_' + String(user.userId) : '') || { costUsd: 0, images: 0 };
+            rowsByKey.set(key, {
+                key,
+                userId: user.userId || null,
+                email: user.email || null,
+                name: user.name || null,
+                plan: user.plan || user.currentPlan || 'free',
+                revenueUsd: 0,
+                chatSpendUsd: Number(user.totalSpendUsd || user.dollarsTotal) || 0,
+                studioSpendUsd: studio.costUsd,
+                studioImages: studio.images,
+                approvedPayments: 0
+            });
+        });
+        payments.forEach(payment => {
+            const key = keyFor(payment.userId, payment.email);
+            if (!rowsByKey.has(key)) {
+                const studio = studioByOwner.get(payment.userId ? 'u_' + String(payment.userId) : '') || { costUsd: 0, images: 0 };
+                rowsByKey.set(key, {
+                    key, userId: payment.userId || null, email: payment.email || null, name: null,
+                    plan: payment.livePlan || payment.plan || 'free', revenueUsd: 0, chatSpendUsd: 0,
+                    studioSpendUsd: studio.costUsd, studioImages: studio.images, approvedPayments: 0
+                });
+            }
+            const row = rowsByKey.get(key);
+            row.revenueUsd += Number(payment.amount) || 0;
+            row.approvedPayments += 1;
+        });
+        const round = value => Math.round((Number(value) || 0) * 10000) / 10000;
+        const rows = Array.from(rowsByKey.values()).map(row => {
+            row.revenueUsd = round(row.revenueUsd);
+            row.chatSpendUsd = round(row.chatSpendUsd);
+            row.studioSpendUsd = round(row.studioSpendUsd);
+            row.totalSpendUsd = round(row.chatSpendUsd + row.studioSpendUsd);
+            row.netIncomeUsd = round(row.revenueUsd - row.totalSpendUsd);
+            row.marginPercent = row.revenueUsd > 0 ? Math.round((row.netIncomeUsd / row.revenueUsd) * 1000) / 10 : null;
+            return row;
+        }).filter(row => row.revenueUsd > 0 || row.totalSpendUsd > 0)
+          .sort((a, b) => b.netIncomeUsd - a.netIncomeUsd);
+        const summary = rows.reduce((sum, row) => {
+            sum.revenueUsd += row.revenueUsd;
+            sum.chatSpendUsd += row.chatSpendUsd;
+            sum.studioSpendUsd += row.studioSpendUsd;
+            sum.totalSpendUsd += row.totalSpendUsd;
+            sum.netIncomeUsd += row.netIncomeUsd;
+            sum.approvedPayments += row.approvedPayments;
+            return sum;
+        }, { revenueUsd: 0, chatSpendUsd: 0, studioSpendUsd: 0, totalSpendUsd: 0, netIncomeUsd: 0, approvedPayments: 0 });
+        Object.keys(summary).forEach(key => { if (key !== 'approvedPayments') summary[key] = round(summary[key]); });
+        summary.marginPercent = summary.revenueUsd > 0 ? Math.round((summary.netIncomeUsd / summary.revenueUsd) * 1000) / 10 : 0;
+        summary.customers = rows.filter(row => row.revenueUsd > 0).length;
+        res.json({ summary, rows, currency: 'USD', generatedAt: new Date().toISOString() });
+    } catch (error) {
+        console.error('admin income:', error.message);
+        res.status(500).json({ error: 'Could not calculate income right now.' });
+    }
+});
+
 app.get('/api/admin/payments', async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const payments = plansStore.listPaymentsAdmin();
@@ -3268,10 +3354,160 @@ app.get('/chat21.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'chat21.html'));
 });
 
+app.get('/studio', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'studio.html'));
+});
+app.get('/studio.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'studio.html'));
+});
 app.get('/imagine', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'imagine.html'));
+    res.redirect(302, '/studio?tool=search');
+});
+app.get('/imagine.html', (req, res) => {
+    res.redirect(302, '/studio?tool=search');
 });
 
+
+// ==================== GOLDENSPACEAI STUDIO ====================
+const STUDIO_IMAGE_MODEL = 'grok-imagine-image';
+const STUDIO_IMAGE_COST_USD = 0.02;
+const STUDIO_IMAGE_LIMITS = { free: 1, plus: 5, pro: 12, max: 25 };
+
+async function ensureStudioUsageTable() {
+    const pool = auth && typeof auth.getPool === 'function' ? auth.getPool() : null;
+    if (!pool) return null;
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS studio_image_usage (
+            owner_key TEXT NOT NULL,
+            day_key DATE NOT NULL,
+            images_used INTEGER NOT NULL DEFAULT 0,
+            cost_usd NUMERIC(12,6) NOT NULL DEFAULT 0,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (owner_key, day_key)
+        )
+    `);
+    return pool;
+}
+
+function studioAccount(req) {
+    const user = auth && typeof auth.readUserFromReq === 'function' ? auth.readUserFromReq(req) : null;
+    if (!user || !user.id) return null;
+    const ownerKey = 'u_' + String(user.id);
+    const status = plansStore.getStatus(ownerKey) || {};
+    const plan = String(status.plan || 'free').toLowerCase();
+    return { user, ownerKey, plan, limit: STUDIO_IMAGE_LIMITS[plan] || STUDIO_IMAGE_LIMITS.free };
+}
+
+async function readStudioUsage(ownerKey) {
+    const pool = await ensureStudioUsageTable();
+    if (!pool) return { used: 0, costUsd: 0 };
+    const result = await pool.query(
+        `SELECT images_used, cost_usd FROM studio_image_usage WHERE owner_key = $1 AND day_key = CURRENT_DATE`,
+        [ownerKey]
+    );
+    const row = result.rows[0] || {};
+    return { used: Number(row.images_used) || 0, costUsd: Number(row.cost_usd) || 0 };
+}
+
+app.get('/api/studio/usage', async (req, res) => {
+    const account = studioAccount(req);
+    if (!account) {
+        return res.json({ loggedIn: false, plan: 'guest', used: 0, limit: 0, remaining: 0, model: STUDIO_IMAGE_MODEL });
+    }
+    try {
+        const usage = await readStudioUsage(account.ownerKey);
+        return res.json({
+            loggedIn: true,
+            plan: account.plan,
+            used: usage.used,
+            limit: account.limit,
+            remaining: Math.max(0, account.limit - usage.used),
+            model: STUDIO_IMAGE_MODEL
+        });
+    } catch (error) {
+        console.error('studio usage:', error.message);
+        return res.status(503).json({ error: 'Studio usage is temporarily unavailable.' });
+    }
+});
+
+app.post('/api/studio/generate-image', async (req, res) => {
+    const account = studioAccount(req);
+    if (!account) return res.status(401).json({ error: 'Sign in to generate images in Studio.', loginUrl: '/login?next=%2Fstudio' });
+
+    const prompt = String(req.body && req.body.prompt || '').trim().replace(/\s+/g, ' ');
+    if (prompt.length < 3 || prompt.length > 800) {
+        return res.status(400).json({ error: 'Describe the image in 3 to 800 characters.' });
+    }
+    if (isBlockedImagineQuery(prompt)) {
+        return res.status(400).json({ error: 'Access blocked for this word or phrase. Try a different description.' });
+    }
+    const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'Studio image generation is not configured yet.' });
+
+    let pool;
+    try {
+        pool = await ensureStudioUsageTable();
+        if (!pool) return res.status(503).json({ error: 'Studio usage storage is unavailable.' });
+        const reserved = await pool.query(`
+            INSERT INTO studio_image_usage (owner_key, day_key, images_used, cost_usd)
+            VALUES ($1, CURRENT_DATE, 1, $2)
+            ON CONFLICT (owner_key, day_key) DO UPDATE
+            SET images_used = studio_image_usage.images_used + 1,
+                cost_usd = studio_image_usage.cost_usd + EXCLUDED.cost_usd,
+                updated_at = NOW()
+            WHERE studio_image_usage.images_used < $3
+            RETURNING images_used, cost_usd
+        `, [account.ownerKey, STUDIO_IMAGE_COST_USD, account.limit]);
+        if (!reserved.rows.length) {
+            notifyAccountQuota(req, 'Studio image limit reached',
+                'You have used all ' + account.limit + ' Studio AI images available today on your ' + account.plan + ' plan.',
+                'studio-images:' + new Date().toISOString().slice(0, 10), 'usage_limit');
+            return res.status(429).json({ error: 'You have reached today\'s Studio image limit.', used: account.limit, limit: account.limit, remaining: 0 });
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 90000);
+        let response;
+        try {
+            response = await fetch('https://api.x.ai/v1/images/generations', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: STUDIO_IMAGE_MODEL, prompt, response_format: 'url', n: 1 }),
+                signal: controller.signal
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.data || !payload.data[0] || !payload.data[0].url) {
+            throw new Error((payload && (payload.error && payload.error.message || payload.error)) || 'Image provider rejected the request.');
+        }
+        const url = String(payload.data[0].url || '');
+        if (!/^https:\/\//i.test(url)) throw new Error('Image provider returned an invalid URL.');
+        const used = Number(reserved.rows[0].images_used) || 1;
+        return res.json({
+            image: { url, mimeType: payload.data[0].mime_type || 'image/jpeg' },
+            used,
+            limit: account.limit,
+            remaining: Math.max(0, account.limit - used),
+            model: STUDIO_IMAGE_MODEL
+        });
+    } catch (error) {
+        if (pool) {
+            try {
+                await pool.query(`
+                    UPDATE studio_image_usage
+                    SET images_used = GREATEST(0, images_used - 1),
+                        cost_usd = GREATEST(0, cost_usd - $2),
+                        updated_at = NOW()
+                    WHERE owner_key = $1 AND day_key = CURRENT_DATE
+                `, [account.ownerKey, STUDIO_IMAGE_COST_USD]);
+            } catch (_) {}
+        }
+        console.error('studio image generation:', error.message);
+        return res.status(502).json({ error: 'The image could not be generated this time. Please try again.' });
+    }
+});
 
 // ==================== PEXELS IMAGINE SEARCH ====================
 const imagineRateBuckets = new Map();

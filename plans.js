@@ -372,6 +372,7 @@ function emptyStore() {
         phoneIndex: {},
         usage: {},
         payments: [],
+        credits: {},
         geoCache: {},
         settings: {
             paused: false,
@@ -457,6 +458,7 @@ function createPlansStore(dataDir, options = {}) {
             phoneIndex: src.phoneIndex && typeof src.phoneIndex === 'object' ? src.phoneIndex : {},
             usage: src.usage && typeof src.usage === 'object' ? src.usage : {},
             payments: Array.isArray(src.payments) ? src.payments : [],
+            credits: src.credits && typeof src.credits === 'object' ? src.credits : {},
             geoCache: src.geoCache && typeof src.geoCache === 'object' ? src.geoCache : {},
             settings: normalizeSettings(src.settings)
         };
@@ -2023,6 +2025,31 @@ function createPlansStore(dataDir, options = {}) {
         return { ok: true, attached, migratedSub, ownerKey: ak };
     }
 
+    function getCredits(ownerKey) {
+        const store = read();
+        const c = store.credits[ownerKey] || {};
+        return { totalUsd: roundUsd(c.totalUsd), remaining: {
+            chatUsd: roundUsd(c.chatUsd), studioUsd: roundUsd(c.studioUsd),
+            mediaUsd: roundUsd(c.mediaUsd), documentsUsd: roundUsd(c.documentsUsd)
+        }};
+    }
+
+    function createCreditRequest({ deviceId, phone, email, userId, ip, amount } = {}) {
+        const value = Math.round(Number(amount) * 100) / 100;
+        if (!Number.isFinite(value) || value < 2 || value > 200) return { ok: false, error: 'Credit amount must be between $2 and $200.' };
+        const normalized = normalizePhone(phone);
+        if (!isValidOmtPhone(normalized)) return { ok: false, error: 'Enter a valid OMT Pay wallet number.' };
+        const uid = userId != null ? String(userId) : '';
+        const emailNorm = normalizeEmail(email);
+        if (!uid || !emailNorm) return { ok: false, error: 'Log in with an account email before buying credits.' };
+        const store = read();
+        const ownerKey = accountOwnerKey(uid);
+        const payment = { id: 'credit_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'), kind: 'credits', amount: value, creditAmount: value, plan: 'credits', phone: normalized, deviceId: deviceId || null, userId: uid, email: emailNorm, status: 'waiting', createdAt: new Date().toISOString(), decidedAt: null, ip: typeof ip === 'string' ? ip.trim().slice(0, 64) : null, ownerKey };
+        store.payments.unshift(payment); save(); flushSync();
+        const each = roundUsd(value / 4);
+        return { ok: true, payment, split: { chatUsd: each, studioUsd: each, mediaUsd: each, documentsUsd: each } };
+    }
+
     function createPaymentRequest({ deviceId, plan, billingPeriod, phone, email, userId, ip, currentPlan } = {}) {
         const planId = String(plan || '').toLowerCase();
         const def = PLAN_DEFS[planId];
@@ -2313,6 +2340,22 @@ function createPlansStore(dataDir, options = {}) {
         if (!ownerKey) {
             return { ok: false, error: 'Payment has no account or device owner' };
         }
+        if (payment.kind === 'credits' || payment.plan === 'credits') {
+            const value = Number(payment.creditAmount || payment.amount || 0);
+            if (!Number.isFinite(value) || value < 2 || value > 200) return { ok: false, error: 'Invalid credit amount' };
+            const each = roundUsd(value / 4);
+            const current = store.credits[ownerKey] || { totalUsd: 0, chatUsd: 0, studioUsd: 0, mediaUsd: 0, documentsUsd: 0 };
+            current.totalUsd = roundUsd((current.totalUsd || 0) + value);
+            current.chatUsd = roundUsd((current.chatUsd || 0) + each);
+            current.studioUsd = roundUsd((current.studioUsd || 0) + each);
+            current.mediaUsd = roundUsd((current.mediaUsd || 0) + each);
+            current.documentsUsd = roundUsd((current.documentsUsd || 0) + each);
+            store.credits[ownerKey] = current;
+            payment.status = 'approved'; payment.decidedAt = new Date().toISOString();
+            save(); flushSync();
+            return { ok: true, payment, credits: current };
+        }
+
         const planId = payment.plan;
         const def = getPlanDef(planId);
         if (!def || planId === 'free') {
@@ -2690,6 +2733,8 @@ function createPlansStore(dataDir, options = {}) {
         accountOwnerKey,
         getMyPlan,
         getPayment,
+        getCredits,
+        createCreditRequest,
         approvePayment,
         declinePayment,
         getPauseState,

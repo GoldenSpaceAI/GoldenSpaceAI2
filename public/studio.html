@@ -141,8 +141,28 @@ function preparePresentation(data,topic){
  return data
 }
 function studioStorageKey(){return 'gsa_studio_chat_'+(studioProjectId||'default')}
-function save(){try{localStorage.setItem(studioStorageKey(),JSON.stringify({messages,pending,currentArtifact}))}catch(e){}}
-function load(){try{const x=JSON.parse(localStorage.getItem(studioStorageKey())||'{}');messages=Array.isArray(x.messages)?x.messages:[];pending=x.pending||null;currentArtifact=x.currentArtifact||null}catch(e){}renderMessages();if(currentArtifact)renderArtifact(currentArtifact)}
+let studioSaveTimer=null;
+function save(){
+ const snapshot={messages,pending,currentArtifact};
+ try{localStorage.setItem(studioStorageKey(),JSON.stringify(snapshot))}catch(e){}
+ if(studioProjectId){
+  clearTimeout(studioSaveTimer);
+  studioSaveTimer=setTimeout(()=>fetch('/api/studio/projects/'+encodeURIComponent(studioProjectId)+'/chat',{method:'PUT',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify(snapshot)}).catch(()=>{}),450);
+ }
+}
+async function loadStudioChat(){
+ if(!studioProjectId)return;
+ try{
+  const res=await fetch('/api/studio/projects/'+encodeURIComponent(studioProjectId)+'/chat',{credentials:'same-origin'});
+  if(!res.ok)return;
+  const data=await res.json(),chat=data.chat||{};
+  if(Array.isArray(chat.messages)&&chat.messages.length){messages=chat.messages;pending=chat.pending||null;currentArtifact=chat.currentArtifact||null;renderMessages();if(currentArtifact)renderArtifact(currentArtifact);try{localStorage.setItem(studioStorageKey(),JSON.stringify({messages,pending,currentArtifact}))}catch(e){}}
+ }catch(e){}
+}
+function load(){
+ try{const x=JSON.parse(localStorage.getItem(studioStorageKey())||'{}');messages=Array.isArray(x.messages)?x.messages:[];pending=x.pending||null;currentArtifact=x.currentArtifact||null}catch(e){}
+ renderMessages();if(currentArtifact)renderArtifact(currentArtifact);if(studioProjectId)loadStudioChat()
+}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function richText(value){
  const normalized=String(value||'')

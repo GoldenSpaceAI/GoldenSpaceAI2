@@ -40,6 +40,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 @media print{body *{visibility:hidden}.preview,.preview *{visibility:visible}.preview{display:block!important;position:absolute!important;inset:0!important;border:0}.preview-head{display:none}.preview-body{padding:0;background:white}.doc-page{box-shadow:none;max-width:none;border-radius:0}}
 </style>
   <link rel="stylesheet" href="/product.css?v=20261120-1">
+<script src="/presentation-design.js?v=2"></script>
 <script src="/language.js?v=20261120" defer></script>
 </head>
 <body class="gsa-polished gsa-studio">
@@ -126,17 +127,18 @@ function topicHash(value){let h=2166136261;for(const ch of String(value||'')){h^
 function clipWords(value,max){const text=String(value||'').replace(/\s+/g,' ').trim();if(text.length<=max)return text;const cut=text.slice(0,max+1);return cut.slice(0,Math.max(cut.lastIndexOf(' '),Math.floor(max*.72))).replace(/[,:;\s]+$/,'')+'…'}
 function preparePresentation(data,topic){
  const names=Object.keys(PRESENTATION_THEMES),hash=topicHash(topic||data.title);
- if(!PRESENTATION_THEMES[data.theme])data.theme=names[hash%names.length];
+ if(!PRESENTATION_THEMES[data.theme])data.theme=PresentationDesign.chooseTheme(topic||data.title);
  data.designSeed=Number.isFinite(Number(data.designSeed))?Math.max(0,Math.min(95,Number(data.designSeed))):hash%96;
  const families=['content','stat','compare','timeline','process','quote'];
  data.slides=(Array.isArray(data.slides)?data.slides:[]).map((raw,i,all)=>{
   const s=Object.assign({},raw||{});const last=i===all.length-1;
-  s.layout=i===0?'cover':(last?'closing':(families.includes(s.layout)?s.layout:families[(hash+i)%families.length]));
-  s.eyebrow=clipWords(s.eyebrow||('SECTION '+(i+1)),42);s.title=clipWords(s.title||'Untitled slide',82);
-  s.subtitle=clipWords(s.subtitle||'',145);s.body=clipWords(s.body||'',270);
-  s.bullets=(Array.isArray(s.bullets)?s.bullets:[]).map(x=>clipWords(x,112)).filter(Boolean).slice(0,5);
-  s.leftBullets=(Array.isArray(s.leftBullets)?s.leftBullets:[]).map(x=>clipWords(x,100)).filter(Boolean).slice(0,4);
-  s.rightBullets=(Array.isArray(s.rightBullets)?s.rightBullets:[]).map(x=>clipWords(x,100)).filter(Boolean).slice(0,4);
+  s.layout=PresentationDesign.layout(s,i,all.length);
+  s.highlights=PresentationDesign.highlights(s);
+  s.eyebrow=clipWords(s.eyebrow||('SECTION '+(i+1)),42);s.title=clipWords(s.title||'Untitled slide',70);
+  s.subtitle=clipWords(s.subtitle||'',145);s.body=clipWords(s.body||'',200);
+  s.bullets=(Array.isArray(s.bullets)?s.bullets:[]).map(x=>clipWords(x,90)).filter(Boolean).slice(0,4);
+  s.leftBullets=(Array.isArray(s.leftBullets)?s.leftBullets:[]).map(x=>clipWords(x,70)).filter(Boolean).slice(0,3);
+  s.rightBullets=(Array.isArray(s.rightBullets)?s.rightBullets:[]).map(x=>clipWords(x,70)).filter(Boolean).slice(0,3);
   s.quote=clipWords(s.quote||'',240);s.attribution=clipWords(s.attribution||'',80);s.stat=clipWords(s.stat||'',42);
   return s
  });
@@ -354,7 +356,7 @@ function extractRunnableHtml(text){
 function parseJSON(text){let raw=String(text||'').replace(/^\s*\x60{3}(?:json)?/i,'').replace(/\x60{3}\s*$/,'').trim(),a=raw.indexOf('{'),b=raw.lastIndexOf('}');if(a<0||b<=a)throw new Error('I could not structure the preview. Ask me to try again.');return JSON.parse(raw.slice(a,b+1))}
 async function createDocument(type,topic,details){
  const format=type==='presentation'?'presentation':'document';
- const extra='Create a polished '+format+' about "'+topic+'". Requirements: '+details+'. Return ONLY valid JSON in this shape: {"title":"...","subtitle":"...","theme":"midnight|editorial|ocean|minimal|heritage|science|forest|royal|sunset|monochrome|classroom|corporate|creative","designSeed":0,"slides":[{"layout":"cover|content|stat|compare|timeline|process|quote|closing","eyebrow":"...","title":"...","subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. For a presentation, match the exact requested slide count; use a cover first and a concise closing last. Make every slide visually scannable: title no more than 8 words, body no more than 2 short sentences, 3-5 bullets with no more than 12 words each, one clear idea per slide, no dense paragraphs, no repeated facts. Select a topic-appropriate theme and vary layouts across slides. For a document, each slides item is one page or section and should contain substantial factual writing. Use specific, accurate information, strong hierarchy, and no filler. No Markdown fences.';
+ const extra='Create a polished '+format+' about "'+topic+'". Requirements: '+details+'. Return ONLY valid JSON in this shape: {"title":"...","subtitle":"...","theme":"midnight|editorial|ocean|minimal|heritage|science|forest|royal|sunset|monochrome|classroom|corporate|creative","designSeed":0,"slides":[{"layout":"cover|content|stat|compare|timeline|process|quote|closing","eyebrow":"...","title":"...","titleHighlight":"one short phrase already in the title","highlights":[{"text":"exact phrase already in this slide","tone":"accent|secondary"}],"subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. For a presentation, match the exact requested slide count; use a cover first and a concise closing last. Make every slide visually scannable: title no more than 8 words, body no more than 2 short sentences, 3-5 bullets with no more than 12 words each, one clear idea per slide, no dense paragraphs, no repeated facts. Act as an experienced presentation art director. Choose a topic-appropriate theme: heritage for history, science for science, forest for environment, corporate for business, editorial for humanities. Keep the palette consistent. Choose layouts by the content: comparisons need two supported viewpoints, timelines need dated milestones, statistics require real numbers, quotes require real attribution. Never invent data to fill a layout. Add titleHighlight and 2-4 highlights per slide using exact phrases from its text; accent is the primary theme color and secondary is its supporting color. Highlight meaningful keywords only. Avoid generic filler, crowded slides, and repeated decorative panels. For a document, each slides item is one page or section and should contain substantial factual writing. Use specific, accurate information, strong hierarchy, and no filler. No Markdown fences.';
  let reply=await apiChat(extra,'documents'),data;
  try{data=parseJSON(reply)}
  catch(firstError){
@@ -386,6 +388,9 @@ async function createCode(topic,details){
  if(!html)throw new Error('I could not prepare the runnable preview this time. Press Retry and I will rebuild it.');
  currentArtifact={kind:'code',data:html,title:topic};add('assistant','The code is ready and running. Open the project below to preview, edit, or download it.',[],currentArtifact);renderArtifact(currentArtifact);save()
 }
+function slideInk(text,slide){
+ return PresentationDesign.runs(text,slide.highlights||[]).map(r=>r.tone?'<span style="color:var(--s'+(r.tone==='secondary'?'accent2':'accent')+');font-weight:750">'+esc(r.text)+'</span>':esc(r.text)).join('');
+}
 function renderDeckSlide(){
  if(!currentArtifact||currentArtifact.kind!=='presentation')return;
  const d=currentArtifact.data,slides=d.slides||[];deckIndex=Math.max(0,Math.min(deckIndex,slides.length-1));const s=slides[deckIndex]||{},theme=PRESENTATION_THEMES[d.theme]||PRESENTATION_THEMES.midnight;
@@ -395,20 +400,20 @@ function renderDeckSlide(){
  if(layout==='cover'){
   content='';
  }else if(layout==='closing'){
-  content='<div class="slide-steps">'+bullets.slice(0,3).map(b=>'<div class="slide-step">'+esc(b)+'</div>').join('')+'</div>';
+  content='<div class="slide-steps">'+bullets.slice(0,3).map(b=>'<div class="slide-step">'+slideInk(b,s)+'</div>').join('')+'</div>';
  }else if(layout==='quote'&&s.quote){
-  content='<div class="slide-quote">“'+esc(s.quote)+'”</div>'+(s.attribution?'<div class="slide-attribution">— '+esc(s.attribution)+'</div>':'');
+  content='<div class="slide-quote">“'+slideInk(s.quote,s)+'”</div>'+(s.attribution?'<div class="slide-attribution">— '+slideInk(s.attribution,s)+'</div>':'');
  }else if(layout==='stat'&&s.stat){
-  content='<div class="slide-grid"><div><div class="slide-stat">'+esc(s.stat)+'</div>'+(s.body?'<p>'+esc(s.body)+'</p>':'')+'</div><div class="slide-panel"><h3>Why it matters</h3><ul>'+bullets.map(b=>'<li>'+esc(b)+'</li>').join('')+'</ul></div></div>';
+  content='<div class="slide-grid"><div><div class="slide-stat">'+esc(s.stat)+'</div>'+(s.body?'<p>'+slideInk(s.body,s)+'</p>':'')+'</div><div class="slide-panel"><h3>Why it matters</h3><ul>'+bullets.map(b=>'<li>'+slideInk(b,s)+'</li>').join('')+'</ul></div></div>';
  }else if(layout==='compare'){
   const left=(s.leftBullets&&s.leftBullets.length?s.leftBullets:bullets.slice(0,Math.ceil(bullets.length/2))),right=(s.rightBullets&&s.rightBullets.length?s.rightBullets:bullets.slice(Math.ceil(bullets.length/2)));
-  content='<div class="slide-grid"><div class="slide-panel"><h3>'+esc(s.leftTitle||'Perspective A')+'</h3><ul>'+left.map(b=>'<li>'+esc(b)+'</li>').join('')+'</ul></div><div class="slide-panel"><h3>'+esc(s.rightTitle||'Perspective B')+'</h3><ul>'+right.map(b=>'<li>'+esc(b)+'</li>').join('')+'</ul></div></div>';
+  content='<div class="slide-grid"><div class="slide-panel"><h3>'+esc(s.leftTitle||'Perspective A')+'</h3><ul>'+left.map(b=>'<li>'+slideInk(b,s)+'</li>').join('')+'</ul></div><div class="slide-panel"><h3>'+esc(s.rightTitle||'Perspective B')+'</h3><ul>'+right.map(b=>'<li>'+slideInk(b,s)+'</li>').join('')+'</ul></div></div>';
  }else if(layout==='timeline'||layout==='process'){
-  content=(s.body?'<p>'+esc(s.body)+'</p>':'')+'<div class="slide-steps">'+bullets.map(b=>'<div class="slide-step">'+esc(b)+'</div>').join('')+'</div>';
+  content=(s.body?'<p>'+slideInk(s.body,s)+'</p>':'')+'<div class="slide-steps">'+bullets.map(b=>'<div class="slide-step">'+slideInk(b,s)+'</div>').join('')+'</div>';
  }else{
-  content=(s.body?'<p>'+esc(s.body)+'</p>':'')+(bullets.length?'<ul>'+bullets.map(b=>'<li>'+esc(b)+'</li>').join('')+'</ul>':'');
+  content=(s.body?'<p>'+slideInk(s.body,s)+'</p>':'')+(bullets.length?'<ul>'+bullets.map(b=>'<li>'+slideInk(b,s)+'</li>').join('')+'</ul>':'');
  }
- $('deckCanvas').innerHTML='<section class="slide layout-'+esc(layout)+' motif-'+motif+'" style="'+esc(style)+'" data-i="'+deckIndex+'"><div class="slide-content"><div class="eyebrow">'+esc(s.eyebrow||'GOLDENSPACEAI')+'</div><h2 contenteditable="false">'+esc(s.title||'')+'</h2>'+(s.subtitle?'<p contenteditable="false">'+esc(s.subtitle)+'</p>':'')+content+'</div></section>';
+ $('deckCanvas').innerHTML='<section class="slide layout-'+esc(layout)+' motif-'+motif+'" style="'+esc(style)+'" data-i="'+deckIndex+'"><div class="slide-content"><div class="eyebrow">'+esc(s.eyebrow||'GOLDENSPACEAI')+'</div><h2 contenteditable="false">'+slideInk(s.title||'',s)+'</h2>'+(s.subtitle?'<p contenteditable="false">'+slideInk(s.subtitle,s)+'</p>':'')+content+'</div></section>';
  $('deckCount').textContent='Slide '+(deckIndex+1)+' of '+slides.length;$('deckPrev').disabled=deckIndex===0;$('deckNext').disabled=deckIndex===slides.length-1;
 }
 function saveVisibleDeckEdits(){

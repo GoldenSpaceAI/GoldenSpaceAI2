@@ -41,6 +41,8 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 </style>
   <link rel="stylesheet" href="/product.css?v=20261120-1">
 <script src="/presentation-design.js?v=2"></script>
+<script src="/presentation-composer.js?v=1"></script>
+<link rel="stylesheet" href="/presentation-composer.css?v=1">
 <script src="/language.js?v=20261120" defer></script>
 <link rel="stylesheet" href="/studio-workspace.css?v=1">
 <script src="/studio-workspace.js?v=1" defer></script>
@@ -88,7 +90,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
  </div></div>
 </main>
 <aside class="preview" id="preview">
- <header class="preview-head"><div class="preview-title"><strong id="previewName">Preview</strong><span id="previewMeta">Live artifact</span></div><div class="preview-actions"><span class="design-count" id="designCount" style="display:none">1,248 designs</span><select id="themeSelect" aria-label="Presentation theme" style="display:none"></select><button id="remixDesign" style="display:none">Remix design</button><button id="editBtn" style="display:none">Edit</button><button id="downloadBtn" style="display:none">Download</button><button id="closePreview">Close</button></div></header>
+ <header class="preview-head"><div class="preview-title"><strong id="previewName">Preview</strong><span id="previewMeta">Live artifact</span></div><div class="preview-actions"><span class="design-count" id="designCount" style="display:none">Adaptive slide design</span><select id="themeSelect" aria-label="Presentation theme" style="display:none"></select><button id="remixDesign" style="display:none">Remix design</button><button id="editBtn" style="display:none">Edit</button><button id="downloadBtn" style="display:none">Download</button><button id="closePreview">Close</button></div></header>
  <div class="preview-body" id="previewBody"><div class="notice">Your document, image, search results, or runnable code will appear here.</div></div>
 </aside>
 </div>
@@ -128,23 +130,24 @@ const PRESENTATION_THEMES={
 function topicHash(value){let h=2166136261;for(const ch of String(value||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
 function clipWords(value,max){const text=String(value||'').replace(/\s+/g,' ').trim();if(text.length<=max)return text;const cut=text.slice(0,max+1);return cut.slice(0,Math.max(cut.lastIndexOf(' '),Math.floor(max*.72))).replace(/[,:;\s]+$/,'')+'…'}
 function preparePresentation(data,topic){
- const names=Object.keys(PRESENTATION_THEMES),hash=topicHash(topic||data.title);
  if(!PRESENTATION_THEMES[data.theme])data.theme=PresentationDesign.chooseTheme(topic||data.title);
- data.designSeed=Number.isFinite(Number(data.designSeed))?Math.max(0,Math.min(95,Number(data.designSeed))):hash%96;
- const families=['content','stat','compare','timeline','process','quote'];
- data.slides=(Array.isArray(data.slides)?data.slides:[]).map((raw,i,all)=>{
-  const s=Object.assign({},raw||{});const last=i===all.length-1;
-  s.layout=PresentationDesign.layout(s,i,all.length);
-  s.highlights=PresentationDesign.highlights(s);
-  s.eyebrow=clipWords(s.eyebrow||('SECTION '+(i+1)),42);s.title=clipWords(s.title||'Untitled slide',70);
-  s.subtitle=clipWords(s.subtitle||'',145);s.body=clipWords(s.body||'',200);
-  s.bullets=(Array.isArray(s.bullets)?s.bullets:[]).map(x=>clipWords(x,90)).filter(Boolean).slice(0,4);
-  s.leftBullets=(Array.isArray(s.leftBullets)?s.leftBullets:[]).map(x=>clipWords(x,70)).filter(Boolean).slice(0,3);
-  s.rightBullets=(Array.isArray(s.rightBullets)?s.rightBullets:[]).map(x=>clipWords(x,70)).filter(Boolean).slice(0,3);
-  s.quote=clipWords(s.quote||'',240);s.attribution=clipWords(s.attribution||'',80);s.stat=clipWords(s.stat||'',42);
-  return s
- });
- return data
+ data.slides=(Array.isArray(data.slides)?data.slides:[]).map(PresentationComposer.normalize);
+ data.designVersion=3;
+ return data;
+}
+async function enrichPresentationImages(data){
+ const selected=data.slides.map((s,i)=>({s,i})).filter(({s,i})=>s.imageQuery&&!s.image&&(i===0||s.layout==='image')).slice(0,2);
+ if(!selected.length)return data;
+ taskProgress('Selecting presentation visuals','اختيار صور العرض','Finding relevant stock photos for the visual slides.','البحث عن صور مناسبة لشرائح العرض.');
+ const used=new Set(data.slides.filter(s=>s.image).map(s=>s.image.url));
+ for(const {s} of selected){
+  try{
+   const res=await fetch('/api/imagine/search?type=photo&purpose=presentation&query='+encodeURIComponent(s.imageQuery),{credentials:'same-origin',headers:{'X-Client-Id':ensureClientId()},signal:AbortSignal.timeout(10000)});
+   if(!res.ok)continue;const found=await res.json(),photo=(found.results||[])[0];if(!photo)continue;
+   const im=PresentationComposer.image({url:photo.image||photo.preview,width:photo.width,height:photo.height,credit:photo.photographer,source:photo.pexelsUrl});if(im&&!used.has(im.url)){s.image=im;used.add(im.url);}
+  }catch(_){}
+ }
+ return data;
 }
 function studioStorageKey(){return 'gsa_studio_chat_'+(studioProjectId||'default')}
 let studioSaveTimer=null;
@@ -333,11 +336,11 @@ async function editCurrentArtifact(request){
  }
  if(currentArtifact.kind==='document'||currentArtifact.kind==='presentation'){
   const kind=currentArtifact.kind;
-  const prompt='Edit this existing '+kind+' according to the user request: "'+request+'". Existing artifact JSON: '+JSON.stringify(currentArtifact.data)+'. Return ONLY strict valid JSON with this same shape: {"title":"...","subtitle":"...","slides":[{"eyebrow":"...","title":"...","body":"...","bullets":["..."],"visual":"..."}]}. Preserve all content and slides that were not requested to change. Do not use Markdown fences.';
-  let reply=await apiChat(prompt),updated;
-  try{updated=parseJSON(reply)}catch(e){reply=await apiChat('Repair the previous edit into strict JSON only, with title, subtitle, and slides array. No explanation.');updated=parseJSON(reply)}
+  const prompt=(kind==='presentation'?PresentationComposer.prompt+' Preserve the existing visual fields, layout, colors, diagrams, images, and slide count unless the user requests a change. ':'')+'Edit this existing '+kind+' according to the user request: "'+request+'". Existing artifact JSON: '+JSON.stringify(currentArtifact.data)+'. Return ONLY strict valid JSON preserving the full original schema and unchanged design fields. Preserve all content and slides that were not requested to change. Do not use Markdown fences.';
+  let reply=await apiChat(prompt,'documents'),updated;
+  try{updated=parseJSON(reply)}catch(e){reply=await apiChat((kind==='presentation'?PresentationComposer.prompt+' ':'')+'Repair the previous edit into strict JSON only, preserving all original fields. No explanation.','documents');updated=parseJSON(reply)}
   if(!Array.isArray(updated.slides)||!updated.slides.length)throw new Error('I could not create a valid updated preview.');
-  currentArtifact.data=updated;add('assistant','Done—I edited the existing '+kind+' directly. Open the updated version below.',[],currentArtifact);renderArtifact(currentArtifact);save();return;
+  currentArtifact.data=kind==='presentation'?preparePresentation(Object.assign({},currentArtifact.data,updated),currentArtifact.data.title):updated;add('assistant','Done—I edited the existing '+kind+' directly. Open the updated version below.',[],currentArtifact);renderArtifact(currentArtifact);save();return;
  }
 }async function apiChat(extra,feature){
  const history=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.text}));
@@ -349,7 +352,7 @@ async function editCurrentArtifact(request){
  taskProgress(useSearch?'Searching sources and drafting':'Preparing the response',useSearch?'البحث في المصادر وإعداد الإجابة':'إعداد الإجابة',useSearch?'Requesting web sources, then using Fast mode to draft the result.':'Sending the request to Fast mode.',useSearch?'طلب مصادر من الويب ثم استخدام الوضع السريع لإعداد النتيجة.':'إرسال الطلب إلى الوضع السريع.');
  const remaining=studioRequestDeadline?studioRequestDeadline-Date.now():95000;if(remaining<1000)throw new Error('This request reached its time limit. Please try again.');
  const controller=new AbortController(),deadline=setTimeout(()=>controller.abort(),Math.min(95000,remaining));
- let res;try{res=await fetch('/api/chat',{method:'POST',signal:controller.signal,headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history,studioProjectId:studioProjectId||null,feature:feature||null,studioWebSearch:useSearch,studioSearchQuery:feature?(studioResearchTopic||currentArtifact?.data?.title||latest):latest})});}catch(error){if(error.name==='AbortError')throw new Error(document.documentElement.lang==='ar'?'استغرق الطلب وقتًا أطول من المتوقع. حاول مجددًا.':'The request took too long. Please try again.');throw error;}finally{clearTimeout(deadline);}
+ let res;try{res=await fetch('/api/chat',{method:'POST',signal:controller.signal,headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history,customInstructions:feature==='documents'&&extra.startsWith(PresentationComposer.prompt)?PresentationComposer.prompt:'',studioProjectId:studioProjectId||null,feature:feature||null,studioWebSearch:useSearch,studioSearchQuery:feature?(studioResearchTopic||currentArtifact?.data?.title||latest):latest})});}catch(error){if(error.name==='AbortError')throw new Error(document.documentElement.lang==='ar'?'استغرق الطلب وقتًا أطول من المتوقع. حاول مجددًا.':'The request took too long. Please try again.');throw error;}finally{clearTimeout(deadline);}
 
  const data=await res.json().catch(()=>({}));studioLastSources=Array.isArray(data.webSources)?data.webSources:[];if(!res.ok)throw new Error(data.reply||data.error||'GoldenSpaceAI could not reply.');return data.reply||data.error||''
 }
@@ -371,15 +374,15 @@ function extractRunnableHtml(text){
 function parseJSON(text){let raw=String(text||'').replace(/^\s*\x60{3}(?:json)?/i,'').replace(/\x60{3}\s*$/,'').trim(),a=raw.indexOf('{'),b=raw.lastIndexOf('}');if(a<0||b<=a)throw new Error('I could not structure the preview. Ask me to try again.');return JSON.parse(raw.slice(a,b+1))}
 async function createDocument(type,topic,details){
  const format=type==='presentation'?'presentation':'document';
- const extra='Create a polished '+format+' about "'+topic+'". Requirements: '+details+'. Return ONLY valid JSON in this shape: {"title":"...","subtitle":"...","theme":"midnight|editorial|ocean|minimal|heritage|science|forest|royal|sunset|monochrome|classroom|corporate|creative","designSeed":0,"slides":[{"layout":"cover|content|stat|compare|timeline|process|quote|closing","eyebrow":"...","title":"...","titleHighlight":"one short phrase already in the title","highlights":[{"text":"exact phrase already in this slide","tone":"accent|secondary"}],"subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. For a presentation, match the exact requested slide count; use a cover first and a concise closing last. Make every slide visually scannable: title no more than 8 words, body no more than 2 short sentences, 3-5 bullets with no more than 12 words each, one clear idea per slide, no dense paragraphs, no repeated facts. Act as an experienced presentation art director. Choose a topic-appropriate theme: heritage for history, science for science, forest for environment, corporate for business, editorial for humanities. Keep the palette consistent. Choose layouts by the content: comparisons need two supported viewpoints, timelines need dated milestones, statistics require real numbers, quotes require real attribution. Never invent data to fill a layout. Add titleHighlight and 2-4 highlights per slide using exact phrases from its text; accent is the primary theme color and secondary is its supporting color. Highlight meaningful keywords only. Avoid generic filler, crowded slides, and repeated decorative panels. For a document, each slides item is one page or section and should contain substantial factual writing. Use specific, accurate information, strong hierarchy, and no filler. No Markdown fences.';
+ const extra=type==='presentation'?PresentationComposer.prompt+' Topic: '+topic+'. Requirements: '+details:('Create a polished '+format+' about "'+topic+'". Requirements: '+details+'. Return ONLY valid JSON in this shape: {"title":"...","subtitle":"...","theme":"midnight|editorial|ocean|minimal|heritage|science|forest|royal|sunset|monochrome|classroom|corporate|creative","designSeed":0,"slides":[{"layout":"cover|content|stat|compare|timeline|process|quote|closing","eyebrow":"...","title":"...","titleHighlight":"one short phrase already in the title","highlights":[{"text":"exact phrase already in this slide","tone":"accent|secondary"}],"subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. For a presentation, match the exact requested slide count; use a cover first and a concise closing last. Make every slide visually scannable: title no more than 8 words, body no more than 2 short sentences, 3-5 bullets with no more than 12 words each, one clear idea per slide, no dense paragraphs, no repeated facts. Act as an experienced presentation art director. Choose a topic-appropriate theme: heritage for history, science for science, forest for environment, corporate for business, editorial for humanities. Keep the palette consistent. Choose layouts by the content: comparisons need two supported viewpoints, timelines need dated milestones, statistics require real numbers, quotes require real attribution. Never invent data to fill a layout. Add titleHighlight and 2-4 highlights per slide using exact phrases from its text; accent is the primary theme color and secondary is its supporting color. Highlight meaningful keywords only. Avoid generic filler, crowded slides, and repeated decorative panels. For a document, each slides item is one page or section and should contain substantial factual writing. Use specific, accurate information, strong hierarchy, and no filler. No Markdown fences.');
  let reply=await apiChat(extra,'documents'),data;
  try{data=parseJSON(reply)}
  catch(firstError){
-  const repair='The previous document response was not valid JSON. Recreate the same requested deliverable now. Return ONLY strict valid JSON with double-quoted keys and strings in this shape: {"title":"...","subtitle":"...","slides":[{"eyebrow":"...","title":"...","body":"...","bullets":["..."],"visual":"..."}]}. Do not explain, do not use Markdown fences, and do not include text before or after the JSON.';
+  const repair=(type==='presentation'?PresentationComposer.prompt+' ':'')+'The previous document response was not valid JSON. Recreate the same requested deliverable now. Return ONLY strict valid JSON with double-quoted keys and strings in this shape: {"title":"...","subtitle":"...","slides":[{"eyebrow":"...","title":"...","body":"...","bullets":["..."],"visual":"..."}]}. Do not explain, do not use Markdown fences, and do not include text before or after the JSON.';
   reply=await apiChat(repair,'documents');data=parseJSON(reply)
  }
  data.slides=Array.isArray(data.slides)?data.slides:[];if(!data.slides.length)throw new Error('I could not create a valid preview this time. Please press Retry.');
- if(type==='presentation')data=preparePresentation(data,topic);
+ if(type==='presentation'){data=preparePresentation(data,topic);await enrichPresentationImages(data);}
  currentArtifact={kind:type==='presentation'?'presentation':'document',format:/word|docx/i.test(details)?'docx':(/pdf/i.test(details)?'pdf':(type==='presentation'?'pptx':'docx')),data};
  add('assistant','Your '+(type==='presentation'?'presentation':'document')+' is ready. Open it below to preview, edit, or download.',[],currentArtifact);
  renderArtifact(currentArtifact);save()
@@ -408,31 +411,23 @@ function slideInk(text,slide){
 }
 function renderDeckSlide(){
  if(!currentArtifact||currentArtifact.kind!=='presentation')return;
- const d=currentArtifact.data,slides=d.slides||[];deckIndex=Math.max(0,Math.min(deckIndex,slides.length-1));const s=slides[deckIndex]||{},theme=PRESENTATION_THEMES[d.theme]||PRESENTATION_THEMES.midnight;
- const layout=s.layout||(deckIndex===0?'cover':(deckIndex===slides.length-1?'closing':'content')),bullets=Array.isArray(s.bullets)?s.bullets:[],motif=(Number(d.designSeed)||0)%8;
- const style='--sbg:'+theme.bg+';--salt:'+theme.alt+';--scard:'+theme.card+';--saccent:'+theme.accent+';--saccent2:'+theme.accent2+';--stext:'+theme.text+';--sbody:'+theme.body+';--smuted:'+theme.muted;
- let content='';
- if(layout==='cover'){
-  content='';
- }else if(layout==='closing'){
-  content='<div class="slide-steps">'+bullets.slice(0,3).map(b=>'<div class="slide-step">'+slideInk(b,s)+'</div>').join('')+'</div>';
- }else if(layout==='quote'&&s.quote){
-  content='<div class="slide-quote">“'+slideInk(s.quote,s)+'”</div>'+(s.attribution?'<div class="slide-attribution">— '+slideInk(s.attribution,s)+'</div>':'');
- }else if(layout==='stat'&&s.stat){
-  content='<div class="slide-grid"><div><div class="slide-stat">'+esc(s.stat)+'</div>'+(s.body?'<p>'+slideInk(s.body,s)+'</p>':'')+'</div><div class="slide-panel"><h3>Why it matters</h3><ul>'+bullets.map(b=>'<li>'+slideInk(b,s)+'</li>').join('')+'</ul></div></div>';
- }else if(layout==='compare'){
-  const left=(s.leftBullets&&s.leftBullets.length?s.leftBullets:bullets.slice(0,Math.ceil(bullets.length/2))),right=(s.rightBullets&&s.rightBullets.length?s.rightBullets:bullets.slice(Math.ceil(bullets.length/2)));
-  content='<div class="slide-grid"><div class="slide-panel"><h3>'+esc(s.leftTitle||'Perspective A')+'</h3><ul>'+left.map(b=>'<li>'+slideInk(b,s)+'</li>').join('')+'</ul></div><div class="slide-panel"><h3>'+esc(s.rightTitle||'Perspective B')+'</h3><ul>'+right.map(b=>'<li>'+slideInk(b,s)+'</li>').join('')+'</ul></div></div>';
- }else if(layout==='timeline'||layout==='process'){
-  content=(s.body?'<p>'+slideInk(s.body,s)+'</p>':'')+'<div class="slide-steps">'+bullets.map(b=>'<div class="slide-step">'+slideInk(b,s)+'</div>').join('')+'</div>';
- }else{
-  content=(s.body?'<p>'+slideInk(s.body,s)+'</p>':'')+(bullets.length?'<ul>'+bullets.map(b=>'<li>'+slideInk(b,s)+'</li>').join('')+'</ul>':'');
- }
- $('deckCanvas').innerHTML='<section class="slide layout-'+esc(layout)+' motif-'+motif+'" style="'+esc(style)+'" data-i="'+deckIndex+'"><div class="slide-content"><div class="eyebrow">'+esc(s.eyebrow||'GOLDENSPACEAI')+'</div><h2 contenteditable="false">'+slideInk(s.title||'',s)+'</h2>'+(s.subtitle?'<p contenteditable="false">'+slideInk(s.subtitle,s)+'</p>':'')+content+'</div></section>';
- $('deckCount').textContent='Slide '+(deckIndex+1)+' of '+slides.length;$('deckPrev').disabled=deckIndex===0;$('deckNext').disabled=deckIndex===slides.length-1;
+ const d=currentArtifact.data,slides=d.slides||[];deckIndex=Math.max(0,Math.min(deckIndex,slides.length-1));
+ const theme=PRESENTATION_THEMES[d.theme]||PRESENTATION_THEMES.editorial;
+ const scene=PresentationComposer.compose(d,deckIndex,theme);
+ $('deckCanvas').style.setProperty('--scene-accent',theme.accent);$('deckCanvas').style.setProperty('--scene-accent2',theme.accent2);
+ $('deckCanvas').innerHTML=PresentationComposer.html(scene);$('deckCanvas').firstElementChild.dataset.i=deckIndex;
+ $('deckCount').textContent=(document.documentElement.lang==='ar'?'الشريحة ':'Slide ')+(deckIndex+1)+' / '+slides.length;
+ $('deckPrev').disabled=deckIndex===0;$('deckNext').disabled=deckIndex===slides.length-1;
+ if($('editBtn').textContent==='Save')$('deckCanvas').querySelectorAll('[contenteditable]').forEach(x=>x.contentEditable='true');
 }
 function saveVisibleDeckEdits(){
- if(!currentArtifact||currentArtifact.kind!=='presentation')return;const section=$('previewBody').querySelector('.slide');if(!section)return;const i=Number(section.dataset.i)||0,slide=currentArtifact.data.slides[i];if(!slide)return;slide.title=section.querySelector('h2')?.textContent.trim()||slide.title;slide.body=section.querySelector('p')?.textContent.trim()||'';slide.bullets=Array.from(section.querySelectorAll('li')).map(li=>li.textContent.trim()).filter(Boolean)
+ if(!currentArtifact||currentArtifact.kind!=='presentation')return;
+ const slide=currentArtifact.data.slides[deckIndex];if(!slide)return;
+ $('deckCanvas').querySelectorAll('[data-field]').forEach(node=>{
+  const keys=node.dataset.field.split('.');if(keys.some(key=>!/^([a-zA-Z]+|[0-9]+)$/.test(key)||['__proto__','constructor','prototype'].includes(key)))return;
+  let target=slide;for(const key of keys.slice(0,-1)){if(!target||typeof target[key]!=='object')return;target=target[key];}
+  const last=keys[keys.length-1],value=(node.dataset.prefix||'')+node.textContent.trim();if(target)target[last]=last==='value'?Number(value)||0:value;
+ });
 }
 function moveDeck(step){if($('editBtn').textContent==='Save')saveVisibleDeckEdits();deckIndex+=step;renderDeckSlide();if($('editBtn').textContent==='Save')$('previewBody').querySelectorAll('[contenteditable]').forEach(x=>x.contentEditable='true')}
 function useSearchImage(index){
@@ -467,7 +462,7 @@ function renderArtifact(a){
  currentArtifact=a;openPreview();$('editBtn').style.display='none';$('downloadBtn').style.display='inline-block';$('themeSelect').style.display='none';$('remixDesign').style.display='none';$('designCount').style.display='none';
  if(a.kind==='document'||a.kind==='presentation'){
   const d=a.data;$('previewName').textContent=d.title||'Untitled';$('previewMeta').textContent=a.kind==='presentation'?d.slides.length+' slides':d.slides.length+' sections · '+a.format.toUpperCase();$('editBtn').style.display='inline-block';
-  if(a.kind==='presentation'){a.data=preparePresentation(a.data,a.data.title);$('themeSelect').innerHTML=Object.entries(PRESENTATION_THEMES).map(([key,t])=>'<option value="'+key+'">'+esc(t.name)+'</option>').join('');$('themeSelect').value=a.data.theme;$('themeSelect').style.display='inline-block';$('remixDesign').style.display='inline-block';$('designCount').style.display='inline-block';deckIndex=0;$('previewBody').innerHTML='<div class="deck-viewer"><div class="deck-canvas" id="deckCanvas"></div><div class="deck-nav"><button id="deckPrev">Previous</button><span id="deckCount"></span><button id="deckNext">Next</button></div></div>';renderDeckSlide();$('deckPrev').onclick=()=>moveDeck(-1);$('deckNext').onclick=()=>moveDeck(1)}
+  if(a.kind==='presentation'){a.data=preparePresentation(a.data,a.data.title);$('themeSelect').innerHTML=Object.entries(PRESENTATION_THEMES).map(([key,t])=>'<option value="'+key+'">'+esc(t.name)+'</option>').join('');$('themeSelect').value=a.data.theme;$('themeSelect').style.display='inline-block';$('remixDesign').style.display='inline-block';$('remixDesign').textContent=document.documentElement.lang==='ar'?'تغيير الأسلوب':'Restyle deck';$('designCount').style.display='inline-block';deckIndex=0;$('designCount').textContent=document.documentElement.lang==='ar'?'تصميم يتكيّف مع المحتوى':'Adaptive slide design';$('previewBody').innerHTML='<div class="deck-viewer"><div class="deck-canvas" id="deckCanvas"></div><div class="deck-nav"><button id="deckPrev">Previous</button><span id="deckCount"></span><button id="deckNext">Next</button></div></div>';renderDeckSlide();$('deckPrev').onclick=()=>moveDeck(-1);$('deckNext').onclick=()=>moveDeck(1)}
   else $('previewBody').innerHTML='<article class="doc-page"><h1 contenteditable="false">'+esc(d.title||'')+'</h1><div class="subtitle" contenteditable="false">'+esc(d.subtitle||'')+'</div>'+d.slides.map((s,i)=>'<section class="doc-section" data-i="'+i+'"><h2 contenteditable="false">'+esc(s.title||'')+'</h2>'+(s.body?'<p contenteditable="false">'+esc(s.body)+'</p>':'')+(Array.isArray(s.bullets)?'<ul>'+s.bullets.map(b=>'<li contenteditable="false">'+esc(b)+'</li>').join('')+'</ul>':'')+'</section>').join('')+'</article>';
  }else if(a.kind==='image'){$('previewName').textContent='Generated image';$('previewMeta').textContent=(a.meta?.used||0)+' of '+(a.meta?.limit||0)+' AI images today';$('previewBody').innerHTML='<img class="generated-image" src="'+esc(a.data.url)+'" alt="Generated image">'}
  else if(a.kind==='search'){$('previewName').textContent='Image search';$('previewMeta').textContent='Choose a photo to use or edit';$('previewBody').innerHTML='<div class="media-grid">'+a.data.map((x,i)=>{const src=x.preview||x.src?.medium||x.src?.large||x.image||x.url||'';const href=x.download||x.image||x.src?.original||x.pexelsUrl||x.url||src;return '<article class="media-card"><img src="'+esc(src)+'" alt="'+esc(x.alt||a.topic||'Image')+'"><div class="media-actions"><button data-use-image="'+i+'">Use this image</button><a href="'+esc(href)+'" target="_blank" rel="noopener">Open original</a></div></article>'}).join('')+'</div>';$('previewBody').querySelectorAll('[data-use-image]').forEach(btn=>btn.onclick=()=>useSearchImage(Number(btn.dataset.useImage)))}
@@ -619,7 +614,7 @@ $('plusBtn').onclick=e=>{e.stopPropagation();$('plusMenu').classList.toggle('ope
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));$('clearTask').onclick=clearTool;$('send').onclick=sendMessage;$('micBtn').onclick=startDictation;$('input').oninput=autoSize;$('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}};
 $('closePreview').onclick=closePreview;$('previewToggle').onclick=openPreview;$('downloadBtn').onclick=()=>downloadArtifact($('downloadBtn'));$('editBtn').onclick=toggleEdit;
 $('themeSelect').onchange=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;currentArtifact.data.theme=$('themeSelect').value;renderDeckSlide();save()};
-$('remixDesign').onclick=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;currentArtifact.data.designSeed=((Number(currentArtifact.data.designSeed)||0)+1)%96;renderDeckSlide();save()};
+$('remixDesign').onclick=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;const keys=Object.keys(PRESENTATION_THEMES),next=keys[(keys.indexOf(currentArtifact.data.theme)+1)%keys.length];currentArtifact.data.theme=next;$('themeSelect').value=next;renderDeckSlide();save()};
 $('newChat').onclick=()=>{if(confirm('Start a new Studio chat?')){messages=[];pending=null;currentArtifact=null;localStorage.removeItem(studioStorageKey());closePreview();renderMessages()}};
 $('themeBtn').onclick=()=>{document.documentElement.classList.toggle('light');const light=document.documentElement.classList.contains('light');$('themeBtn').textContent=light?'Dark':'Light';try{localStorage.setItem('goldenspaceai2_theme',light?'light':'dark');localStorage.setItem('gsa_theme',light?'light':'dark')}catch(error){}};
 try{const theme=localStorage.getItem('goldenspaceai2_theme')||localStorage.getItem('gsa_theme');if(theme==='light'||(!theme&&matchMedia('(prefers-color-scheme: light)').matches)){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}}catch(error){}

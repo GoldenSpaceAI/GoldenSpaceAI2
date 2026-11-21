@@ -20,6 +20,7 @@ const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const { extractUploadedFile, MAX_FILE_BYTES } = require('./fileExtract');
 const { createOfficeDocument } = require('./documentExport');
+const { mountPublications } = require('./studioPublications');
 const { createAuth } = require('./auth');
 const contextPack = require('./contextPack');
 const {
@@ -2422,6 +2423,8 @@ async function migrateJsonChatsToPostgres(ownerKey) {
     }
     return { migrated };
 }
+
+const studioPublications=mountPublications(app,{getPool:()=>auth&&auth.getPool(),getUser:req=>auth&&auth.readUserFromReq(req)});
 
 app.get('/api/studio/projects', async (req, res) => {
     const ownerKey = resolveChatOwnerKey(req, res);

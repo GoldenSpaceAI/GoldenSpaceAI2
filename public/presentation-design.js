@@ -9,7 +9,8 @@
   var list=[];
   if(slide.titleHighlight)list.push({text:slide.titleHighlight,tone:'accent'});
   if(Array.isArray(slide.highlights))list=list.concat(slide.highlights);
-  return list.slice(0,8).map(function(x){return {text:String(typeof x==='string'?x:x&&x.text||'').trim().slice(0,70),tone:x&&x.tone==='secondary'?'secondary':'accent'};}).filter(function(x){return x.text.length>1;});
+  var seen=new Set();
+  return list.slice(0,20).map(function(x){return {text:String(typeof x==='string'?x:x&&x.text||'').trim().slice(0,70),tone:x&&x.tone==='secondary'?'secondary':'accent'};}).filter(function(x){if(x.text.length<2||seen.has(x.text))return false;seen.add(x.text);return true;}).slice(0,8);
  }
  function runs(text,marks){
   text=String(text||'');var sorted=(marks||[]).filter(x=>x.text).slice().sort((a,b)=>b.text.length-a.text.length),out=[],plain='';

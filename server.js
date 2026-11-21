@@ -3836,7 +3836,7 @@ app.get('/api/imagine/search', async (req, res) => {
     }
     if (bucket.count >= IMAGINE_RATE_LIMIT) return res.status(429).json({ message: 'Too many searches right now. Please wait a minute and try again.' });
 
-    const perPage = Math.min(type === 'photo' ? 20 : 5, allowance.mediaCap - allowance.mediaUsed);
+    const perPage = Math.min(req.query.purpose === 'presentation' && type === 'photo' ? 1 : (type === 'photo' ? 20 : 5), allowance.mediaCap - allowance.mediaUsed);
     const filters = { orientation, color: type === 'photo' ? color : '', duration: type === 'video' ? duration : '' };
     const cacheKey = JSON.stringify([type, query.toLowerCase(), page, perPage, filters]);
     const cached = imagineCache.get(cacheKey);
@@ -3888,6 +3888,8 @@ app.get('/api/imagine/search', async (req, res) => {
         if (type === 'photo') {
             results = (Array.isArray(raw.photos) ? raw.photos : []).slice(0, perPage).map(photo => ({
                 id: photo.id,
+                width: photo.width,
+                height: photo.height,
                 alt: photo.alt || '',
                 photographer: photo.photographer || 'Pexels contributor',
                 photographerUrl: photo.photographer_url || 'https://www.pexels.com',

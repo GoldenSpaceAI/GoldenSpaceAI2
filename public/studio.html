@@ -46,6 +46,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 <script src="/language.js?v=20261120" defer></script>
 <link rel="stylesheet" href="/studio-workspace.css?v=1">
 <script src="/studio-workspace.js?v=1" defer></script>
+<link rel="stylesheet" href="/studio-publishing.css?v=1"><script src="/studio-publishing.js?v=1" defer></script>
 </head>
 <body class="gsa-polished gsa-studio">
 <div class="app" id="app">
@@ -211,6 +212,7 @@ function renderMessages(){
  $('messages').querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>handleMessageAction(button.dataset.action,Number(button.dataset.index),button)));
  $('messages').querySelectorAll('[data-artifact-preview]').forEach(button=>button.addEventListener('click',()=>openMessageArtifact(Number(button.dataset.artifactPreview))));
  $('messages').querySelectorAll('[data-artifact-download]').forEach(button=>button.addEventListener('click',()=>downloadMessageArtifact(Number(button.dataset.artifactDownload),button)));
+ $('messages').querySelectorAll('[data-artifact-publish]').forEach(button=>button.addEventListener('click',()=>{openMessageArtifact(Number(button.dataset.artifactPublish));publishCurrentArtifact();}));
  $('chat').scrollTop=$('chat').scrollHeight;
 }
 window.useQuick=(i,q)=>{$('input').value=q;autoSize();sendMessage()}
@@ -225,8 +227,14 @@ function artifactCardHtml(a,index){
  if(kind==='image')meta=a.meta&&a.meta.edited?'Edited image':'Image ready';
  if(kind==='code')meta='Runnable HTML project';
  if(kind==='search')meta=(data||[]).length+' Pexels results';
- return '<section class="artifact-card"><div class="artifact-mark">'+esc(icons[kind]||'✦')+'</div><div class="artifact-copy"><strong>'+esc(title)+'</strong><span>'+esc(meta)+'</span></div><div class="artifact-buttons"><button class="primary" data-artifact-preview="'+index+'">Preview</button><button data-artifact-download="'+index+'">Download</button></div></section>';
+ return '<section class="artifact-card"><div class="artifact-mark">'+esc(icons[kind]||'✦')+'</div><div class="artifact-copy"><strong>'+esc(title)+'</strong><span>'+esc(meta)+'</span></div><div class="artifact-buttons"><button class="primary" data-artifact-preview="'+index+'">Preview</button><button data-artifact-download="'+index+'">Download</button>'+(kind==='code'?'<button data-artifact-publish="'+index+'">'+(document.documentElement.lang==='ar'?'نشر اللعبة':'Publish game')+'</button>':'')+'</div></section>';
 }
+function publishCurrentArtifact(){window.StudioPublishing?.open(currentArtifact);}
+window.studioPublicationContext={
+ get:()=>currentArtifact,
+ save:a=>{messages.forEach(m=>{if(m.artifact?.kind==='code'&&(m.artifact.data===a.data||m.artifact.publication?.id===a.publication?.id))m.artifact.publication=cloneArtifact(a.publication);});save();renderMessages();},
+ changed:publication=>{if(currentArtifact?.publication?.id===publication.id)currentArtifact.publication=publication;messages.forEach(m=>{if(m.artifact?.publication?.id===publication.id)m.artifact.publication=cloneArtifact(publication);});save();renderMessages();}
+};
 function openMessageArtifact(index){const artifact=messages[index]&&messages[index].artifact;if(!artifact)return;currentArtifact=cloneArtifact(artifact);renderArtifact(currentArtifact);save()}
 async function downloadMessageArtifact(index,button){const artifact=messages[index]&&messages[index].artifact;if(!artifact)return;currentArtifact=cloneArtifact(artifact);renderArtifact(currentArtifact);await downloadArtifact(button)}
 function thinking(on){if(!on){window.StudioUX?.stop();return}window.StudioUX?.progress(document.documentElement.lang==='ar'?'جارٍ العمل على طلبك':'Working on your request',document.documentElement.lang==='ar'?'قراءة الطلب والسياق المتاح.':'Reading your request and available context.');}
@@ -467,7 +475,7 @@ function renderArtifact(a){
  }else if(a.kind==='image'){$('previewName').textContent='Generated image';$('previewMeta').textContent=(a.meta?.used||0)+' of '+(a.meta?.limit||0)+' AI images today';$('previewBody').innerHTML='<img class="generated-image" src="'+esc(a.data.url)+'" alt="Generated image">'}
  else if(a.kind==='search'){$('previewName').textContent='Image search';$('previewMeta').textContent='Choose a photo to use or edit';$('previewBody').innerHTML='<div class="media-grid">'+a.data.map((x,i)=>{const src=x.preview||x.src?.medium||x.src?.large||x.image||x.url||'';const href=x.download||x.image||x.src?.original||x.pexelsUrl||x.url||src;return '<article class="media-card"><img src="'+esc(src)+'" alt="'+esc(x.alt||a.topic||'Image')+'"><div class="media-actions"><button data-use-image="'+i+'">Use this image</button><a href="'+esc(href)+'" target="_blank" rel="noopener">Open original</a></div></article>'}).join('')+'</div>';$('previewBody').querySelectorAll('[data-use-image]').forEach(btn=>btn.onclick=()=>useSearchImage(Number(btn.dataset.useImage)))}
  else if(a.kind==='code'){$('previewName').textContent=a.title||'Code preview';$('previewMeta').textContent='Runnable HTML · sandboxed';$('previewBody').innerHTML='<div class="code-preview" data-view="game"><pre>'+esc(a.data)+'</pre><iframe sandbox="allow-scripts" title="Code preview"></iframe></div>';$('previewBody').querySelector('iframe').srcdoc=a.data}
- $('downloadBtn').textContent=a.kind==='document'&&a.format==='pdf'?'Print / Save PDF':'Download';save()
+ $('downloadBtn').textContent=a.kind==='document'&&a.format==='pdf'?'Print / Save PDF':'Download';window.StudioPublishing?.refresh(a);save()
 }
 async function downloadArtifact(trigger){
  const a=currentArtifact;if(!a)return;
@@ -620,7 +628,7 @@ $('themeBtn').onclick=()=>{document.documentElement.classList.toggle('light');co
 try{const theme=localStorage.getItem('goldenspaceai2_theme')||localStorage.getItem('gsa_theme');if(theme==='light'||(!theme&&matchMedia('(prefers-color-scheme: light)').matches)){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}}catch(error){}
 if(isStudioPhone())showStudioPhoneBlock();
 else if(location.pathname==='/studio'&&!location.search)showStudioHome();
-else {load();loadStudioAccount();loadStudioProject();}
+else {load();loadStudioAccount();loadStudioProject();if(new URLSearchParams(location.search).get('create')==='game'){selectTool('code');closePreview();$('input').placeholder=document.documentElement.lang==='ar'?'صف اللعبة التي تريد إنشاءها…':'Describe the game you want to build…';}}
 </script>
 
 </body></html>

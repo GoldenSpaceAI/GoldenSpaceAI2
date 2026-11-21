@@ -250,10 +250,28 @@ function selectTool(tool){
  $('input').placeholder=prompts[tool];$('input').focus()
 }
 function clearTool(){selectedTool=null;$('taskChip').classList.remove('on');$('input').placeholder='Message GoldenSpaceAI Studio'}
+function isPublishGameRequest(text,hasCurrentGame){
+ const value=String(text||'').normalize('NFKC').toLowerCase().replace(/[’‘]/g,"'").replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا');
+ if(/\b(?:unpublish|unshare|stop sharing)\b|\b(?:do not|don't|dont|never|not ready to)\s+(?:publish|share|host|deploy)\b|(?:لا|ما)\s*تنشر/.test(value))return false;
+ if(/\b(?:add|create|build|design|code|make)\b[^.!?]{0,70}\b(?:publish|share|publishing)\s+button\b/.test(value))return false;
+ if(/\b(?:create|build|generate|make)\s+(?:(?:me|us)\s+)?(?:a|an|new|another)\s+(?:new\s+)?game\b/.test(value))return false;
+ if(/\b(?:presentation|powerpoint|document|pdf|photo|image)\b/.test(value)&&! /\b(?:game|code|html)\b/.test(value))return false;
+ const target=/\b(?:game|code|html|website|app|project)\b|اللعب[ةه]|لعبتي|الكود|المشروع/.test(value)||hasCurrentGame;
+ if(!target)return false;
+ return /\b(?:publish|republish|share|host|deploy)\b|\b(?:put|make|get)\b[^.!?]{0,40}\b(?:online|public|live)\b|\b(?:let|allow)\b[^.!?]{0,45}\b(?:people|everyone|anyone|friends)\b[^.!?]{0,20}\bplay\b|(?:انشر|ننشر|نشر|شارك|مشارك[ةه])/.test(value);
+}
+function offerGamePublishing(){
+ const game=currentArtifact?.kind==='code'?currentArtifact:messages.slice().reverse().find(m=>m.artifact?.kind==='code')?.artifact;
+ const arabic=document.documentElement.lang==='ar';
+ if(!game){add('assistant',arabic?'أنشئ لعبة أو افتح لعبة موجودة أولًا، ثم اطلب مني نشرها.':'Create or open a game first, then ask me to publish it.');return;}
+ currentArtifact=cloneArtifact(game);renderArtifact(currentArtifact);
+ add('assistant',arabic?'اضغط **نشر اللعبة** أدناه لمراجعة لعبتك ونشرها والحصول على رابط عام.':'Click **Publish game** below to review your game and publish it with a public link.',[],currentArtifact);
+}
 async function sendMessage(){
  const text=$('input').value.trim();if(!text||busy)return;studioRequestDeadline=Date.now()+120000;studioLastSources=[];$('input').value='';autoSize();add('user',text);busy=true;$('send').disabled=true;
  try{
-  if(pending){await continueTask(text)}
+  if(isPublishGameRequest(text,currentArtifact?.kind==='code')){offerGamePublishing()}
+  else if(pending){await continueTask(text)}
   else if(selectedTool){await beginTask(selectedTool,text)}
   else if(currentArtifact&&looksLikeArtifactEdit(text)){await editCurrentArtifact(text)}
   else {

@@ -4,7 +4,8 @@
   "description": "GoldenSpaceAI - Professional AI Assistant powered by Grok (streaming, persistence, PWA)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:publishing": "node --test tests/studio-publications.test.js"
   },
   "author": "Faris",
   "license": "MIT",
@@ -22,5 +23,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "pg-mem": "3.0.14"
   }
 }

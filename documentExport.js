@@ -1,6 +1,8 @@
 'use strict';
 
 const JSZip = require('jszip');
+const Design = require('./public/presentation-design');
+let activeHighlights = [];
 
 const EMU = 914400;
 const THEMES = {
@@ -77,14 +79,15 @@ function normalizeArtifact(artifact) {
             rightBullets: arr(s.rightBullets),
             quote: safeText(s.quote, 700),
             attribution: safeText(s.attribution, 160),
-            visual: safeText(s.visual, 300)
+            visual: safeText(s.visual, 300),
+            highlights: Design.highlights(s)
         };
     });
     if (normalized.some((s) => !s)) throw new Error('Each slide needs a title.');
     return {
         title: safeText(artifact.title, 180) || 'GoldenSpaceAI Presentation',
         subtitle: safeText(artifact.subtitle, 400),
-        theme: Object.prototype.hasOwnProperty.call(THEMES, artifact.theme) ? artifact.theme : 'midnight',
+        theme: Object.prototype.hasOwnProperty.call(THEMES, artifact.theme) ? artifact.theme : Design.chooseTheme(artifact.title),
         designSeed: Math.max(0, Math.min(95, Number(artifact.designSeed) || 0)),
         slides: normalized
     };
@@ -92,15 +95,18 @@ function normalizeArtifact(artifact) {
 
 function para(text, opts) {
     opts = opts || {};
-    const size = Math.max(900, Math.min(4400, Number(opts.size) || 1800));
+    const size = Math.max(900, Math.min(5200, Number(opts.size) || 1800));
     const color = hex(opts.color, 'F4F0E7');
-    const bold = opts.bold ? ' b="1"' : '';
-    const align = opts.align ? ' algn="' + opts.align + '"' : '';
+    const isArabic = /[\u0600-\u06ff]/.test(String(text));
+    const align = opts.align || (isArabic ? 'r' : 'l');
     const after = Number.isFinite(opts.after) ? opts.after : 500;
-    const typeface = opts.typeface || (opts.bold && size >= 2200 ? activeFonts.display : activeFonts.body);
-    return '<a:p><a:pPr' + align + '><a:lnSpc><a:spcPct val="108000"/></a:lnSpc><a:spcAft><a:spcPts val="' + after + '"/></a:spcAft></a:pPr>' +
-        '<a:r><a:rPr lang="en-US" sz="' + size + '"' + bold + ' dirty="0"><a:solidFill><a:srgbClr val="' + color + '"/></a:solidFill><a:latin typeface="' + esc(typeface) + '"/></a:rPr><a:t xml:space="preserve">' + esc(text) + '</a:t></a:r>' +
-        '<a:endParaRPr lang="en-US" sz="' + size + '"/></a:p>';
+    const typeface = isArabic ? 'Tahoma' : (opts.typeface || (opts.bold && size >= 2200 ? activeFonts.display : activeFonts.body));
+    const lang = isArabic ? 'ar-SA' : 'en-US';
+    const runs = Design.runs(text, activeHighlights).map(run => {
+        const ink = run.tone ? hex(run.tone === 'secondary' ? '63C7B2' : 'D4AF37') : color;
+        return '<a:r><a:rPr lang="' + lang + '" sz="' + size + '"' + (opts.bold || run.tone ? ' b="1"' : '') + ' dirty="0"><a:solidFill><a:srgbClr val="' + ink + '"/></a:solidFill><a:latin typeface="' + esc(typeface) + '"/><a:cs typeface="' + esc(typeface) + '"/></a:rPr><a:t xml:space="preserve">' + esc(run.text) + '</a:t></a:r>';
+    }).join('');
+    return '<a:p><a:pPr algn="' + align + '"' + (isArabic ? ' rtl="1"' : '') + '><a:lnSpc><a:spcPct val="112000"/></a:lnSpc><a:spcAft><a:spcPts val="' + after + '"/></a:spcAft></a:pPr>' + runs + '<a:endParaRPr lang="' + lang + '" sz="' + size + '"/></a:p>';
 }
 function textBox(id, name, x, y, w, h, paragraphs, opts) {
     opts = opts || {};
@@ -119,6 +125,7 @@ function groupTree(shapes) {
     return '<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>' + shapes.join('') + '</p:spTree>';
 }
 function coverSlide(data, slideNo, total, closing) {
+    activeHighlights = data.highlights || [];
     const bg = closing ? '0D1623' : '101827';
     const rightMotif = activeMotif % 2 === 1;
     const accentX = rightMotif ? 12.48 : 0.72;
@@ -128,14 +135,15 @@ function coverSlide(data, slideNo, total, closing) {
         shape(4, 'Backdrop highlight', arcX + 0.95, 1.48, 1.6, 1.6, activeMotif % 2 ? '1B2B3F' : '233B50', activeMotif % 4 === 2 ? 'roundRect' : 'ellipse')];
     const label = data.eyebrow || (closing ? 'KEY TAKEAWAYS' : 'GOLDENSPACEAI  ·  PRESENTATION');
     c.push(textBox(5, 'Eyebrow', 1.15, 1.12, 9.2, 0.38, [para(label.toUpperCase(), { size: 1050, color: 'D4AF37', bold: true, after: 0 })]));
-    c.push(textBox(6, 'Title', 1.12, 1.72, 10.4, 2.05, [para(data.title, { size: closing ? 3200 : 3500, color: 'F7F5EF', bold: true, after: 300 })]));
+    c.push(textBox(6, 'Title', 1.12, 1.72, 10.4, 2.05, [para(data.title, { size: closing ? 3800 : 4400, color: 'F7F5EF', bold: true, after: 300 })]));
     const sub = data.subtitle || data.body || data.bullets.join('  ·  ');
-    if (sub) c.push(textBox(7, 'Subtitle', 1.16, 4.0, 9.8, 1.05, [para(sub, { size: 1650, color: 'BAC5D1', after: 0 })]));
+    if (sub) c.push(textBox(7, 'Subtitle', 1.16, 4.0, 9.8, 1.05, [para(sub, { size: 1800, color: 'BAC5D1', after: 0 })]));
     c.push(shape(8, 'Gold divider', 1.16, 5.42, 1.15, 0.045, 'D4AF37'));
     c.push(textBox(9, 'Footer', 10.65, 6.86, 1.8, 0.28, [para(String(slideNo).padStart(2, '0') + '  /  ' + String(total).padStart(2, '0'), { size: 900, color: '92A0AF', align: 'r', after: 0 })]));
     return slideXml(bg, c);
 }
 function contentSlide(s, slideNo, total) {
+    activeHighlights = s.highlights || [];
     const bg = slideNo % 2 ? '101827' : '0D1623';
     const motifSpecs = [
         [0, 0, 13.333, 0.07, 'rect'], [0, 0, 0.12, 7.5, 'rect'],
@@ -146,8 +154,8 @@ function contentSlide(s, slideNo, total) {
     const ms = motifSpecs[activeMotif % motifSpecs.length];
     const c = [shape(2, 'Design motif', ms[0], ms[1], ms[2], ms[3], 'D4AF37', ms[4])];
     c.push(textBox(3, 'Section', 0.78, 0.48, 9.2, 0.32, [para((s.eyebrow || 'INSIGHT').toUpperCase(), { size: 950, color: 'D4AF37', bold: true, after: 0 })]));
-    c.push(textBox(4, 'Title', 0.76, 0.9, 11.7, 0.86, [para(s.title, { size: 2550, color: 'F7F5EF', bold: true, after: 0 })]));
-    if (s.subtitle) c.push(textBox(5, 'Subtitle', 0.8, 1.75, 11.3, 0.55, [para(s.subtitle, { size: 1300, color: 'BAC5D1', after: 0 })]));
+    c.push(textBox(4, 'Title', 0.76, 0.9, 11.7, 0.86, [para(s.title, { size: 3200, color: 'F7F5EF', bold: true, after: 0 })]));
+    if (s.subtitle) c.push(textBox(5, 'Subtitle', 0.8, 1.75, 11.3, 0.55, [para(s.subtitle, { size: 1700, color: 'BAC5D1', after: 0 })]));
     let id = 10;
     const bodyY = s.subtitle ? 2.48 : 2.08;
     if (s.layout === 'quote' && s.quote) {
@@ -161,7 +169,7 @@ function contentSlide(s, slideNo, total) {
             c.push(shape(id++, 'Comparison card ' + ci, col.x, bodyY, 5.68, 3.72, ci ? '1B2D40' : '1A2738', 'roundRect'));
             c.push(textBox(id++, 'Comparison heading ' + ci, col.x + 0.32, bodyY + 0.26, 5.0, 0.52, [para(col.title, { size: 1450, color: ci ? '63C7B2' : 'D4AF37', bold: true, after: 0 })]));
             const bullets = col.bullets.length ? col.bullets : (ci ? s.bullets.slice(Math.ceil(s.bullets.length / 2)) : s.bullets.slice(0, Math.ceil(s.bullets.length / 2)));
-            const ps = bullets.map((b) => para('•  ' + b, { size: 1250, color: 'E9EDF1', after: 850 }));
+            const ps = bullets.map((b) => para('•  ' + b, { size: 1700, color: 'E9EDF1', after: 850 }));
             if (ps.length) c.push(textBox(id++, 'Comparison points ' + ci, col.x + 0.34, bodyY + 0.95, 5.0, 2.45, ps));
         });
     } else if (s.layout === 'stat' && s.stat) {
@@ -169,26 +177,33 @@ function contentSlide(s, slideNo, total) {
         c.push(textBox(id++, 'Statistic', 1.1, bodyY + 0.58, 4.45, 1.3, [para(s.stat, { size: 3300, color: 'D4AF37', bold: true, after: 0 })]));
         if (s.subtitle || s.body) c.push(textBox(id++, 'Statistic description', 1.16, bodyY + 2.1, 4.3, 0.9, [para(s.body || s.subtitle, { size: 1250, color: 'E2E7EC', after: 0 })]));
         const bullets = s.bullets.slice(0, 4);
-        if (bullets.length) c.push(textBox(id++, 'Statistic context', 6.2, bodyY + 0.1, 6.0, 3.2, bullets.map((b) => para('•  ' + b, { size: 1375, color: 'E9EDF1', after: 1050 }))));
+        if (bullets.length) c.push(textBox(id++, 'Statistic context', 6.2, bodyY + 0.1, 6.0, 3.2, bullets.map((b) => para('•  ' + b, { size: 1800, color: 'E9EDF1', after: 1050 }))));
+    } else if ((s.layout === 'timeline' || s.layout === 'process') && s.bullets.length) {
+        const steps = s.bullets.slice(0, 4);
+        const column = 11.7 / steps.length;
+        steps.forEach((step, index) => {
+            const x = 0.82 + column * index;
+            c.push(textBox(id++, 'Step number ' + index, x, bodyY + 0.2, column - 0.3, 0.7, [para(String(index + 1).padStart(2, '0'), { size: 3400, color: 'D4AF37', bold: true, after: 0 })]));
+            c.push(textBox(id++, 'Step text ' + index, x, bodyY + 1.1, column - 0.35, 2.7, [para(step, { size: 1800, color: 'E9EDF1', after: 0 })]));
+        });
     } else {
         const bullets = s.bullets.slice(0, 6);
         const twoCols = bullets.length > 4;
         const hasVisual = !!s.visual;
         const bodyPanelHeight = bullets.length ? 1.55 : (hasVisual ? 3.05 : 3.55);
         if (s.body) {
-            c.push(shape(id++, 'Content body panel', 0.82, bodyY, 11.65, bodyPanelHeight, '18283A', 'roundRect'));
-            c.push(textBox(id++, 'Body copy', 1.14, bodyY + 0.28, 10.95, Math.max(0.85, bodyPanelHeight - 0.48), [para(s.body, { size: 1500, color: 'E9EDF1', after: 0 })]));
+            c.push(textBox(id++, 'Body copy', 1.14, bodyY + 0.28, 10.95, Math.max(0.85, bodyPanelHeight - 0.48), [para(s.body, { size: 1800, color: 'E9EDF1', after: 0 })]));
         }
         if (bullets.length) {
             const top = s.body ? bodyY + bodyPanelHeight + 0.2 : bodyY + 0.18;
             const availableBottom = hasVisual ? 5.55 : 6.58;
             const bulletHeight = Math.max(1.15, availableBottom - top);
             const per = twoCols ? Math.ceil(bullets.length / 2) : bullets.length;
-            [0, twoCols ? 1 : 0].forEach((col) => {
+            (twoCols ? [0, 1] : [0]).forEach((col) => {
                 const chosen = twoCols ? bullets.slice(col * per, (col + 1) * per) : bullets;
                 if (!chosen.length) return;
                 const x = twoCols ? (col ? 6.75 : 0.84) : 0.9;
-                c.push(textBox(id++, 'Key points ' + col, x, top, twoCols ? 5.7 : 11.2, bulletHeight, chosen.map((b) => para('•  ' + b, { size: twoCols ? 1150 : 1300, color: 'E9EDF1', after: twoCols ? 650 : 780 }))));
+                c.push(textBox(id++, 'Key points ' + col, x, top, twoCols ? 5.7 : 11.2, bulletHeight, chosen.map((b) => para('•  ' + b, { size: twoCols ? 1700 : 1800, color: 'E9EDF1', after: twoCols ? 650 : 780 }))));
             });
         }
     }
@@ -287,3 +302,4 @@ async function createOfficeDocument(artifact, format) {
     throw new Error('Choose PowerPoint or Word format.');
 }
 module.exports = { createOfficeDocument };
+

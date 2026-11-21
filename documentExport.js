@@ -2,6 +2,7 @@
 
 const JSZip = require('jszip');
 const Design = require('./public/presentation-design');
+const Composer = require('./public/presentation-composer');
 let activeHighlights = [];
 
 const EMU = 914400;
@@ -62,7 +63,7 @@ const arr = (value) => Array.isArray(value) ? value.map((v) => safeText(v, 700))
 function normalizeArtifact(artifact) {
     if (!artifact || typeof artifact !== 'object') throw new Error('Document content is missing.');
     const slides = Array.isArray(artifact.slides) ? artifact.slides.slice(0, 30) : [];
-    if (slides.length < 3) throw new Error('A presentation needs at least three slides.');
+    if (!slides.length) throw new Error('Add at least one slide or section.');
     const normalized = slides.map((s) => {
         if (!s || !safeText(s.title, 220)) return null;
         return {
@@ -80,7 +81,8 @@ function normalizeArtifact(artifact) {
             quote: safeText(s.quote, 700),
             attribution: safeText(s.attribution, 160),
             visual: safeText(s.visual, 300),
-            highlights: Design.highlights(s)
+            highlights: Design.highlights(s),
+            diagram: s.diagram, milestones: s.milestones, chart: s.chart, image: Composer.image(s.image)
         };
     });
     if (normalized.some((s) => !s)) throw new Error('Each slide needs a title.');
@@ -95,7 +97,7 @@ function normalizeArtifact(artifact) {
 
 function para(text, opts) {
     opts = opts || {};
-    const size = Math.max(900, Math.min(5200, Number(opts.size) || 1800));
+    const size = Math.max(900, Math.min(9600, Number(opts.size) || 1800));
     const color = hex(opts.color, 'F4F0E7');
     const isArabic = /[\u0600-\u06ff]/.test(String(text));
     const align = opts.align || (isArabic ? 'r' : 'l');
@@ -124,93 +126,44 @@ function shape(id, name, x, y, w, h, color, geometry) {
 function groupTree(shapes) {
     return '<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>' + shapes.join('') + '</p:spTree>';
 }
-function coverSlide(data, slideNo, total, closing) {
-    activeHighlights = data.highlights || [];
-    const bg = closing ? '0D1623' : '101827';
-    const rightMotif = activeMotif % 2 === 1;
-    const accentX = rightMotif ? 12.48 : 0.72;
-    const arcX = activeMotif % 3 === 0 ? 9.15 : (activeMotif % 3 === 1 ? 8.45 : 9.75);
-    const c = [shape(2, 'Theme accent', accentX, 0.84, 0.12, 5.65, 'D4AF37', 'roundRect'),
-        shape(3, 'Backdrop motif', arcX, 0.52, 3.5, 3.5, activeMotif % 2 ? '233B50' : '1B2B3F', activeMotif % 4 === 3 ? 'roundRect' : 'ellipse'),
-        shape(4, 'Backdrop highlight', arcX + 0.95, 1.48, 1.6, 1.6, activeMotif % 2 ? '1B2B3F' : '233B50', activeMotif % 4 === 2 ? 'roundRect' : 'ellipse')];
-    const label = data.eyebrow || (closing ? 'KEY TAKEAWAYS' : 'GOLDENSPACEAI  ·  PRESENTATION');
-    c.push(textBox(5, 'Eyebrow', 1.15, 1.12, 9.2, 0.38, [para(label.toUpperCase(), { size: 1050, color: 'D4AF37', bold: true, after: 0 })]));
-    c.push(textBox(6, 'Title', 1.12, 1.72, 10.4, 2.05, [para(data.title, { size: closing ? 3800 : 4400, color: 'F7F5EF', bold: true, after: 300 })]));
-    const sub = data.subtitle || data.body || data.bullets.join('  ·  ');
-    if (sub) c.push(textBox(7, 'Subtitle', 1.16, 4.0, 9.8, 1.05, [para(sub, { size: 1800, color: 'BAC5D1', after: 0 })]));
-    c.push(shape(8, 'Gold divider', 1.16, 5.42, 1.15, 0.045, 'D4AF37'));
-    c.push(textBox(9, 'Footer', 10.65, 6.86, 1.8, 0.28, [para(String(slideNo).padStart(2, '0') + '  /  ' + String(total).padStart(2, '0'), { size: 900, color: '92A0AF', align: 'r', after: 0 })]));
-    return slideXml(bg, c);
+
+async function presentationImages(data) {
+    const images = new Map(), unique = [...new Map(data.slides.filter(s=>s.image).map(s=>[s.image.url,s.image])).values()].slice(0,4);
+    await Promise.all(unique.map(async image=>{
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+        try{
+            const response=await fetch(image.url,{signal:controller.signal,redirect:'error'});
+            const type=String(response.headers.get('content-type')||'').split(';')[0];
+            if(!response.ok||!['image/jpeg','image/png'].includes(type)||Number(response.headers.get('content-length'))>5*1024*1024)return;
+            const chunks=[];let size=0;for await(const part of response.body){size+=part.length;if(size>5*1024*1024){controller.abort();return;}chunks.push(part);}
+            const bytes=Buffer.concat(chunks);if(bytes.length<8)return;
+            const png=bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+            const jpg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+            if(!png&&!jpg)return;images.set(image.url,{bytes,extension:png?'png':'jpg'});
+        }catch(_){}finally{clearTimeout(timer);}
+    }));
+    return images;
 }
-function contentSlide(s, slideNo, total) {
-    activeHighlights = s.highlights || [];
-    const bg = slideNo % 2 ? '101827' : '0D1623';
-    const motifSpecs = [
-        [0, 0, 13.333, 0.07, 'rect'], [0, 0, 0.12, 7.5, 'rect'],
-        [0.78, 0.18, 2.8, 0.08, 'roundRect'], [11.85, 0.28, 0.58, 0.58, 'ellipse'],
-        [0.42, 6.95, 12.45, 0.06, 'rect'], [12.55, 0, 0.16, 7.5, 'rect'],
-        [0.68, 0.25, 0.42, 0.42, 'roundRect'], [10.2, 0.2, 2.25, 0.08, 'roundRect']
-    ];
-    const ms = motifSpecs[activeMotif % motifSpecs.length];
-    const c = [shape(2, 'Design motif', ms[0], ms[1], ms[2], ms[3], 'D4AF37', ms[4])];
-    c.push(textBox(3, 'Section', 0.78, 0.48, 9.2, 0.32, [para((s.eyebrow || 'INSIGHT').toUpperCase(), { size: 950, color: 'D4AF37', bold: true, after: 0 })]));
-    c.push(textBox(4, 'Title', 0.76, 0.9, 11.7, 0.86, [para(s.title, { size: 3200, color: 'F7F5EF', bold: true, after: 0 })]));
-    if (s.subtitle) c.push(textBox(5, 'Subtitle', 0.8, 1.75, 11.3, 0.55, [para(s.subtitle, { size: 1700, color: 'BAC5D1', after: 0 })]));
-    let id = 10;
-    const bodyY = s.subtitle ? 2.48 : 2.08;
-    if (s.layout === 'quote' && s.quote) {
-        c.push(shape(id++, 'Quote panel', 0.8, bodyY, 11.7, 3.35, '1A2A3B', 'roundRect'));
-        c.push(shape(id++, 'Quote accent', 1.12, bodyY + 0.46, 0.07, 2.25, 'D4AF37', 'roundRect'));
-        c.push(textBox(id++, 'Quote', 1.48, bodyY + 0.56, 10.1, 1.95, [para('“' + s.quote + '”', { size: 2250, color: 'F7F5EF', bold: true, after: 0 })]));
-        if (s.attribution) c.push(textBox(id++, 'Attribution', 1.52, bodyY + 2.55, 9.8, 0.46, [para('— ' + s.attribution, { size: 1200, color: 'D4AF37', after: 0 })]));
-    } else if (s.layout === 'compare') {
-        const cols = [{ x: 0.82, title: s.leftTitle || 'Perspective A', bullets: s.leftBullets }, { x: 6.83, title: s.rightTitle || 'Perspective B', bullets: s.rightBullets }];
-        cols.forEach((col, ci) => {
-            c.push(shape(id++, 'Comparison card ' + ci, col.x, bodyY, 5.68, 3.72, ci ? '1B2D40' : '1A2738', 'roundRect'));
-            c.push(textBox(id++, 'Comparison heading ' + ci, col.x + 0.32, bodyY + 0.26, 5.0, 0.52, [para(col.title, { size: 1450, color: ci ? '63C7B2' : 'D4AF37', bold: true, after: 0 })]));
-            const bullets = col.bullets.length ? col.bullets : (ci ? s.bullets.slice(Math.ceil(s.bullets.length / 2)) : s.bullets.slice(0, Math.ceil(s.bullets.length / 2)));
-            const ps = bullets.map((b) => para('•  ' + b, { size: 1700, color: 'E9EDF1', after: 850 }));
-            if (ps.length) c.push(textBox(id++, 'Comparison points ' + ci, col.x + 0.34, bodyY + 0.95, 5.0, 2.45, ps));
-        });
-    } else if (s.layout === 'stat' && s.stat) {
-        c.push(shape(id++, 'Statistic card', 0.82, bodyY, 5.0, 3.5, '1A2A3B', 'roundRect'));
-        c.push(textBox(id++, 'Statistic', 1.1, bodyY + 0.58, 4.45, 1.3, [para(s.stat, { size: 3300, color: 'D4AF37', bold: true, after: 0 })]));
-        if (s.subtitle || s.body) c.push(textBox(id++, 'Statistic description', 1.16, bodyY + 2.1, 4.3, 0.9, [para(s.body || s.subtitle, { size: 1250, color: 'E2E7EC', after: 0 })]));
-        const bullets = s.bullets.slice(0, 4);
-        if (bullets.length) c.push(textBox(id++, 'Statistic context', 6.2, bodyY + 0.1, 6.0, 3.2, bullets.map((b) => para('•  ' + b, { size: 1800, color: 'E9EDF1', after: 1050 }))));
-    } else if ((s.layout === 'timeline' || s.layout === 'process') && s.bullets.length) {
-        const steps = s.bullets.slice(0, 4);
-        const column = 11.7 / steps.length;
-        steps.forEach((step, index) => {
-            const x = 0.82 + column * index;
-            c.push(textBox(id++, 'Step number ' + index, x, bodyY + 0.2, column - 0.3, 0.7, [para(String(index + 1).padStart(2, '0'), { size: 3400, color: 'D4AF37', bold: true, after: 0 })]));
-            c.push(textBox(id++, 'Step text ' + index, x, bodyY + 1.1, column - 0.35, 2.7, [para(step, { size: 1800, color: 'E9EDF1', after: 0 })]));
-        });
-    } else {
-        const bullets = s.bullets.slice(0, 6);
-        const twoCols = bullets.length > 4;
-        const hasVisual = !!s.visual;
-        const bodyPanelHeight = bullets.length ? 1.55 : (hasVisual ? 3.05 : 3.55);
-        if (s.body) {
-            c.push(textBox(id++, 'Body copy', 1.14, bodyY + 0.28, 10.95, Math.max(0.85, bodyPanelHeight - 0.48), [para(s.body, { size: 1800, color: 'E9EDF1', after: 0 })]));
-        }
-        if (bullets.length) {
-            const top = s.body ? bodyY + bodyPanelHeight + 0.2 : bodyY + 0.18;
-            const availableBottom = hasVisual ? 5.55 : 6.58;
-            const bulletHeight = Math.max(1.15, availableBottom - top);
-            const per = twoCols ? Math.ceil(bullets.length / 2) : bullets.length;
-            (twoCols ? [0, 1] : [0]).forEach((col) => {
-                const chosen = twoCols ? bullets.slice(col * per, (col + 1) * per) : bullets;
-                if (!chosen.length) return;
-                const x = twoCols ? (col ? 6.75 : 0.84) : 0.9;
-                c.push(textBox(id++, 'Key points ' + col, x, top, twoCols ? 5.7 : 11.2, bulletHeight, chosen.map((b) => para('•  ' + b, { size: twoCols ? 1700 : 1800, color: 'E9EDF1', after: twoCols ? 650 : 780 }))));
-            });
-        }
-    }
-    c.push(shape(id++, 'Footer divider', 0.8, 6.72, 11.65, 0.018, '344457'));
-    c.push(textBox(id++, 'Brand footer', 0.8, 6.88, 6.4, 0.25, [para('GOLDENSPACEAI  ·  ' + String(s.eyebrow || 'IDEAS, MADE CLEAR').toUpperCase(), { size: 800, color: '92A0AF', after: 0 })]));
-    c.push(textBox(id++, 'Page number', 10.7, 6.86, 1.7, 0.28, [para(String(slideNo).padStart(2, '0') + '  /  ' + String(total).padStart(2, '0'), { size: 900, color: 'D4AF37', align: 'r', after: 0 })]));
-    return slideXml(bg, c);
+function sceneLine(e,id) {
+    const x=Math.min(e.x,e.x+e.w)/96,y=Math.min(e.y,e.y+e.h)/96,w=Math.max(Math.abs(e.w),.1)/96,h=Math.max(Math.abs(e.h),.1)/96;
+    return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="Diagram connection"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm'+(e.w<0?' flipH="1"':'')+(e.h<0?' flipV="1"':'')+'><a:off x="'+inch(x)+'" y="'+inch(y)+'"/><a:ext cx="'+inch(w)+'" cy="'+inch(h)+'"/></a:xfrm><a:prstGeom prst="line"><a:avLst/></a:prstGeom><a:noFill/><a:ln w="9525"><a:solidFill><a:srgbClr val="'+hex(e.color)+'"/></a:solidFill></a:ln></p:spPr></p:sp>';
+}
+function scenePicture(e,id,rid) {
+    const ratio=e.image.width/e.image.height,target=e.w/e.h;
+    const crop=ratio>target?{l:Math.round((1-target/ratio)*50000),r:Math.round((1-target/ratio)*50000),t:0,b:0}:{l:0,r:0,t:Math.round((1-ratio/target)*50000),b:Math.round((1-ratio/target)*50000)};
+    return '<p:pic><p:nvPicPr><p:cNvPr id="'+id+'" name="Topic photograph" descr="'+esc('Photo: '+e.image.credit+'. '+e.image.source)+'"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="'+rid+'"/><a:srcRect l="'+crop.l+'" r="'+crop.r+'" t="'+crop.t+'" b="'+crop.b+'"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="'+inch(e.x/96)+'" y="'+inch(e.y/96)+'"/><a:ext cx="'+inch(e.w/96)+'" cy="'+inch(e.h/96)+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>';
+}
+function composedSlide(data,index,imageFiles) {
+    const scene=Composer.compose(data,index,activePalette),rels=[];
+    const shapes=scene.elements.map(e=>{
+        const id=e.id+1;
+        if(e.type==='rect')return shape(id,'Diagram region',e.x/96,e.y/96,e.w/96,e.h/96,e.color);
+        if(e.type==='line')return sceneLine(e,id);
+        if(e.type==='image'){const file=imageFiles.get(e.image.url);if(!file)return '';const rid='rId'+(rels.length+2);rels.push({rid,file});return scenePicture(e,id,rid);}
+        activeHighlights=e.marks||[];
+        return textBox(id,e.role==='title'?'Slide title':'Slide text',e.x/96,e.y/96,e.w/96,e.h/96,[para(e.text,{size:Math.round(e.size*75),typeface:e.font,color:e.color,bold:e.bold,align:e.align,after:0})]);
+    });
+    return {xml:slideXml(scene.background,shapes),rels};
 }
 function slideXml(bg, shapes) {
     bg = hex(bg);
@@ -218,11 +171,12 @@ function slideXml(bg, shapes) {
         '<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="' + bg + '"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>' +
         groupTree(shapes) + '</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
 }
-function powerpointXml(data) {
+function powerpointXml(data, assets) {
     const zip = new JSZip();
     const count = data.slides.length;
+    const imageFiles = new Map();let mediaIndex=0;for(const [url,image] of assets){const file='photo'+(++mediaIndex)+'.'+image.extension;zip.file('ppt/media/'+file,image.bytes);imageFiles.set(url,file);}
     const ids = data.slides.map((_, i) => '<p:sldId id="' + (256 + i) + '" r:id="rId' + (i + 2) + '"/>').join('');
-    zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' + data.slides.map((_, i) => '<Override PartName="/ppt/slides/slide' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>').join('') + '</Types>');
+    zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' + data.slides.map((_, i) => '<Override PartName="/ppt/slides/slide' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>').join('') + '</Types>');
     zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>');
     zip.file('docProps/core.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>' + esc(data.title) + '</dc:title><dc:creator>GoldenSpaceAI</dc:creator><cp:lastModifiedBy>GoldenSpaceAI</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">2026-01-01T00:00:00Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">2026-01-01T00:00:00Z</dcterms:modified></cp:coreProperties>');
     zip.file('docProps/app.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>GoldenSpaceAI</Application><PresentationFormat>On-screen Show (16:9)</PresentationFormat><Slides>' + count + '</Slides><Notes>0</Notes><HiddenSlides>0</HiddenSlides><MMClips>0</MMClips><ScaleCrop>false</ScaleCrop><Company>GoldenSpaceAI</Company><AppVersion>1.0</AppVersion></Properties>');
@@ -239,10 +193,9 @@ function powerpointXml(data) {
     .replaceAll('E39B83', activePalette.accent4).replaceAll('A88BE8', activePalette.accent5).replaceAll('C7D0DB', activePalette.accent6);
     zip.file('ppt/theme/theme1.xml', themeXml);
     data.slides.forEach((s, i) => {
-        const xml = i === 0 ? coverSlide(Object.assign({}, s, { title: data.title || s.title, subtitle: data.subtitle || s.subtitle }), i + 1, count, false)
-            : (i === count - 1 && s.layout === 'closing' ? coverSlide(s, i + 1, count, true) : contentSlide(s, i + 1, count));
-        zip.file('ppt/slides/slide' + (i + 1) + '.xml', xml);
-        zip.file('ppt/slides/_rels/slide' + (i + 1) + '.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>');
+        const scene = composedSlide(data,i,imageFiles);
+        zip.file('ppt/slides/slide'+(i+1)+'.xml',scene.xml);
+        zip.file('ppt/slides/_rels/slide'+(i+1)+'.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'+scene.rels.map(r=>'<Relationship Id="'+r.rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/'+r.file+'"/>').join('')+'</Relationships>');
     });
     return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
@@ -293,11 +246,13 @@ function wordXml(data) {
 
 async function createOfficeDocument(artifact, format) {
     const data = normalizeArtifact(artifact);
+    const assets=format==='pptx'?await presentationImages(data):new Map();
+    if(format==='pptx')data.slides.forEach(s=>{if(s.image&&!assets.has(s.image.url))s.image=null;});
     activePalette = THEMES[data.theme] || THEMES.midnight;
     activeDesignSeed = data.designSeed;
     activeMotif = activeDesignSeed % 8;
     activeFonts = FONT_SYSTEMS[Math.floor(activeDesignSeed / 8) % FONT_SYSTEMS.length];
-    if (format === 'pptx') return powerpointXml(data);
+    if (format === 'pptx') return powerpointXml(data, assets);
     if (format === 'docx') return wordXml(data);
     throw new Error('Choose PowerPoint or Word format.');
 }

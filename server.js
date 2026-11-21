@@ -1056,6 +1056,7 @@ function isQuizGenerationPrompt(body) {
 }
 function isOfficeDocumentPrompt(body) {
     const text = latestUserPromptText(body);
+    if (text.startsWith('You are the planning intelligence inside GoldenSpaceAI Studio.')) return false;
     return /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you)\b/i.test(text)
         && /\b(?:presentation|powerpoint|pptx|slides?|word|docx|document|report|handout|essay)\b/i.test(text) && !/\bword\s+problem\b/i.test(text);
 }

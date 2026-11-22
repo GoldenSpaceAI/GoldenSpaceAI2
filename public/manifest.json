@@ -2,7 +2,7 @@
   "id": "/",
   "name": "GoldenoAI",
   "short_name": "GoldenoAI",
-  "description": "AI Chat Assistant by Faris - Powered by OpenAI",
+  "description": "GoldenoAI: chat, study, create, and build with AI",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

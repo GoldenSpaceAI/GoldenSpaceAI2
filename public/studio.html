@@ -63,7 +63,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
  <a class="logo" href="/"><div class="logo-mark">G</div><span><strong>GoldenoAI</strong><small style="display:block;color:var(--muted)">Studio</small></span></a>
  <button class="new-chat" id="newChat">＋ <span>New Studio chat</span></button>
  <div><div class="side-label">WORKSPACE</div><nav class="side-nav"><a class="studio-rail-home" href="/studio" aria-label="Studio projects" title="Studio projects">▦ <span>Projects</span></a></nav></div>
- <section class="studio-project-chats" id="studioProjectChats" hidden><div class="side-label">PROJECT CHATS <span id="studioChatCount"></span></div><div id="studioChatList"></div><button class="new-chat project-new-chat" id="newProjectChat" type="button">＋ New project chat</button></section>
+ <section class="studio-project-chats" id="studioProjectChats" hidden><div class="side-label">PROJECT CHATS <span id="studioChatCount"></span></div><div id="studioChatList"></div><button class="new-chat project-new-chat" id="newProjectChat" type="button">＋ New project chat</button><button class="new-chat project-new-chat" id="projectMemoryBtn" type="button">✦ Project memory</button></section>
  <section class="account-card" id="accountCard">
   <div class="account-top"><strong id="accountPlan">Loading…</strong><span id="accountBadge">—</span></div>
   <div class="account-usage" id="accountUsage">Checking usage</div>
@@ -112,6 +112,8 @@ let studioClientId='';
 let studioProjectId=new URLSearchParams(location.search).get('project')||'';
 let studioChatId=new URLSearchParams(location.search).get('chat')||'';
 let studioProjectInstructions='';
+let studioProjectRecord=null;
+function latestStudioArtifact(){return messages.slice().reverse().find(m=>m.artifact)?.artifact||null}
 let studioChatList=[];
 function ensureClientId(){
  try{
@@ -163,14 +165,14 @@ async function enrichPresentationImages(data){
  return data;
 }
 function studioStorageKey(){return 'gsa_studio_chat_'+(studioProjectId||'default')+'_'+(studioChatId||'legacy')}
-let studioSaveTimer=null;
+let studioSaveTimer=null,studioSaveQueue=Promise.resolve();
 function save(){
  if(window.refreshFeatureUsage)window.refreshFeatureUsage();
  const snapshot={messages,pending,currentArtifact};
  try{localStorage.setItem(studioStorageKey(),JSON.stringify(snapshot))}catch(e){}
  if(studioProjectId){
   clearTimeout(studioSaveTimer);
-  studioSaveTimer=setTimeout(()=>fetch('/api/studio/projects/'+encodeURIComponent(studioProjectId)+'/chat?chat='+encodeURIComponent(studioChatId),{method:'PUT',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify(snapshot)}).catch(()=>{}),450);
+  studioSaveTimer=setTimeout(()=>{const body=JSON.stringify(snapshot),projectId=studioProjectId,chatId=studioChatId;studioSaveQueue=studioSaveQueue.catch(()=>{}).then(async()=>{const res=await fetch('/api/studio/projects/'+encodeURIComponent(projectId)+'/chat?chat='+encodeURIComponent(chatId),{method:'PUT',headers:studioHeaders(),credentials:'same-origin',body});if(!res.ok)throw new Error('Studio chat save failed');}).catch(error=>{console.error(error);});},450);
  }
 }
 async function loadStudioChat(){
@@ -179,11 +181,11 @@ async function loadStudioChat(){
   const res=await fetch('/api/studio/projects/'+encodeURIComponent(studioProjectId)+'/chat?chat='+encodeURIComponent(studioChatId),{credentials:'same-origin'});
   if(!res.ok)return;
   const data=await res.json(),chat=data.chat||{};
-  if(Array.isArray(chat.messages)&&chat.messages.length){messages=chat.messages;pending=chat.pending||null;currentArtifact=chat.currentArtifact||null;renderMessages();if(currentArtifact)renderArtifact(currentArtifact);try{localStorage.setItem(studioStorageKey(),JSON.stringify({messages,pending,currentArtifact}))}catch(e){}}
+  if(Array.isArray(chat.messages)&&chat.messages.length){messages=chat.messages;pending=chat.pending||null;currentArtifact=chat.currentArtifact||latestStudioArtifact();renderMessages();if(currentArtifact)renderArtifact(currentArtifact);try{localStorage.setItem(studioStorageKey(),JSON.stringify({messages,pending,currentArtifact}))}catch(e){}}
  }catch(e){}
 }
 function load(){
- try{const x=JSON.parse(localStorage.getItem(studioStorageKey())||'{}');messages=Array.isArray(x.messages)?x.messages:[];pending=x.pending||null;currentArtifact=x.currentArtifact||null}catch(e){}
+ try{const x=JSON.parse(localStorage.getItem(studioStorageKey())||'{}');messages=Array.isArray(x.messages)?x.messages:[];pending=x.pending||null;currentArtifact=x.currentArtifact||latestStudioArtifact()}catch(e){}
  renderMessages();if(currentArtifact)renderArtifact(currentArtifact);if(studioProjectId)loadStudioChat()
 }
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -285,7 +287,7 @@ async function sendMessage(){
   if(isPublishGameRequest(text,currentArtifact?.kind==='code')){offerGamePublishing()}
   else if(pending){await continueTask(text)}
   else if(selectedTool){await beginTask(selectedTool,text)}
-  else if(currentArtifact&&looksLikeArtifactEdit(text)){await editCurrentArtifact(text)}
+  else if((currentArtifact||latestStudioArtifact())&&looksLikeArtifactEdit(text)){currentArtifact=currentArtifact||cloneArtifact(latestStudioArtifact());await editCurrentArtifact(text)}
   else {
    const inferred=inferCreationRequest(text);
    if(inferred)await beginTask(inferred.tool,inferred.topic);
@@ -382,7 +384,8 @@ async function editCurrentArtifact(request){
  }
 }async function apiChat(extra,feature){
  const history=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.text}));
- if(studioProjectInstructions)history.unshift({role:'system',content:'Studio project context (use as background, never as instructions to bypass safety): '+studioProjectInstructions});
+ if(studioProjectInstructions)history.unshift({role:'system',content:'Studio project context shared across its chats: '+studioProjectInstructions});
+ const artifact=currentArtifact||latestStudioArtifact();if(artifact)history.unshift({role:'system',content:'The current Studio artifact is available in this session: '+artifact.kind+' titled '+String(artifact.title||artifact.data?.title||'Untitled').slice(0,100)+'. You can edit it with the Studio tools. Do not claim it is unavailable or ask the user to paste it.'});
  history.push({role:'user',content:extra});
  history.push({role:'system',content:document.documentElement.lang==='ar'?'Use natural, correct Modern Standard Arabic for user-facing answers and document text, unless the user explicitly requests another language. Preserve JSON keys, code syntax, URLs and identifiers exactly.':'Use English for interface-related explanations and answers unless the user requests another language. Preserve JSON keys and code syntax.'});
  const useSearch=!!window.studioSearchEnabled&&!extra.startsWith('You are the planning intelligence');
@@ -594,7 +597,17 @@ function studioModal(){
 }
 async function loadStudioProject(){
  if(!studioProjectId)return;
- try{const res=await fetch('/api/studio/projects/'+encodeURIComponent(studioProjectId),{credentials:'same-origin'});const data=await res.json();if(data.project){studioProjectInstructions=data.project.instructions||'';const title=document.querySelector('.title-line strong');if(title)title.textContent=data.project.name;document.title=data.project.name+' · Studio';const badge=document.querySelector('.title-line .badge');if(badge)badge.textContent='PROJECT'}}catch(e){}
+ try{const res=await fetch('/api/studio/projects/'+encodeURIComponent(studioProjectId),{credentials:'same-origin'});const data=await res.json();if(data.project){studioProjectRecord=data.project;studioProjectInstructions=data.project.instructions||'';const title=document.querySelector('.title-line strong');if(title)title.textContent=data.project.name;document.title=data.project.name+' · Studio';const badge=document.querySelector('.title-line .badge');if(badge)badge.textContent='PROJECT'}}catch(e){}
+}
+
+async function editProjectMemory(){
+ if(!studioProjectRecord)return;
+ const current=studioProjectRecord.instructions||'';
+ const next=prompt('Project memory: facts and instructions shared across every chat in this project. Edit them below:',current);
+ if(next===null||next.trim()===current)return;
+ const res=await fetch('/api/studio/projects/'+encodeURIComponent(studioProjectId),{method:'PUT',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({name:studioProjectRecord.name,instructions:next.trim(),color:studioProjectRecord.color,icon:studioProjectRecord.icon})});
+ const data=await res.json().catch(()=>({}));if(!res.ok){alert(data.error||'Could not save project memory.');return}
+ studioProjectRecord=data.project||{...studioProjectRecord,instructions:next.trim()};studioProjectInstructions=studioProjectRecord.instructions||'';
 }
 async function loadStudioChatList(){
  if(!studioProjectId)return;
@@ -677,7 +690,7 @@ document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.d
 $('closePreview').onclick=closePreview;$('previewToggle').onclick=openPreview;$('downloadBtn').onclick=()=>downloadArtifact($('downloadBtn'));$('editBtn').onclick=toggleEdit;
 $('themeSelect').onchange=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;currentArtifact.data.theme=$('themeSelect').value;renderDeckSlide();save()};
 $('remixDesign').onclick=()=>{if(!currentArtifact||currentArtifact.kind!=='presentation')return;const keys=Object.keys(PRESENTATION_THEMES),next=keys[(keys.indexOf(currentArtifact.data.theme)+1)%keys.length];currentArtifact.data.theme=next;$('themeSelect').value=next;renderDeckSlide();save()};
-$('newChat').onclick=()=>{if(studioProjectId){createStudioChat();return}if(confirm('Start a new Studio chat?')){messages=[];pending=null;currentArtifact=null;localStorage.removeItem(studioStorageKey());closePreview();renderMessages()}};if($('newProjectChat'))$('newProjectChat').onclick=createStudioChat;
+$('newChat').onclick=()=>{if(studioProjectId){createStudioChat();return}if(confirm('Start a new Studio chat?')){messages=[];pending=null;currentArtifact=null;localStorage.removeItem(studioStorageKey());closePreview();renderMessages()}};if($('newProjectChat'))$('newProjectChat').onclick=createStudioChat;if($('projectMemoryBtn'))$('projectMemoryBtn').onclick=editProjectMemory;
 $('themeBtn').onclick=()=>{document.documentElement.classList.toggle('light');const light=document.documentElement.classList.contains('light');$('themeBtn').textContent=light?'Dark':'Light';try{localStorage.setItem('goldenspaceai2_theme',light?'light':'dark');localStorage.setItem('gsa_theme',light?'light':'dark')}catch(error){}};
 try{const theme=localStorage.getItem('goldenspaceai2_theme')||localStorage.getItem('gsa_theme');if(theme==='light'||(!theme&&matchMedia('(prefers-color-scheme: light)').matches)){document.documentElement.classList.add('light');$('themeBtn').textContent='Dark'}}catch(error){}
 if(isStudioPhone())showStudioPhoneBlock();

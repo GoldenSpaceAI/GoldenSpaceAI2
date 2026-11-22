@@ -8,11 +8,18 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="GoldenoAI">
-    <meta name="description" content="GoldenoAI - AI Chat Assistant powered by Grok">
-    <title>GoldenoAI</title>
+    <meta name="description" content="GoldenoAI brings chat, studying, creativity, and coding together. Explore ideas, practice with interactive quizzes, create presentations and images, and build playable games.">
+    <title>GoldenoAI — Chat, Study, Create &amp; Build with AI</title>
+    <link rel="canonical" href="https://www.goldenoai.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GoldenoAI">
+    <meta property="og:title" content="GoldenoAI — Chat, Study, Create &amp; Build with AI">
+    <meta property="og:description" content="One place to chat, learn, create presentations and images, and build playable games with AI.">
+    <meta property="og:url" content="https://www.goldenoai.com/">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"GoldenoAI","url":"https://www.goldenoai.com/"}</script>
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="/logo.png?v=20261003">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
@@ -4468,7 +4475,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 <div class="chats-list" id="chatsList"></div>
                 </div>
                 <div class="chats-panel-footer">
-                    <div class="plan-strip" id="planStrip" aria-label="Plan usage">
+                    <div class="plan-strip" id="planStrip" aria-label="Plan usage" data-nosnippet>
                         <div class="plan-status-card" id="planStatusCard">
                             <div class="plan-status-head">
                                 <span class="plan-status-name" id="planStripName">Plan</span>
@@ -6277,7 +6284,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 '<div class="empty-chips" role="list">' + chips + '</div>' +
                 '<button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Or type your own message</button>' +
                 '<div class="empty-meta"><span>Fast</span><span class="empty-dot" aria-hidden="true">·</span><span>Thinking</span><span class="empty-dot" aria-hidden="true">·</span><span>Expert</span></div>' +
-                '<p class="empty-plan-hint" id="emptyPlanHint">' + hint + '</p>' +
+                '<p class="empty-plan-hint" id="emptyPlanHint" data-nosnippet>' + hint + '</p>' +
                 '</div>';
         }
         function useEmptyStarter(btn) {

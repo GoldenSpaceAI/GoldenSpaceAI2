@@ -1,5 +1,5 @@
 /**
- * Transactional email helpers for GoldenSpaceAI.
+ * Transactional email helpers for GoldenoAI.
  * Soft-skips when RESEND_API_KEY is unset (never blocks API flows).
  */
 
@@ -9,7 +9,7 @@ function env(name) {
 }
 
 function emailFromAddress() {
-    return env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenSpaceAI <onboarding@resend.dev>';
+    return env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenoAI <onboarding@resend.dev>';
 }
 
 function normalizeEmail(value) {
@@ -41,7 +41,7 @@ function renderBrandedEmail(options) {
     };
     const colors = tones[tone] || tones.neutral;
     const preview = escapeEmailHtml(o.preheader || '');
-    const title = escapeEmailHtml(o.title || 'GoldenSpaceAI update');
+    const title = escapeEmailHtml(o.title || 'GoldenoAI update');
     const paragraphs = (Array.isArray(o.paragraphs) ? o.paragraphs : []).map(function(p) {
         return '<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.65;color:#344054;">' +
             escapeEmailHtml(p).replace(/\r?\n/g, '<br>') + '</p>';
@@ -83,7 +83,7 @@ function renderBrandedEmail(options) {
         ? '<br><a href="' + safeEmailHref(o.footerLink.url) + '" style="color:#667085;text-decoration:underline;">' +
           escapeEmailHtml(o.footerLink.label) + '</a>'
         : '';
-    const footer = escapeEmailHtml(o.footer || 'This message relates to your GoldenSpaceAI account.').replace(/\r?\n/g, '<br>');
+    const footer = escapeEmailHtml(o.footer || 'This message relates to your GoldenoAI account.').replace(/\r?\n/g, '<br>');
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">' +
         '<meta name="color-scheme" content="light"><title>' + title + '</title></head>' +
         '<body style="margin:0;padding:0;background:#f2f4f7;">' +
@@ -93,7 +93,7 @@ function renderBrandedEmail(options) {
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:620px;">' +
         '<tr><td style="padding:0 8px 16px;">' +
         '<table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="34" height="34" align="center" valign="middle" bgcolor="#d4af37" style="width:34px;height:34px;border-radius:10px;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:700;color:#142239;">G</td>' +
-        '<td style="padding-left:10px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;letter-spacing:.01em;color:#142239;">GoldenSpaceAI</td></tr></table>' +
+        '<td style="padding-left:10px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;letter-spacing:.01em;color:#142239;">GoldenoAI</td></tr></table>' +
         '</td></tr>' +
         '<tr><td bgcolor="#ffffff" style="padding:0;background:#ffffff;border:1px solid #e4e7ec;border-radius:16px;overflow:hidden;">' +
         '<div style="height:4px;background:#d4af37;font-size:1px;line-height:4px;">&nbsp;</div>' +
@@ -103,7 +103,7 @@ function renderBrandedEmail(options) {
         paragraphs + detailCard + notice + action +
         '</td></tr></table></td></tr>' +
         '<tr><td style="padding:18px 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.65;color:#667085;">' +
-        footer + footerLink + '<br><span style="color:#98a2b3;">© GoldenSpaceAI</span></td></tr>' +
+        footer + footerLink + '<br><span style="color:#98a2b3;">© GoldenoAI</span></td></tr>' +
         '</table></td></tr></table></body></html>';
 }
 
@@ -172,24 +172,24 @@ async function sendPlanRequestReceivedEmail(payment) {
     const term = billingTerm(payment);
     const amount = planAmount(payment);
     const when = formatWhen(payment.createdAt);
-    const subject = 'We received your GoldenSpaceAI ' + label + ' plan request';
+    const subject = 'We received your GoldenoAI ' + label + ' plan request';
     const requestId = payment.id ? String(payment.id) : '';
-    const text = 'Hello,\n\nWe received your request for GoldenSpaceAI ' + label + ' (' + term + ').' +
+    const text = 'Hello,\n\nWe received your request for GoldenoAI ' + label + ' (' + term + ').' +
         (amount ? '\nAmount: ' + amount : '') +
         '\nStatus: Waiting for payment review\nSubmitted: ' + when +
         (requestId ? '\nRequest ID: ' + requestId : '') +
-        '\n\nOur team will review the OMT Pay transfer and update your request. You can check its status at https://www.goldenspaceai.space/my-plan.' +
-        '\n\nSecurity: Never share your Request ID or request code. GoldenSpaceAI staff will never ask you to send it in chat or on social media. If you did not make this request, ignore this email.' +
-        '\n\nGoldenSpaceAI Support';
+        '\n\nOur team will review the OMT Pay transfer and update your request. You can check its status at https://www.goldenoai.com/my-plan.' +
+        '\n\nSecurity: Never share your Request ID or request code. GoldenoAI staff will never ask you to send it in chat or on social media. If you did not make this request, ignore this email.' +
+        '\n\nGoldenoAI Support';
     const html = renderBrandedEmail({
         preheader: 'Your plan request is in the review queue.',
         title: 'We received your request',
-        paragraphs: ['Hello,', 'We received your request for GoldenSpaceAI ' + label + ' (' + term + '). Our team will review the OMT Pay transfer and update its status.'],
+        paragraphs: ['Hello,', 'We received your request for GoldenoAI ' + label + ' (' + term + '). Our team will review the OMT Pay transfer and update its status.'],
         status: { label: 'Payment review pending', tone: 'warning' },
         details: [detail('Plan', label), detail('Term', term), detail('Amount', amount), detail('Submitted', when), detail('Request ID', requestId, 'code')],
-        notice: { title: 'Keep your request code private', body: 'Never share your Request ID with anyone. GoldenSpaceAI staff will never ask you to send it in chat or on social media. If you did not make this request, you can ignore this email.' },
-        action: { label: 'View request status', url: 'https://www.goldenspaceai.space/my-plan' },
-        footer: 'You received this email because a plan request was submitted from your GoldenSpaceAI account.'
+        notice: { title: 'Keep your request code private', body: 'Never share your Request ID with anyone. GoldenoAI staff will never ask you to send it in chat or on social media. If you did not make this request, you can ignore this email.' },
+        action: { label: 'View request status', url: 'https://www.goldenoai.com/my-plan' },
+        footer: 'You received this email because a plan request was submitted from your GoldenoAI account.'
     });
     return sendResendEmail({ to: to, subject: subject, text: text, html: html });
 }
@@ -207,26 +207,26 @@ async function sendPlanApprovedEmail(payment) {
     const ends = endsAt ? formatWhen(endsAt) : '';
     const queued = payment.stackMode === 'same_stack_queued' && Date.parse(startsAt || '') > Date.now();
     const subject = queued
-        ? 'Your GoldenSpaceAI ' + label + ' plan period is scheduled'
-        : 'Your GoldenSpaceAI ' + label + ' plan is active';
+        ? 'Your GoldenoAI ' + label + ' plan period is scheduled'
+        : 'Your GoldenoAI ' + label + ' plan is active';
     const paragraphs = queued
         ? ['Hello,', 'Your payment was confirmed. Your additional ' + label + ' plan period is scheduled to begin after your current plan period ends.']
-        : ['Hello,', 'Your payment was confirmed and your GoldenSpaceAI ' + label + ' plan is active. Enjoy your upgraded limits.'];
+        : ['Hello,', 'Your payment was confirmed and your GoldenoAI ' + label + ' plan is active. Enjoy your upgraded limits.'];
     const statusLabel = queued ? 'Scheduled' : 'Plan active';
     const text = 'Hello,\n\n' + paragraphs[1] +
         (amount ? '\nAmount: ' + amount : '') +
         '\nPlan period starts: ' + starts +
         (ends ? '\nPlan period ends: ' + ends : '') +
         (payment.id ? '\nRequest ID: ' + payment.id : '') +
-        '\n\nOpen chat at https://www.goldenspaceai.space/ or manage your plan at https://www.goldenspaceai.space/my-plan.' +
-        '\n\nGoldenSpaceAI Support';
+        '\n\nOpen chat at https://www.goldenoai.com/ or manage your plan at https://www.goldenoai.com/my-plan.' +
+        '\n\nGoldenoAI Support';
     const html = renderBrandedEmail({
         preheader: queued ? 'Your payment is confirmed and the new plan period is scheduled.' : 'Your payment is confirmed and your plan is active.',
         title: queued ? 'Your plan period is scheduled' : 'Your plan is active',
         paragraphs: paragraphs,
         status: { label: statusLabel, tone: 'success' },
         details: [detail('Plan', label), detail('Term', term), detail('Amount', amount), detail('Starts', starts), detail('Ends', ends), detail('Request ID', payment.id || '', 'code')],
-        action: { label: queued ? 'View current plan' : 'Open GoldenSpaceAI', url: queued ? 'https://www.goldenspaceai.space/my-plan' : 'https://www.goldenspaceai.space/' },
+        action: { label: queued ? 'View current plan' : 'Open GoldenoAI', url: queued ? 'https://www.goldenoai.com/my-plan' : 'https://www.goldenoai.com/' },
         footer: 'Plan periods do not renew automatically. Visit My Plan to review your subscription status.'
     });
     return sendResendEmail({ to: to, subject: subject, text: text, html: html });
@@ -239,17 +239,17 @@ async function sendPlanDeclinedEmail(payment) {
     const label = planLabel(payment.plan);
     const when = formatWhen(payment.decidedAt || new Date().toISOString());
     const reason = String(payment.declineReason || '').trim().slice(0, 2000);
-    const subject = 'Update on your GoldenSpaceAI ' + label + ' plan request';
-    const explanation = 'We reviewed your request for GoldenSpaceAI ' + label + ' and could not confirm the payment at this time.';
+    const subject = 'Update on your GoldenoAI ' + label + ' plan request';
+    const explanation = 'We reviewed your request for GoldenoAI ' + label + ' and could not confirm the payment at this time.';
     const refund = 'The money sent for this request will be refunded, minus any transfer fees charged by the payment provider.';
     const text = 'Hello,\n\n' + explanation +
         '\nStatus: Declined\nReviewed: ' + when +
         (payment.id ? '\nRequest ID: ' + payment.id : '') +
         (reason ? '\nReason: ' + reason : '') +
         '\n\nRefund: ' + refund +
-        '\n\nYou can submit a new request at https://www.goldenspaceai.space/upgrade or check details at https://www.goldenspaceai.space/my-plan.' +
+        '\n\nYou can submit a new request at https://www.goldenoai.com/upgrade or check details at https://www.goldenoai.com/my-plan.' +
         '\n\nIf you believe this was a mistake, reply to this email with your request ID and we will help.' +
-        '\n\nGoldenSpaceAI Support';
+        '\n\nGoldenoAI Support';
     const html = renderBrandedEmail({
         preheader: 'An update is available for your plan request.',
         title: 'We could not confirm the payment',
@@ -257,7 +257,7 @@ async function sendPlanDeclinedEmail(payment) {
         status: { label: 'Request declined', tone: 'danger' },
         details: [detail('Plan', label), detail('Reviewed', when), detail('Request ID', payment.id || '', 'code'), detail('Reason', reason)],
         notice: { title: 'Refund information', body: refund },
-        action: { label: 'Review plan options', url: 'https://www.goldenspaceai.space/upgrade' },
+        action: { label: 'Review plan options', url: 'https://www.goldenoai.com/upgrade' },
         footer: 'If you believe this decision was made in error, reply to this email with your request code and the support team can review it.'
     });
     return sendResendEmail({ to: to, subject: subject, text: text, html: html });

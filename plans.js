@@ -1,5 +1,5 @@
 /**
- * GoldenSpaceAI plans, usage caps, and OMT payment requests.
+ * GoldenoAI plans, usage caps, and OMT payment requests.
  * Persistence: Postgres (DATABASE_URL) is primary so data survives Render redeploys;
  * JSON under DATA_DIR is a local mirror / offline fallback. On boot, load PG first;
  * if PG is empty and JSON has data, migrate JSON → Postgres.

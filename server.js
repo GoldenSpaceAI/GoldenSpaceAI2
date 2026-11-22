@@ -1535,10 +1535,17 @@ app.post('/api/chat', async (req, res) => {
             : (safeMode === 'smart'
                 ? 'If asked who you are, say: “I’m the GoldenoAI Thinking model.”'
                 : 'If asked who you are, say: “I’m the GoldenoAI Fast model.”');
+        const signedInUser = auth && typeof auth.readUserFromReq === 'function' ? auth.readUserFromReq(req) : null;
+        const profileName = signedInUser && (signedInUser.name || signedInUser.displayName || signedInUser.email)
+            ? String(signedInUser.name || signedInUser.displayName || signedInUser.email).split('@')[0].replace(/[._-]+/g, ' ').trim()
+            : '';
         conversationMessages.unshift({
             role: 'system',
-            content: 'You are ' + identityName + ', part of GoldenoAI. ' + identityInstructions + ' When asked about the underlying provider, answer truthfully: Fast normally uses DeepSeek and can fall back to Grok; Thinking and Expert use Grok. Never say you are OpenAI or ChatGPT. Do not invent capabilities beyond this mode description.'
+            content: 'You are ' + identityName + ', part of GoldenoAI. ' + identityInstructions + ' When asked about the underlying provider, answer truthfully: Fast normally uses DeepSeek and can fall back to Grok; Thinking and Expert use Grok. Never say you are OpenAI or ChatGPT. Do not invent capabilities beyond this mode description. Use the signed-in user context only to personalize naturally; do not reveal or repeat their email address. When the request is ambiguous, ask one concise, useful follow-up question. After a substantive answer, end with one relevant optional follow-up question or next step, but do not ask repetitive or unnecessary questions.'
         });
+        if (profileName) {
+            conversationMessages.unshift({ role: 'system', content: 'The signed-in user prefers to be addressed as '+profileName+'. Use this only when natural.' });
+        }
         const useWebSearch = webSearch === true;
         const structuredRequest = isQuizGenerationPrompt(req.body)
             ? 'quiz'

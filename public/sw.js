@@ -42,7 +42,7 @@ self.addEventListener('message', function(event) {
 self.addEventListener('push', function(event) {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (_) {}
-  const title = data.title || 'GoldenSpaceAI';
+  const title = data.title || 'GoldenoAI';
   const options = {
     body: data.body || 'You have a new account update.',
     icon: '/icon-192.png',

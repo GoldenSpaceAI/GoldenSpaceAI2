@@ -74,7 +74,7 @@ function getPublicBaseUrl(req) {
     const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').toString().split(',')[0].trim();
     const host = (req.headers['x-forwarded-host'] || req.headers.host || '').toString().split(',')[0].trim();
     if (host) return `${proto}://${host}`;
-    return 'https://www.goldenspaceai.space';
+    return 'https://www.goldenoai.com';
 }
 
 function b64url(buf) {
@@ -528,12 +528,12 @@ function createAuth(options = {}) {
         if (!status.emailOtp) {
             return { ok: false, error: 'Email login is not configured. Set RESEND_API_KEY.' };
         }
-        const subject = 'GoldenSpaceAI login code';
-        const text = `Your GoldenSpaceAI sign-in code is: ${code}\n\nThis code expires in 10 minutes. Never share it with anyone. If you did not request it, you can ignore this email.\n\nGoldenSpaceAI Support`;
+        const subject = 'GoldenoAI login code';
+        const text = `Your GoldenoAI sign-in code is: ${code}\n\nThis code expires in 10 minutes. Never share it with anyone. If you did not request it, you can ignore this email.\n\nGoldenoAI Support`;
         const html = renderBrandedEmail({
             preheader: 'Your secure sign-in code is ready.',
-            title: 'Sign in to GoldenSpaceAI',
-            paragraphs: ['Enter this code on the sign-in page to continue.', 'It expires in 10 minutes. Never share it with anyone, including GoldenSpaceAI staff. If you did not request it, you can ignore this email.'],
+            title: 'Sign in to GoldenoAI',
+            paragraphs: ['Enter this code on the sign-in page to continue.', 'It expires in 10 minutes. Never share it with anyone, including GoldenoAI staff. If you did not request it, you can ignore this email.'],
             status: { label: 'Sign-in verification', tone: 'neutral' },
             details: [{ label: 'Your sign-in code', value: code, kind: 'code' }],
             footer: 'This one-time code can only be used once.'
@@ -557,7 +557,7 @@ function createAuth(options = {}) {
     }
 
     function emailFromAddress() {
-        return env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenSpaceAI <onboarding@resend.dev>';
+        return env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenoAI <onboarding@resend.dev>';
     }
 
     /**
@@ -575,19 +575,19 @@ function createAuth(options = {}) {
         const when = new Intl.DateTimeFormat('en-US', {
             dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Beirut'
         }).format(new Date()) + ' Beirut time';
-        const subject = 'New sign-in to your GoldenSpaceAI account';
+        const subject = 'New sign-in to your GoldenoAI account';
         const text =
-            `A new sign-in to your GoldenSpaceAI account was detected.\n\n` +
+            `A new sign-in to your GoldenoAI account was detected.\n\n` +
             `Time: ${when}\n\n` +
             `If this was you, no action is needed. If you do not recognize this sign-in, secure your email account and contact support.\n\n` +
-            `GoldenSpaceAI Support`;
+            `GoldenoAI Support`;
         const html = renderBrandedEmail({
             preheader: 'A new sign-in to your account was detected.',
             title: 'New sign-in to your account',
-            paragraphs: ['A new sign-in to your GoldenSpaceAI account was detected.', 'If this was you, no action is needed. If you do not recognize this sign-in, secure your email account and contact support.'],
+            paragraphs: ['A new sign-in to your GoldenoAI account was detected.', 'If this was you, no action is needed. If you do not recognize this sign-in, secure your email account and contact support.'],
             status: { label: 'Account security notice', tone: 'warning' },
             details: [{ label: 'Time', value: when }],
-            action: { label: 'Open GoldenSpaceAI', url: 'https://www.goldenspaceai.space/' },
+            action: { label: 'Open GoldenoAI', url: 'https://www.goldenoai.com/' },
             footer: 'This security notice is sent when a new sign-in is detected.'
         });
         const from = emailFromAddress();
@@ -912,7 +912,7 @@ function createAuth(options = {}) {
     function configureWebPush() {
         if (!pushConfigured()) return false;
         try {
-            webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:support@goldenspaceai.space', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
+            webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:support@goldenoai.com', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
             return true;
         } catch (error) {
             console.error('Web push configuration failed:', error.message);
@@ -1133,7 +1133,7 @@ function createAuth(options = {}) {
         const p = getPool();
         if (!userId || !p || !(await ensureSchema())) return { ok: false, error: 'Notifications are unavailable.' };
         const v = item || {};
-        const title = String(v.title || 'GoldenSpaceAI update').trim().slice(0, 120);
+        const title = String(v.title || 'GoldenoAI update').trim().slice(0, 120);
         const message = String(v.message || '').trim().slice(0, 4000);
         const category = String(v.category || 'announcement').slice(0, 40);
         const dedupeKey = String(v.dedupeKey || crypto.randomUUID()).slice(0, 180);
@@ -1214,19 +1214,19 @@ function createAuth(options = {}) {
         `, [String(userId)]);
         const email = result.rows[0]?.email;
         if (!email) return { ok: true, skipped: true };
-        const base = String(baseUrl || 'https://www.goldenspaceai.space').replace(/\/$/, '');
+        const base = String(baseUrl || 'https://www.goldenoai.com').replace(/\/$/, '');
         const token = emailUnsubscribeToken(String(userId));
         const url = base + '/api/email/unsubscribe?uid=' + encodeURIComponent(String(userId)) + '&token=' + encodeURIComponent(token);
         const safe = text => String(text || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-        const safeTitle = String(title || 'GoldenSpaceAI usage update').slice(0, 120);
+        const safeTitle = String(title || 'GoldenoAI usage update').slice(0, 120);
         const safeMessage = String(message || '').slice(0, 4000);
         const html = renderBrandedEmail({
             preheader: safeTitle,
             title: safeTitle,
             paragraphs: [safeMessage],
             status: { label: 'Account update', tone: 'neutral' },
-            action: { label: 'Open GoldenSpaceAI', url: base + '/' },
-            footer: 'This account notice was also saved in your GoldenSpaceAI notifications.',
+            action: { label: 'Open GoldenoAI', url: base + '/' },
+            footer: 'This account notice was also saved in your GoldenoAI notifications.',
             footerLink: { label: 'Unsubscribe from announcement emails', url: url }
         });
         const response = await fetch('https://api.resend.com/emails', {
@@ -1294,7 +1294,7 @@ function createAuth(options = {}) {
         `);
         const recipients = users.rows;
         const from = emailFromAddress();
-        const base = String(baseUrl || 'https://www.goldenspaceai.space').replace(/\/$/, '');
+        const base = String(baseUrl || 'https://www.goldenoai.com').replace(/\/$/, '');
         const safe = text => String(text || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
         const safeTitle = String(title || '').slice(0, 120);
         const safeMessage = String(message || '').slice(0, 4000);

@@ -138,7 +138,7 @@ app.use((req, res, next) => {
         res.setHeader('Cache-Control', 'no-store');
         return res.status(503).json({
             error: 'paused',
-            message: 'Updating GoldenSpaceAI. Please wait and come back later.'
+            message: 'Updating GoldenoAI. Please wait and come back later.'
         });
     }
     // Non-API, non-HTML static assets for public pages stay blocked except exempt list
@@ -147,7 +147,7 @@ app.use((req, res, next) => {
     }
     return res.status(503).json({
         error: 'paused',
-        message: 'Updating GoldenSpaceAI. Please wait and come back later.'
+        message: 'Updating GoldenoAI. Please wait and come back later.'
     });
 });
 
@@ -512,7 +512,7 @@ function notifyAccountQuota(req, title, message, dedupeKey, category) {
         dedupeKey: dedupeKey || ('limit:' + (plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10)))
     }).then(result => {
         if (result && result.created && auth.sendAccountNoticeEmail) {
-            return auth.sendAccountNoticeEmail(user.id, titleText, messageText, 'https://www.goldenspaceai.space')
+            return auth.sendAccountNoticeEmail(user.id, titleText, messageText, 'https://www.goldenoai.com')
                 .catch(error => console.error('usage limit email:', error.message));
         }
     }).catch(error => console.error('usage notification:', error.message));
@@ -1057,7 +1057,7 @@ function isQuizGenerationPrompt(body) {
 }
 function isOfficeDocumentPrompt(body) {
     const text = latestUserPromptText(body);
-    if (text.startsWith('You are the planning intelligence inside GoldenSpaceAI Studio.')) return false;
+    if (text.startsWith('You are the planning intelligence inside GoldenoAI Studio.')) return false;
     return /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you)\b/i.test(text)
         && /\b(?:presentation|powerpoint|pptx|slides?|word|docx|document|report|handout|essay)\b/i.test(text) && !/\bword\s+problem\b/i.test(text);
 }
@@ -1339,7 +1339,7 @@ app.post('/api/documents/export', async (req, res) => {
                 upgradeUrl: '/upgrade'
             });
         }
-        const base = String(artifact?.title || 'GoldenSpaceAI').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80) || 'GoldenSpaceAI';
+        const base = String(artifact?.title || 'GoldenoAI').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80) || 'GoldenoAI';
         res.setHeader('Content-Type', format === 'pptx'
             ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
             : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -1498,18 +1498,18 @@ app.post('/api/chat', async (req, res) => {
         }
         const identityAgents = Number(req.body?.agents) === 16 ? 16 : 4;
         const identityName = safeMode === 'expert'
-            ? (identityAgents === 16 ? 'GoldenSpaceAI 16 Agent model' : 'GoldenSpaceAI 4 Agent model')
-            : (safeMode === 'smart' ? 'GoldenSpaceAI Thinking model' : 'GoldenSpaceAI Fast model');
+            ? (identityAgents === 16 ? 'GoldenoAI 16 Agent model' : 'GoldenoAI 4 Agent model')
+            : (safeMode === 'smart' ? 'GoldenoAI Thinking model' : 'GoldenoAI Fast model');
         const identityInstructions = safeMode === 'expert'
             ? (identityAgents === 16
-                ? 'If asked who you are or how you work, say: “I’m the GoldenSpaceAI 16 Agent model. I use 16 AI agents to research and work on your request, then combine their work into one answer.”'
-                : 'If asked who you are or how you work, say: “I’m the GoldenSpaceAI 4 Agent model. I use 4 AI agents to work on your request, then combine their work into one answer.”')
+                ? 'If asked who you are or how you work, say: “I’m the GoldenoAI 16 Agent model. I use 16 AI agents to research and work on your request, then combine their work into one answer.”'
+                : 'If asked who you are or how you work, say: “I’m the GoldenoAI 4 Agent model. I use 4 AI agents to work on your request, then combine their work into one answer.”')
             : (safeMode === 'smart'
-                ? 'If asked who you are, say: “I’m the GoldenSpaceAI Thinking model.”'
-                : 'If asked who you are, say: “I’m the GoldenSpaceAI Fast model.”');
+                ? 'If asked who you are, say: “I’m the GoldenoAI Thinking model.”'
+                : 'If asked who you are, say: “I’m the GoldenoAI Fast model.”');
         conversationMessages.unshift({
             role: 'system',
-            content: 'You are ' + identityName + ', part of GoldenSpaceAI. ' + identityInstructions + ' When asked about the underlying provider, answer truthfully: Fast normally uses DeepSeek and can fall back to Grok; Thinking and Expert use Grok. Never say you are OpenAI or ChatGPT. Do not invent capabilities beyond this mode description.'
+            content: 'You are ' + identityName + ', part of GoldenoAI. ' + identityInstructions + ' When asked about the underlying provider, answer truthfully: Fast normally uses DeepSeek and can fall back to Grok; Thinking and Expert use Grok. Never say you are OpenAI or ChatGPT. Do not invent capabilities beyond this mode description.'
         });
         const useWebSearch = webSearch === true;
         const structuredRequest = isQuizGenerationPrompt(req.body)
@@ -3007,7 +3007,7 @@ app.get('/api/email/unsubscribe', async (req, res) => {
         const result = await auth.unsubscribeEmailAnnouncements(req.query.uid, req.query.token);
         res.setHeader('Cache-Control', 'no-store');
         if (!result.ok) return res.status(400).send('This unsubscribe link is invalid or expired.');
-        return res.send('<!doctype html><html><meta name="viewport" content="width=device-width"><title>Email preferences</title><body style="font:16px system-ui;max-width:600px;margin:12vh auto;padding:24px;color:#222"><h1>You are unsubscribed</h1><p>You will no longer receive GoldenSpaceAI announcement emails. In-app notifications are unchanged.</p><a href="https://www.goldenspaceai.space/">Return to GoldenSpaceAI</a></body></html>');
+        return res.send('<!doctype html><html><meta name="viewport" content="width=device-width"><title>Email preferences</title><body style="font:16px system-ui;max-width:600px;margin:12vh auto;padding:24px;color:#222"><h1>You are unsubscribed</h1><p>You will no longer receive GoldenoAI announcement emails. In-app notifications are unchanged.</p><a href="https://www.goldenoai.com/">Return to GoldenoAI</a></body></html>');
     } catch (error) { return res.status(500).send('Could not update email preferences.'); }
 });
 
@@ -3034,7 +3034,7 @@ app.post('/api/admin/email/broadcast', async (req, res) => {
     const message = String(req.body && req.body.message || '').trim();
     if (!title || title.length > 120 || !message || message.length > 4000) return res.status(400).json({ ok: false, error: 'Add a subject (up to 120 characters) and message (up to 4,000 characters).' });
     try {
-        const result = await auth.sendAnnouncementEmails(title, message, 'https://www.goldenspaceai.space');
+        const result = await auth.sendAnnouncementEmails(title, message, 'https://www.goldenoai.com');
         return res.status(result.ok ? 200 : (result.error ? 503 : 207)).json(result);
     } catch (error) { console.error('admin email broadcast:', error.message); return res.status(500).json({ ok: false, error: 'Could not send announcement emails.' }); }
 });
@@ -3485,7 +3485,7 @@ app.get('/health', async (req, res) => {
     const authReadiness = await auth.authStatusWithHealth();
     res.json({
         status: 'online',
-        app: 'GoldenSpaceAI',
+        app: 'GoldenoAI',
         providers: {
             fast: 'DeepSeek ' + DEEPSEEK_FAST_MODEL + ' → Grok fallback',
             thinking: 'Grok 4.3',
@@ -3782,7 +3782,7 @@ app.get('/api/studio/image-download', async (req, res) => {
         if (data.length > 20 * 1024 * 1024) return res.status(413).json({ error: 'This image is too large to download.' });
         const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
         res.setHeader('Content-Type', type);
-        res.setHeader('Content-Disposition', 'attachment; filename="GoldenSpaceAI-image.' + ext + '"');
+        res.setHeader('Content-Disposition', 'attachment; filename="GoldenoAI-image.' + ext + '"');
         res.setHeader('Cache-Control', 'private, max-age=300');
         return res.send(data);
     } catch (error) {
@@ -3969,7 +3969,7 @@ async function startServer() {
     app.listen(PORT, () => {
         const pi = plansStore.getPersistenceInfo ? plansStore.getPersistenceInfo() : {};
         console.log('═══════════════════════════════');
-        console.log('🚀 GoldenSpaceAI Server');
+        console.log('🚀 GoldenoAI Server');
         console.log(`📡 Port: ${PORT}`);
         console.log(`⚡ Fast: DeepSeek ${DEEPSEEK_FAST_MODEL} (${process.env.DEEPSEEK_API_KEY ? 'key ✅' : 'key ❌'}) | Grok fallback ${process.env.GROK_API_KEY ? '✅' : '❌'}`);
         console.log(`🧠 Thinking/Expert: Grok (key ${process.env.GROK_API_KEY ? '✅' : '❌'})`);

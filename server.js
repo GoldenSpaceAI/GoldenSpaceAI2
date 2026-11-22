@@ -1579,7 +1579,7 @@ app.post('/api/chat', async (req, res) => {
                     ...chatTemperatureParams(provider, config.model, config.temperature),
                 };
                 if (structuredRequest) {
-                    createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
+                    createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : (structuredRequest === 'code' ? 14000 : 7000);
                     if (structuredRequest !== 'code' && ['deepseek', 'grok'].includes(provider)) {
                         createArgs.response_format = { type: 'json_object' };
                     }
@@ -1864,7 +1864,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 stream_options: { include_usage: true }
             };
             if (structuredRequest) {
-                createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
+                createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : (structuredRequest === 'code' ? 14000 : 7000);
                 if (structuredRequest !== 'code' && ['deepseek', 'grok'].includes(activeConfig.provider || provider)) createArgs.response_format = { type: 'json_object' };
             }
             if (safeMode === 'smart') createArgs.reasoning_effort = 'high';
@@ -1879,7 +1879,7 @@ app.post('/api/chat/stream', async (req, res) => {
                 ...chatTemperatureParams(activeConfig.provider || provider, activeConfig.model, activeConfig.temperature),
             };
             if (structuredRequest) {
-                fallbackArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : 7000;
+                fallbackArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : (structuredRequest === 'code' ? 14000 : 7000);
                 if (structuredRequest !== 'code' && ['deepseek', 'grok'].includes(activeConfig.provider || provider)) fallbackArgs.response_format = { type: 'json_object' };
             }
             if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
@@ -2433,22 +2433,27 @@ app.get('/api/studio/projects', async (req, res) => {
     catch (error) { console.error('studio projects list:', error.message); return res.status(500).json({ error: 'Could not load Studio projects.' }); }
 });
 
-app.get('/api/studio/projects/:id/chat', async (req, res) => {
-    const ownerKey = resolveChatOwnerKey(req, res);
-    if (!ownerKey) return;
-    try {
-        const chat = await auth.getStudioProjectChat(ownerKey, req.params.id);
-        return res.json({ chat: chat || { messages: [], pending: null, currentArtifact: null }, workspace: 'studio' });
-    } catch (error) { console.error('studio chat load:', error.message); return res.status(500).json({ error: 'Could not load Studio chat.' }); }
+app.get('/api/studio/projects/:id/chats', async (req,res)=>{
+    const ownerKey=resolveChatOwnerKey(req,res); if(!ownerKey)return;
+    try{return res.json({chats:await auth.listStudioProjectChats(ownerKey,req.params.id),workspace:'studio'});}
+    catch(error){console.error('studio chats list:',error.message);return res.status(500).json({error:'Could not load Studio chats.'});}
 });
-
+app.post('/api/studio/projects/:id/chats', async (req,res)=>{
+    const ownerKey=resolveChatOwnerKey(req,res); if(!ownerKey)return;
+    try{const result=await auth.createStudioProjectChat(ownerKey,req.params.id,req.body||{});return res.status(result.ok?201:400).json(result);}
+    catch(error){console.error('studio chat create:',error.message);return res.status(500).json({ok:false,error:'Could not create Studio chat.'});}
+});
+app.get('/api/studio/projects/:id/chat', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res); if (!ownerKey) return;
+    try { const chat = await auth.getStudioProjectChat(ownerKey, req.params.id, req.query.chat || null);
+        return res.json({ chat: chat || { messages: [], pending: null, currentArtifact: null }, workspace: 'studio' }); }
+    catch (error) { console.error('studio chat load:', error.message); return res.status(500).json({ error: 'Could not load Studio chat.' }); }
+});
 app.put('/api/studio/projects/:id/chat', async (req, res) => {
-    const ownerKey = resolveChatOwnerKey(req, res);
-    if (!ownerKey) return;
-    try {
-        const result = await auth.saveStudioProjectChat(ownerKey, req.params.id, req.body || {});
-        return res.status(result.ok ? 200 : 404).json(result);
-    } catch (error) { console.error('studio chat save:', error.message); return res.status(500).json({ ok: false, error: 'Could not save Studio chat.' }); }
+    const ownerKey = resolveChatOwnerKey(req, res); if (!ownerKey) return;
+    try { const result = await auth.saveStudioProjectChat(ownerKey, req.params.id, req.body || {}, req.query.chat || req.body?.chatId || null);
+        return res.status(result.ok ? 200 : 404).json(result); }
+    catch (error) { console.error('studio chat save:', error.message); return res.status(500).json({ ok: false, error: 'Could not save Studio chat.' }); }
 });
 
 app.get('/api/studio/projects/:id', async (req, res) => {

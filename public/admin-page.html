@@ -6,7 +6,7 @@
 (function(){try{var t=localStorage.getItem('goldenspaceai2_theme');if(t!=='light'&&t!=='dark'&&window.matchMedia)t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';if(t==='light')document.documentElement.classList.add('light');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='light'?'#f5f3eb':'#0a0a0a');}catch(e){}})();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Admin — GoldenSpaceAI</title>
+<title>Admin — GoldenoAI</title>
 <meta name="theme-color" content="#0a0a0a">
 <link rel="icon" href="/logo.png?v=20261003">
 <style>
@@ -288,7 +288,7 @@
 </head>
 <body class="gsa-polished gsa-site-page gsa-admin">
 <header class="topnav">
-  <a class="brand" href="/"><img src="/logo.png?v=20261003" alt="">GoldenSpaceAI Admin</a>
+  <a class="brand" href="/"><img src="/logo.png?v=20261003" alt="">GoldenoAI Admin</a>
   <div class="topnav-actions">
     <a class="btn ghost" href="/admin-users" style="padding:8px 12px;">Users</a> <a href="/admin-income.html">Income</a>
     <button type="button" class="theme-toggle btn ghost" data-theme-toggle aria-label="Toggle color theme">Light</button>
@@ -318,7 +318,7 @@
 
     <div class="pause-bar" id="pauseBar">
       <div class="pause-status off" id="pauseStatus">Site status: <b>Running</b></div>
-      <button class="btn warn" type="button" id="pauseToggleBtn">Pause GoldenSpaceAI</button>
+      <button class="btn warn" type="button" id="pauseToggleBtn">Pause GoldenoAI</button>
     </div>
 
     <div class="toolbar">
@@ -384,11 +384,11 @@
     if (on) {
       const when = pauseState.pausedAt ? (' since ' + fmtDate(pauseState.pausedAt)) : '';
       statusEl.innerHTML = 'Site status: <b>Paused</b>' + (when ? ('<br><span style="font-size:0.85em">Paused' + when + '</span>') : '');
-      btn.textContent = 'Unpause GoldenSpaceAI';
+      btn.textContent = 'Unpause GoldenoAI';
       btn.className = 'btn ok';
     } else {
       statusEl.innerHTML = 'Site status: <b>Running</b>';
-      btn.textContent = 'Pause GoldenSpaceAI';
+      btn.textContent = 'Pause GoldenoAI';
       btn.className = 'btn warn';
     }
   }
@@ -545,8 +545,8 @@
     const btn = document.getElementById('pauseToggleBtn');
     const next = !pauseState.paused;
     const label = next
-      ? 'Pause GoldenSpaceAI? Chat and all non-admin pages will show an updating message until you unpause.'
-      : 'Unpause GoldenSpaceAI and restore public access?';
+      ? 'Pause GoldenoAI? Chat and all non-admin pages will show an updating message until you unpause.'
+      : 'Unpause GoldenoAI and restore public access?';
     if (!window.confirm(label)) return;
     btn.disabled = true;
     try {

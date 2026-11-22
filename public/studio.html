@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="color-scheme" content="dark light"><title>Studio · GoldenSpaceAI</title>
+<meta name="color-scheme" content="dark light"><title>Studio · GoldenoAI</title>
 <link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/polish.css?v=1">
 <style>
 :root{--bg:#080a0f;--panel:#10131b;--panel2:#151923;--line:rgba(255,255,255,.09);--text:#f4f4f1;--muted:#969ba8;--gold:#ddb83f;--gold2:#9f7920;--good:#4bd394;--danger:#ff7d7d;--shadow:0 24px 80px rgba(0,0,0,.35)}
@@ -51,7 +51,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 <body class="gsa-polished gsa-studio">
 <div class="app" id="app">
 <aside class="sidebar">
- <a class="logo" href="/"><div class="logo-mark">G</div><span><strong>GoldenSpaceAI</strong><small style="display:block;color:var(--muted)">Studio</small></span></a>
+ <a class="logo" href="/"><div class="logo-mark">G</div><span><strong>GoldenoAI</strong><small style="display:block;color:var(--muted)">Studio</small></span></a>
  <button class="new-chat" id="newChat">＋ <span>New Studio chat</span></button>
  <div><div class="side-label">WORKSPACE</div><nav class="side-nav"><a class="studio-rail-home" href="/studio" aria-label="Studio projects" title="Studio projects">▦ <span>Projects</span></a></nav></div>
  <section class="studio-project-chats" id="studioProjectChats" hidden><div class="side-label">PROJECT CHATS <span id="studioChatCount"></span></div><div id="studioChatList"></div><button class="new-chat project-new-chat" id="newProjectChat" type="button">＋ New project chat</button></section>
@@ -70,7 +70,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
   <div class="empty" id="empty">
    <div><div class="orb">✦</div><h1>What should we create?</h1><p>Chat normally, or use the plus button to create documents, images, presentations, find media, and build runnable code—all in one conversation.</p>
    <div class="starter-grid">
-    <button class="starter" data-tool="document"><strong>Create a school document</strong><span>GoldenSpaceAI asks about format, pages, and audience</span></button>
+    <button class="starter" data-tool="document"><strong>Create a school document</strong><span>GoldenoAI asks about format, pages, and audience</span></button>
     <button class="starter" data-tool="image"><strong>Generate an original image</strong><span>Describe the idea, then refine its style</span></button>
     <button class="starter" data-tool="presentation"><strong>Design a presentation</strong><span>Preview slides, revise, and download</span></button>
     <button class="starter" data-tool="code"><strong>Build and preview code</strong><span>Write, run, and improve a web experience</span></button>
@@ -87,7 +87,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
    <button class="tool" data-tool="search"><span class="tool-icon">⌕</span><span><strong>Search images</strong><small>Photos from Pexels</small></span></button>
    <button class="tool" data-tool="code"><span class="tool-icon">⌘</span><span><strong>Build code</strong><small>Preview runnable HTML</small></span></button>
   </div>
-  <div class="compose-row"><button class="plus" id="plusBtn" aria-label="Create or attach">＋</button><textarea id="input" rows="1" placeholder="Message GoldenSpaceAI Studio"></textarea><button class="mic" id="micBtn" aria-label="Dictate message" title="Dictate">●</button><button class="send" id="send" aria-label="Send">↑</button></div>
+  <div class="compose-row"><button class="plus" id="plusBtn" aria-label="Create or attach">＋</button><textarea id="input" rows="1" placeholder="Message GoldenoAI Studio"></textarea><button class="mic" id="micBtn" aria-label="Dictate message" title="Dictate">●</button><button class="send" id="send" aria-label="Send">↑</button></div>
   <div class="hint">Review generated content before sharing it.</div>
  </div></div>
 </main>
@@ -209,7 +209,7 @@ function renderMessages(){
   if(m.role==='user')return '<article class="message user"><div class="message-body">'+copy+'</div></article>';
   const sent=m.at?new Date(m.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const actions='<div class="message-actions"><button data-action="copy" data-index="'+i+'">Copy</button><button data-action="retry" data-index="'+i+'">Retry</button><button data-action="speak" data-index="'+i+'">Listen</button><time title="'+esc(m.at||'')+'">'+esc(sent)+'</time></div>';
-  return '<article class="message assistant"><div class="avatar">G</div><div class="message-body"><div class="message-head">GoldenSpaceAI</div>'+copy+quick+artifact+actions+'</div></article>';
+  return '<article class="message assistant"><div class="avatar">G</div><div class="message-body"><div class="message-head">GoldenoAI</div>'+copy+quick+artifact+actions+'</div></article>';
  }).join('');
  $('messages').querySelectorAll('[data-quick]').forEach(button=>button.addEventListener('click',()=>useQuick(0,button.dataset.quick)));
  $('messages').querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',()=>handleMessageAction(button.dataset.action,Number(button.dataset.index),button)));
@@ -252,7 +252,7 @@ function selectTool(tool){
  const prompts={document:'What is the document about?',presentation:'What should the presentation explain?',image:'What image would you like to create?',search:'What images should I find?',code:'What should I build?'};
  $('input').placeholder=prompts[tool];$('input').focus()
 }
-function clearTool(){selectedTool=null;$('taskChip').classList.remove('on');$('input').placeholder='Message GoldenSpaceAI Studio'}
+function clearTool(){selectedTool=null;$('taskChip').classList.remove('on');$('input').placeholder='Message GoldenoAI Studio'}
 function isPublishGameRequest(text,hasCurrentGame){
  const value=String(text||'').normalize('NFKC').toLowerCase().replace(/[’‘]/g,"'").replace(/[\u064B-\u065F\u0670]/g,'').replace(/[أإآ]/g,'ا');
  if(/\b(?:unpublish|unshare|stop sharing)\b|\b(?:do not|don't|dont|never|not ready to)\s+(?:publish|share|host|deploy)\b|(?:لا|ما)\s*تنشر/.test(value))return false;
@@ -304,7 +304,7 @@ async function continueTask(details){
 async function planStudioTask(){
  const task=pending;if(!task)return;
  const kindNames={document:'PDF or Word document',presentation:'presentation',image:'AI image',code:'runnable code project'};
- const plannerPrompt='You are the planning intelligence inside GoldenSpaceAI Studio. The user wants to create a '+kindNames[task.type]+' about: "'+task.topic+'". Their additional answers so far are: "'+(task.details||'none yet')+'". Decide whether essential information is genuinely missing. Ask only for information that materially changes the result. Accept broad answers: "people" or "everyone" means a general-public audience. Infer sensible defaults instead of interrogating the user. Never repeat a question they already answered. For presentations, normally topic plus slide count plus a style is enough; audience can be inferred. For documents, topic plus format and approximate length is enough. For images, a clear visual request may be enough without questions. For code, a clear outcome may be enough and you can default to self-contained HTML/CSS/JavaScript. '+((task.rounds||0)>=2?'You already asked follow-up questions twice, so use reasonable defaults now and return ready. ':'')+'Return ONLY valid JSON with this exact shape: {"status":"clarify" or "ready","question":"one short natural question or empty","choices":["2 to 4 short useful answers when clarifying"],"requirements":"a concise complete brief using the user answers and reasonable defaults"}. No Markdown and no text outside JSON.';
+ const plannerPrompt='You are the planning intelligence inside GoldenoAI Studio. The user wants to create a '+kindNames[task.type]+' about: "'+task.topic+'". Their additional answers so far are: "'+(task.details||'none yet')+'". Decide whether essential information is genuinely missing. Ask only for information that materially changes the result. Accept broad answers: "people" or "everyone" means a general-public audience. Infer sensible defaults instead of interrogating the user. Never repeat a question they already answered. For presentations, normally topic plus slide count plus a style is enough; audience can be inferred. For documents, topic plus format and approximate length is enough. For images, a clear visual request may be enough without questions. For code, a clear outcome may be enough and you can default to self-contained HTML/CSS/JavaScript. '+((task.rounds||0)>=2?'You already asked follow-up questions twice, so use reasonable defaults now and return ready. ':'')+'Return ONLY valid JSON with this exact shape: {"status":"clarify" or "ready","question":"one short natural question or empty","choices":["2 to 4 short useful answers when clarifying"],"requirements":"a concise complete brief using the user answers and reasonable defaults"}. No Markdown and no text outside JSON.';
  let decision;
  try{decision=parseJSON(await apiChat(plannerPrompt))}catch(e){if(/time|too long|unavailable|limit/i.test(e.message||''))throw e;decision={status:'ready',question:'',requirements:[task.topic,task.details].filter(Boolean).join('. ')}}
  if(String(decision.status).toLowerCase()==='clarify'&&decision.question&&(task.rounds||0)<2){
@@ -383,15 +383,15 @@ async function editCurrentArtifact(request){
  const controller=new AbortController(),deadline=setTimeout(()=>controller.abort(),Math.min(95000,remaining));
  let res;try{res=await fetch('/api/chat',{method:'POST',signal:controller.signal,headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history,customInstructions:feature==='documents'&&extra.startsWith(PresentationComposer.prompt)?PresentationComposer.prompt:'',studioProjectId:studioProjectId||null,feature:feature||null,studioWebSearch:useSearch,studioSearchQuery:feature?(studioResearchTopic||currentArtifact?.data?.title||latest):latest})});}catch(error){if(error.name==='AbortError')throw new Error(document.documentElement.lang==='ar'?'استغرق الطلب وقتًا أطول من المتوقع. حاول مجددًا.':'The request took too long. Please try again.');throw error;}finally{clearTimeout(deadline);}
 
- const data=await res.json().catch(()=>({}));studioLastSources=Array.isArray(data.webSources)?data.webSources:[];if(!res.ok)throw new Error(data.reply||data.error||'GoldenSpaceAI could not reply.');return data.reply||data.error||''
+ const data=await res.json().catch(()=>({}));studioLastSources=Array.isArray(data.webSources)?data.webSources:[];if(!res.ok)throw new Error(data.reply||data.error||'GoldenoAI could not reply.');return data.reply||data.error||''
 }
 async function generalChat(){
  thinking(true);
- let reply=await apiChat('Reply as GoldenSpaceAI Studio. Be concise, polished, and highly organized. Use short paragraphs, meaningful bold labels, and real Markdown lists when useful. Never print escaped Markdown such as \\*\\*bold\\*\\*. Do not repeat greetings, do not offer unnecessary options, and do not ask a follow-up question unless the missing answer materially changes the result.');
+ let reply=await apiChat('Reply as GoldenoAI Studio. Be concise, polished, and highly organized. Use short paragraphs, meaningful bold labels, and real Markdown lists when useful. Never print escaped Markdown such as \\*\\*bold\\*\\*. Do not repeat greetings, do not offer unnecessary options, and do not ask a follow-up question unless the missing answer materially changes the result.');
  if(!String(reply||'').trim()||/^(?:no response generated\.?|empty response)$/i.test(String(reply).trim())){
   reply=await apiChat('Give the user a complete direct answer now. If they accepted an earlier offer, perform the requested work instead of discussing it. Do not return an empty response.')
  }
- if(!String(reply||'').trim())throw new Error('GoldenSpaceAI did not return a response. Press Retry.');
+ if(!String(reply||'').trim())throw new Error('GoldenoAI did not return a response. Press Retry.');
  add('assistant',reply)
 }
 function extractRunnableHtml(text){
@@ -508,14 +508,14 @@ async function downloadArtifact(trigger){
    const format=a.kind==='presentation'?'pptx':'docx';
    const res=await fetch('/api/documents/export',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({format,artifact:a.data})});
    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||'Could not build the file.')}
-   const blob=await res.blob();downloadBlob(blob,(a.data.title||'GoldenSpaceAI').replace(/[^a-z0-9]+/gi,'-')+'.'+format);return
+   const blob=await res.blob();downloadBlob(blob,(a.data.title||'GoldenoAI').replace(/[^a-z0-9]+/gi,'-')+'.'+format);return
   }
   if(a.kind==='image'){
    const res=await fetch('/api/studio/image-download?url='+encodeURIComponent(a.data.url),{credentials:'same-origin',headers:{'X-Client-Id':ensureClientId()}});
    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||'Could not download the image.')}
-   const blob=await res.blob(),type=blob.type||'image/jpeg',ext=type.includes('png')?'png':type.includes('webp')?'webp':'jpg';downloadBlob(blob,'GoldenSpaceAI-image.'+ext);return
+   const blob=await res.blob(),type=blob.type||'image/jpeg',ext=type.includes('png')?'png':type.includes('webp')?'webp':'jpg';downloadBlob(blob,'GoldenoAI-image.'+ext);return
   }
-  if(a.kind==='code'){downloadBlob(new Blob([a.data],{type:'text/html'}),(a.title||'GoldenSpaceAI-code').replace(/[^a-z0-9]+/gi,'-')+'.html');return}
+  if(a.kind==='code'){downloadBlob(new Blob([a.data],{type:'text/html'}),(a.title||'GoldenoAI-code').replace(/[^a-z0-9]+/gi,'-')+'.html');return}
   if(a.kind==='search'){openPreview();throw new Error('Choose one image first, then press Download.')}
  }catch(e){alert(e.message||'Download failed. Please try again.')}
  finally{if(button){button.disabled=false;button.textContent=original||'Download'}}
@@ -572,13 +572,13 @@ function isStudioPhone(){
  return (window.innerWidth<600&&navigator.maxTouchPoints>0)||/iPhone|iPod|Android.*Mobile|Windows Phone/i.test(ua);
 }
 function showStudioPhoneBlock(){
- document.body.innerHTML='<main class="studio-phone-block"><section class="studio-phone-card"><div class="logo-mark">G</div><h1>Studio needs a larger screen</h1><p>Open GoldenSpaceAI Studio on a desktop, laptop, Mac, or tablet for the full workspace and previews.</p><a href="/">Back to GoldenSpaceAI</a></section></main>';
+ document.body.innerHTML='<main class="studio-phone-block"><section class="studio-phone-card"><div class="logo-mark">G</div><h1>Studio needs a larger screen</h1><p>Open GoldenoAI Studio on a desktop, laptop, Mac, or tablet for the full workspace and previews.</p><a href="/">Back to GoldenoAI</a></section></main>';
 }
 function studioModal(){
  let selected='#d4af37';
  const colors=['#d4af37','#f97362','#ec4899','#a78bfa','#6688ff','#22b8a5','#f0a340','#8b9a7a'];
  const modal=document.createElement('div');modal.className='studio-project-modal';
- modal.innerHTML='<section class="studio-project-dialog"><h2>New Studio project</h2><label>Project name<input id="studioProjectName" maxlength="100" placeholder="e.g. History presentation"></label><label>Instructions for GoldenSpaceAI<textarea id="studioProjectInstructions" maxlength="8000" placeholder="Describe the audience, tone, files, or rules for this project"></textarea></label><label>Color<div class="studio-project-colors">'+colors.map((x,i)=>'<button type="button" class="studio-project-color'+(i===0?' selected':'')+'" data-color="'+x+'" style="background:'+x+'"></button>').join('')+'</div></label><div class="studio-project-dialog-actions"><button id="studioProjectCancel">Cancel</button><button class="primary" id="studioProjectCreate">Create project</button></div></section>';
+ modal.innerHTML='<section class="studio-project-dialog"><h2>New Studio project</h2><label>Project name<input id="studioProjectName" maxlength="100" placeholder="e.g. History presentation"></label><label>Instructions for GoldenoAI<textarea id="studioProjectInstructions" maxlength="8000" placeholder="Describe the audience, tone, files, or rules for this project"></textarea></label><label>Color<div class="studio-project-colors">'+colors.map((x,i)=>'<button type="button" class="studio-project-color'+(i===0?' selected':'')+'" data-color="'+x+'" style="background:'+x+'"></button>').join('')+'</div></label><div class="studio-project-dialog-actions"><button id="studioProjectCancel">Cancel</button><button class="primary" id="studioProjectCreate">Create project</button></div></section>';
  document.body.appendChild(modal);modal.querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>{selected=b.dataset.color;modal.querySelectorAll('[data-color]').forEach(x=>x.classList.toggle('selected',x===b))});modal.querySelector('#studioProjectCancel').onclick=()=>modal.remove();modal.querySelector('#studioProjectCreate').onclick=async()=>{const name=modal.querySelector('#studioProjectName').value.trim(),instructions=modal.querySelector('#studioProjectInstructions').value.trim();if(!name)return alert('Add a project name.');const res=await fetch('/api/studio/projects',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({name,instructions,color:selected})});const data=await res.json().catch(()=>({}));if(!res.ok){alert(data.error||'Could not create project.');return}modal.remove();location.href='/studio/chat?project='+encodeURIComponent(data.project.id)};
 }
 async function loadStudioProject(){
@@ -613,7 +613,7 @@ async function showStudioHome(){
   <main class="studio-home">
    <div class="studio-home-shell">
     <header class="studio-home-header">
-     <div class="studio-home-brand"><div class="logo-mark" aria-hidden="true">G</div><strong>GoldenSpaceAI Studio</strong></div>
+     <div class="studio-home-brand"><div class="logo-mark" aria-hidden="true">G</div><strong>GoldenoAI Studio</strong></div>
      <nav class="studio-home-actions" aria-label="Studio navigation">
       <a href="/">Main chat</a><a href="/my-plan">Usage &amp; plan</a><button id="studioHomeTheme" type="button">Light mode</button>
      </nav>
@@ -644,7 +644,7 @@ async function showStudioHome(){
  try {
   const res=await fetch('/api/studio/projects',{credentials:'same-origin',cache:'no-store'});
   if(res.status===401){
-   grid.innerHTML='<div class="studio-project-empty"><strong>Sign in to save projects.</strong><br><a href="/login?next=%2Fstudio">Sign in to GoldenSpaceAI</a></div>';
+   grid.innerHTML='<div class="studio-project-empty"><strong>Sign in to save projects.</strong><br><a href="/login?next=%2Fstudio">Sign in to GoldenoAI</a></div>';
    $('studioNewProject').onclick=()=>{location.href='/login?next=%2Fstudio'};
    return;
   }

@@ -43,6 +43,18 @@ const { searchStudioWeb } = require('./studioWeb');
 const app = express();
 // Render / reverse proxies set X-Forwarded-For
 app.set('trust proxy', 1);
+
+// Baseline production security and privacy headers.
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), payment=(self), usb=()');
+    if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+});
 const PORT = process.env.PORT || 3000;
 const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS) || 60000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -63,6 +75,13 @@ app.use((req, res, next) => {
         return res.redirect(308, 'https://goldenoai.com' + (req.originalUrl || req.url || '/'));
     }
     return next();
+});
+
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain').send('User-agent: *\\nAllow: /\\nDisallow: /admin\\nDisallow: /api\\nSitemap: https://goldenoai.com/sitemap.xml\\n');
+});
+app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://goldenoai.com/</loc></url><url><loc>https://goldenoai.com/studio</loc></url><url><loc>https://goldenoai.com/upgrade</loc></url><url><loc>https://goldenoai.com/terms</loc></url><url><loc>https://goldenoai.com/privacy</loc></url></urlset>');
 });
 
 // ==================== CORS ====================

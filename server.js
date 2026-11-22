@@ -56,6 +56,15 @@ const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || '';
 // Auth + Postgres chat store (email OTP / Google). Live login needs keys — see AUTH_ENV.md.
 let auth = null;
 
+// Canonical-domain redirect: preserve old links while moving visitors to GoldenoAI.
+app.use((req, res, next) => {
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().split(':')[0].toLowerCase();
+    if (host === 'goldenspaceai.space' || host === 'www.goldenspaceai.space') {
+        return res.redirect(308, 'https://goldenoai.com' + (req.originalUrl || req.url || '/'));
+    }
+    return next();
+});
+
 // ==================== CORS ====================
 const corsOriginEnv = process.env.CORS_ORIGIN;
 let corsOptions;

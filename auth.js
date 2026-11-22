@@ -249,6 +249,23 @@ function createAuth(options = {}) {
                             FOREIGN KEY (owner_key, project_id)
                             REFERENCES studio_projects(owner_key, project_id) ON DELETE CASCADE
                     );
+                    CREATE TABLE IF NOT EXISTS studio_project_threads (
+                        owner_key TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        chat_id TEXT NOT NULL,
+                        title TEXT NOT NULL DEFAULT 'New Studio chat',
+                        messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        pending JSONB DEFAULT NULL,
+                        artifact JSONB DEFAULT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (owner_key, project_id, chat_id),
+                        CONSTRAINT studio_project_threads_project_fk
+                            FOREIGN KEY (owner_key, project_id)
+                            REFERENCES studio_projects(owner_key, project_id) ON DELETE CASCADE
+                    );
+                    CREATE INDEX IF NOT EXISTS studio_project_threads_updated_idx
+                        ON studio_project_threads(owner_key, project_id, updated_at DESC);
                     CREATE TABLE IF NOT EXISTS user_memory (
                         user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
                         facts JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -1075,40 +1092,41 @@ function createAuth(options = {}) {
         return { ok: true, deleted: r.rowCount > 0 };
     }
 
-    async function getStudioProjectChat(ownerKey, projectId) {
-        const p = getPool();
-        if (!ownerKey || !projectId || !p || !(await ensureSchema())) return null;
-        const r = await p.query(
-            `SELECT messages, pending, artifact, updated_at AS "updatedAt"
-             FROM studio_project_chats WHERE owner_key=$1 AND project_id=$2`,
-            [String(ownerKey), String(projectId)]
-        );
-        if (!r.rows[0]) return null;
-        return {
-            messages: Array.isArray(r.rows[0].messages) ? r.rows[0].messages : [],
-            pending: r.rows[0].pending || null,
-            currentArtifact: r.rows[0].artifact || null,
-            updatedAt: tsIso(r.rows[0].updatedAt)
-        };
+    async function listStudioProjectChats(ownerKey, projectId) {
+        const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return [];
+        const r=await p.query(`SELECT chat_id AS id,title,created_at AS "createdAt",updated_at AS "updatedAt"
+          FROM studio_project_threads WHERE owner_key=$1 AND project_id=$2 ORDER BY updated_at DESC`,[String(ownerKey),String(projectId)]);
+        return r.rows.map(x=>({id:x.id,title:x.title||'New Studio chat',createdAt:tsIso(x.createdAt),updatedAt:tsIso(x.updatedAt)}));
     }
-
-    async function saveStudioProjectChat(ownerKey, projectId, chat) {
-        const p = getPool();
-        if (!ownerKey || !projectId || !p || !(await ensureSchema())) return { ok: false, error: 'Studio chat storage is unavailable.' };
-        const item = chat || {};
-        const messages = Array.isArray(item.messages) ? item.messages.slice(-80) : [];
-        const pending = item.pending || null;
-        const artifact = item.currentArtifact || null;
-        const project = await p.query('SELECT 1 FROM studio_projects WHERE owner_key=$1 AND project_id=$2', [String(ownerKey), String(projectId)]);
-        if (!project.rowCount) return { ok: false, error: 'Studio project not found.' };
-        const r = await p.query(
-            `INSERT INTO studio_project_chats (owner_key, project_id, messages, pending, artifact, updated_at)
-             VALUES ($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,NOW())
-             ON CONFLICT (owner_key, project_id) DO UPDATE SET messages=EXCLUDED.messages, pending=EXCLUDED.pending, artifact=EXCLUDED.artifact, updated_at=NOW()
-             RETURNING updated_at AS "updatedAt"`,
-            [String(ownerKey), String(projectId), JSON.stringify(messages), JSON.stringify(pending), JSON.stringify(artifact)]
-        );
-        return { ok: true, updatedAt: tsIso(r.rows[0]?.updatedAt) };
+    async function createStudioProjectChat(ownerKey, projectId, item) {
+        const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return {ok:false,error:'Studio chat storage is unavailable.'};
+        const project=await p.query('SELECT 1 FROM studio_projects WHERE owner_key=$1 AND project_id=$2',[String(ownerKey),String(projectId)]);
+        if(!project.rowCount) return {ok:false,error:'Studio project not found.'};
+        const count=await p.query('SELECT COUNT(*)::int AS n FROM studio_project_threads WHERE owner_key=$1 AND project_id=$2',[String(ownerKey),String(projectId)]);
+        if(Number(count.rows[0]?.n||0)>=10) return {ok:false,error:'Each Studio project can contain up to 10 chats.'};
+        const chatId=String(item?.id||('studio_chat_'+crypto.randomUUID())).slice(0,100);
+        const title=String(item?.title||'New Studio chat').trim().slice(0,100)||'New Studio chat';
+        const r=await p.query(`INSERT INTO studio_project_threads(owner_key,project_id,chat_id,title)
+          VALUES($1,$2,$3,$4) RETURNING chat_id AS id,title,created_at AS "createdAt",updated_at AS "updatedAt"`,[String(ownerKey),String(projectId),chatId,title]);
+        const x=r.rows[0]; return {ok:true,chat:{id:x.id,title:x.title,createdAt:tsIso(x.createdAt),updatedAt:tsIso(x.updatedAt)}};
+    }
+    async function getStudioProjectChat(ownerKey, projectId, chatId) {
+        const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return null;
+        if(chatId){
+          const r=await p.query(`SELECT messages,pending,artifact,updated_at AS "updatedAt" FROM studio_project_threads WHERE owner_key=$1 AND project_id=$2 AND chat_id=$3`,[String(ownerKey),String(projectId),String(chatId)]);
+          if(!r.rows[0]) return null; const x=r.rows[0]; return {messages:Array.isArray(x.messages)?x.messages:[],pending:x.pending||null,currentArtifact:x.artifact||null,updatedAt:tsIso(x.updatedAt)};
+        }
+        const legacy=await p.query(`SELECT messages,pending,artifact,updated_at AS "updatedAt" FROM studio_project_chats WHERE owner_key=$1 AND project_id=$2`,[String(ownerKey),String(projectId)]);
+        if(!legacy.rows[0]) return null; const x=legacy.rows[0]; return {messages:Array.isArray(x.messages)?x.messages:[],pending:x.pending||null,currentArtifact:x.artifact||null,updatedAt:tsIso(x.updatedAt)};
+    }
+    async function saveStudioProjectChat(ownerKey, projectId, chat, chatId) {
+        const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return {ok:false,error:'Studio chat storage is unavailable.'};
+        const item=chat||{}, messages=Array.isArray(item.messages)?item.messages.slice(-120):[], pending=item.pending||null, artifact=item.currentArtifact||null;
+        const project=await p.query('SELECT 1 FROM studio_projects WHERE owner_key=$1 AND project_id=$2',[String(ownerKey),String(projectId)]);
+        if(!project.rowCount) return {ok:false,error:'Studio project not found.'};
+        if(!chatId) { const legacy=await p.query(`INSERT INTO studio_project_chats(owner_key,project_id,messages,pending,artifact,updated_at) VALUES($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,NOW()) ON CONFLICT(owner_key,project_id) DO UPDATE SET messages=EXCLUDED.messages,pending=EXCLUDED.pending,artifact=EXCLUDED.artifact,updated_at=NOW() RETURNING updated_at AS "updatedAt"`,[String(ownerKey),String(projectId),JSON.stringify(messages),JSON.stringify(pending),JSON.stringify(artifact)]); return {ok:true,updatedAt:tsIso(legacy.rows[0]?.updatedAt)}; }
+        const r=await p.query(`UPDATE studio_project_threads SET messages=$4::jsonb,pending=$5::jsonb,artifact=$6::jsonb,updated_at=NOW() WHERE owner_key=$1 AND project_id=$2 AND chat_id=$3 RETURNING updated_at AS "updatedAt"`,[String(ownerKey),String(projectId),String(chatId),JSON.stringify(messages),JSON.stringify(pending),JSON.stringify(artifact)]);
+        return r.rows[0]?{ok:true,updatedAt:tsIso(r.rows[0].updatedAt)}:{ok:false,error:'Studio chat not found.'};
     }
 
     async function createNotification(userId, item) {
@@ -1401,6 +1419,8 @@ function createAuth(options = {}) {
         createStudioProject,
         updateStudioProject,
         deleteStudioProject,
+        listStudioProjectChats,
+        createStudioProjectChat,
         getStudioProjectChat,
         saveStudioProjectChat,
         savePushSubscription,

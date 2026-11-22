@@ -39,3 +39,8 @@
 @keyframes studioOrbit{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.gsa-studio .progress-orbit{animation:none}}
 @media(max-width:1100px){.gsa-studio .topbar{flex-wrap:wrap;height:auto;min-height:64px;padding-block:10px;gap:8px}.gsa-studio .top-actions{flex-wrap:wrap;justify-content:flex-end}.gsa-studio .preview-head{align-items:flex-start}.gsa-studio .preview-title{white-space:normal}.gsa-studio .preview-title strong,.gsa-studio .preview-title span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}}
+
+/* Keep the game HUD clear of the preview frame. */
+.gsa-studio .code-preview[data-view=game]{padding:12px;background:var(--panel2);border-radius:16px}
+.gsa-studio .code-preview[data-view=game] iframe{border-radius:10px;border:1px solid var(--line);background:#fff;min-width:0}
+@media(max-width:760px){.gsa-studio .code-preview[data-view=game]{padding:8px}}

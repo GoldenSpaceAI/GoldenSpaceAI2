@@ -1,29 +1,29 @@
 /* GoldenoAI product system. Page styles own behavior and layout state. */
 .gsa-polished {
-  --product-canvas: #111419;
-  --product-rail: #171b21;
-  --product-surface: #1b2028;
-  --product-raised: #222832;
-  --product-line: #343c48;
-  --product-ink: #f1f3f6;
-  --product-muted: #aeb8c6;
-  --product-accent: #f0c771;
-  --product-accent-ink: #211805;
-  --product-accent-wash: #30281d;
+  --product-canvas: #11110f;
+  --product-rail: #171714;
+  --product-surface: #1d1d19;
+  --product-raised: #25251f;
+  --product-line: #3b3b32;
+  --product-ink: #f5f3eb;
+  --product-muted: #b8b6aa;
+  --product-accent: #e1bd62;
+  --product-accent-ink: #201805;
+  --product-accent-wash: #30291b;
   --product-shadow: 0 12px 34px #06090e38;
   --product-font: Inter, "SF Pro Text", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 html.light .gsa-polished {
-  --product-canvas: #f5f7fa;
-  --product-rail: #f0f2f6;
+  --product-canvas: #f7f5ef;
+  --product-rail: #efede5;
   --product-surface: #fff;
-  --product-raised: #f3f5f8;
-  --product-line: #d4dbe5;
-  --product-ink: #171e29;
-  --product-muted: #506074;
-  --product-accent: #82530f;
+  --product-raised: #f2f0e8;
+  --product-line: #dedbd0;
+  --product-ink: #24251f;
+  --product-muted: #66685d;
+  --product-accent: #795619;
   --product-accent-ink: #fff;
-  --product-accent-wash: #faefdb;
+  --product-accent-wash: #f3ead4;
   --product-shadow: 0 10px 26px #23355110;
 }
 body.gsa-polished,
@@ -382,4 +382,178 @@ html.light .gsa-studio .slide :is(p, ul, li, ol) { color: var(--sbody); }
 .gsa-status .card { background: var(--product-surface); color: var(--product-ink); }
 @media (prefers-reduced-motion: reduce) {
   .gsa-polished :is(.studio-project-card, .btn, .plan-card, .empty-chip) { transition: none; }
+}
+
+/* GoldenoAI refinement — shared controls and warm editorial surfaces. */
+.gsa-polished {
+  --gold: var(--product-accent);
+  --gold-light: var(--product-accent);
+  --gold-dark: var(--product-accent);
+  --product-shadow: 0 8px 28px #0000001c;
+  --product-radius: 16px;
+  text-rendering: optimizeLegibility;
+}
+html.light .gsa-polished { --product-shadow: 0 6px 24px #40351a09; }
+.gsa-polished ::selection { background: var(--product-accent-wash); color: var(--product-ink); }
+.gsa-polished :is(button,.btn,input,select,textarea) { font-family: var(--product-font); }
+.gsa-polished :is(button,.btn) { font-weight: 600; letter-spacing: -.012em; transition: background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease; }
+.gsa-polished :is(button,.btn):disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.gsa-polished :is(button,.btn):active { transform: none; }
+.gsa-polished :is(.btn,.theme-toggle,.top-actions>button,.preview-actions>button,.studio-home-actions>button,.studio-home-actions>a) {
+  min-height: 38px; border-radius: 10px; padding: 8px 13px; line-height: 1.35;
+}
+.gsa-polished :is(.btn.ghost,.btn.secondary,.theme-toggle,.top-actions>button,.preview-actions>button) {
+  border: 1px solid var(--product-line); background: var(--product-surface); color: var(--product-ink);
+}
+.gsa-polished :is(.btn.ghost,.btn.secondary,.theme-toggle,.top-actions>button,.preview-actions>button):hover {
+  background: var(--product-raised); border-color: color-mix(in srgb,var(--product-muted) 45%,var(--product-line));
+}
+.gsa-polished :is(.btn.primary,.btn-primary,.send,.send-btn,.new-chat-btn):not(:disabled):hover {
+  filter: brightness(1.07); box-shadow: 0 3px 10px #00000012;
+}
+.gsa-site-page :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea) {
+  border: 1px solid var(--product-line); border-radius: 10px; padding: 11px 13px;
+  font-size: 14px; line-height: 1.5; min-width: 0; max-width: 100%;
+}
+.gsa-polished :is(input,textarea,select):focus-visible { outline-width: 2px; outline-offset: 2px; }
+.gsa-polished :is(input[type=checkbox],input[type=radio],input[type=range]) { accent-color: var(--product-accent); }
+.gsa-polished :is(.topnav,.top-bar,.topbar) { box-shadow: none; }
+.gsa-polished :is(.topnav,.top-bar) { border-bottom-color: var(--product-line); }
+.gsa-polished .topnav .brand { gap: 10px; font-size: 16px; font-weight: 720; }
+.gsa-polished .topnav .brand img { width: 34px; height: 34px; border-radius: 10px; object-fit: contain; }
+.gsa-polished :is(.topnav-actions,.row-actions,.modal-actions) { gap: 8px; flex-wrap: wrap; }
+.gsa-site-page :is(.hero h1,main>h1,.doc-header h1) { line-height: 1.12; letter-spacing: -.045em; }
+.gsa-site-page :is(.hero .sub,.hero .lead,.hero>p) { max-width: 65ch; line-height: 1.65; }
+.gsa-site-page :is(.card,.panel,.plan-card,.toc,.req,.req-card,.meta-item,.stat-card) {
+  border: 1px solid var(--product-line); border-radius: var(--product-radius)!important;
+  background: var(--product-surface); box-shadow: var(--product-shadow);
+}
+.gsa-polished :is(.modal,.settings-panel,.studio-project-dialog) {
+  border: 1px solid var(--product-line); border-radius: 20px;
+  background: var(--product-surface); color: var(--product-ink);
+  box-shadow: 0 24px 80px #00000032; max-height: 88dvh; overflow-y: auto;
+}
+.gsa-polished :is(.modal-actions,.studio-project-dialog-actions) { border-top: 1px solid var(--product-line); padding-top: 16px; }
+.gsa-polished :is(.hint,.note,.meta,.sub,.footer-legal) { line-height: 1.55; }
+
+/* Chat: quieter navigation, legible actions, comfortable reading. */
+.gsa-chat .top-bar { background: var(--product-canvas); padding-block: 10px; }
+.gsa-chat .top-bar :is(button,a) { color: var(--product-muted); }
+.gsa-chat .top-bar :is(button,a):hover { color: var(--product-ink); background: var(--product-raised); }
+.gsa-chat .chats-panel { border-inline-end: 1px solid var(--product-line); }
+.gsa-chat .chats-panel-header { padding-block: 18px; }
+.gsa-chat .chat-item { margin: 3px 9px; border-radius: 10px; }
+.gsa-chat .chat-item-name { font-size: 13px; font-weight: 500; }
+.gsa-chat .chat-item.active { background: var(--product-accent-wash); }
+.gsa-chat :is(.chat-search,.new-project-btn) { border: 1px solid var(--product-line); box-shadow: none; }
+.gsa-chat .projects-section { padding-block: 14px; }
+.gsa-chat .account-strip { border-color: var(--product-line); gap: 8px; }
+.gsa-chat :is(.plan-status-card,.settings-card) { border: 1px solid var(--product-line); border-radius: 14px; box-shadow: none; }
+.gsa-chat .plan-status-card { padding: 16px; }
+.gsa-chat .plan-status-name { font-size: 14px; }
+.gsa-chat .empty-state .empty-logo { padding: 8px; border-radius: 20px; background: var(--product-surface); box-shadow: 0 8px 28px #79561912; }
+.gsa-chat .empty-state .empty-title { letter-spacing: -.045em; font-size: clamp(1.9rem,3.6vw,2.85rem); }
+.gsa-chat .empty-state .empty-value { max-width: 48ch; line-height: 1.6; }
+.gsa-chat .empty-state .empty-chips { gap: 10px; }
+.gsa-chat .empty-state .empty-chip { border-radius: 12px; padding: 12px 16px; }
+.gsa-chat .message :is(.ai-content,.message-bubble) { line-height: 1.75; }
+.gsa-chat .ai-content :is(p,ul,ol) { margin-block: .7em; }
+.gsa-chat .ai-content :is(h2,h3) { line-height: 1.3; margin-top: 1.2em; }
+.gsa-chat .message-actions { gap: 5px; }
+.gsa-chat .message-actions .msg-btn { color: var(--product-muted); border-radius: 8px; }
+.gsa-chat .message-actions .msg-btn:hover { background: var(--product-raised); color: var(--product-ink); }
+.gsa-chat .input-container { padding: 10px 12px; border-radius: 20px; }
+.gsa-chat .message-input { background: transparent!important; font-size: 15px; line-height: 1.6; }
+.gsa-chat :is(.input-btn,.composer-live-link,.model-btn) { border-radius: 10px; color: var(--product-muted); }
+.gsa-chat #plusMenu { background: var(--product-surface); border: 1px solid var(--product-line); box-shadow: 0 12px 40px #00000019; padding: 8px; border-radius: 16px; }
+.gsa-chat #plusMenu :is(strong,.plus-menu-heading) { color: var(--product-ink); }
+.gsa-chat #plusMenu :is(small,.plus-menu-heading span) { color: var(--product-muted); }
+.gsa-chat .plus-menu-item .attach-menu-icon { background: var(--product-accent-wash); color: var(--product-accent); border: 0; }
+.gsa-chat .attachment-preview-chip { border-color: var(--product-line); color: var(--product-ink); }
+.gsa-chat .settings-card { padding: 18px; }
+
+/* Studio: consistent workspace, content cards and practical controls. */
+.gsa-studio .sidebar { border-inline-end: 1px solid var(--product-line); padding: 20px 14px; }
+.gsa-studio .logo-mark { border-radius: 12px; }
+.gsa-studio .new-chat { min-height: 43px; border-radius: 12px; background: var(--product-surface); border-color: var(--product-line); font-size: 13px; }
+.gsa-studio .side-label { color: var(--product-muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; }
+.gsa-studio .account-card { border-radius: 14px; padding: 16px; box-shadow: none; }
+.gsa-studio .account-card .account-top strong { color: var(--product-ink); font-size: 16px; }
+.gsa-studio .workspace .topbar { background: var(--product-canvas)!important; border-color: var(--product-line); }
+.gsa-studio .message.assistant .message-body { box-shadow: none; border-color: var(--product-line); border-radius: 16px; }
+.gsa-studio .message-copy { line-height: 1.72; font-size: 15px; }
+.gsa-studio .message-copy strong { color: inherit; }
+.gsa-studio .message-actions { gap: 6px; }
+.gsa-studio .message-actions button { color: var(--product-muted); font-size: 12px; }
+.gsa-studio .message-actions button:hover { background: var(--product-raised); color: var(--product-ink); }
+.gsa-studio .composer { border: 1px solid var(--product-line); box-shadow: var(--product-shadow); border-radius: 20px; }
+.gsa-studio .composer:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb,var(--product-accent) 10%,transparent); }
+.gsa-studio .composer textarea { background: transparent!important; font-size: 15px; }
+.gsa-studio .plus-menu { max-height: min(620px,72dvh); overflow-y: auto; border-radius: 16px; box-shadow: 0 12px 40px #00000022; }
+.gsa-studio .plus-menu .tool { border-radius: 10px; }
+.gsa-studio .studio-attachment-options button { border-radius: 10px; }
+.gsa-studio .starter { padding: 18px; border-radius: 14px; box-shadow: none; }
+.gsa-studio .starter strong { font-size: 14px; }
+.gsa-studio .starter span { line-height: 1.6; }
+.gsa-studio .artifact-card { padding: 14px; gap: 12px; border-radius: 14px; flex-wrap: wrap; }
+.gsa-studio .artifact-info { min-width: 120px; flex: 1; }
+.gsa-studio .artifact-buttons { flex-wrap: wrap; gap: 7px; }
+.gsa-studio .artifact-buttons button { min-height: 36px; padding: 8px 12px; border-radius: 9px; font-size: 12px; }
+.gsa-studio .preview-head { border-bottom: 1px solid var(--product-line); }
+.gsa-studio .preview-title strong { font-size: 14px; }
+.gsa-studio .preview-title span { font-size: 12px; }
+.gsa-studio .studio-project-card { padding: 24px; border-radius: 16px; box-shadow: none; }
+.gsa-studio .studio-project-card:hover { box-shadow: var(--product-shadow); }
+.gsa-studio .studio-home-intro { border-radius: 24px; }
+.gsa-studio .studio-home-intro h1 { letter-spacing: -.045em; }
+.gsa-studio .studio-progress details { box-shadow: none; border-color: var(--product-line); }
+
+/* Purchase, account and administrative screens. */
+.gsa-upgrade .hero { padding-block: 16px 12px; }
+.gsa-upgrade .hero h1 { font-size: clamp(2rem,4.4vw,3.2rem); }
+.gsa-upgrade .billing-switch { padding: 5px; border-radius: 12px; }
+.gsa-upgrade .billing-option { border-radius: 8px; min-height: 38px; }
+.gsa-upgrade .plan-card { border-radius: 18px!important; box-shadow: none; }
+.gsa-upgrade .plan-card.selected { box-shadow: 0 0 0 2px var(--product-accent),var(--product-shadow); }
+.gsa-upgrade .plan-card .price { font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+.gsa-upgrade .plan-card li { padding-block: 6px; line-height: 1.5; }
+.gsa-upgrade :is(.pay-box,.free-strip,.stack-note) { border-radius: 12px; border-color: var(--product-line); }
+.gsa-upgrade .pay-box { background: var(--product-raised)!important; }
+.gsa-my-plan :is(.bar,.progress) { border-radius: 999px; overflow: hidden; }
+.gsa-login .login-card { border-radius: 24px; border-color: var(--product-line); }
+.gsa-login .btn-google { min-height: 48px; border-radius: 12px; }
+.gsa-admin .toolbar { gap: 12px; flex-wrap: wrap; padding-block: 16px; }
+.gsa-admin :is(.stats,.meta-grid,.filters) { gap: 10px; }
+.gsa-admin :is(.stat,.stat-card) { border: 1px solid var(--product-line); border-radius: 12px; padding: 16px; background: var(--product-surface); }
+.gsa-admin .table-wrap { border: 1px solid var(--product-line); border-radius: 14px; }
+.gsa-admin table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.gsa-admin :is(td,th) { padding: 14px 16px; vertical-align: top; }
+.gsa-admin th { font-size: 11px; letter-spacing: .055em; font-weight: 700; text-transform: uppercase; }
+.gsa-admin tbody tr:hover { background: var(--product-raised); }
+.gsa-admin .req-card { margin-block: 14px; overflow: hidden; }
+.gsa-admin :is(.req-head,.req-body,.req-foot) { padding: 18px 22px; }
+.gsa-admin .req-foot { border-top: 1px solid var(--product-line); }
+.gsa-admin .chip { border-radius: 9px; padding: 8px 12px; }
+.gsa-admin .chip.on { color: var(--product-accent); background: var(--product-accent-wash); border-color: var(--product-accent); }
+.gsa-legal .legal { font-size: 16px; line-height: 1.85; }
+.gsa-legal .legal h2 { margin-top: 2em; font-size: 1.3rem; }
+.gsa-install .card { padding: 24px; }
+.gsa-polished [dir=rtl],html[dir=rtl] .gsa-polished { letter-spacing: normal; }
+@media(max-width:700px) {
+ .gsa-site-page main { padding-inline: 18px; }
+ .gsa-polished .topnav { gap: 10px; padding-block: 12px; }
+ .gsa-polished .topnav-actions { gap: 6px; }
+ .gsa-chat .input-container { padding: 8px; border-radius: 18px; }
+ .gsa-chat .message-input { font-size: 16px; }
+ .gsa-chat .empty-state .empty-chips { display: grid; grid-template-columns: 1fr; width: min(100%,360px); }
+ .gsa-chat .empty-state .empty-chip { text-align: start; width: 100%; }
+ .gsa-site-page :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size: 16px; }
+ .gsa-admin :is(.req-head,.req-body,.req-foot) { padding: 15px; }
+ .gsa-studio .artifact-buttons { width: 100%; }
+}
+@media(hover:none) {
+ .gsa-polished :is(.btn,.theme-toggle,.msg-btn,.message-actions button) { min-height: 40px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .gsa-polished :is(button,.btn,.starter,.studio-project-card,.empty-chip) { transition: none!important; }
 }

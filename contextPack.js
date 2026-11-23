@@ -259,12 +259,12 @@ function buildPackedMessages(opts) {
             if (modelText && String(modelText).trim()) {
                 content.push({ type: 'text', text: String(modelText).trim() });
             }
-            if (msg.image && !msg.imageTooBig) {
-                content.push({
-                    type: 'image_url',
-                    image_url: { url: msg.image, detail: 'auto' }
-                });
-            }
+            const images = Array.isArray(msg.images) ? msg.images.slice(0, 3) : (msg.image ? [msg.image] : []);
+            images.forEach((url) => {
+                if (typeof url === 'string' && url.startsWith('data:image/') && !msg.imageTooBig) {
+                    content.push({ type: 'image_url', image_url: { url, detail: 'auto' } });
+                }
+            });
             if (content.length > 0) {
                 conversationMessages.push({
                     role: 'user',

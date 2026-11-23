@@ -6682,7 +6682,6 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 try { await loadPlanStatus(); } catch (e) {}
             }
             if (isFreePlan()) {
-                clearAttachedFile();
                 showToast('This file needs <strong>Thinking</strong>, which is not on Free. <a href="/upgrade">Upgrade</a> to unlock — no Thinking used.', 'err', 7000);
                 return false;
             }

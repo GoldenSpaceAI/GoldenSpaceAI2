@@ -532,7 +532,8 @@ function requestHasImage(body) {
     const img = body.image;
     if (typeof img === 'string' && img.trim()) return true;
     if (img && typeof img === 'object') return true;
-    return false;
+    const recent = Array.isArray(body.messages) ? body.messages.slice(-1) : [];
+    return recent.some(m => m && (Array.isArray(m.images) && m.images.some(v => typeof v === 'string' && v.startsWith('data:image/')) || typeof m.image === 'string' && m.image.startsWith('data:image/')));
 }
 
 function notifyAccountQuota(req, title, message, dedupeKey, category) {

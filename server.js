@@ -596,7 +596,7 @@ function holdUsage(deviceId, kind, opts) {
             if (committed || !deviceId || !kind) return null;
             committed = true;
             try {
-                const recorded = plansStore.recordSpend(deviceId, kind, spend || {});
+                const recorded = plansStore.recordSpend(deviceId, kind, { ...(spend || {}), surface });
                 if (opts && opts.feature) plansStore.recordFeatureUsage(deviceId, opts.feature);
                 if (hasImage) {
                     try { plansStore.recordImage(deviceId); } catch (e) {
@@ -1496,7 +1496,7 @@ app.post('/api/chat', async (req, res) => {
         const deviceId = capGate.deviceId;
         // Reserve before the model call so parallel sends cannot bypass the cap.
         // Rolled back in finally unless the reply is a real success.
-        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null });
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, surface: capGate.surface, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null });
 
         activeProvider = resolveMode(mode).config.provider;
         let target;
@@ -1715,7 +1715,7 @@ app.post('/api/chat/stream', async (req, res) => {
         const usageKind = capGate.kind;
         const deviceId = capGate.deviceId;
         let usedGrokFallback = false;
-        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null });
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, surface: capGate.surface, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null });
 
         let target;
         try {

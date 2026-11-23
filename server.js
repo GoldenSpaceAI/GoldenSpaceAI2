@@ -1040,13 +1040,14 @@ function callResponsesAPI(conversationMessages, config, useWebSearch, opts) {
 /** Expand stored attachedFile extract into model-facing user text (UI keeps content clean). */
 function expandUserContentForModel(msg) {
     let text = (msg && typeof msg.content === 'string') ? msg.content : '';
-    const af = msg && msg.attachedFile;
-    if (af && typeof af.text === 'string' && af.text) {
+    const files = Array.isArray(msg && msg.attachedFiles) ? msg.attachedFiles.slice(0, 3) : (msg && msg.attachedFile ? [msg.attachedFile] : []);
+    for (const af of files) {
+        if (!af || typeof af.text !== 'string' || !af.text) continue;
         const noteLine = af.note ? ('\nNote: ' + af.note) : '';
-        const fileBlock = '\n\n---\nAttached file: ' + (af.name || 'file') + noteLine +
-            '\n```\n' + String(af.text).slice(0, 120000) + '\n```\n';
-        text = (String(text).trim() || 'Please review the attached file.') + fileBlock;
+        text += '\n\n---\nAttached file: ' + (af.name || 'file') + noteLine +
+            '\n```\n' + String(af.text).slice(0, 60000) + '\n```\n';
     }
+    if (!text.trim() && files.length) text = 'Please review the attached files.';
     return text;
 }
 

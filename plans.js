@@ -10,7 +10,7 @@
  * - Fast: Fast / normal mode only (gpt-5-nano)
  * - ThinkShare: Thinking alone (Plus) or Thinking + Expert 4 shared (Pro/Max)
  * - Expert16: Expert 16 alone (Max only)
- * Retained $ on paid plans is margin (not usable as API budget).
+ * Retained $ on paid plans is margin (not usable as API budget). Chat and Studio model budgets are tracked separately.
  * Paid allotments are per 30-day period from admin approve (no auto-renew).
  * Free Fast is $0.02/day UTC midnight reset. Images count toward the same Fast bucket.
  * Talk minutes (Live / TTS voice time) are separate hard-stops: Free 1 min/UTC week;
@@ -61,6 +61,8 @@ const PLAN_DEFS = {
         fastUsd: 0.02,
         thinkShareUsd: 0,
         expert16Usd: 0,
+        chatUsd: 0.01,
+        studioUsd: 0.01,
         retainedUsd: 0,
         imagesPerDay: 5,
         imagineSearchesPerDay: 2,
@@ -77,10 +79,12 @@ const PLAN_DEFS = {
         id: 'plus',
         label: 'Plus',
         priceUsd: 5,
-        fastUsd: 1.30,
-        thinkShareUsd: 0.60,
+        fastUsd: 1.45,
+        thinkShareUsd: 1.45,
         expert16Usd: 0,
-        retainedUsd: 3,
+        chatUsd: 1.45,
+        studioUsd: 1.45,
+        retainedUsd: 2,
         imagesPerDay: 10,
         imagineSearchesPerDay: 10,
         imagineImagesPerDay: 100,
@@ -99,6 +103,8 @@ const PLAN_DEFS = {
         fastUsd: 3.80,
         thinkShareUsd: 3,
         expert16Usd: 0,
+        chatUsd: 3.40,
+        studioUsd: 3.40,
         retainedUsd: 3,
         imagesPerDay: 20,
         imagineSearchesPerDay: 45,
@@ -118,6 +124,8 @@ const PLAN_DEFS = {
         fastUsd: 5.60,
         thinkShareUsd: 3,
         expert16Usd: 3,
+        chatUsd: 5.80,
+        studioUsd: 5.80,
         retainedUsd: 3,
         imagesPerDay: 30,
         imagineSearchesPerDay: 75,

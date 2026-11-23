@@ -47,6 +47,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
 @media(max-width:680px){.preview-head{height:auto;min-height:58px;padding:10px 12px;gap:8px}.preview-title{width:100%}.preview-actions{width:100%;justify-content:flex-start;gap:6px}.preview-actions button{padding:8px 10px}.preview-body{padding:12px}}
 
 .code-generation-stage{min-height:560px;display:grid;place-items:center;border:1px solid rgba(221,184,63,.22);border-radius:20px;background:radial-gradient(circle at 70% 15%,rgba(99,199,178,.12),transparent 38%),var(--panel2);position:relative;overflow:hidden;padding:44px}.code-generation-stage:before{content:"</>  GAME  CODE";position:absolute;inset:0;display:grid;place-items:center;color:rgba(221,184,63,.055);font:900 clamp(42px,9vw,120px)/1 ui-monospace,monospace;letter-spacing:.08em;transform:rotate(-12deg);white-space:nowrap}.game-generation-visual{width:min(560px,100%);height:178px;margin:0 auto 24px;border:1px solid rgba(221,184,63,.28);border-radius:18px;position:relative;overflow:hidden;background:linear-gradient(180deg,#18273d 0%,#234c5b 68%,#172018 68%,#11150f 100%);box-shadow:0 18px 48px rgba(0,0,0,.25)}.game-generation-visual:before{content:"";position:absolute;left:0;right:0;bottom:22px;height:2px;background:rgba(221,184,63,.55);box-shadow:0 10px 0 rgba(221,184,63,.16),0 20px 0 rgba(221,184,63,.1)}.game-generation-visual:after{content:"";position:absolute;width:70px;height:20px;left:15%;top:35px;border-radius:50%;background:rgba(255,255,255,.14);box-shadow:160px -14px 0 rgba(255,255,255,.1),310px 20px 0 rgba(255,255,255,.12);animation:gameClouds 7s linear infinite}.game-player{position:absolute;z-index:2;left:26%;bottom:36px;width:24px;height:24px;border-radius:8px;background:#e9c64e;box-shadow:0 0 0 5px rgba(233,198,78,.15);animation:gameBounce 1.2s ease-in-out infinite}.game-obstacle{position:absolute;z-index:2;right:23%;bottom:23px;width:22px;height:70px;border-radius:5px 5px 0 0;background:#63c7b2;animation:gameSlide 2.4s linear infinite}.game-hud{position:absolute;z-index:3;left:16px;top:13px;color:#f7edbe;font:700 11px/1 ui-monospace,monospace;letter-spacing:.08em}.game-generation-label{position:absolute;z-index:3;right:16px;top:13px;color:rgba(255,255,255,.72);font-size:11px}.@keyframes gameBounce{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-24px) rotate(7deg)}}@keyframes gameSlide{0%{transform:translateX(140px);opacity:.2}35%,75%{opacity:1}100%{transform:translateX(-280px);opacity:.2}}@keyframes gameClouds{from{transform:translateX(0)}to{transform:translateX(-90px)}}.code-generation-copy{text-align:center;max-width:510px;position:relative}.code-generation-copy .code-orb{width:72px;height:72px;margin:0 auto 18px;border-radius:20px;display:grid;place-items:center;background:linear-gradient(145deg,#edcd55,#a87812);color:#1b1505;font:900 25px ui-monospace,monospace;box-shadow:0 16px 45px rgba(221,184,63,.2)}.code-generation-copy h3{font-size:clamp(25px,3vw,38px);margin:0 0 10px}.code-generation-copy p{color:var(--muted);margin:0 0 22px}.code-progress{height:8px;border-radius:99px;background:rgba(221,184,63,.14);overflow:hidden}.code-progress i{display:block;width:30%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#63c7b2,#d4af37);animation:codeProgress 2.8s ease-in-out infinite}.code-progress-steps{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:18px;color:var(--muted);font-size:12px}.code-progress-steps span{padding:6px 9px;border:1px solid var(--line);border-radius:999px}.code-progress-steps span:first-child{color:#d8b842;border-color:rgba(221,184,63,.45)}@keyframes codeProgress{0%{transform:translateX(-120%);width:25%}55%{width:58%}100%{transform:translateX(210%);width:28%}}
+.studio-attachment-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:10px;border-top:1px solid var(--line)}.studio-attachment-options button{display:flex;align-items:center;gap:8px;min-width:0;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--text);cursor:pointer;text-align:left}.studio-attachment-options button:hover{border-color:var(--gold);transform:translateY(-1px)}.studio-attachment-options strong,.studio-attachment-options small{display:block;white-space:nowrap}.studio-attachment-options small{font-size:10px;color:var(--muted)}.studio-attachments{display:none;gap:8px;flex-wrap:wrap;padding:6px 2px}.studio-attachments.has-files{display:flex}.studio-attachment-chip{display:flex;align-items:center;gap:8px;max-width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);font-size:12px}.studio-attachment-chip img{width:27px;height:27px;object-fit:cover;border-radius:6px}.studio-attachment-chip span{max-width:135px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.studio-attachment-chip button{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:19px}.studio-message-attachments{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.studio-message-attachments span{padding:3px 7px;border:1px solid var(--line);border-radius:8px;font-size:11px}@media(max-width:620px){.studio-attachment-options{grid-template-columns:1fr}}
 </style>
   <link rel="stylesheet" href="/product.css?v=20261120-1">
 <script src="/presentation-design.js?v=2"></script>
@@ -96,6 +97,10 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
    <button class="tool" data-tool="search"><span class="tool-icon">⌕</span><span><strong>Search images</strong><small>Photos from Pexels</small></span></button>
    <button class="tool" data-tool="code"><span class="tool-icon">⌘</span><span><strong>Build game or code</strong><small>Runnable games, apps, and HTML</small></span></button>
   </div>
+  <div class="studio-attachment-options"><button type="button" id="studioPhotoBtn">▧ <span><strong>Photos</strong><small>Choose from your device</small></span></button><button type="button" id="studioCameraBtn">◉ <span><strong>Camera</strong><small>Take a new photo</small></span></button><button type="button" id="studioDocumentBtn">▤ <span><strong>Document</strong><small>PDF, Word, or text</small></span></button></div>
+  </div>
+  <input id="studioPhotoInput" type="file" accept="image/*" multiple hidden><input id="studioCameraInput" type="file" accept="image/*" capture="environment" hidden><input id="studioDocumentInput" type="file" accept=".pdf,.doc,.docx,.txt,.md,application/pdf" multiple hidden>
+  <div id="studioAttachments" class="studio-attachments" aria-live="polite"></div>
   <div class="compose-row"><button class="plus" id="plusBtn" aria-label="Create or attach">＋</button><textarea id="input" rows="1" placeholder="Message GoldenoAI Studio"></textarea><button class="mic" id="micBtn" aria-label="Dictate message" title="Dictate">●</button><button class="send" id="send" aria-label="Send">↑</button></div>
   <div class="hint">Review generated content before sharing it.</div>
  </div></div>
@@ -216,11 +221,39 @@ function richText(value){
  close();return out;
 }
 function inlineRich(text){return String(text).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code>$1</code>')}
+let studioAttachments=[];
+let studioActiveAttachments=[];
+function studioAttachmentLabel(a){return a.name|| (a.kind==='image'?'Photo':'Document')}
+function renderStudioAttachments(){
+ const el=$('studioAttachments');el.innerHTML=studioAttachments.map((a,i)=>'<div class="studio-attachment-chip">'+(a.kind==='image'?'<img src="'+a.data+'" alt="">':'<span class="studio-file-symbol">▤</span>')+'<span>'+esc(studioAttachmentLabel(a))+'</span><button type="button" data-remove-studio-attachment="'+i+'" aria-label="Remove '+esc(studioAttachmentLabel(a))+'">×</button></div>').join('');
+ el.classList.toggle('has-files',!!studioAttachments.length);
+ el.querySelectorAll('[data-remove-studio-attachment]').forEach(b=>b.onclick=()=>{studioAttachments.splice(Number(b.dataset.removeStudioAttachment),1);renderStudioAttachments()});
+}
+async function addStudioFiles(files){
+ for(const file of Array.from(files||[])){
+  if(studioAttachments.length>=3){add('assistant','You can attach up to 3 files per message. Remove one to add another.');break}
+  const image=file.type.startsWith('image/');const valid=image||/\.(pdf|doc|docx|txt|md)$/i.test(file.name);
+  if(!valid){add('assistant','Choose a photo, PDF, Word document, or text file.');continue}
+  if(file.size>12*1024*1024){add('assistant','Each file must be under 12 MB.');continue}
+  try{
+   if(image){
+    const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=reject;reader.onload=()=>{const img=new Image();img.onerror=reject;img.onload=()=>{const scale=Math.min(1,1600/img.width,1600/img.height);const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.75))};img.src=reader.result};reader.readAsDataURL(file)});
+    studioAttachments.push({kind:'image',name:file.name,data});
+   }else{
+    let text='';
+    if(/\.(txt|md)$/i.test(file.name))text=await file.text();
+    else {const body=new FormData();body.append('file',file);const res=await fetch('/api/extract-file',{method:'POST',headers:{'X-Client-Id':ensureClientId()},credentials:'same-origin',body});const result=await res.json();if(!res.ok||!result.text)throw Error(result.note||result.error||'Could not read the document');text=result.text}
+    studioAttachments.push({kind:'document',name:file.name,text:text.slice(0,120000)});
+   }
+   renderStudioAttachments()
+  }catch(err){add('assistant',err.message||'Could not attach this file. Please try again.')}
+ }
+}
 function cloneArtifact(a){try{return a?JSON.parse(JSON.stringify(a)):null}catch(e){return null}}function add(role,text,quick,artifact,mode){messages.push({role,text,quick:quick||[],sources:role==='assistant'?studioLastSources:[],artifact:cloneArtifact(artifact),mode:mode||null,at:new Date().toISOString()});renderMessages();save()}
 function renderMessages(){
  $('empty').style.display=messages.length?'none':'grid';
  $('messages').innerHTML=messages.map((m,i)=>{
-  const copy='<div class="message-copy">'+(m.role==='assistant'?richText(m.text):esc(m.text))+'</div>'+(m.role==='assistant'?studioSourcesHtml(m.sources):'');
+  const copy='<div class="message-copy">'+(m.role==='assistant'?richText(m.text):esc(m.text))+'</div>'+(m.role==='assistant'?studioSourcesHtml(m.sources):'')+(m.role==='user'&&m.attachments?.length?'<div class="studio-message-attachments">'+m.attachments.map(a=>'<span> '+(a.kind==='image'?'▧':'▤')+' '+esc(a.name)+'</span>').join('')+'</div>':'');
   const quick=m.quick&&m.quick.length?'<div class="quick-answers">'+m.quick.map(q=>'<button data-quick="'+esc(q)+'">'+esc(q)+'</button>').join('')+'</div>':'';
   const artifact=m.artifact?artifactCardHtml(m.artifact,i):'';
   if(m.role==='user'){const mode=m.mode?'<span class="message-mode">'+esc(toolLabels[m.mode]||m.mode)+'</span>':'';return '<article class="message user">'+mode+'<div class="message-body">'+copy+'</div></article>'};
@@ -288,7 +321,7 @@ function offerGamePublishing(){
  add('assistant',arabic?'اضغط **نشر اللعبة** أدناه لمراجعة لعبتك ونشرها والحصول على رابط عام.':'Click **Publish game** below to review your game and publish it with a public link.',[],currentArtifact);
 }
 async function sendMessage(){
- const text=$('input').value.trim();if(!text||busy)return;const sentMode=selectedTool;studioRequestDeadline=Date.now()+120000;studioLastSources=[];$('input').value='';autoSize();add('user',text,[],null,sentMode);busy=true;$('send').disabled=true;
+ const text=$('input').value.trim();if((!text&&!studioAttachments.length)||busy)return;const outgoing=studioAttachments.splice(0,3);studioActiveAttachments=outgoing;renderStudioAttachments();const sentMode=selectedTool;studioRequestDeadline=Date.now()+120000;studioLastSources=[];$('input').value='';autoSize();add('user',text||'Please review the attached files.',[],null,sentMode);messages[messages.length-1].attachments=outgoing.map(a=>({kind:a.kind,name:a.name}));renderMessages();busy=true;$('send').disabled=true;
  try{
   if(isPublishGameRequest(text,currentArtifact?.kind==='code')){offerGamePublishing()}
   else if(pending){await continueTask(text)}
@@ -300,7 +333,7 @@ async function sendMessage(){
    else await generalChat(text)
   }
  }catch(e){add('assistant',e.message||'Something went wrong. Please try again.')}
- finally{busy=false;$('send').disabled=false;thinking(false)}
+ finally{studioActiveAttachments=[];busy=false;$('send').disabled=false;thinking(false)}
 }
 async function beginTask(tool,topic){
  studioResearchTopic=topic;
@@ -390,6 +423,8 @@ async function editCurrentArtifact(request){
  }
 }async function apiChat(extra,feature){
  const history=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.text}));
+ const lastUser=history.slice().reverse().find(m=>m.role==='user');
+ if(lastUser&&studioActiveAttachments.length){lastUser.images=studioActiveAttachments.filter(a=>a.kind==='image').map(a=>a.data);lastUser.attachedFiles=studioActiveAttachments.filter(a=>a.kind==='document').map(a=>({name:a.name,text:a.text}))}
  if(studioProjectInstructions)history.unshift({role:'system',content:'Studio project context shared across its chats: '+studioProjectInstructions});
  const artifact=currentArtifact||latestStudioArtifact();if(artifact)history.unshift({role:'system',content:'The current Studio artifact is available in this session: '+artifact.kind+' titled '+String(artifact.title||artifact.data?.title||'Untitled').slice(0,100)+'. You can edit it with the Studio tools. Do not claim it is unavailable or ask the user to paste it.'});
  history.push({role:'user',content:extra});
@@ -691,6 +726,10 @@ async function showStudioHome(){
   grid.innerHTML='<div class="studio-project-empty" role="status">Projects are temporarily unavailable.</div>';
  }
 }
+$('studioPhotoBtn').onclick=()=>{$('plusMenu').classList.remove('open');$('studioPhotoInput').click()};
+$('studioCameraBtn').onclick=()=>{$('plusMenu').classList.remove('open');$('studioCameraInput').click()};
+$('studioDocumentBtn').onclick=()=>{$('plusMenu').classList.remove('open');$('studioDocumentInput').click()};
+['studioPhotoInput','studioCameraInput','studioDocumentInput'].forEach(id=>$(id).onchange=e=>{addStudioFiles(e.target.files);e.target.value=''});
 $('plusBtn').onclick=e=>{e.stopPropagation();$('plusMenu').classList.toggle('open')};document.addEventListener('click',e=>{if(!$('plusMenu').contains(e.target)&&e.target!==$('plusBtn'))$('plusMenu').classList.remove('open')});
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));$('clearTask').onclick=clearTool;$('send').onclick=sendMessage;$('micBtn').onclick=startDictation;$('input').oninput=autoSize;$('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}};
 $('closePreview').onclick=closePreview;$('previewToggle').onclick=openPreview;$('downloadBtn').onclick=()=>downloadArtifact($('downloadBtn'));$('editBtn').onclick=toggleEdit;

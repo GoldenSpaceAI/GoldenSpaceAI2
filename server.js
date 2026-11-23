@@ -558,9 +558,11 @@ function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
     const mode = req.body?.mode;
     const agents = req.body?.agents;
     const hasImage = requestHasImage(req.body);
-    const check = plansStore.checkChatAllowed(deviceId, mode, agents, { hasImage });
+    const surfaceValue = String(req.body?.surface || req.body?.source || '').toLowerCase();
+    const surface = surfaceValue === 'studio' || req.body?.studio === true ? 'studio' : 'chat';
+    const check = plansStore.checkChatAllowed(deviceId, mode, agents, { hasImage, surface });
     if (check.ok) {
-        return { ok: true, deviceId, kind: check.kind, plan: check.plan, hasImage };
+        return { ok: true, deviceId, kind: check.kind, plan: check.plan, hasImage, surface };
     }
     notifyAccountQuota(req, 'Plan usage limit reached', check.error && (check.error.reply || check.error.message) || 'A plan usage limit was reached. Review your usage in Settings.', 'usage-limit:' + String(check.error && check.error.code || mode || 'plan') + ':' + (plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10)), 'usage_limit');
     if (sse) {
@@ -588,6 +590,7 @@ function isAutoTitleRequest(body) {
 function holdUsage(deviceId, kind, opts) {
     let committed = false;
     const hasImage = !!(opts && opts.hasImage);
+    const surface = opts && opts.surface === 'studio' ? 'studio' : 'chat';
     return {
         commit(spend) {
             if (committed || !deviceId || !kind) return null;

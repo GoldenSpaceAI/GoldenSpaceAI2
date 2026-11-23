@@ -3631,6 +3631,15 @@
             color: var(--gold);
         }
         .empty-state .empty-chip:active { transform: scale(0.97); }
+        .empty-guide{width:min(520px,92vw);margin:10px 0 2px;text-align:left;border:1px solid var(--border);border-radius:14px;background:rgba(212,175,55,.045);overflow:hidden}
+        .empty-guide summary{cursor:pointer;list-style:none;padding:11px 14px;color:var(--gold);font-size:13px;font-weight:750}
+        .empty-guide summary::-webkit-details-marker{display:none}
+        .empty-guide summary::after{content:'＋';float:right;font-size:16px;line-height:1}
+        .empty-guide[open] summary::after{content:'−'}
+        .empty-guide-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 12px 12px;color:var(--text-muted);font-size:12px;line-height:1.4}
+        .empty-guide-body div{padding:9px 10px;border-radius:10px;background:rgba(255,255,255,.035)}
+        .empty-guide-body strong{display:block;color:var(--text);margin-bottom:2px}
+        @media(max-width:600px){.empty-guide-body{grid-template-columns:1fr}}
         html.light .empty-state .empty-chip {
             background: rgba(255,255,255,0.85);
         }
@@ -6280,8 +6289,9 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             return '<div class="empty-state">' +
                 '<img class="empty-logo" src="/logo.png?v=20261003" width="200" height="240" alt="" />' +
                 '<div class="empty-title">How can I help?</div>' +
-                '<div class="empty-value">Research, code, writing, and analysis — pick a mode, then ask.</div>' +
+                '<div class="empty-value">Chat for quick answers. Open Studio for presentations, PDFs, games, code, and editable previews.</div>' +
                 '<div class="empty-chips" role="list">' + chips + '</div>' +
+                '<details class="empty-guide"><summary>New here? See what you can do</summary><div class="empty-guide-body"><div><strong>Chat</strong>Ask questions, upload files, or use Thinking for deeper answers.</div><div><strong>Studio</strong>Create and edit presentations, PDFs, code, and games.</div><div><strong>Imagine</strong>Generate images or search for useful media.</div><div><strong>Projects</strong>Keep related chats and instructions together.</div></div></details>' +
                 '<button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Or type your own message</button>' +
                 '<div class="empty-meta"><span>Fast</span><span class="empty-dot" aria-hidden="true">·</span><span>Thinking</span><span class="empty-dot" aria-hidden="true">·</span><span>Expert</span></div>' +
                 '<p class="empty-plan-hint" id="emptyPlanHint" data-nosnippet>' + hint + '</p>' +

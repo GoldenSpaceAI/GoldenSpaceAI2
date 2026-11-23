@@ -165,11 +165,17 @@ async function enrichPresentationImages(data){
  return data;
 }
 function studioStorageKey(){return 'gsa_studio_chat_'+(studioProjectId||'default')+'_'+(studioChatId||'legacy')}
+function studioAutoTitle(){
+ const first=messages.find(m=>m&&m.role==='user'&&String(m.content||'').trim());
+ const text=first?String(first.content||'').replace(/\\s+/g,' ').trim():'';
+ return text?text.slice(0,72)+(text.length>72?'…':''):'New Studio chat';
+}
 let studioSaveTimer=null,studioSaveQueue=Promise.resolve();
 function save(){
  if(window.refreshFeatureUsage)window.refreshFeatureUsage();
- const snapshot={messages,pending,currentArtifact};
+ const title=studioAutoTitle(),snapshot={messages,pending,currentArtifact,title};
  try{localStorage.setItem(studioStorageKey(),JSON.stringify(snapshot))}catch(e){}
+ const activeTitle=document.querySelector('.project-chat-link.active');if(activeTitle)activeTitle.textContent=title;
  if(studioProjectId){
   clearTimeout(studioSaveTimer);
   studioSaveTimer=setTimeout(()=>{const body=JSON.stringify(snapshot),projectId=studioProjectId,chatId=studioChatId;studioSaveQueue=studioSaveQueue.catch(()=>{}).then(async()=>{const res=await fetch('/api/studio/projects/'+encodeURIComponent(projectId)+'/chat?chat='+encodeURIComponent(chatId),{method:'PUT',headers:studioHeaders(),credentials:'same-origin',body});if(!res.ok)throw new Error('Studio chat save failed');}).catch(error=>{console.error(error);});},450);

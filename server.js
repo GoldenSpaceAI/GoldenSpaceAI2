@@ -88,7 +88,7 @@ app.get('/robots.txt', (req, res) => {
     ].join(String.fromCharCode(10)));
 });
 app.get('/sitemap.xml', (req, res) => {
-    res.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://www.goldenoai.com/</loc></url><url><loc>https://www.goldenoai.com/studio</loc></url><url><loc>https://www.goldenoai.com/upgrade</loc></url><url><loc>https://www.goldenoai.com/terms</loc></url><url><loc>https://www.goldenoai.com/privacy</loc></url><url><loc>https://www.goldenoai.com/refund</loc></url></urlset>');
+    res.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://www.goldenoai.com/</loc></url><url><loc>https://www.goldenoai.com/studio-info</loc></url><url><loc>https://www.goldenoai.com/upgrade</loc></url><url><loc>https://www.goldenoai.com/terms</loc></url><url><loc>https://www.goldenoai.com/privacy</loc></url><url><loc>https://www.goldenoai.com/refund</loc></url></urlset>');
 });
 
 // ==================== CORS ====================
@@ -3560,19 +3560,34 @@ app.get('/chat21.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'chat21.html'));
 });
 
+function requireStudioPage(req, res) {
+    const user = auth && auth.readUserFromReq(req);
+    if (user && user.id) return true;
+    const destination = req.originalUrl || '/studio';
+    return res.redirect(302, '/login?next=' + encodeURIComponent(destination));
+}
+
+app.get('/studio-info', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'studio-info.html'));
+});
 app.get('/studio', (req, res) => {
+    if (!requireStudioPage(req, res)) return;
     res.sendFile(path.join(__dirname, 'public', 'studio.html'));
 });
 app.get('/studio/chat', (req, res) => {
+    if (!requireStudioPage(req, res)) return;
     res.sendFile(path.join(__dirname, 'public', 'studio.html'));
 });
 app.get('/studio.html', (req, res) => {
+    if (!requireStudioPage(req, res)) return;
     res.sendFile(path.join(__dirname, 'public', 'studio.html'));
 });
 app.get('/imagine', (req, res) => {
+    if (!requireStudioPage(req, res)) return;
     res.redirect(302, '/studio?tool=search');
 });
 app.get('/imagine.html', (req, res) => {
+    if (!requireStudioPage(req, res)) return;
     res.redirect(302, '/studio?tool=search');
 });
 

@@ -557,3 +557,9 @@ html.light .gsa-polished { --product-shadow: 0 6px 24px #40351a09; }
 @media(prefers-reduced-motion:reduce) {
  .gsa-polished :is(button,.btn,.starter,.studio-project-card,.empty-chip) { transition: none!important; }
 }
+
+/* Explicit light-mode contrast overrides for legacy page rules. */
+html.light .gsa-site-page h1 { color:var(--product-ink); background:none; -webkit-text-fill-color:currentColor; }
+html.light .gsa-site-page :is(button.btn.primary,.btn-primary,button.primary) { background:var(--product-accent); color:var(--product-accent-ink); }
+.gsa-admin .login { padding:24px; border-radius:18px; border:1px solid var(--product-line); }
+.gsa-admin .login h1 { font-size:1.75rem; line-height:1.2; margin-bottom:10px; }

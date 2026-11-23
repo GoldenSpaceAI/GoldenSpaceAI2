@@ -1886,6 +1886,19 @@
         }
         .plus-menu-item:last-child { border-bottom: none; }
         .plus-menu-item:active { background: var(--gold-dark); color: var(--black); }
+        .plus-menu { min-width: 282px; gap: 4px; padding: 9px; border: 1px solid rgba(212,175,55,.25); border-radius: 16px; background: var(--panel, #171717); }
+        .plus-menu-heading { display:flex;justify-content:space-between;gap:12px;padding:8px 9px;color:var(--gold);font-size:12px;font-weight:700;letter-spacing:.02em }
+        .plus-menu-heading span {color:#9f9a8c;font-weight:500}
+        .plus-menu .plus-menu-item {width:100%;border:0;border-radius:11px;background:transparent;text-align:left;color:inherit;align-items:center;padding:10px;gap:11px}
+        .plus-menu .plus-menu-item:hover,.plus-menu .plus-menu-item:focus-visible {background:rgba(212,175,55,.13);outline:none}
+        .plus-menu-item strong,.plus-menu-item small {display:block}
+        .plus-menu-item strong {font-size:13px;color:var(--gold)}
+        .plus-menu-item small {font-size:11px;color:#aaa59a;margin-top:2px}
+        .attach-menu-icon {display:grid;place-items:center;width:33px;height:33px;flex:none;border:1px solid rgba(212,175,55,.27);border-radius:10px;color:var(--gold);font-size:18px}
+        .attachment-preview-chip {display:flex;align-items:center;gap:7px;padding:5px 7px;border:1px solid rgba(212,175,55,.27);border-radius:10px;background:rgba(212,175,55,.08);max-width:210px;font-size:11px}
+        .attachment-preview-chip img {width:26px;height:26px;object-fit:cover;border-radius:6px}
+        .attachment-preview-chip span:nth-child(2) {overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .attachment-preview-chip button {border:0;background:transparent;color:var(--gold);font-size:19px;cursor:pointer}
 
         .overlay {
             position: fixed;
@@ -4539,16 +4552,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 <button type="button" class="jump-latest" id="jumpLatestBtn" onclick="jumpToLatest()" aria-label="Jump to latest">↓ Latest</button>
 
                 <div class="composer-shell">
-                    <div class="attach-previews" id="attachPreviews">
-                        <div class="image-preview-card" id="imagePreview">
-                            <img id="imagePreviewImg" alt="Attached">
-                            <button type="button" class="preview-remove" onclick="clearAttachedImage()" aria-label="Remove image">&times;</button>
-                        </div>
-                        <div class="file-preview-chip" id="filePreview">
-                            <span id="filePreviewName"></span>
-                            <button type="button" onclick="clearAttachedFile()" aria-label="Remove file">&times;</button>
-                        </div>
-                    </div>
+                    <div class="attach-previews" id="attachPreviews" aria-live="polite"></div>
                     <div class="composer-tools mobile-only">
                         <div class="model-selector" id="modelSelectorMobile">
                             <button type="button" class="model-btn" id="modelBtnMobile" onclick="toggleModelMenu('mobile')" aria-label="Choose mode" aria-haspopup="listbox" aria-expanded="false" aria-controls="modelMenuMobile">
@@ -4587,15 +4591,16 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                         </div>
 
                         <div class="input-actions">
-                            <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+                            <input type="file" id="photosInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event)">
                             <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
-                            <input type="file" id="fileInput" accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx,text/plain,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" style="display:none" onchange="handleFileUpload(event)">
+                            <input type="file" id="fileInput" multiple accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx,text/plain,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" style="display:none" onchange="handleFileUpload(event)">
                             
                             <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Attach" title="Attach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
                             <div class="plus-menu" id="plusMenu">
-                                <div class="plus-menu-item" onclick="openPhotos()">Photos</div>
-                                <div class="plus-menu-item" onclick="openCamera()">Camera</div>
-                                <div class="plus-menu-item" onclick="openFileAttach()">File (Word / PPT / PDF / txt)</div>
+                                <div class="plus-menu-heading">Add to your message <span>Up to 3 files</span></div>
+                                <button type="button" class="plus-menu-item" onclick="openPhotos()"><span class="attach-menu-icon">▧</span><span><strong>Photos</strong><small>Choose images from your device</small></span></button>
+                                <button type="button" class="plus-menu-item" onclick="openCamera()"><span class="attach-menu-icon">◉</span><span><strong>Camera</strong><small>Take a photo now</small></span></button>
+                                <button type="button" class="plus-menu-item" onclick="openFileAttach()"><span class="attach-menu-icon">▤</span><span><strong>Documents</strong><small>PDF, Word, slides, or text</small></span></button>
                             </div>
 
                             <button class="input-btn mic-dictate" id="micBtn" type="button" onclick="toggleVoiceInput()" aria-label="Dictate" title="Dictate" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg><span class="mic-dictate-label">Dictate</span></button>
@@ -4816,6 +4821,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         const TTS_VOICE_KEY = 'goldenspaceai2_tts_voice';
         const TTS_AUTOREAD_KEY = 'goldenspaceai2_tts_autoread';
         let selectedImage = null;
+        let composerAttachments = [];
         let selectedFileText = null;
         let selectedFileName = null;
         let selectedFilePreferMode = 'fast';
@@ -6573,32 +6579,46 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
 
         function syncAttachPreviews() {
             const row = document.getElementById('attachPreviews');
-            const imgCard = document.getElementById('imagePreview');
-            const fileChip = document.getElementById('filePreview');
-            const hasImg = !!(imgCard && imgCard.classList.contains('show'));
-            const hasFile = !!(fileChip && fileChip.classList.contains('show'));
-            if (row) row.classList.toggle('show', hasImg || hasFile);
+            if (row) {
+                row.innerHTML = composerAttachments.map((item, i) =>
+                    '<div class="attachment-preview-chip">' +
+                    (item.kind === 'image' ? '<img src="' + item.data + '" alt="">' : '<span class="attachment-document-icon">▤</span>') +
+                    '<span>' + escapeHtmlRaw(item.name || 'Photo') + '</span>' +
+                    '<button type="button" aria-label="Remove attachment" onclick="removeComposerAttachment(' + i + ')">×</button></div>'
+                ).join('');
+                row.classList.toggle('show', composerAttachments.length > 0);
+            }
+            const plus = document.getElementById('plusBtn');
+            if (plus) plus.classList.toggle('image-attached', composerAttachments.length > 0);
             if (typeof syncSendLiveButton === 'function') syncSendLiveButton();
         }
 
+        function removeComposerAttachment(index) {
+            composerAttachments.splice(index, 1);
+            selectedImage = composerAttachments.filter(a => a.kind === 'image').slice(-1)[0]?.data || null;
+            const lastFile = composerAttachments.filter(a => a.kind === 'file').slice(-1)[0];
+            selectedFileText = lastFile?.text || null;
+            selectedFileName = lastFile?.name || null;
+            selectedFilePreferMode = lastFile?.preferMode || 'fast';
+            selectedFileNote = lastFile?.note || null;
+            syncAttachPreviews();
+        }
+
         function setAttachedImage(dataUrl) {
+            if (composerAttachments.length >= 3) { showToast('Maximum 3 uploads per message.', 'warn'); return; }
+            composerAttachments.push({kind:'image', name:'Photo ' + (composerAttachments.filter(a => a.kind === 'image').length + 1), data:dataUrl});
             selectedImage = dataUrl;
-            document.getElementById('plusBtn').classList.add('image-attached');
-            const wrap = document.getElementById('imagePreview');
-            const img = document.getElementById('imagePreviewImg');
-            if (img) img.src = dataUrl;
-            if (wrap) wrap.classList.add('show');
             syncAttachPreviews();
         }
 
         function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if(!file) return;
-            if(!file.type.startsWith('image/')) { showToast('Please select an image.', 'err'); return; }
-            compressImage(file, function(compressedBase64) {
-                setAttachedImage(compressedBase64);
-            });
+            const files = Array.from(event.target.files || []);
             event.target.value = '';
+            files.slice(0, Math.max(0, 3 - composerAttachments.length)).forEach(file => {
+                if (!file.type.startsWith('image/')) { showToast('Please select an image.', 'err'); return; }
+                compressImage(file, setAttachedImage);
+            });
+            if (files.length > 3 - composerAttachments.length) showToast('Maximum 3 uploads per message.', 'warn');
         }
 
         function handleComposerPaste(e) {
@@ -6621,13 +6641,13 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 const img = new Image();
                 img.onload = function() {
                     let w = img.width, h = img.height;
-                    const MAX = 1920;
+                    const MAX = 1600;
                     if (w > MAX) { h = (h * MAX) / w; w = MAX; }
                     if (h > MAX) { w = (w * MAX) / h; h = MAX; }
                     const canvas = document.createElement('canvas');
                     canvas.width = w; canvas.height = h;
                     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                    callback(canvas.toDataURL('image/jpeg', 0.7));
+                    callback(canvas.toDataURL('image/jpeg', 0.72));
                 };
                 img.src = e.target.result;
             };
@@ -6635,27 +6655,19 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         }
 
         function clearAttachedImage() {
+            composerAttachments = composerAttachments.filter(a => a.kind !== 'image');
             selectedImage = null;
-            const wrap = document.getElementById('imagePreview');
-            const img = document.getElementById('imagePreviewImg');
-            const plus = document.getElementById('plusBtn');
-            if (wrap) wrap.classList.remove('show');
-            if (img) img.src = '';
-            if (plus && !selectedFileText) plus.classList.remove('image-attached');
             syncAttachPreviews();
         }
 
         function applyFileAttachment(result) {
-            selectedFileText = result.text || '';
-            selectedFileName = result.name || 'file';
-            selectedFilePreferMode = result.preferMode || 'fast';
-            selectedFileNote = result.note || null;
-            const wrap = document.getElementById('filePreview');
-            const label = document.getElementById('filePreviewName');
-            const noteBit = result.ok ? '' : ' (limited)';
-            if (label) label.textContent = '📎 ' + selectedFileName + noteBit;
-            if (wrap) wrap.classList.add('show');
-            document.getElementById('plusBtn').classList.add('image-attached');
+            if (composerAttachments.length >= 3) { showToast('Maximum 3 uploads per message.', 'warn'); return; }
+            const item = {kind:'file', name:result.name || 'file', text:result.text || '', preferMode:result.preferMode || 'fast', note:result.note || null};
+            composerAttachments.push(item);
+            selectedFileText = item.text;
+            selectedFileName = item.name;
+            selectedFilePreferMode = item.preferMode;
+            selectedFileNote = item.note;
             syncAttachPreviews();
         }
 
@@ -6685,9 +6697,15 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         }
 
         async function handleFileUpload(event) {
-            const file = event.target.files[0];
+            const files = Array.from(event.target.files || []);
             event.target.value = '';
+            if (files.length > 3 - composerAttachments.length) showToast('Maximum 3 uploads per message.', 'warn');
+            for (const file of files.slice(0, Math.max(0, 3 - composerAttachments.length))) await processSelectedDocument(file);
+        }
+
+        async function processSelectedDocument(file) {
             if (!file) return;
+            if (composerAttachments.length >= 3) { showToast('Maximum 3 uploads per message.', 'warn'); return; }
             const name = file.name || 'file';
             const lower = name.toLowerCase();
             const okExt = /\.(txt|md|markdown|pdf|docx|doc|pptx|ppt)$/i.test(lower)
@@ -6758,18 +6776,11 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         }
 
         function clearAttachedFile() {
+            composerAttachments = composerAttachments.filter(a => a.kind !== 'file');
             selectedFileText = null;
             selectedFileName = null;
             selectedFilePreferMode = 'fast';
             selectedFileNote = null;
-            const wrap = document.getElementById('filePreview');
-            const label = document.getElementById('filePreviewName');
-            if (wrap) wrap.classList.remove('show');
-            if (label) label.textContent = '';
-            if (!selectedImage) {
-                const plus = document.getElementById('plusBtn');
-                if (plus) plus.classList.remove('image-attached');
-            }
             syncAttachPreviews();
         }
 
@@ -6786,7 +6797,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         function composerHasContent() {
             const input = document.getElementById('messageInput');
             const hasText = !!(input && String(input.value || '').trim());
-            const hasAttach = !!(selectedImage || selectedFileText);
+            const hasAttach = composerAttachments.length > 0;
             return hasText || hasAttach;
         }
 
@@ -7006,7 +7017,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                     updateModelUI();
                 }
             }
-            if (selectedFileText && opts.text === undefined) {
+            if (composerAttachments.some(a => a.kind === 'file') && opts.text === undefined) {
                 if (selectedFilePreferMode === 'thinking' && currentModel !== 'smart') {
                     if (isFreePlan()) {
                         showToast('This file needs <strong>Thinking</strong>. <a href="/upgrade">Upgrade</a> to continue — no Thinking used.', 'err', 7000);
@@ -7033,10 +7044,15 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             if (opts.text === undefined) input.blur();
 
             if (!opts.skipUserAppend) {
+                const currentAttachments = opts.text === undefined ? composerAttachments.slice(0,3) : [];
+                const allImages = currentAttachments.filter(a => a.kind === 'image').map(a => a.data);
+                const allFiles = currentAttachments.filter(a => a.kind === 'file').map(a => ({name:a.name,text:a.text.slice(0,120000),note:a.note}));
                 const userMsg = {
                     role: 'user',
                     content: text || '',
                     image: imgToSend,
+                    images: allImages,
+                    attachedFiles: allFiles,
                     model: currentModel,
                     timestamp: new Date().toISOString()
                 };
@@ -7050,6 +7066,8 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                     timestamp: userMsg.timestamp
                 };
                 if (attachedFileMeta) msgToStore.attachedFile = attachedFileMeta;
+                msgToStore.images = allImages.filter(v => v.length <= 5 * 1024 * 1024);
+                msgToStore.attachedFiles = allFiles;
                 if (imgToSend && imgToSend.length <= 5 * 1024 * 1024) msgToStore.image = imgToSend;
                 if (imgToSend && imgToSend.length > 5 * 1024 * 1024) msgToStore.imageTooBig = true;
                 chats[currentChatId].messages.push(msgToStore);
@@ -7058,8 +7076,13 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 if (opts.text === undefined) {
                     input.value = '';
                     input.style.height = 'auto';
-                    clearAttachedImage();
-                    clearAttachedFile();
+                    composerAttachments = [];
+                    selectedImage = null;
+                    selectedFileText = null;
+                    selectedFileName = null;
+                    selectedFilePreferMode = 'fast';
+                    selectedFileNote = null;
+                    syncAttachPreviews();
                 }
                 // Name from typed text / filename — not the full extract
                 const nameSeed = text || (attachedFileMeta && attachedFileMeta.name) || '';
@@ -8110,10 +8133,14 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 }
             } else {
                 inner += '<div class="message-bubble">';
-                if (msg.image) {
+                if (Array.isArray(msg.images) && msg.images.length) {
+                    msg.images.forEach(src => { inner += '<img src="' + src + '" class="message-image" alt="Uploaded" loading="lazy">'; });
+                } else if (msg.image) {
                     inner += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
                 }
-                if (msg.attachedFile && msg.attachedFile.name) {
+                if (Array.isArray(msg.attachedFiles) && msg.attachedFiles.length) {
+                    msg.attachedFiles.forEach(file => { inner += '<div class="message-file-chip" title="' + escapeAttr(file.name) + '">▤ ' + escapeHtmlRaw(file.name) + '</div>'; });
+                } else if (msg.attachedFile && msg.attachedFile.name) {
                     const fname = String(msg.attachedFile.name);
                     inner += '<div class="message-file-chip" title="' + escapeAttr(fname) + '">📎 ' + escapeHtmlRaw(fname) + '</div>';
                 }

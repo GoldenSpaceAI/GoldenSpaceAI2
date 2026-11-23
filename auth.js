@@ -1122,7 +1122,7 @@ function createAuth(options = {}) {
     async function saveStudioProjectChat(ownerKey, projectId, chat, chatId) {
         const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return {ok:false,error:'Studio chat storage is unavailable.'};
         const item=chat||{}, messages=Array.isArray(item.messages)?item.messages.slice(-120):[], pending=item.pending||null, artifact=item.currentArtifact||null;
-        const requestedTitle=String(item.title||'').trim().replace(/\\s+/g,' ').slice(0,100);
+        const requestedTitle=String(item.title||'').trim().replace(/\s+/g,' ').slice(0,100);
         const project=await p.query('SELECT 1 FROM studio_projects WHERE owner_key=$1 AND project_id=$2',[String(ownerKey),String(projectId)]);
         if(!project.rowCount) return {ok:false,error:'Studio project not found.'};
         if(!chatId) { const legacy=await p.query(`INSERT INTO studio_project_chats(owner_key,project_id,messages,pending,artifact,updated_at) VALUES($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,NOW()) ON CONFLICT(owner_key,project_id) DO UPDATE SET messages=EXCLUDED.messages,pending=EXCLUDED.pending,artifact=EXCLUDED.artifact,updated_at=NOW() RETURNING updated_at AS "updatedAt"`,[String(ownerKey),String(projectId),JSON.stringify(messages),JSON.stringify(pending),JSON.stringify(artifact)]); return {ok:true,updatedAt:tsIso(legacy.rows[0]?.updatedAt)}; }

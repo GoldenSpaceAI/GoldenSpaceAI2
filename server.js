@@ -3564,7 +3564,8 @@ function requireStudioPage(req, res) {
     const user = auth && auth.readUserFromReq(req);
     if (user && user.id) return true;
     const destination = req.originalUrl || '/studio';
-    return res.redirect(302, '/login?next=' + encodeURIComponent(destination));
+    res.redirect(302, '/login?next=' + encodeURIComponent(destination));
+    return false;
 }
 
 app.get('/studio-info', (req, res) => {

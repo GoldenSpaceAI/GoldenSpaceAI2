@@ -166,11 +166,14 @@ function cloneCaps(c) {
         thinkShareUsd = 0;
         expert16Usd = 0;
     }
-    return {
+    const result = {
         fastUsd: roundUsd(Math.max(0, Number(fastUsd) || 0)),
         thinkShareUsd: roundUsd(Math.max(0, Number(thinkShareUsd) || 0)),
         expert16Usd: roundUsd(Math.max(0, Number(expert16Usd) || 0))
     };
+    if (src.chatUsd != null) result.chatUsd = roundUsd(Math.max(0, Number(src.chatUsd) || 0));
+    if (src.studioUsd != null) result.studioUsd = roundUsd(Math.max(0, Number(src.studioUsd) || 0));
+    return result;
 }
 
 function capsFromPlanId(planId) {
@@ -178,29 +181,37 @@ function capsFromPlanId(planId) {
     return cloneCaps({
         fastUsd: def.fastUsd,
         thinkShareUsd: def.thinkShareUsd,
-        expert16Usd: def.expert16Usd
+        expert16Usd: def.expert16Usd,
+        chatUsd: def.chatUsd,
+        studioUsd: def.studioUsd
     });
 }
 
 function addCaps(a, b) {
     const x = cloneCaps(a);
     const y = cloneCaps(b);
-    return {
+    const result = {
         fastUsd: roundUsd(x.fastUsd + y.fastUsd),
         thinkShareUsd: roundUsd(x.thinkShareUsd + y.thinkShareUsd),
         expert16Usd: roundUsd(x.expert16Usd + y.expert16Usd)
     };
+    if (x.chatUsd != null || y.chatUsd != null) result.chatUsd = roundUsd((x.chatUsd || 0) + (y.chatUsd || 0));
+    if (x.studioUsd != null || y.studioUsd != null) result.studioUsd = roundUsd((x.studioUsd || 0) + (y.studioUsd || 0));
+    return result;
 }
 
 /** Difference of base plan defs (new − old), floored at 0 per bucket. */
 function deltaCaps(newPlanId, oldPlanId) {
     const n = capsFromPlanId(newPlanId);
     const o = capsFromPlanId(oldPlanId);
-    return {
+    const result = {
         fastUsd: roundUsd(Math.max(0, n.fastUsd - o.fastUsd)),
         thinkShareUsd: roundUsd(Math.max(0, n.thinkShareUsd - o.thinkShareUsd)),
         expert16Usd: roundUsd(Math.max(0, n.expert16Usd - o.expert16Usd))
     };
+    if (n.chatUsd != null || o.chatUsd != null) result.chatUsd = roundUsd(Math.max(0, (n.chatUsd || 0) - (o.chatUsd || 0)));
+    if (n.studioUsd != null || o.studioUsd != null) result.studioUsd = roundUsd(Math.max(0, (n.studioUsd || 0) - (o.studioUsd || 0)));
+    return result;
 }
 
 function defWithCaps(planId, caps) {
@@ -214,6 +225,8 @@ function defWithCaps(planId, caps) {
         fastUsd: c.fastUsd,
         thinkShareUsd: c.thinkShareUsd,
         expert16Usd: c.expert16Usd,
+        chatUsd: c.chatUsd != null ? c.chatUsd : base.chatUsd,
+        studioUsd: c.studioUsd != null ? c.studioUsd : base.studioUsd,
         retainedUsd: base.retainedUsd || 0,
         imagesPerDay: Number(base.imagesPerDay) || 0,
         talkMinutes: Number(base.talkMinutes) || 0,
@@ -388,6 +401,18 @@ function emptyStore() {
             pausedBy: null
         }
     };
+}
+
+function normalizeSurface(surface) {
+    return String(surface || '').toLowerCase() === 'studio' ? 'studio' : 'chat';
+}
+function surfaceCap(def, surface) {
+    const key = normalizeSurface(surface) + 'Usd';
+    return def && def[key] != null ? roundUsd(def[key]) : null;
+}
+function surfaceSpend(u, surface) {
+    if (!u || typeof u !== 'object') return 0;
+    return roundUsd(Number(u[normalizeSurface(surface) + 'SpendUsd']) || 0);
 }
 
 function poolForKind(kind) {
@@ -785,6 +810,8 @@ function createPlansStore(dataDir, options = {}) {
             fastSpendUsd: 0,
             thinkShareSpendUsd: 0,
             expert16SpendUsd: 0,
+            chatSpendUsd: 0,
+            studioSpendUsd: 0,
             // legacy alias kept for migration / admin visibility
             otherSpendUsd: 0,
             // Admin / analytics: daily + lifetime (not reset by plan period)
@@ -982,6 +1009,8 @@ function createPlansStore(dataDir, options = {}) {
             u.thinkShareSpendUsd = roundUsd(Number(u.otherSpendUsd) || 0);
         }
         if (u.expert16SpendUsd == null) u.expert16SpendUsd = 0;
+        if (u.chatSpendUsd == null) u.chatSpendUsd = 0;
+        if (u.studioSpendUsd == null) u.studioSpendUsd = 0;
         if (u.otherSpendUsd == null) u.otherSpendUsd = roundUsd(thinkShareUsed(u) + expert16Used(u));
         rollDailySpendCounters(u, day);
         rollImageDay(u, day);
@@ -1024,6 +1053,8 @@ function createPlansStore(dataDir, options = {}) {
             u.fastSpendUsd = 0;
             u.thinkShareSpendUsd = 0;
             u.expert16SpendUsd = 0;
+            u.chatSpendUsd = 0;
+            u.studioSpendUsd = 0;
             u.otherSpendUsd = 0;
             u.thinking = 0;
             u.expert4 = 0;
@@ -1513,6 +1544,7 @@ function createPlansStore(dataDir, options = {}) {
             };
         }
         const options = opts && typeof opts === 'object' ? opts : {};
+        const surface = normalizeSurface(options.surface);
         const hasImage = !!options.hasImage;
         const demote = maybeDemoteIfExhausted(deviceId);
         const kind = resolveUsageKind(mode, agents);
@@ -1537,6 +1569,10 @@ function createPlansStore(dataDir, options = {}) {
             }
         }
 
+        const surfaceLeft = surfaceCap(effective.def, surface) == null ? null : roundUsd(Math.max(0, surfaceCap(effective.def, surface) - surfaceSpend(ensureUsage(deviceId), surface)));
+        if (surfaceLeft != null && surfaceLeft <= 1e-9) {
+            return { ok: false, error: { status: 429, code: 'surface_limit_reached', reply: 'Your ' + (surface === 'studio' ? 'Studio' : 'Chat') + ' allowance is used for this period. ' + (surface === 'studio' ? 'Use Chat for remaining model capacity.' : 'Use Studio for remaining model capacity.'), upgradeUrl: '/upgrade', limit: { surface, percent: 100, percentLeft: 0, unit: 'percent', plan: effective.plan, resets: 'period' } }, kind, pool, surface };
+        }
         const left = remainingFor(deviceId, pool);
         if (left <= 1e-9) {
             // Hard-stop this bucket; demote only when all usable buckets are done
@@ -1545,7 +1581,7 @@ function createPlansStore(dataDir, options = {}) {
             }
             return { ok: false, error: buildLimitError(kind, deviceId), kind, pool, demoted: demote.demoted };
         }
-        return { ok: true, kind, pool, plan: effective.plan, leftUsd: left, hasImage };
+        return { ok: true, kind, pool, plan: effective.plan, leftUsd: surfaceLeft == null ? left : Math.min(left, surfaceLeft), hasImage, surface };
     }
 
     /**
@@ -1561,6 +1597,7 @@ function createPlansStore(dataDir, options = {}) {
         const cost = roundUsd(spend && spend.costUsd);
         if (cost <= 0) return ensureUsage(deviceId);
         const u = ensureUsage(deviceId);
+        const surface = normalizeSurface(spend && spend.surface);
         const promptTokens = spend && spend.promptTokens != null ? Math.max(0, Number(spend.promptTokens) || 0) : 0;
         const completionTokens = spend && spend.completionTokens != null ? Math.max(0, Number(spend.completionTokens) || 0) : 0;
         const tokens = promptTokens + completionTokens;
@@ -1577,6 +1614,7 @@ function createPlansStore(dataDir, options = {}) {
             if (kind === 'thinking') u.thinking = (Number(u.thinking) || 0) + 1;
             else if (kind === 'expert4') u.expert4 = (Number(u.expert4) || 0) + 1;
         }
+        u[surface + 'SpendUsd'] = roundUsd((Number(u[surface + 'SpendUsd']) || 0) + cost);
         u.otherSpendUsd = roundUsd(thinkShareUsed(u) + expert16Used(u));
         u.todaySpendUsd = roundUsd((Number(u.todaySpendUsd) || 0) + cost);
         u.totalSpendUsd = roundUsd((Number(u.totalSpendUsd) || 0) + cost);

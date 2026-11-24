@@ -2998,6 +2998,20 @@ app.get('/api/credits', (req, res) => {
     return res.json({ ok: true, credits: plansStore.getCredits(plansStore.accountOwnerKey(user.id)) });
 });
 
+app.post('/api/feedback', (req, res) => {
+    const ownerKey = resolvePlanOwnerKey(req) || getClientId(req);
+    if (!ownerKey) return res.status(400).json({ ok: false, error: 'Refresh the page and try again.' });
+    const result = plansStore.recordMessageFeedback({
+        ownerKey,
+        surface: req.body && req.body.surface,
+        messageId: req.body && req.body.messageId,
+        rating: req.body && req.body.rating,
+        excerpt: req.body && req.body.excerpt
+    });
+    if (!result.ok) return res.status(400).json(result);
+    return sendFreshJson(res, result);
+});
+
 app.get('/api/feature-usage', async (req, res) => {
     const owner = resolvePlanOwnerKey(req) || getClientId(req);
     if (!owner) return res.status(400).json({ error: 'Missing client identifier.' });
@@ -3463,8 +3477,13 @@ app.get('/api/admin/users/:userId/usage', (req, res) => {
     }
     try {
         const ownerKey = plansStore.accountOwnerKey(userId);
-        // Same usage snapshot shown to the account owner; this route does not write account data.
-        return res.json(plansStore.getPlanStatusUi(ownerKey));
+        // Same usage snapshot shown to the account owner plus read-only Studio activity.
+        return res.json({
+            ...plansStore.getPlanStatusUi(ownerKey),
+            featureUsage: plansStore.getFeatureUsage(ownerKey),
+            credits: plansStore.getCredits(ownerKey),
+            feedback: plansStore.getFeedbackStats(ownerKey)
+        });
     } catch (error) {
         console.error('admin user usage:', error.message);
         return res.status(500).json({ error: 'Could not load this account usage.' });
@@ -3775,7 +3794,7 @@ app.post('/api/studio/generate-video', async (req,res)=>{
  const costUsd=STUDIO_VIDEO_COSTS[quality+':'+duration], apiKey=process.env.XAI_API_KEY||process.env.GROK_API_KEY; if(!apiKey) return res.status(503).json({error:'Video generation is not configured yet.'});
  let videoCharge=null; if(typeof plansStore.consumeCredits==='function'){const c=plansStore.consumeCredits(account.ownerKey,'mediaUsd',costUsd);if(!c.ok)return res.status(402).json({error:'Not enough Media credits for this video.',requiredCredits:Math.round(costUsd*100),remainingCredits:Math.round((c.remainingUsd||0)*100)});videoCharge=c;}
  const id='vid_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8), job={id,ownerKey:account.ownerKey,status:'queued',prompt,quality,duration,format,costUsd,createdAt:Date.now(),videoUrl:null,error:null}; studioVideoJobs.set(id,job); res.json({ok:true,jobId:id,status:'queued',costCredits:Math.round(costUsd*100),format,quality,duration});
- (async()=>{try{job.status='generating';const r=await fetch('https://api.x.ai/v1/videos/generations',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},body:JSON.stringify({model:'grok-imagine-video-1.5-lite',prompt,duration,resolution:quality,aspect_ratio:format,generate_audio:true})}),d=await r.json().catch(()=>({}));if(!r.ok||!d.request_id)throw new Error(d.error?.message||d.message||'xAI video request failed');const started=Date.now();while(Date.now()-started<180000){await new Promise(x=>setTimeout(x,4000));const pr=await fetch('https://api.x.ai/v1/videos/'+encodeURIComponent(d.request_id),{headers:{Authorization:'Bearer '+apiKey}}),o=await pr.json().catch(()=>({}));if(o.status==='done'&&o.video?.url){job.status='completed';job.videoUrl=o.video.url;return;}if(o.status==='failed'||o.error)throw new Error(o.error?.message||'Video generation failed');}throw new Error('Video generation timed out');}catch(e){job.status='failed';job.error=e.message;if(typeof plansStore.refundCredits==='function')plansStore.refundCredits(account.ownerKey,'mediaUsd',costUsd,videoCharge);}})();
+ (async()=>{try{job.status='generating';const r=await fetch('https://api.x.ai/v1/videos/generations',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},body:JSON.stringify({model:'grok-imagine-video-1.5-lite',prompt,duration,resolution:quality,aspect_ratio:format,generate_audio:true})}),d=await r.json().catch(()=>({}));if(!r.ok||!d.request_id)throw new Error(d.error?.message||d.message||'xAI video request failed');const started=Date.now();while(Date.now()-started<180000){await new Promise(x=>setTimeout(x,4000));const pr=await fetch('https://api.x.ai/v1/videos/'+encodeURIComponent(d.request_id),{headers:{Authorization:'Bearer '+apiKey}}),o=await pr.json().catch(()=>({}));if(o.status==='done'&&o.video?.url){job.status='completed';job.videoUrl=o.video.url;plansStore.recordFeatureUsage(account.ownerKey,'videos');return;}if(o.status==='failed'||o.error)throw new Error(o.error?.message||'Video generation failed');}throw new Error('Video generation timed out');}catch(e){job.status='failed';job.error=e.message;if(typeof plansStore.refundCredits==='function')plansStore.refundCredits(account.ownerKey,'mediaUsd',costUsd,videoCharge);}})();
 });
 app.get('/api/studio/video-status/:id',(req,res)=>{const job=studioVideoJobs.get(String(req.params.id));if(!job)return res.status(404).json({error:'Video job not found'});const account=studioAccount(req);if(!account||account.ownerKey!==job.ownerKey)return res.status(403).json({error:'Not authorized'});res.json({ok:true,status:job.status,videoUrl:job.videoUrl,error:job.error,costCredits:Math.round(job.costUsd*100),elapsedMs:Date.now()-job.createdAt});});
 
@@ -3837,6 +3856,7 @@ app.post('/api/studio/generate-image', async (req, res) => {
         const url = String(payload.data[0].url || '');
         if (!/^https:\/\//i.test(url)) throw new Error('Image provider returned an invalid URL.');
         const used = Number(reserved.rows[0].images_used) || 1;
+        plansStore.recordFeatureUsage(account.ownerKey, 'images');
         return res.json({
             image: { url, mimeType: payload.data[0].mime_type || 'image/jpeg' },
             used,

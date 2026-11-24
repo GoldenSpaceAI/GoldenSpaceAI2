@@ -418,7 +418,7 @@ body.gsa-upgrade main{max-width:1140px;padding-top:48px}
     </div>
     <div class="free-strip" id="freeRef" aria-label="Free plan">
       <strong>Free</strong>
-      <span>Fast · Talk 1 min/week · 5 chat uploads/day · Imagine: 2 searches/day · up to 20 images or 10 videos · Docs unlimited · Thinking &amp; Expert not included</span>
+      <span>Fast · 5 Studio AI credits/week · 2 Media credits/week + 8 one-time signup Media credits · Talk 1 min/week · Thinking &amp; Expert not included</span>
     </div>
   </section>
 
@@ -443,7 +443,7 @@ body.gsa-upgrade main{max-width:1140px;padding-top:48px}
     <p class="footnote">Offers match <a href="/terms">Terms §3</a>. Separate allowances — no borrowing between modes. List prices only.</p>
     <details class="credit-section">
       <summary><span><span class="section-kicker">EXTRA CAPACITY</span><strong>Need a little more usage?</strong><span>Explore credit top-ups for your current plan.</span></span><span class="expand-indicator" aria-hidden="true">+</span></summary>
-          <div class="panel credit-topup"><h3>Add usage credits</h3><p class="lead">Credits never expire and only extend features already included in your current plan. They never unlock Studio or premium models.</p><div class="credit-fields"><div><label class="field" for="creditAmount">Amount (USD, $2–$200)</label><input id="creditAmount" type="number" min="2" max="200" step="0.01" value="2"></div><div class="credit-allocation" id="creditSplit">$0.50 each: Chat · Studio · Media · Documents</div><div><label class="field" for="creditPhone">OMT Pay wallet number</label><input id="creditPhone" type="tel" inputmode="numeric" placeholder="e.g. 81xxxxxx"></div></div><button class="btn primary" type="button" id="creditRequest">Request credit top-up</button><p class="err" id="creditErr" hidden></p><p class="status" id="creditStatus" hidden></p></div>
+          <div class="panel credit-topup"><h3>Add usage credits</h3><p class="lead">Top-up credits never expire. Studio AI and Media balances remain separate; 1 credit represents $0.01 in API cost. Top-ups do not unlock premium models.</p><div class="credit-fields"><div><label class="field" for="creditAmount">Amount (USD, $2–$200)</label><input id="creditAmount" type="number" min="2" max="200" step="0.01" value="2"></div><div class="credit-allocation" id="creditSplit">$0.50 each: Chat · Studio · Media · Documents</div><div><label class="field" for="creditPhone">OMT Pay wallet number</label><input id="creditPhone" type="tel" inputmode="numeric" placeholder="e.g. 81xxxxxx"></div></div><button class="btn primary" type="button" id="creditRequest">Request credit top-up</button><p class="err" id="creditErr" hidden></p><p class="status" id="creditStatus" hidden></p></div>
 
     </details>
     <div class="plan-help"><span>Questions about your subscription?</span><a href="/my-plan">View your plan &amp; payment history →</a></div>
@@ -523,6 +523,7 @@ body.gsa-upgrade main{max-width:1140px;padding-top:48px}
       ],
       bullets: [
         { text: 'Fast + Thinking', ok: true },
+        { text: '50 Studio AI credits + 50 Media credits per plan period', ok: true },
         { text: 'Expert 4 / Expert 16 not included', ok: false },
         { text: 'Imagine: 10 searches/day · up to 100 images + 50 videos/day', ok: true },
         { text: 'Talk (Live / speak-aloud): 5 min / 30 days', ok: true },
@@ -540,6 +541,7 @@ body.gsa-upgrade main{max-width:1140px;padding-top:48px}
       ],
       bullets: [
         { text: 'Fast + Thinking + Expert 4', ok: true },
+        { text: '150 Studio AI credits + 150 Media credits per plan period', ok: true },
         { text: 'Expert 4 combines four AI agents into one answer', ok: true },
         { text: 'Imagine: up to 300 images + 150 videos/day · 45 searches/day', ok: true },
         { text: 'Expert 16 not included', ok: false },
@@ -558,6 +560,7 @@ body.gsa-upgrade main{max-width:1140px;padding-top:48px}
       ],
       bullets: [
         { text: 'Fast + Thinking + Expert 4 + Expert 16', ok: true },
+        { text: '250 Studio AI credits + 250 Media credits per plan period', ok: true },
         { text: 'Expert 4 combines 4 agents; Expert 16 combines 16 agents into one answer', ok: true },
         { text: 'Imagine: up to 500 images + 250 videos/day · 75 searches/day', ok: true },
         { text: 'Talk (Live / speak-aloud): 20 min / 30 days', ok: true },

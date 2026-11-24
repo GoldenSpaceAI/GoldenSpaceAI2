@@ -561,6 +561,12 @@ function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
     const hasImage = requestHasImage(req.body);
     const surfaceValue = String(req.body?.surface || req.body?.source || '').toLowerCase();
     const surface = surfaceValue === 'studio' || req.body?.studio === true ? 'studio' : 'chat';
+    if (surface === 'studio' && !(auth && auth.readUserFromReq(req))) {
+        const error = { status: 401, code: 'studio_login_required', reply: 'Sign in to use GoldenoAI Studio.', upgradeUrl: '/login?next=%2Fstudio' };
+        if (sse) sendPlanLimitSse(res, sendSse, error);
+        else sendPlanLimitJson(res, error);
+        return { ok: false };
+    }
     const guestGate = surface === 'studio' ? checkGuestStudioFeatures(req) : { ok: true, info: null };
     if (!guestGate.ok) {
         notifyAccountQuota(req, 'Guest Studio limit reached', guestGate.error.reply, 'guest-studio:' + guestGate.error.code, 'usage_limit');
@@ -1317,6 +1323,9 @@ const uploadMemory = multer({
 });
 
 app.post('/api/extract-file', (req, res) => {
+    if (String(req.headers['x-studio-surface'] || '').toLowerCase() === 'studio' && !(auth && auth.readUserFromReq(req))) {
+        return res.status(401).json({ ok: false, error: 'Sign in to upload files in Studio.', code: 'studio_login_required', loginUrl: '/login?next=%2Fstudio' });
+    }
     uploadMemory.single('file')(req, res, async (err) => {
         if (err) {
             const msg = err.code === 'LIMIT_FILE_SIZE'
@@ -1359,6 +1368,9 @@ app.post('/api/extract-file', (req, res) => {
 
 app.post('/api/documents/export', async (req, res) => {
     try {
+        if (String(req.body?.surface || '').toLowerCase() === 'studio' && !(auth && auth.readUserFromReq(req))) {
+            return res.status(401).json({ error: 'Sign in to use Studio exports.', code: 'studio_login_required', loginUrl: '/login?next=%2Fstudio' });
+        }
         const format = String(req.body?.format || '').toLowerCase();
         if (!['pptx', 'docx'].includes(format)) return res.status(400).json({ error: 'Choose PowerPoint or Word format.' });
         const artifact = req.body?.artifact;
@@ -3575,9 +3587,17 @@ app.get('/chat21.html', (req, res) => {
 });
 
 function requireStudioPage(req, res) {
-    // Studio is intentionally available in guest mode. Guests use local browser
-    // state and receive small, device-scoped generation/upload allowances.
-    return true;
+    const user = auth && auth.readUserFromReq(req);
+    if (user && user.id) return true;
+    // Keep the public Studio overview discoverable, but protect every working
+    // surface (projects, chats, uploads, generations) behind sign-in.
+    if (req.path === '/studio') {
+        res.sendFile(path.join(__dirname, 'public', 'studio-info.html'));
+        return false;
+    }
+    const destination = req.originalUrl || '/studio';
+    res.redirect(302, '/login?next=' + encodeURIComponent(destination));
+    return false;
 }
 
 const GUEST_STUDIO_GAME_LIMIT = 2;

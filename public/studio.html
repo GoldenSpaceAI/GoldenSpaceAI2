@@ -241,7 +241,7 @@ async function addStudioFiles(files){
    }else{
     let text='';
     if(/\.(txt|md)$/i.test(file.name))text=await file.text();
-    else {const body=new FormData();body.append('file',file);const res=await fetch('/api/extract-file',{method:'POST',headers:{'X-Client-Id':ensureClientId()},credentials:'same-origin',body});const result=await res.json();if(!res.ok||!result.text)throw Error(result.note||result.error||'Could not read the document');text=result.text}
+    else {const body=new FormData();body.append('file',file);const res=await fetch('/api/extract-file',{method:'POST',headers:{'X-Client-Id':ensureClientId(),'X-Studio-Surface':'studio'},credentials:'same-origin',body});const result=await res.json();if(!res.ok||!result.text)throw Error(result.note||result.error||'Could not read the document');text=result.text}
     studioAttachments.push({kind:'document',name:file.name,text:text.slice(0,120000)});
    }
    renderStudioAttachments()
@@ -562,7 +562,7 @@ async function downloadArtifact(trigger){
   if(a.kind==='document'&&a.format==='pdf'){openPreview();window.print();return}
   if(a.kind==='document'||a.kind==='presentation'){
    const format=a.kind==='presentation'?'pptx':'docx';
-   const res=await fetch('/api/documents/export',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({format,artifact:a.data})});
+   const res=await fetch('/api/documents/export',{method:'POST',headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({format,artifact:a.data,surface:'studio'})});
    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||'Could not build the file.')}
    const blob=await res.blob();downloadBlob(blob,(a.data.title||'GoldenoAI').replace(/[^a-z0-9]+/gi,'-')+'.'+format);return
   }

@@ -615,7 +615,7 @@ function holdUsage(deviceId, kind, opts) {
                 const recorded = plansStore.recordSpend(deviceId, kind, normalizedSpend);
                 // Credits are cents of provider cost. Chat and Studio AI use separate ledgers.
                 if (typeof plansStore.consumeCredits === 'function' && normalizedSpend.costUsd > 0) {
-                    plansStore.consumeCredits(deviceId, surface === 'studio' ? 'studioUsd' : 'chatUsd', normalizedSpend.costUsd);
+                    plansStore.consumeCredits(deviceId, surface === 'studio' ? 'studioUsd' : 'chatUsd', surface === 'studio' ? Math.max(0.01, normalizedSpend.costUsd) : normalizedSpend.costUsd);
                 }
                 if (opts && opts.feature) plansStore.recordFeatureUsage(deviceId, opts.feature);
                 for (const guestFeature of guestFeatures) plansStore.recordFeatureUsage(deviceId, guestFeature);

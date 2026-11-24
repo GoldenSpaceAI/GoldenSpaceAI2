@@ -339,6 +339,7 @@ async function beginTask(tool,topic){
  studioResearchTopic=topic;
  clearTool();
  if(tool==='search'){await searchImages(topic);return}
+ if(tool==='video'){await createVideo(topic,'');return}
  pending={type:tool,topic,details:'',rounds:0};
  thinking(true);
  await planStudioTask();

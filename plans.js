@@ -394,6 +394,7 @@ function emptyStore() {
         usage: {},
         payments: [],
         credits: {},
+        feedback: [],
         geoCache: {},
         settings: {
             paused: false,
@@ -492,6 +493,7 @@ function createPlansStore(dataDir, options = {}) {
             usage: src.usage && typeof src.usage === 'object' ? src.usage : {},
             payments: Array.isArray(src.payments) ? src.payments : [],
             credits: src.credits && typeof src.credits === 'object' ? src.credits : {},
+            feedback: Array.isArray(src.feedback) ? src.feedback : [],
             geoCache: src.geoCache && typeof src.geoCache === 'object' ? src.geoCache : {},
             settings: normalizeSettings(src.settings)
         };
@@ -504,6 +506,7 @@ function createPlansStore(dataDir, options = {}) {
             Object.keys(store.usage || {}).length > 0 ||
             Object.keys(store.phoneIndex || {}).length > 0 ||
             (Array.isArray(store.payments) && store.payments.length > 0) ||
+            (Array.isArray(store.feedback) && store.feedback.length > 0) ||
             !!settings.paused ||
             !!settings.pausedAt;
     }
@@ -2075,7 +2078,7 @@ function createPlansStore(dataDir, options = {}) {
         if (!ownerKey || !['images', 'documents', 'code', 'studioGames', 'studioFiles'].includes(feature)) return;
         const u = ensureUsage(ownerKey);
         const day = utcDayKey();
-        if (!u.featureUsage || u.featureUsage.day !== day) u.featureUsage = { day, images: 0, documents: 0, code: 0, studioGames: 0, studioFiles: 0 };
+        if (!u.featureUsage || u.featureUsage.day !== day) u.featureUsage = { day, images: 0, videos: 0, documents: 0, code: 0, studioGames: 0, studioFiles: 0 };
         u.featureUsage[feature] = (Number(u.featureUsage[feature]) || 0) + 1;
         if (!u.featureTotals) u.featureTotals = {};
         u.featureTotals[feature] = (Number(u.featureTotals[feature]) || 0) + 1;
@@ -2090,9 +2093,10 @@ function createPlansStore(dataDir, options = {}) {
         const def = getEffectivePlan(ownerKey).def;
         return {
             day: utcDayKey(), resetTimezone: 'UTC',
-            images: { today: Number(today.images) || 0 },
-            documents: { today: Number(today.documents) || 0, exportsUsed: office.used, exportLimit: office.limit, unlimitedExports: office.unlimited, resetsAt: office.resetsAt },
-            code: { today: Number(today.code) || 0, limit: null },
+            images: { today: Number(today.images) || 0, total: Number(u.featureTotals && u.featureTotals.images) || 0 },
+            videos: { today: Number(today.videos) || 0, total: Number(u.featureTotals && u.featureTotals.videos) || 0 },
+            documents: { today: Number(today.documents) || 0, total: Number(u.featureTotals && u.featureTotals.documents) || 0, exportsUsed: office.used, exportLimit: office.limit, unlimitedExports: office.unlimited, resetsAt: office.resetsAt },
+            code: { today: Number(today.code) || 0, total: Number(u.featureTotals && u.featureTotals.code) || 0, limit: null },
             studioGames: { today: Number(today.studioGames) || 0, limit: 2, guestOnly: true },
             studioFiles: { today: Number(today.studioFiles) || 0, limit: 2, guestOnly: true },
             pexels: { searches: Number(u.imagineSearchesToday) || 0, searchLimit: Number(def.imagineSearchesPerDay) || Number((PLAN_DEFS[getEffectivePlan(ownerKey).plan] || {}).imagineSearchesPerDay) || 0, images: Number(u.imagineImagesToday) || 0, videos: Number(u.imagineVideosToday) || 0 },
@@ -2140,6 +2144,33 @@ function createPlansStore(dataDir, options = {}) {
         return {totalUsd:roundUsd(c.totalUsd),rateUsd:0.01, monthly:{studioAi:Number(c.monthlyStudioAi)||0,media:Number(c.monthlyMedia)||0},remaining:{
             chatUsd:roundUsd(c.chatUsd),studioUsd:roundUsd(c.studioUsd),mediaUsd:roundUsd(c.mediaUsd),documentsUsd:roundUsd(c.documentsUsd)
         },available:{studioAi:(Number(c.monthlyStudioAi)||0)+Math.round((Number(c.studioUsd)||0)*100),media:(Number(c.monthlyMedia)||0)+Math.round((Number(c.mediaUsd)||0)*100)}};
+    }
+
+    function recordMessageFeedback({ ownerKey, surface, messageId, rating, excerpt } = {}) {
+        const owner = String(ownerKey || '').slice(0, 160);
+        const message = String(messageId || '').slice(0, 220);
+        const vote = String(rating || '').toLowerCase();
+        if (!owner || !message || !['like', 'dislike'].includes(vote)) return { ok: false, error: 'Invalid feedback.' };
+        const store = read();
+        if (!Array.isArray(store.feedback)) store.feedback = [];
+        const area = String(surface || 'chat').toLowerCase() === 'studio' ? 'studio' : 'chat';
+        const existing = store.feedback.find(item => item.ownerKey === owner && item.surface === area && item.messageId === message);
+        const row = existing || { id: 'fb_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'), ownerKey: owner, surface: area, messageId: message, createdAt: new Date().toISOString() };
+        row.rating = vote;
+        row.excerpt = String(excerpt || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+        row.updatedAt = new Date().toISOString();
+        if (!existing) store.feedback.unshift(row);
+        if (store.feedback.length > 5000) store.feedback.length = 5000;
+        save(); flushSync();
+        return { ok: true, feedback: { id: row.id, rating: row.rating, surface: row.surface, updatedAt: row.updatedAt } };
+    }
+    function getFeedbackStats(ownerKey) {
+        const rows = (read().feedback || []).filter(item => item.ownerKey === ownerKey);
+        return {
+            likes: rows.filter(item => item.rating === 'like').length,
+            dislikes: rows.filter(item => item.rating === 'dislike').length,
+            total: rows.length
+        };
     }
 
         function createCreditRequest({ deviceId, phone, email, userId, ip, amount } = {}) {
@@ -2688,6 +2719,9 @@ function createPlansStore(dataDir, options = {}) {
                 : null;
 
             const usage = adminUsageSnapshot(ownerKey);
+            const featureUsage = ownerKey ? getFeatureUsage(ownerKey) : null;
+            const creditWallet = ownerKey ? getCredits(ownerKey) : null;
+            const feedbackStats = ownerKey ? getFeedbackStats(ownerKey) : { likes: 0, dislikes: 0, total: 0 };
             return {
                 id: uid || null,
                 email: emailNorm || null,
@@ -2741,7 +2775,20 @@ function createPlansStore(dataDir, options = {}) {
                 talkSecondsUsed: usage.talkSecondsUsed || 0,
                 talkCapSeconds: usage.talkCapSeconds || 0,
                 talkMinutesCap: usage.talkMinutesCap || 0,
-                talkPeriod: usage.talkPeriod || 'weekly'
+                talkPeriod: usage.talkPeriod || 'weekly',
+                featureUsage: featureUsage,
+                videoGenerationsToday: featureUsage ? featureUsage.videos.today : 0,
+                videoGenerationsTotal: featureUsage ? featureUsage.videos.total : 0,
+                generatedImagesToday: featureUsage ? featureUsage.images.today : 0,
+                generatedImagesTotal: featureUsage ? featureUsage.images.total : 0,
+                documentsToday: featureUsage ? featureUsage.documents.today : 0,
+                documentsTotal: featureUsage ? featureUsage.documents.total : 0,
+                codeToday: featureUsage ? featureUsage.code.today : 0,
+                codeTotal: featureUsage ? featureUsage.code.total : 0,
+                availableStudioAiCredits: creditWallet ? creditWallet.available.studioAi : 0,
+                availableMediaCredits: creditWallet ? creditWallet.available.media : 0,
+                feedbackLikes: feedbackStats.likes,
+                feedbackDislikes: feedbackStats.dislikes
             };
         }
 
@@ -2846,6 +2893,8 @@ function createPlansStore(dataDir, options = {}) {
         getCredits,
         consumeCredits,
         refundCredits,
+        recordMessageFeedback,
+        getFeedbackStats,
         getFeatureUsage,
         recordFeatureUsage,
         createCreditRequest,

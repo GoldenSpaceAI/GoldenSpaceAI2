@@ -2102,36 +2102,46 @@ function createPlansStore(dataDir, options = {}) {
 
     // Consume non-expiring/top-up feature credits (1 credit = $0.01). Monthly/plan
     // balances are represented in the same USD ledger and are always consumed first.
-    function consumeCredits(ownerKey, bucket, costUsd) {
-        const amount = roundUsd(Number(costUsd) || 0);
-        if (!ownerKey || amount <= 0) return { ok: true, chargedUsd: 0, remainingUsd: 0 };
-        const store = read();
-        const c = store.credits[ownerKey] || { totalUsd: 0, chatUsd: 0, studioUsd: 0, mediaUsd: 0, documentsUsd: 0 };
-        const key = ['chatUsd','studioUsd','mediaUsd','documentsUsd'].includes(bucket) ? bucket : 'chatUsd';
-        const available = roundUsd(Number(c[key]) || 0);
-        const charged = Math.min(available, amount);
-        c[key] = roundUsd(available - charged);
-        store.credits[ownerKey] = c;
-        if (charged > 0) { save(); flushSync(); }
-        return { ok: charged + 0.000001 >= amount, chargedUsd: charged, remainingUsd: c[key], shortfallUsd: roundUsd(amount - charged) };
+    function ensureStudioWallet(ownerKey) {
+        const store=read(), effective=getEffectivePlan(ownerKey);
+        const grants={free:[0,0],plus:[50,50],pro:[150,150],max:[250,250]};
+        const period=effective.startsAt || (effective.plan==='free' ? utcDayKey() : '');
+        const c=store.credits[ownerKey] || {};
+        if(c.studioPeriod !== period || c.studioPlan !== effective.plan){
+            const [ai,media]=grants[effective.plan] || [0,0];
+            c.monthlyStudioAi=ai; c.monthlyMedia=media;
+            c.studioPeriod=period; c.studioPlan=effective.plan;
+            store.credits[ownerKey]=c; save();
+        }
+        return c;
+    }
+    function consumeCredits(ownerKey,bucket,costUsd){
+        const amount=Math.ceil((Number(costUsd)||0)*100-0.000001);
+        if(!ownerKey||amount<=0)return {ok:true,chargedUsd:0,remainingUsd:0};
+        const c=ensureStudioWallet(ownerKey),key=bucket==='mediaUsd'?'mediaUsd':bucket==='studioUsd'?'studioUsd':bucket==='documentsUsd'?'documentsUsd':'chatUsd';
+        const monthlyKey=key==='mediaUsd'?'monthlyMedia':key==='studioUsd'||key==='documentsUsd'?'monthlyStudioAi':null;
+        const monthly=monthlyKey?Math.max(0,Number(c[monthlyKey])||0):0,topup=Math.max(0,Math.round((Number(c[key])||0)*100));
+        if(monthly+topup<amount)return {ok:false,chargedUsd:0,remainingUsd:(monthly+topup)/100,shortfallUsd:(amount-monthly-topup)/100};
+        const fromMonthly=Math.min(monthly,amount); if(monthlyKey)c[monthlyKey]=monthly-fromMonthly;
+        c[key]=roundUsd((topup-(amount-fromMonthly))/100);read().credits[ownerKey]=c;save();flushSync();
+        return {ok:true,chargedUsd:amount/100,remainingUsd:(monthly+topup-amount)/100,fromMonthly,fromTopup:amount-fromMonthly};
+    }
+    function refundCredits(ownerKey,bucket,amountUsd,receipt){
+        const amount=Math.round((Number(amountUsd)||0)*100);if(!ownerKey||amount<=0)return null;
+        const c=ensureStudioWallet(ownerKey),key=bucket==='mediaUsd'?'mediaUsd':bucket==='studioUsd'?'studioUsd':bucket==='documentsUsd'?'documentsUsd':'chatUsd';
+        const monthlyKey=key==='mediaUsd'?'monthlyMedia':key==='studioUsd'||key==='documentsUsd'?'monthlyStudioAi':null;
+        const monthly=receipt&&monthlyKey?Math.min(amount,Number(receipt.fromMonthly)||0):0;
+        if(monthlyKey)c[monthlyKey]=(Number(c[monthlyKey])||0)+monthly;
+        c[key]=roundUsd((Number(c[key])||0)+(amount-monthly)/100);read().credits[ownerKey]=c;save();flushSync();return c;
+    }
+    function getCredits(ownerKey){
+        const c=ensureStudioWallet(ownerKey);
+        return {totalUsd:roundUsd(c.totalUsd),rateUsd:0.01, monthly:{studioAi:Number(c.monthlyStudioAi)||0,media:Number(c.monthlyMedia)||0},remaining:{
+            chatUsd:roundUsd(c.chatUsd),studioUsd:roundUsd(c.studioUsd),mediaUsd:roundUsd(c.mediaUsd),documentsUsd:roundUsd(c.documentsUsd)
+        },available:{studioAi:(Number(c.monthlyStudioAi)||0)+Math.round((Number(c.studioUsd)||0)*100),media:(Number(c.monthlyMedia)||0)+Math.round((Number(c.mediaUsd)||0)*100)}};
     }
 
-    function refundCredits(ownerKey, bucket, amountUsd) {
-        const amount = roundUsd(Number(amountUsd) || 0); if (!ownerKey || amount <= 0) return null;
-        const store = read(); const c = store.credits[ownerKey] || { totalUsd: 0, chatUsd: 0, studioUsd: 0, mediaUsd: 0, documentsUsd: 0 };
-        const key = ['chatUsd','studioUsd','mediaUsd','documentsUsd'].includes(bucket) ? bucket : 'chatUsd';
-        c[key] = roundUsd((Number(c[key]) || 0) + amount); store.credits[ownerKey] = c; save(); flushSync(); return c;
-    }
-    function getCredits(ownerKey) {
-        const store = read();
-        const c = store.credits[ownerKey] || {};
-        return { totalUsd: roundUsd(c.totalUsd), remaining: {
-            chatUsd: roundUsd(c.chatUsd), studioUsd: roundUsd(c.studioUsd),
-            mediaUsd: roundUsd(c.mediaUsd), documentsUsd: roundUsd(c.documentsUsd)
-        }};
-    }
-
-    function createCreditRequest({ deviceId, phone, email, userId, ip, amount } = {}) {
+        function createCreditRequest({ deviceId, phone, email, userId, ip, amount } = {}) {
         const value = Math.round(Number(amount) * 100) / 100;
         if (!Number.isFinite(value) || value < 2 || value > 200) return { ok: false, error: 'Credit amount must be between $2 and $200.' };
         const normalized = normalizePhone(phone);

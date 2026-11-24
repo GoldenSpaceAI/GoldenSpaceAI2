@@ -2072,10 +2072,10 @@ function createPlansStore(dataDir, options = {}) {
     }
 
     function recordFeatureUsage(ownerKey, feature) {
-        if (!ownerKey || !['images', 'documents', 'code'].includes(feature)) return;
+        if (!ownerKey || !['images', 'documents', 'code', 'studioGames', 'studioFiles'].includes(feature)) return;
         const u = ensureUsage(ownerKey);
         const day = utcDayKey();
-        if (!u.featureUsage || u.featureUsage.day !== day) u.featureUsage = { day, images: 0, documents: 0, code: 0 };
+        if (!u.featureUsage || u.featureUsage.day !== day) u.featureUsage = { day, images: 0, documents: 0, code: 0, studioGames: 0, studioFiles: 0 };
         u.featureUsage[feature] = (Number(u.featureUsage[feature]) || 0) + 1;
         if (!u.featureTotals) u.featureTotals = {};
         u.featureTotals[feature] = (Number(u.featureTotals[feature]) || 0) + 1;
@@ -2093,6 +2093,8 @@ function createPlansStore(dataDir, options = {}) {
             images: { today: Number(today.images) || 0 },
             documents: { today: Number(today.documents) || 0, exportsUsed: office.used, exportLimit: office.limit, unlimitedExports: office.unlimited, resetsAt: office.resetsAt },
             code: { today: Number(today.code) || 0, limit: null },
+            studioGames: { today: Number(today.studioGames) || 0, limit: 2, guestOnly: true },
+            studioFiles: { today: Number(today.studioFiles) || 0, limit: 2, guestOnly: true },
             pexels: { searches: Number(u.imagineSearchesToday) || 0, searchLimit: Number(def.imagineSearchesPerDay) || Number((PLAN_DEFS[getEffectivePlan(ownerKey).plan] || {}).imagineSearchesPerDay) || 0, images: Number(u.imagineImagesToday) || 0, videos: Number(u.imagineVideosToday) || 0 },
             note: 'Feature activity is tracked separately. AI requests use the shared model allowance.'
         };

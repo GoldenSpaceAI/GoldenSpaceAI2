@@ -561,9 +561,16 @@ function enforceChatCaps(req, res, { sse = false, sendSse = null } = {}) {
     const hasImage = requestHasImage(req.body);
     const surfaceValue = String(req.body?.surface || req.body?.source || '').toLowerCase();
     const surface = surfaceValue === 'studio' || req.body?.studio === true ? 'studio' : 'chat';
+    const guestGate = surface === 'studio' ? checkGuestStudioFeatures(req) : { ok: true, info: null };
+    if (!guestGate.ok) {
+        notifyAccountQuota(req, 'Guest Studio limit reached', guestGate.error.reply, 'guest-studio:' + guestGate.error.code, 'usage_limit');
+        if (sse) sendPlanLimitSse(res, sendSse, guestGate.error);
+        else sendPlanLimitJson(res, guestGate.error);
+        return { ok: false };
+    }
     const check = plansStore.checkChatAllowed(deviceId, mode, agents, { hasImage, surface });
     if (check.ok) {
-        return { ok: true, deviceId, kind: check.kind, plan: check.plan, hasImage, surface };
+        return { ok: true, deviceId, kind: check.kind, plan: check.plan, hasImage, surface, guestFeatures: guestGate.info && guestGate.info.guest ? guestGate.info.features : [] };
     }
     notifyAccountQuota(req, 'Plan usage limit reached', check.error && (check.error.reply || check.error.message) || 'A plan usage limit was reached. Review your usage in Settings.', 'usage-limit:' + String(check.error && check.error.code || mode || 'plan') + ':' + (plansStore.utcDayKey ? plansStore.utcDayKey() : new Date().toISOString().slice(0, 10)), 'usage_limit');
     if (sse) {
@@ -592,6 +599,7 @@ function holdUsage(deviceId, kind, opts) {
     let committed = false;
     const hasImage = !!(opts && opts.hasImage);
     const surface = opts && opts.surface === 'studio' ? 'studio' : 'chat';
+    const guestFeatures = opts && Array.isArray(opts.guestFeatures) ? opts.guestFeatures : [];
     return {
         commit(spend) {
             if (committed || !deviceId || !kind) return null;
@@ -599,6 +607,7 @@ function holdUsage(deviceId, kind, opts) {
             try {
                 const recorded = plansStore.recordSpend(deviceId, kind, { ...(spend || {}), surface });
                 if (opts && opts.feature) plansStore.recordFeatureUsage(deviceId, opts.feature);
+                for (const guestFeature of guestFeatures) plansStore.recordFeatureUsage(deviceId, guestFeature);
                 if (hasImage) {
                     try { plansStore.recordImage(deviceId); } catch (e) {
                         console.error('recordImage failed:', e.message);
@@ -1498,7 +1507,7 @@ app.post('/api/chat', async (req, res) => {
         const deviceId = capGate.deviceId;
         // Reserve before the model call so parallel sends cannot bypass the cap.
         // Rolled back in finally unless the reply is a real success.
-        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, surface: capGate.surface, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null });
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, surface: capGate.surface, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null, guestFeatures: capGate.guestFeatures || [] });
 
         activeProvider = resolveMode(mode).config.provider;
         let target;
@@ -1717,7 +1726,7 @@ app.post('/api/chat/stream', async (req, res) => {
         const usageKind = capGate.kind;
         const deviceId = capGate.deviceId;
         let usedGrokFallback = false;
-        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, surface: capGate.surface, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null });
+        if (!isAutoTitleRequest(req.body)) usageHold = holdUsage(deviceId, usageKind, { hasImage: !!capGate.hasImage, surface: capGate.surface, feature: ['documents', 'code'].includes(req.body?.feature) ? req.body.feature : null, guestFeatures: capGate.guestFeatures || [] });
 
         let target;
         try {
@@ -3566,11 +3575,65 @@ app.get('/chat21.html', (req, res) => {
 });
 
 function requireStudioPage(req, res) {
+    // Studio is intentionally available in guest mode. Guests use local browser
+    // state and receive small, device-scoped generation/upload allowances.
+    return true;
+}
+
+const GUEST_STUDIO_GAME_LIMIT = 2;
+const GUEST_STUDIO_FILE_LIMIT = 2;
+
+function guestStudioFeaturesFor(req) {
     const user = auth && auth.readUserFromReq(req);
-    if (user && user.id) return true;
-    const destination = req.originalUrl || '/studio';
-    res.redirect(302, '/login?next=' + encodeURIComponent(destination));
-    return false;
+    const deviceId = getClientId(req);
+    if (user && user.id) return { guest: false, deviceId: null, gameCount: 0, fileCount: 0, features: [] };
+    const body = req.body || {};
+    const messages = Array.isArray(body.messages) ? body.messages : [];
+    const latest = messages.length ? messages[messages.length - 1] : {};
+    const images = Array.isArray(latest.images) ? latest.images.length : (latest.image ? 1 : 0);
+    const attachedFiles = Array.isArray(latest.attachedFiles) ? latest.attachedFiles.length : (latest.attachedFile ? 1 : 0);
+    const fileCount = Math.min(3, images + attachedFiles);
+    const gameCount = String(body.feature || '').toLowerCase() === 'game' ? 1 : 0;
+    return {
+        guest: true,
+        deviceId,
+        gameCount,
+        fileCount,
+        features: [
+            ...(gameCount ? ['studioGames'] : []),
+            ...(fileCount ? ['studioFiles'] : [])
+        ]
+    };
+}
+
+function guestStudioLimitError(feature, used, limit) {
+    const label = feature === 'studioGames' ? 'game generations' : 'file uploads';
+    return {
+        status: 429,
+        code: 'guest_studio_limit_reached',
+        reply: 'Guest Studio includes ' + limit + ' ' + label + '. Sign in to continue using Studio.',
+        upgradeUrl: '/login?next=%2Fstudio',
+        limit: { feature, used, limit, guest: true }
+    };
+}
+
+function checkGuestStudioFeatures(req) {
+    const info = guestStudioFeaturesFor(req);
+    if (!info.guest) return { ok: true, info };
+    if (!info.deviceId) {
+        return { ok: false, error: { status: 400, code: 'missing_client', reply: 'Refresh and try again so Studio can create a guest session.', upgradeUrl: '/login?next=%2Fstudio' }, info };
+    }
+    const usage = plansStore.getFeatureUsage(info.deviceId);
+    const checks = [
+        ['studioGames', info.gameCount, GUEST_STUDIO_GAME_LIMIT],
+        ['studioFiles', info.fileCount, GUEST_STUDIO_FILE_LIMIT]
+    ];
+    for (const [feature, amount, limit] of checks) {
+        if (!amount) continue;
+        const used = Number(usage && usage[feature] && usage[feature].today) || 0;
+        if (used + amount > limit) return { ok: false, error: guestStudioLimitError(feature, used, limit), info };
+    }
+    return { ok: true, info };
 }
 
 app.get('/studio-info', (req, res) => {
@@ -3642,7 +3705,23 @@ async function readStudioUsage(ownerKey) {
 app.get('/api/studio/usage', async (req, res) => {
     const account = studioAccount(req);
     if (!account) {
-        return res.json({ loggedIn: false, plan: 'guest', used: 0, limit: 0, remaining: 0, model: STUDIO_IMAGE_MODEL });
+        const deviceId = getClientId(req);
+        const featureUsage = deviceId ? plansStore.getFeatureUsage(deviceId) : {};
+        const games = featureUsage.studioGames || {};
+        const files = featureUsage.studioFiles || {};
+        return res.json({
+            loggedIn: false,
+            plan: 'guest',
+            used: 0,
+            limit: 0,
+            remaining: 0,
+            guest: true,
+            guestGamesUsed: Number(games.today) || 0,
+            guestGamesLimit: GUEST_STUDIO_GAME_LIMIT,
+            guestFilesUsed: Number(files.today) || 0,
+            guestFilesLimit: GUEST_STUDIO_FILE_LIMIT,
+            model: STUDIO_IMAGE_MODEL
+        });
     }
     try {
         const usage = await readStudioUsage(account.ownerKey);

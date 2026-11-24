@@ -3793,8 +3793,10 @@ app.post('/api/studio/generate-image', async (req, res) => {
     const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY;
     if (!apiKey) return res.status(503).json({ error: 'Studio image generation is not configured yet.' });
 
-    let pool;
+    let pool, imageCharge=null;
     try {
+        imageCharge=plansStore.consumeCredits(account.ownerKey,'mediaUsd',STUDIO_IMAGE_COST_USD);
+        if(!imageCharge.ok)return res.status(402).json({error:'Not enough Media credits for an image. Add credits or wait for the weekly refill.',requiredCredits:2});
         pool = await ensureStudioUsageTable();
         if (!pool) return res.status(503).json({ error: 'Studio usage storage is unavailable.' });
         const reserved = await pool.query(`
@@ -3811,6 +3813,7 @@ app.post('/api/studio/generate-image', async (req, res) => {
             notifyAccountQuota(req, 'Studio image limit reached',
                 'You have used all ' + account.limit + ' Studio AI images available today on your ' + account.plan + ' plan.',
                 'studio-images:' + new Date().toISOString().slice(0, 10), 'usage_limit');
+            plansStore.refundCredits(account.ownerKey,'mediaUsd',STUDIO_IMAGE_COST_USD,imageCharge); imageCharge=null;
             return res.status(429).json({ error: 'You have reached today\'s Studio image limit.', used: account.limit, limit: account.limit, remaining: 0 });
         }
 
@@ -3842,6 +3845,7 @@ app.post('/api/studio/generate-image', async (req, res) => {
             model: STUDIO_IMAGE_MODEL
         });
     } catch (error) {
+        if(imageCharge)plansStore.refundCredits(account.ownerKey,'mediaUsd',STUDIO_IMAGE_COST_USD,imageCharge);
         if (pool) {
             try {
                 await pool.query(`

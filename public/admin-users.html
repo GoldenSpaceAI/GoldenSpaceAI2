@@ -495,8 +495,9 @@
             <tr class="col-groups">
               <th class="g-identity" colspan="2">Identity</th>
               <th class="g-plan" colspan="1">Plan</th>
-              <th class="g-usage" colspan="3">Usage</th>
+              <th class="g-usage" colspan="4">Usage & creation</th>
               <th class="g-imagine" colspan="1">Imagine · today</th>
+              <th class="g-credits" colspan="1">Credits</th>
               <th class="g-spend" colspan="3">Grok / DeepSeek spend</th>
             </tr>
             <tr class="col-labels">
@@ -505,8 +506,10 @@
               <th class="sortable group-end" data-sort="plan">Plan <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="talkSecondsUsed">Talk min <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayTokens">Tokens <span class="sort-ind">▼</span></th>
-              <th class="sortable num group-end" data-sort="todaySpendUsd" title="Provider-reported xAI charges plus rate-calculated DeepSeek usage; text-only fallbacks and legacy totals are labeled estimates">$ API cost <span class="sort-ind">▼</span></th>
+              <th class="sortable num" data-sort="todaySpendUsd" title="Provider-reported xAI charges plus rate-calculated DeepSeek usage; text-only fallbacks and legacy totals are labeled estimates">$ API cost <span class="sort-ind">▼</span></th>
+              <th class="sortable num group-end" data-sort="videoGenerationsToday">Studio creations <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="imagineImagesToday">Imagine use <span class="sort-ind">▼</span></th>
+              <th class="sortable num group-end" data-sort="availableStudioAiCredits">Available credits <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayGrokSpendUsd">Grok $ <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="todayDeepseekSpendUsd">DeepSeek $ <span class="sort-ind">▼</span></th>
               <th class="sortable num" data-sort="totalSpendUsd">$ total <span class="sort-ind">▼</span></th>
@@ -837,11 +840,25 @@
               '<span class="secondary">historical estimate ' + escapeHtml(fmtUsd(u.totalEstimatedSpendUsd)) + ' total</span>' +
             '</div>' +
           '</td>' +
+          '<td class="num group-end">' +
+            '<div class="metric-stack align-end">' +
+              '<span class="primary">' + escapeHtml((u.videoGenerationsToday || 0) + ' videos · ' + (u.generatedImagesToday || 0) + ' images today') + '</span>' +
+              '<span class="secondary">' + escapeHtml((u.documentsToday || 0) + ' documents · ' + (u.codeToday || 0) + ' code today') + '</span>' +
+              '<span class="secondary">' + escapeHtml((u.videoGenerationsTotal || 0) + ' videos · ' + (u.generatedImagesTotal || 0) + ' images total') + '</span>' +
+              '<span class="secondary">Feedback ' + escapeHtml((u.feedbackLikes || 0) + ' 👍 · ' + (u.feedbackDislikes || 0) + ' 👎') + '</span>' +
+            '</div>' +
+          '</td>' +
           '<td class="num imagine-cell">' +
             '<div class="metric-stack align-end">' +
               '<span class="primary">' + escapeHtml(u.imagineImagesToday + '/' + u.imagineImagesCap) + ' images</span>' +
               '<span class="secondary">' + escapeHtml(Math.max(0, u.imagineImagesCap - u.imagineImagesToday) + ' images left · ' + Math.max(0, u.imagineVideosCap - u.imagineVideosToday) + ' videos left') + '</span>' +
               '<span class="secondary">' + escapeHtml(Math.max(0, u.imagineSearchesCap - u.imagineSearchesToday) + ' searches left today') + '</span>' +
+            '</div>' +
+          '</td>' +
+          '<td class="num group-end">' +
+            '<div class="metric-stack align-end">' +
+              '<span class="primary">' + escapeHtml((u.availableStudioAiCredits || 0) + ' AI credits') + '</span>' +
+              '<span class="secondary">' + escapeHtml((u.availableMediaCredits || 0) + ' Media credits') + '</span>' +
             '</div>' +
           '</td>' +
           '<td class="num">' +
@@ -895,8 +912,20 @@
       plan.replaceChildren(badge, price);
       sub.textContent = (user ? (user.email || '') + ' · ' : '') + (data.timezoneNote || 'Usage snapshot matches the user plan page.');
       const rows = Array.isArray(data.quotas) ? data.quotas : [];
-      if (!rows.length) { quotas.innerHTML = '<div class="muted">No usage categories are available.</div>'; return; }
-      quotas.innerHTML = rows.map(row => {
+      const features = data.featureUsage || {};
+      const available = data.credits && data.credits.available || {};
+      const feedback = data.feedback || {};
+      const studioSummary = '<article class="usage-detail-quota">' +
+        '<div class="usage-detail-quota-head"><strong>Studio activity & credits</strong><span>live account data</span></div>' +
+        '<div class="usage-detail-meta">' +
+          escapeHtml((features.videos?.today || 0) + ' videos today · ' + (features.videos?.total || 0) + ' total') + '<br>' +
+          escapeHtml((features.images?.today || 0) + ' images today · ' + (features.images?.total || 0) + ' total') + '<br>' +
+          escapeHtml((features.documents?.today || 0) + ' documents · ' + (features.code?.today || 0) + ' code creations today') + '<br>' +
+          '<strong>' + escapeHtml((available.studioAi || 0) + ' Studio AI credits · ' + (available.media || 0) + ' Media credits available') + '</strong><br>' +
+          escapeHtml((feedback.likes || 0) + ' likes · ' + (feedback.dislikes || 0) + ' dislikes') +
+        '</div></article>';
+      if (!rows.length) { quotas.innerHTML = studioSummary; return; }
+      quotas.innerHTML = studioSummary + rows.map(row => {
         const percent = Math.max(0, Math.min(100, Number(row.percent != null ? row.percent : row.used) || 0));
         const summary = row.displayMeta || row.displayUsed || '';
         const footer = [row.displayLeft, row.displayLimit].filter(Boolean).join(' · ');

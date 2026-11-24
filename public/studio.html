@@ -563,7 +563,7 @@ async function loadStudioAccount(){
   $('topPlan').textContent='Studio credits · '+(credits.available?.studioAi??0);
  }catch(e){$('accountPlan').textContent='Account';$('accountUsage').textContent='Usage unavailable';$('topPlan').textContent='Usage'}
 }
-function openPreview(){if(!currentArtifact)return;$('app').classList.add('preview-open');$('previewToggle').style.display='inline-block'}
+function openPreview(){$('app').classList.add('preview-open');$('previewToggle').style.display='inline-block'}
 function closePreview(){$('app').classList.remove('preview-open','preview-expanded')}
 function renderArtifact(a){
  currentArtifact=a;openPreview();$('editBtn').style.display='none';$('downloadBtn').style.display='inline-block';$('themeSelect').style.display='none';$('remixDesign').style.display='none';$('designCount').style.display='none';

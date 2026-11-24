@@ -2104,9 +2104,10 @@ function createPlansStore(dataDir, options = {}) {
     // balances are represented in the same USD ledger and are always consumed first.
     function ensureStudioWallet(ownerKey) {
         const store=read(), effective=getEffectivePlan(ownerKey);
-        const grants={free:[0,0],plus:[50,50],pro:[150,150],max:[250,250]};
-        const period=effective.startsAt || (effective.plan==='free' ? utcDayKey() : '');
+        const grants={free:[5,2],plus:[50,50],pro:[150,150],max:[250,250]};
+        const period=effective.plan==='free' ? utcWeekKey() : effective.startsAt || '';
         const c=store.credits[ownerKey] || {};
+        if(!c.signupMediaBonusGranted){ c.mediaUsd=roundUsd((Number(c.mediaUsd)||0)+0.08); c.signupMediaBonusGranted=true; store.credits[ownerKey]=c; save(); }
         if(c.studioPeriod !== period || c.studioPlan !== effective.plan){
             const [ai,media]=grants[effective.plan] || [0,0];
             c.monthlyStudioAi=ai; c.monthlyMedia=media;

@@ -448,6 +448,9 @@
             justify-content: center;
         }
         .msg-btn:active { color: var(--gold); background: #1a1a1a; }
+        .msg-btn.feedback-btn { font-size:15px; opacity:.72; transition:background .16s,color .16s,opacity .16s,transform .16s; }
+        .msg-btn.feedback-btn:hover { opacity:1; transform:translateY(-1px); }
+        .msg-btn.feedback-btn.active { color:var(--gold); background:color-mix(in srgb,var(--gold) 13%,transparent); opacity:1; }
         .msg-btn.active-speaking { color: var(--gold); }
         .msg-btn.stop-btn { display: none; }
         .msg-btn.stop-btn.show { display: inline-flex; align-items: center; justify-content: center; }
@@ -8080,6 +8083,39 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             if (card) card.outerHTML = renderQuizHtml(msg.quiz, messageIndex);
         };
 
+        async function submitMessageFeedback(button, rating, index) {
+            const chat = currentChatId && chats[currentChatId];
+            const msg = chat && Array.isArray(chat.messages) ? chat.messages[index] : null;
+            if (!msg || msg.role !== 'ai') return;
+            const prior = msg.feedback || '';
+            button.disabled = true;
+            try {
+                const response = await fetch('/api/feedback', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'X-Client-Id': ensureClientId() },
+                    body: JSON.stringify({
+                        surface: 'chat',
+                        messageId: (currentChatId || 'chat') + ':' + index + ':' + String(msg.timestamp || ''),
+                        rating,
+                        excerpt: String(msg.content || '').slice(0, 500)
+                    })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) throw new Error(data.error || 'Feedback could not be saved.');
+                msg.feedback = rating;
+                saveChats();
+                const actions = button.closest('.message-actions');
+                if (actions) actions.querySelectorAll('.feedback-btn').forEach(item => item.classList.toggle('active', item.dataset.rating === rating));
+                button.title = rating === 'like' ? 'Liked' : 'Disliked';
+            } catch (error) {
+                msg.feedback = prior;
+                alert(error.message || 'Feedback could not be saved.');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
         function renderMessage(msg, index, returnEl) {
             const container = document.getElementById('messagesContainer');
             const empty = container.querySelector('.empty-state');
@@ -8124,6 +8160,8 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                     '<button class="msg-btn" title="Share" onclick="shareMessage(this)">' + ICO.share + '</button>' +
                     '<button class="msg-btn" title="Listen" aria-label="Listen" onclick="speakMessage(this)">' + ICO.speak + '</button>' +
                     '<button class="msg-btn stop-btn" title="Stop" onclick="stopSpeaking()">' + ICO.stop + '</button>' +
+                    '<button class="msg-btn feedback-btn' + (msg.feedback === 'like' ? ' active' : '') + '" data-rating="like" title="' + (msg.feedback === 'like' ? 'Liked' : 'Like response') + '" aria-label="Like response" onclick="submitMessageFeedback(this,\'like\',' + (typeof index === 'number' ? index : -1) + ')">👍</button>' +
+                    '<button class="msg-btn feedback-btn' + (msg.feedback === 'dislike' ? ' active' : '') + '" data-rating="dislike" title="' + (msg.feedback === 'dislike' ? 'Disliked' : 'Dislike response') + '" aria-label="Dislike response" onclick="submitMessageFeedback(this,\'dislike\',' + (typeof index === 'number' ? index : -1) + ')">👎</button>' +
                     '<button class="msg-btn regen-btn wide" title="Regenerate" onclick="regenerateLast()">' + ICO.regen + '</button>' +
                     '</div></div>';
                 div.innerHTML = inner;

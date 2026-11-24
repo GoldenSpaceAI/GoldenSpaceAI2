@@ -611,7 +611,12 @@ function holdUsage(deviceId, kind, opts) {
             if (committed || !deviceId || !kind) return null;
             committed = true;
             try {
-                const recorded = plansStore.recordSpend(deviceId, kind, { ...(spend || {}), surface });
+                const normalizedSpend = { ...(spend || {}), surface };
+                const recorded = plansStore.recordSpend(deviceId, kind, normalizedSpend);
+                // Credits are cents of provider cost. Chat and Studio AI use separate ledgers.
+                if (typeof plansStore.consumeCredits === 'function' && normalizedSpend.costUsd > 0) {
+                    plansStore.consumeCredits(deviceId, surface === 'studio' ? 'studioUsd' : 'chatUsd', normalizedSpend.costUsd);
+                }
                 if (opts && opts.feature) plansStore.recordFeatureUsage(deviceId, opts.feature);
                 for (const guestFeature of guestFeatures) plansStore.recordFeatureUsage(deviceId, guestFeature);
                 if (hasImage) {
@@ -3758,6 +3763,20 @@ app.get('/api/studio/usage', async (req, res) => {
         return res.status(503).json({ error: 'Studio usage is temporarily unavailable.' });
     }
 });
+
+const STUDIO_VIDEO_COSTS = {'480p:5':0.10,'480p:8':0.16,'720p:5':0.15,'720p:8':0.24};
+const studioVideoJobs = new Map();
+app.post('/api/studio/generate-video', async (req,res)=>{
+ const account=studioAccount(req); if(!account) return res.status(401).json({error:'Sign in to generate videos in Studio.',loginUrl:'/login?next=%2Fstudio'});
+ const prompt=String(req.body?.prompt||'').trim().replace(/\\s+/g,' '), quality=['480p','720p'].includes(String(req.body?.quality))?String(req.body.quality):'480p', duration=[5,8].includes(Number(req.body?.duration))?Number(req.body.duration):5, format=['9:16','16:9'].includes(String(req.body?.format))?String(req.body.format):'16:9';
+ if(prompt.length<3||prompt.length>1200) return res.status(400).json({error:'Describe the video in 3 to 1200 characters.'});
+ if(isBlockedImagineQuery(prompt)) return res.status(400).json({error:'Access blocked for this word or phrase. Try a different description.'});
+ const costUsd=STUDIO_VIDEO_COSTS[quality+':'+duration], apiKey=process.env.XAI_API_KEY||process.env.GROK_API_KEY; if(!apiKey) return res.status(503).json({error:'Video generation is not configured yet.'});
+ if(typeof plansStore.consumeCredits==='function'){const c=plansStore.consumeCredits(account.ownerKey,'mediaUsd',costUsd);if(!c.ok)return res.status(402).json({error:'Not enough Media credits for this video.',requiredCredits:Math.round(costUsd*100),remainingCredits:Math.round((c.remainingUsd||0)*100)});}
+ const id='vid_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8), job={id,ownerKey:account.ownerKey,status:'queued',prompt,quality,duration,format,costUsd,createdAt:Date.now(),videoUrl:null,error:null}; studioVideoJobs.set(id,job); res.json({ok:true,jobId:id,status:'queued',costCredits:Math.round(costUsd*100),format,quality,duration});
+ (async()=>{try{job.status='generating';const r=await fetch('https://api.x.ai/v1/videos/generations',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},body:JSON.stringify({model:'grok-imagine-video-1.5-lite',prompt,duration,resolution:quality,aspect_ratio:format,generate_audio:true})}),d=await r.json().catch(()=>({}));if(!r.ok||!d.request_id)throw new Error(d.error?.message||d.message||'xAI video request failed');const started=Date.now();while(Date.now()-started<180000){await new Promise(x=>setTimeout(x,4000));const pr=await fetch('https://api.x.ai/v1/videos/'+encodeURIComponent(d.request_id),{headers:{Authorization:'Bearer '+apiKey}}),o=await pr.json().catch(()=>({}));if(o.status==='done'&&o.video?.url){job.status='completed';job.videoUrl=o.video.url;return;}if(o.status==='failed'||o.error)throw new Error(o.error?.message||'Video generation failed');}throw new Error('Video generation timed out');}catch(e){job.status='failed';job.error=e.message;if(typeof plansStore.refundCredits==='function')plansStore.refundCredits(account.ownerKey,'mediaUsd',costUsd);}})();
+});
+app.get('/api/studio/video-status/:id',(req,res)=>{const job=studioVideoJobs.get(String(req.params.id));if(!job)return res.status(404).json({error:'Video job not found'});const account=studioAccount(req);if(!account||account.ownerKey!==job.ownerKey)return res.status(403).json({error:'Not authorized'});res.json({ok:true,status:job.status,videoUrl:job.videoUrl,error:job.error,costCredits:Math.round(job.costUsd*100),elapsedMs:Date.now()-job.createdAt});});
 
 app.post('/api/studio/generate-image', async (req, res) => {
     const account = studioAccount(req);

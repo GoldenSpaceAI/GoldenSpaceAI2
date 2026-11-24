@@ -353,7 +353,7 @@ async function continueTask(details){
 }
 async function planStudioTask(){
  const task=pending;if(!task)return;
- const kindNames={document:'PDF or Word document',presentation:'presentation',image:'AI image',code:'runnable code project'};
+ const kindNames={document:'PDF or Word document',presentation:'presentation',image:'AI image',code:'runnable code project',video:'AI video'};
  const plannerPrompt='You are the planning intelligence inside GoldenoAI Studio. The project context is: "'+(studioProjectInstructions||'No category selected')+'". Adapt your examples, depth, and useful follow-up questions to that category (studying: teach and check understanding; building-game: clarify gameplay, controls, audience, and platform; other: clarify the intended outcome). The user wants to create a '+kindNames[task.type]+' about: "'+task.topic+'". Their additional answers so far are: "'+(task.details||'none yet')+'". Decide whether essential information is genuinely missing. Ask only for information that materially changes the result. Accept broad answers: "people" or "everyone" means a general-public audience. Infer sensible defaults instead of interrogating the user. Never repeat a question they already answered. For presentations, normally topic plus slide count plus a style is enough; audience can be inferred. For documents, topic plus format and approximate length is enough. For images, a clear visual request may be enough without questions. For code, a clear outcome may be enough and you can default to self-contained HTML/CSS/JavaScript. '+((task.rounds||0)>=2?'You already asked follow-up questions twice, so use reasonable defaults now and return ready. ':'')+'Return ONLY valid JSON with this exact shape: {"status":"clarify" or "ready","question":"one short natural question or empty","choices":["2 to 4 short useful answers when clarifying"],"requirements":"a concise complete brief using the user answers and reasonable defaults"}. No Markdown and no text outside JSON.';
  let decision;
  try{decision=parseJSON(await apiChat(plannerPrompt))}catch(e){if(/time|too long|unavailable|limit/i.test(e.message||''))throw e;decision={status:'ready',question:'',requirements:[task.topic,task.details].filter(Boolean).join('. ')}}
@@ -368,7 +368,7 @@ async function planStudioTask(){
 }
 function creationToolFor(text){
  const value=String(text||'');
- const wants=/\b(make|create|build|generate|prepare|design|write|turn|code|presentation|slides?|powerpoint|document|pdf|word|image|photo|game|website|app)\b/i.test(value);
+ const wants=/\b(make|create|build|generate|prepare|design|write|turn|code|presentation|slides?|powerpoint|document|pdf|word|image|photo|video|clip|reel|animation|game|website|app)\b/i.test(value);
  if(!wants)return null;
  if(/\b(presentation|slides?|powerpoint|pptx)\b/i.test(value))return 'presentation';
  if(/\b(pdf|word|docx|document|report|essay|handout)\b/i.test(value))return 'document';

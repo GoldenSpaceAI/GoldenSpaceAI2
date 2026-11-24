@@ -2844,6 +2844,8 @@ function createPlansStore(dataDir, options = {}) {
         getMyPlan,
         getPayment,
         getCredits,
+        consumeCredits,
+        refundCredits,
         getFeatureUsage,
         recordFeatureUsage,
         createCreditRequest,

@@ -96,6 +96,7 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
    <button class="tool" data-tool="image"><span class="tool-icon">✦</span><span><strong>Generate image</strong><small>Original AI image</small></span></button>
    <button class="tool" data-tool="search"><span class="tool-icon">⌕</span><span><strong>Search images</strong><small>Photos from Pexels</small></span></button>
    <button class="tool" data-tool="code"><span class="tool-icon">⌘</span><span><strong>Build game or code</strong><small>Runnable games, apps, and HTML</small></span></button>
+   <button class="tool" data-tool="video"><span class="tool-icon">▶</span><span><strong>Generate video</strong><small>5–8 second video with audio</small></span></button>
   <div class="studio-attachment-options"><button type="button" id="studioPhotoBtn">▧ <span><strong>Photos</strong><small>Choose from your device</small></span></button><button type="button" id="studioCameraBtn">◉ <span><strong>Camera</strong><small>Take a new photo</small></span></button><button type="button" id="studioDocumentBtn">▤ <span><strong>Document</strong><small>PDF, Word, or text</small></span></button></div>
   </div>
   <input id="studioPhotoInput" type="file" accept="image/*" multiple hidden><input id="studioCameraInput" type="file" accept="image/*" capture="environment" hidden><input id="studioDocumentInput" type="file" accept=".pdf,.doc,.docx,.txt,.md,application/pdf" multiple hidden>
@@ -130,7 +131,7 @@ function ensureClientId(){
  return studioClientId;
 }
 function studioHeaders(extra){return Object.assign({'Content-Type':'application/json','X-Client-Id':ensureClientId()},extra||{})}
-const toolLabels={document:'PDF / Word document',presentation:'Presentation',image:'AI image',search:'Image search',code:'Game or code'};
+const toolLabels={document:'PDF / Word document',presentation:'Presentation',image:'AI image',search:'Image search',code:'Game or code',video:'AI video'};
 const PRESENTATION_THEMES={
  midnight:{name:'Midnight Gold',bg:'#101827',alt:'#0d1623',card:'#1a2a3b',accent:'#d4af37',accent2:'#63c7b2',text:'#f7f5ef',body:'#e9edf1',muted:'#bac5d1'},
  editorial:{name:'Editorial',bg:'#f7f3ea',alt:'#efe9df',card:'#fffdfa',accent:'#a64036',accent2:'#28686c',text:'#27231f',body:'#38342f',muted:'#6b665f'},
@@ -298,7 +299,7 @@ function studioSourcesHtml(sources){if(!Array.isArray(sources)||!sources.length)
 
 function selectTool(tool){
  selectedTool=tool;$('taskName').textContent=toolLabels[tool];$('taskChip').classList.add('on');$('plusMenu').classList.remove('open');
- const prompts={document:'What is the document about?',presentation:'What should the presentation explain?',image:'What image would you like to create?',search:'What images should I find?',code:'What should I build?'};
+ const prompts={document:'What is the document about?',presentation:'What should the presentation explain?',image:'What image would you like to create?',search:'What images should I find?',code:'What should I build?',video:'Describe the video you want to generate'};
  $('input').placeholder=prompts[tool];$('input').focus()
 }
 function clearTool(){selectedTool=null;$('taskChip').classList.remove('on');$('input').placeholder='Message GoldenoAI Studio'}
@@ -363,7 +364,7 @@ async function planStudioTask(){
  pending=null;
  if(task.type==='document'||task.type==='presentation')await createDocument(task.type,task.topic,requirements);
  else if(task.type==='image')await createImage(task.topic,requirements);
- else if(task.type==='code')await createCode(task.topic,requirements)
+ else if(task.type==='code')await createCode(task.topic,requirements); else if(task.type==='video')await createVideo(task.topic,requirements)
 }
 function creationToolFor(text){
  const value=String(text||'');
@@ -373,6 +374,7 @@ function creationToolFor(text){
  if(/\b(pdf|word|docx|document|report|essay|handout)\b/i.test(value))return 'document';
  if(/\b(find|search|get)\b[^.!?]{0,35}\b(images?|photos?)\b/i.test(value))return 'search';
  if(/\b(image|photo|logo|illustration|poster|artwork)\b/i.test(value)&&/\b(generate|create|make|design|draw)\b/i.test(value))return 'image';
+ if(/\b(video|clip|reel|animation)\b/i.test(value))return 'video';
  if(/\b(code|html|css|javascript|website|web\s*app|game|app)\b/i.test(value))return 'code';
  return null;
 }
@@ -477,6 +479,12 @@ async function createImage(topic,details){
 async function searchImages(topic){
  thinking(true);const res=await fetch('/api/imagine/search?type=photo&query='+encodeURIComponent(topic),{credentials:'same-origin',headers:{'X-Client-Id':ensureClientId()}});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||data.error||'Image search failed.');
  const items=(data.results||data.items||data.photos||[]).slice(0,12);currentArtifact={kind:'search',data:items,topic};add('assistant','I found '+items.length+' images for “'+topic+'”. Choose one in Preview to use or edit.',[],currentArtifact);renderArtifact(currentArtifact);save()
+}
+async function createVideo(topic,details){
+ const prompt=[topic,details].filter(Boolean).join('. '); openPreview(); $('previewName').textContent='Preparing your video'; $('previewMeta').textContent='GoldenoAI Studio · Grok Imagine Video'; $('previewBody').innerHTML='<div class="code-generation-stage" role="status"><div class="game-generation-visual">◉</div><h3>Preparing your cinematic clip…</h3><p>Setting the scene, motion, and sound.</p><div class="progress-bar"><span></span></div></div>';
+ const quality=window.prompt('Quality: 480p or 720p','480p')||'480p'; const duration=Number(window.prompt('Duration: 5 or 8 seconds','5'))||5; const format=window.prompt('Format: 16:9 or 9:16','16:9')||'16:9';
+ try{const r=await fetch('/api/studio/generate-video',{method:'POST',headers:studioHeaders(),body:JSON.stringify({prompt,quality,duration,format})}),d=await r.json();if(!r.ok)throw new Error(d.error||'Could not start video generation');$('previewMeta').textContent='Generating · '+d.costCredits+' Media credits';let out;for(let n=0;n<50;n++){await new Promise(x=>setTimeout(x,4000));const q=await fetch('/api/studio/video-status/'+encodeURIComponent(d.jobId),{headers:studioHeaders()}),j=await q.json();if(j.status==='completed'){out=j;break}if(j.status==='failed')throw new Error(j.error||'Video generation failed');$('previewMeta').textContent='Generating · '+Math.round((j.elapsedMs||0)/1000)+'s · '+d.costCredits+' Media credits'}if(!out)throw new Error('Video generation timed out');$('previewBody').innerHTML='<div class="video-preview-wrap"><video controls autoplay loop muted playsinline src="'+out.videoUrl+'" style="width:100%;border-radius:18px"></video><div class="artifact-actions"><a class="button primary" href="'+out.videoUrl+'" download>Download MP4</a><button class="button" onclick="this.closest(\'.video-preview-wrap\').querySelector(\'video\').muted=!this.closest(\'.video-preview-wrap\').querySelector(\'video\').muted">Unmute</button></div></div>'; $('previewName').textContent='Video ready';$('previewMeta').textContent='Generated with synchronized audio';}
+ catch(e){$('previewBody').innerHTML='<div class="empty-state"><h3>Video generation needs a retry</h3><p>'+e.message+'</p></div>';}
 }
 async function createCode(topic,details){
  const isGame=/\b(game|gameplay|arcade|platformer|flappy|runner|puzzle)\b/i.test(String(topic)+' '+String(details));const label=isGame?'Building your game':'Preparing your code';openPreview();$('previewName').textContent=label;$('previewMeta').textContent='GoldenoAI Studio · live build';$('previewBody').innerHTML='<div class="code-generation-stage" role="status" aria-live="polite"><div class="code-generation-copy">'+(isGame?'<div class="game-generation-visual" aria-label="Animated game build preview"><span class="game-hud">SCORE 0000 · LIVES 3</span><span class="game-generation-label">LIVE BUILD</span><i class="game-player"></i><i class="game-obstacle"></i></div>':'')+'<div class="code-orb">&lt;/&gt;</div><h3>'+label+'</h3><p>'+(isGame?'Designing the mechanics, controls, visuals, and playable experience.':'Writing, checking, and preparing a runnable project.')+'</p><div class="code-progress"><i></i></div><div class="code-progress-steps">'+(isGame?'<span>Scene</span><span>Mechanics</span><span>Playtest</span>':'<span>Structure</span><span>Logic</span><span>Preview</span>')+'</div></div></div>';

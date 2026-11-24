@@ -2100,6 +2100,28 @@ function createPlansStore(dataDir, options = {}) {
         };
     }
 
+    // Consume non-expiring/top-up feature credits (1 credit = $0.01). Monthly/plan
+    // balances are represented in the same USD ledger and are always consumed first.
+    function consumeCredits(ownerKey, bucket, costUsd) {
+        const amount = roundUsd(Number(costUsd) || 0);
+        if (!ownerKey || amount <= 0) return { ok: true, chargedUsd: 0, remainingUsd: 0 };
+        const store = read();
+        const c = store.credits[ownerKey] || { totalUsd: 0, chatUsd: 0, studioUsd: 0, mediaUsd: 0, documentsUsd: 0 };
+        const key = ['chatUsd','studioUsd','mediaUsd','documentsUsd'].includes(bucket) ? bucket : 'chatUsd';
+        const available = roundUsd(Number(c[key]) || 0);
+        const charged = Math.min(available, amount);
+        c[key] = roundUsd(available - charged);
+        store.credits[ownerKey] = c;
+        if (charged > 0) { save(); flushSync(); }
+        return { ok: charged + 0.000001 >= amount, chargedUsd: charged, remainingUsd: c[key], shortfallUsd: roundUsd(amount - charged) };
+    }
+
+    function refundCredits(ownerKey, bucket, amountUsd) {
+        const amount = roundUsd(Number(amountUsd) || 0); if (!ownerKey || amount <= 0) return null;
+        const store = read(); const c = store.credits[ownerKey] || { totalUsd: 0, chatUsd: 0, studioUsd: 0, mediaUsd: 0, documentsUsd: 0 };
+        const key = ['chatUsd','studioUsd','mediaUsd','documentsUsd'].includes(bucket) ? bucket : 'chatUsd';
+        c[key] = roundUsd((Number(c[key]) || 0) + amount); store.credits[ownerKey] = c; save(); flushSync(); return c;
+    }
     function getCredits(ownerKey) {
         const store = read();
         const c = store.credits[ownerKey] || {};

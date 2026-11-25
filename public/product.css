@@ -751,3 +751,14 @@ html:not(.light) :is(.gsa-chat,.gsa-studio){--experience-shadow:0 22px 62px rgba
  .gsa-studio .starter{min-height:132px}
  .gsa-studio .studio-start-note{margin-top:12px}
 }
+
+/* Chat wide-screen width correction: prevent percentage padding from collapsing content. */
+.gsa-chat .messages-container{
+  width:100%;
+  max-width:940px;
+  padding-left:20px;
+  padding-right:20px;
+  box-sizing:border-box;
+}
+.gsa-chat .empty-state{width:100%;max-width:900px;box-sizing:border-box}
+@media(max-width:700px){.gsa-chat .messages-container{padding-left:12px;padding-right:12px}}

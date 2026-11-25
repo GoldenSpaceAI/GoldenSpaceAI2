@@ -6296,13 +6296,15 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                     '" onclick="useEmptyStarter(this)">' + s.label + '</button>';
             }).join('');
             return '<div class="empty-state">' +
-                '<img class="empty-logo" src="/icon-192.png" width="200" height="240" alt="" />' +
-                '<div class="empty-title">How can I help?</div>' +
-                '<div class="empty-value">Chat for quick answers. Open Studio for presentations, PDFs, games, code, and editable previews.</div>' +
-                '<div class="empty-chips" role="list">' + chips + '</div>' +
-                '<details class="empty-guide"><summary>New here? See what you can do</summary><div class="empty-guide-body"><div><strong>Chat</strong>Ask questions, upload files, or use Thinking for deeper answers.</div><div><strong>Studio</strong>Create and edit presentations, PDFs, code, and games.</div><div><strong>Imagine</strong>Generate images or search for useful media.</div><div><strong>Projects</strong>Keep related chats and instructions together.</div></div></details>' +
-                '<button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Or type your own message</button>' +
-                '<div class="empty-meta"><span>Fast</span><span class="empty-dot" aria-hidden="true">·</span><span>Thinking</span><span class="empty-dot" aria-hidden="true">·</span><span>Expert</span></div>' +
+                '<div class="empty-hero"><img class="empty-logo" src="/icon-192.png" width="84" height="84" alt="" /><div class="empty-hero-copy"><span class="empty-eyebrow">GOLDENOAI CHAT</span><div class="empty-title">What can we work on?</div><div class="empty-value">Ask, learn, analyze, or create. Use Chat for everyday work and move into Studio when you need an editable result.</div></div></div>' +
+                '<div class="chat-feature-grid" role="list">' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Explain this topic clearly, then quiz me with five interactive questions." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">◎</span><span><strong>Learn & quiz</strong><small>Clear explanations and interactive practice</small></span></button>' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Help me research this topic. Compare reliable sources and summarize the key findings." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">⌕</span><span><strong>Research</strong><small>Search, compare, and organize information</small></span></button>' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Help me write and improve this. Ask for the text or file you need." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">✎</span><span><strong>Write & improve</strong><small>Draft, rewrite, translate, and analyze files</small></span></button>' +
+                  '<a class="chat-feature-card studio-card" href="/studio"><span class="chat-feature-icon">✦</span><span><strong>Open Studio</strong><small>Presentations, PDFs, images, video, and games</small></span><b>Open</b></a>' +
+                '</div>' +
+                '<div class="empty-chips-label">Try a prompt</div><div class="empty-chips" role="list">' + chips + '</div>' +
+                '<div class="empty-footer-row"><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Write your own message</button><span class="empty-models">Fast · Thinking · Expert</span></div>' +
                 '<p class="empty-plan-hint" id="emptyPlanHint" data-nosnippet>' + hint + '</p>' +
                 '</div>';
         }

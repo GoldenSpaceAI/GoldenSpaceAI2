@@ -784,4 +784,14 @@ else if(location.pathname==='/studio'&&!location.search)showStudioHome();
 else {load();loadStudioAccount();loadStudioProject();loadStudioChatList();if(new URLSearchParams(location.search).get('create')==='game'){selectTool('code');closePreview();$('input').placeholder=document.documentElement.lang==='ar'?'صف اللعبة التي تريد إنشاءها…':'Describe the game you want to build…';}}
 </script>
 
+<script>
+(function keepStudioWelcomeVisible(){
+  function resetEmptyStudioScroll(){
+    var empty=document.getElementById('empty'), scroller=document.getElementById('chat');
+    if(empty&&scroller&&empty.offsetParent!==null) scroller.scrollTop=0;
+  }
+  window.addEventListener('load',function(){requestAnimationFrame(resetEmptyStudioScroll)});
+  window.addEventListener('pageshow',function(){requestAnimationFrame(resetEmptyStudioScroll)});
+})();
+</script>
 </body></html>

@@ -740,3 +740,14 @@ html:not(.light) :is(.gsa-chat,.gsa-studio){--experience-shadow:0 22px 62px rgba
 @media(prefers-reduced-motion:reduce){
  :is(.gsa-chat,.gsa-studio) :is(button,a){transition:none!important}
 }
+
+/* Studio short-viewport safety: keep onboarding content visible from the top. */
+.gsa-studio .empty{display:block;min-height:0;place-content:initial}
+.gsa-studio .studio-welcome{padding:8px 0 38px}
+@media(max-height:760px) and (min-width:701px){
+ .gsa-studio .chat{padding-top:22px}
+ .gsa-studio .studio-welcome-copy{margin-bottom:18px}
+ .gsa-studio .studio-welcome h1{font-size:clamp(30px,4vw,46px)}
+ .gsa-studio .starter{min-height:132px}
+ .gsa-studio .studio-start-note{margin-top:12px}
+}

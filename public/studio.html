@@ -79,13 +79,22 @@ button,input,textarea{font:inherit}.app{height:100dvh;display:grid;grid-template
  <header class="topbar"><div class="title-line"><button class="icon-btn mobile-menu" onclick="location.href='/studio'" aria-label="Studio projects">▦</button><strong>Studio</strong><span class="badge">ADVANCED</span></div><div class="top-actions"><a class="icon-btn top-chat" href="/" aria-label="Open main chat">Chat</a><a class="top-plan" id="topPlan" href="/my-plan">Usage</a><button class="icon-btn" id="themeBtn">Light</button><button class="icon-btn" id="previewToggle" style="display:none">Preview</button></div></header>
  <section class="chat" id="chat">
   <div class="empty" id="empty">
-   <div><div class="orb">✦</div><h1>What should we create?</h1><p>Chat normally, or use the plus button to create documents, images, presentations, find media, and build runnable code—all in one conversation.</p>
-   <div class="starter-grid">
-    <button class="starter" data-tool="document"><strong>Create a school document</strong><span>GoldenoAI asks about format, pages, and audience</span></button>
-    <button class="starter" data-tool="image"><strong>Generate an original image</strong><span>Describe the idea, then refine its style</span></button>
-    <button class="starter" data-tool="presentation"><strong>Design a presentation</strong><span>Preview slides, revise, and download</span></button>
-    <button class="starter" data-tool="code"><strong>Build and preview code</strong><span>Write, run, and improve a web experience</span></button>
-   </div></div>
+   <div class="studio-welcome">
+    <div class="studio-welcome-copy">
+     <span class="studio-eyebrow">GOLDENOAI STUDIO</span>
+     <h1>Turn an idea into something real.</h1>
+     <p>Create polished files, visuals, videos, and working experiences in one conversation. Pick a starting point or simply describe the result you want.</p>
+    </div>
+    <div class="studio-capability-grid">
+     <button class="starter feature-presentation" data-tool="presentation"><span class="feature-icon">▥</span><span class="feature-copy"><strong>Presentation</strong><small>Designed slides, live preview, and PowerPoint download</small></span><span class="feature-cta">Create</span></button>
+     <button class="starter feature-document" data-tool="document"><span class="feature-icon">▤</span><span class="feature-copy"><strong>Document</strong><small>Reports, PDFs, essays, and editable Word files</small></span><span class="feature-cta">Create</span></button>
+     <button class="starter feature-code" data-tool="code"><span class="feature-icon">⌘</span><span class="feature-copy"><strong>Game or code</strong><small>Build, run, edit, download, and publish a project</small></span><span class="feature-cta">Build</span></button>
+     <button class="starter feature-image" data-tool="image"><span class="feature-icon">✦</span><span class="feature-copy"><strong>AI image</strong><small>Generate an original visual and refine it in chat</small></span><span class="feature-cta">Generate</span></button>
+     <button class="starter feature-video" data-tool="video"><span class="feature-icon">▶</span><span class="feature-copy"><strong>AI video</strong><small>Plan and generate a video with clear cost and progress</small></span><span class="feature-cta">Generate</span></button>
+     <button class="starter feature-search" data-tool="search"><span class="feature-icon">⌕</span><span class="feature-copy"><strong>Find media</strong><small>Search Pexels for useful photos and video clips</small></span><span class="feature-cta">Search</span></button>
+    </div>
+    <div class="studio-start-note"><span>1</span><p><strong>Choose a tool</strong><small>or type naturally below</small></p><i></i><span>2</span><p><strong>Answer a few details</strong><small>only when needed</small></p><i></i><span>3</span><p><strong>Preview and refine</strong><small>then download or publish</small></p></div>
+   </div>
   </div>
   <div id="messages"></div>
  </section>

@@ -1186,9 +1186,11 @@ function latestUserPromptText(body) {
     return latest && typeof latest.content === 'string' ? latest.content : '';
 }
 function isQuizGenerationPrompt(body) {
+    if (body?.chatMode === 'study') return false;
     return /\b(?:quiz me|test me|test my knowledge|practice (?:quiz|test)|ask me (?:some )?questions|quiz\s+(?:me\s+)?(?:on|about|from|using)|(?:give|make|create|generate|build|prepare|start|write|do)\b[^.!?]{0,60}\bquizzes?\b|(?:i|we)\s+(?:want|need)\b[^.!?]{0,35}\bquizzes?\b|\bquizzes?\s+(?:about|on|from|for)\b)/i.test(latestUserPromptText(body));
 }
 function isOfficeDocumentPrompt(body) {
+    if (body?.chatMode === 'study') return false;
     const text = latestUserPromptText(body);
     if (text.startsWith('You are the planning intelligence inside GoldenoAI Studio.')) return false;
     return /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you)\b/i.test(text)
@@ -1196,6 +1198,7 @@ function isOfficeDocumentPrompt(body) {
 }
 
 function isRunnableCodePrompt(body) {
+    if (body?.chatMode === 'study') return false;
     const text = latestUserPromptText(body);
     return /(?:complete|single|one)\s+self-contained\s+html|embedded\s+css\s+and\s+javascript|begin(?:ning)?\s+with\s+<!doctype\s+html>|runnable\s+(?:html|preview|project)/i.test(text);
 }

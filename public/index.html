@@ -4604,6 +4604,11 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                                 <button type="button" class="plus-menu-item" onclick="openPhotos()"><span class="attach-menu-icon">▧</span><span><strong>Photos</strong><small>Choose images from your device</small></span></button>
                                 <button type="button" class="plus-menu-item" onclick="openCamera()"><span class="attach-menu-icon">◉</span><span><strong>Camera</strong><small>Take a photo now</small></span></button>
                                 <button type="button" class="plus-menu-item" onclick="openFileAttach()"><span class="attach-menu-icon">▤</span><span><strong>Documents</strong><small>PDF, Word, slides, or text</small></span></button>
+                                <div data-study-only style="height:1px;background:rgba(212,175,55,.25);margin:6px 10px"></div>
+                                <button type="button" class="plus-menu-item" data-study-only onclick="studyTool('flashcards')"><span class="attach-menu-icon">✦</span><span><strong>Flashcards</strong><small>Review key ideas</small></span></button>
+                                <button type="button" class="plus-menu-item" data-study-only onclick="studyTool('notes')"><span class="attach-menu-icon">▣</span><span><strong>Sticky notes</strong><small>Pin important facts</small></span></button>
+                                <button type="button" class="plus-menu-item" data-study-only onclick="studyTool('graph')"><span class="attach-menu-icon">⌁</span><span><strong>Graph</strong><small>Explore a visual model</small></span></button>
+                                <button type="button" class="plus-menu-item" data-study-only onclick="studyTool('exam')"><span class="attach-menu-icon">✓</span><span><strong>Interactive exam</strong><small>Start a one-hour test</small></span></button>
                             </div>
 
                             <button class="input-btn mic-dictate" id="micBtn" type="button" onclick="toggleVoiceInput()" aria-label="Dictate" title="Dictate" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg><span class="mic-dictate-label">Dictate</span></button>
@@ -6289,18 +6294,19 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             }
         }
         function renderEmptyStateHtml() {
+            const chat = currentChatId && chats[currentChatId];
             const hint = emptyPlanHintHtml(cachedPlan);
-            const starters = [
-                { label: 'Build a physics wave simulator', prompt: 'Build an interactive physics wave simulator with controls for frequency, amplitude, and wavelength.' },
-                { label: 'Quiz me on a school topic', prompt: 'Quiz me on a school topic with five interactive questions and explain each answer.' },
-                { label: 'Create a playable mini-game in Studio', prompt: 'Create a playable mini-game in Studio with controls, scoring, and a polished design.' },
-                { label: 'Presentation outline & PDF', prompt: 'Generate a presentation outline and PDF about a topic I choose.' }
-            ];
-            const chips = starters.map(function(s) {
-                return '<button type="button" class="empty-chip" data-prompt="' +
-                    String(s.prompt).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;') +
-                    '" onclick="useEmptyStarter(this)">' + s.label + '</button>';
-            }).join('');
+            if (chat && chat.mode === 'study') {
+                return '<div class="empty-state">' +
+                    '<div class="empty-hero"><img class="empty-logo" src="/icon-192.png" width="84" height="84" alt="" /><div class="empty-hero-copy"><span class="empty-eyebrow">GOLDENOAI · STUDY CHAT</span><div class="empty-title">What would you like to study?</div><div class="empty-value">This chat is locked to Study mode. Choose a tool below or ask a question to begin.</div></div></div>' +
+                    '<div class="chat-feature-grid" role="list">' +
+                    '<button type="button" class="chat-feature-card" data-prompt="Create flashcards for this topic." onclick="studyTool(\'flashcards\')"><span class="chat-feature-icon">✦</span><span><strong>Flashcards</strong><small>Review key ideas and definitions</small></span></button>' +
+                    '<button type="button" class="chat-feature-card" data-prompt="Pin the most important facts as sticky notes." onclick="studyTool(\'notes\')"><span class="chat-feature-icon">▣</span><span><strong>Sticky notes</strong><small>Keep useful facts close</small></span></button>' +
+                    '<button type="button" class="chat-feature-card" data-prompt="Build an interactive graph for this topic." onclick="studyTool(\'graph\')"><span class="chat-feature-icon">⌁</span><span><strong>Interactive graph</strong><small>See concepts visually</small></span></button>' +
+                    '<button type="button" class="chat-feature-card" data-prompt="Create a one-hour interactive exam for this topic." onclick="studyTool(\'exam\')"><span class="chat-feature-icon">✓</span><span><strong>Interactive exam</strong><small>Practice with a timed test</small></span></button>' +
+                    '</div><div class="empty-footer-row"><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Ask a study question</button><span class="empty-models">Study mode · locked</span></div></div>';
+            }
+            const hintText = hint;
             return '<div class="empty-state">' +
                 '<div class="empty-hero"><img class="empty-logo" src="/icon-192.png" width="84" height="84" alt="" /><div class="empty-hero-copy"><span class="empty-eyebrow">GOLDENOAI CHAT</span><div class="empty-title">What can we work on?</div><div class="empty-value">Ask, learn, analyze, or create. Use Chat for everyday work and move into Studio when you need an editable result.</div></div></div>' +
                 '<div class="study-entry" style="width:min(520px,92vw);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid rgba(212,175,55,.28);border-radius:16px;background:rgba(212,175,55,.06);text-align:left"><div><strong style="display:block;color:var(--text);font-size:14px">Study mode</strong><span style="display:block;color:var(--text-muted);font-size:12px;margin-top:3px">Turn this empty chat into a focused learning workspace.</span></div><button type="button" onclick="openStudyConfirm()" style="border:0;border-radius:10px;padding:9px 14px;background:var(--gold);color:#1b160b;font-weight:800;cursor:pointer;white-space:nowrap">Study</button></div>' +
@@ -6310,11 +6316,15 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                   '<button type="button" class="chat-feature-card" data-prompt="Help me write and improve this. Ask for the text or file you need." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">✎</span><span><strong>Write & improve</strong><small>Draft, rewrite, translate, and analyze files</small></span></button>' +
                   '<a class="chat-feature-card studio-card" href="/studio"><span class="chat-feature-icon">✦</span><span><strong>Open Studio</strong><small>Presentations, PDFs, images, video, and games</small></span><b>Open</b></a>' +
                 '</div>' +
-                '<div class="empty-chips-label">Try a prompt</div><div class="empty-chips" role="list">' + chips + '</div>' +
-                '<div class="empty-footer-row"><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Write your own message</button><span class="empty-models">Fast · Thinking · Expert</span></div>' +
-                '<p class="empty-plan-hint" id="emptyPlanHint" data-nosnippet>' + hint + '</p>' +
-                '</div>';
+                '<div class="empty-chips-label">Try a prompt</div><div class="empty-chips" role="list">' +
+                '<button type="button" class="empty-chip" data-prompt="Build an interactive physics wave simulator with controls for frequency, amplitude, and wavelength." onclick="useEmptyStarter(this)">Build a physics wave simulator</button>' +
+                '<button type="button" class="empty-chip" data-prompt="Quiz me on a school topic with five interactive questions and explain each answer." onclick="useEmptyStarter(this)">Quiz me on a school topic</button>' +
+                '<button type="button" class="empty-chip" data-prompt="Create a playable mini-game in Studio with controls, scoring, and a polished design." onclick="useEmptyStarter(this)">Create a playable mini-game in Studio</button>' +
+                '<button type="button" class="empty-chip" data-prompt="Generate a presentation outline and PDF about a topic I choose." onclick="useEmptyStarter(this)">Presentation outline & PDF</button></div>' +
+                '<div class="empty-footer-row"><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Write your own message</button><span class="empty-models">Fast · Thinking · Expert</span></div><p class="empty-plan-hint" id="emptyPlanHint" data-nosnippet>' + hintText + '</p></div>';
         }
+        function syncStudyUi(){const study=!!(currentChatId&&chats[currentChatId]&&chats[currentChatId].mode==='study');document.querySelectorAll('[data-study-only]').forEach(function(el){el.hidden=!study;});const sub=document.getElementById('topBarSub');if(sub){const cfg=MODELS[currentModel]||MODELS.normal;sub.textContent=(study?'Study chat · ':'')+cfg.label+(cfg.desc&&cfg.desc!==cfg.label?' · '+cfg.desc.replace(/^Expert - /,''):'');}}
+        function studyTool(tool){const prompts={flashcards:'Create flashcards for the topic I provide.',notes:'Pin the most important facts as sticky notes.',graph:'Build an interactive graph for the topic I provide.',exam:'Create a one-hour interactive exam with mixed questions for the topic I provide.'};const input=document.getElementById('messageInput');if(input){input.value=prompts[tool]||'';autoGrow(input);input.focus();}const menu=document.getElementById('plusMenu');if(menu)menu.classList.remove('show');}
         function openStudyConfirm(){const el=document.getElementById('studyConfirm');if(el){el.hidden=false;el.style.display='flex';}}
         function closeStudyConfirm(){const el=document.getElementById('studyConfirm');if(el){el.hidden=true;el.style.display='none';}}
         async function confirmStudyMode(){closeStudyConfirm();if(!currentChatId||!chats[currentChatId]||chats[currentChatId].messages.length)return;try{const res=await apiFetch(CHATS_API+'/'+encodeURIComponent(currentChatId)+'/study-mode',{method:'PUT',body:'{}'});const data=await res.json();if(!res.ok)throw new Error(data.error||'Could not enable Study mode.');chats[currentChatId].mode='study';chats[currentChatId].studyState=data.chat.studyState||{};saveChats();loadChat();showToast('Study mode is locked for this chat.','ok');}catch(e){showToast(e.message||'Could not enable Study mode.','err');}}
@@ -6335,6 +6345,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             const container = document.getElementById('messagesContainer');
             container.innerHTML = '';
             loadChatSystemPromptUI();
+            syncStudyUi();
             updateTopTitle();
             if(!currentChatId || !chats[currentChatId]) return;
             const messages = chats[currentChatId].messages || [];

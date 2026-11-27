@@ -216,21 +216,25 @@ function richText(value){
   .replace(/\s+(\d+[.)])\s+/g,'\n$1 ')
   .replace(/\s+[-•]\s+(?=[A-Z0-9])/g,'\n- ')
   .replace(/([.!?])\s+(?=(?:Which|What|Would|If you|Next|Note):?\b)/g,'$1\n\n');
- const lines=esc(normalized).replace(/\r/g,'').split('\n');let out='',list=null;
+ const sourceLines=normalized.replace(/\r/g,'').split('\n');let out='',list=null;
  const close=()=>{if(list){out+='</'+list+'>';list=null}};
- for(const raw of lines){
-  const line=raw.trim();
+ for(let n=0;n<sourceLines.length;n++){
+  const raw=sourceLines[n],line=raw.trim();
   if(!line){close();continue}
-  const bullet=line.match(/^[-•]\s+(.+)/),number=line.match(/^\d+[.)]\s+(.+)/);
+  const next=(sourceLines[n+1]||'').trim();
+  if(/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(next)&&/\|/.test(line)){
+   close();const header=line.replace(/^\||\|$/g,'').split('|').map(x=>x.trim()).filter(Boolean);n++;const rows=[];
+   while(n+1<sourceLines.length&&/\|/.test((sourceLines[n+1]||'').trim())&&sourceLines[n+1].trim()&&!/^[-•#]/.test(sourceLines[n+1].trim())){n++;rows.push(sourceLines[n].trim().replace(/^\||\|$/g,'').split('|').map(x=>x.trim()).filter(Boolean))}
+   out+='<div class="md-table-wrap"><table class="md-table"><thead><tr>'+header.map(x=>'<th>'+inlineRich(esc(x))+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+header.map((_,j)=>'<td>'+inlineRich(esc(row[j]||''))+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';continue;
+  }
+  const encoded=esc(line),bullet=encoded.match(/^[-•]\s+(.+)/),number=encoded.match(/^\d+[.)]\s+(.+)/);
   if(bullet||number){const type=bullet?'ul':'ol';if(list!==type){close();out+='<'+type+'>';list=type}out+='<li>'+inlineRich((bullet||number)[1])+'</li>';continue}
-  close();
-  const heading=line.match(/^(#{1,3})\s+(.+)/);
+  close();const heading=encoded.match(/^(#{1,3})\s+(.+)/);
   if(heading){const level=Math.min(3,heading[1].length)+2;out+='<h'+level+'>'+inlineRich(heading[2])+'</h'+level+'>';continue}
-  out+='<p>'+inlineRich(line)+'</p>';
+  out+='<p>'+inlineRich(encoded)+'</p>';
  }
  close();return out;
 }
-function inlineRich(text){return String(text).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code>$1</code>')}
 let studioAttachments=[];
 let studioActiveAttachments=[];
 function studioAttachmentLabel(a){return a.name|| (a.kind==='image'?'Photo':'Document')}
@@ -446,7 +450,7 @@ async function editCurrentArtifact(request){
  taskProgress(useSearch?'Searching sources and drafting':'Preparing the response',useSearch?'البحث في المصادر وإعداد الإجابة':'إعداد الإجابة',useSearch?'Requesting web sources, then using Fast mode to draft the result.':'Sending the request to Fast mode.',useSearch?'طلب مصادر من الويب ثم استخدام الوضع السريع لإعداد النتيجة.':'إرسال الطلب إلى الوضع السريع.');
  const remaining=studioRequestDeadline?studioRequestDeadline-Date.now():95000;if(remaining<1000)throw new Error('This request reached its time limit. Please try again.');
  const controller=new AbortController(),deadline=setTimeout(()=>controller.abort(),Math.min(95000,remaining));
- let res;try{res=await fetch('/api/chat',{method:'POST',signal:controller.signal,headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history,customInstructions:feature==='documents'&&extra.startsWith(PresentationComposer.prompt)?PresentationComposer.prompt:'',studioProjectId:studioProjectId||null,feature:feature||null,surface:'studio',studio:true,studioWebSearch:useSearch,studioSearchQuery:feature?(studioResearchTopic||currentArtifact?.data?.title||latest):latest})});}catch(error){if(error.name==='AbortError')throw new Error(document.documentElement.lang==='ar'?'استغرق الطلب وقتًا أطول من المتوقع. حاول مجددًا.':'The request took too long. Please try again.');throw error;}finally{clearTimeout(deadline);}
+ let res;try{res=await fetch('/api/chat',{method:'POST',signal:controller.signal,headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history,customInstructions:((feature==='documents'&&extra.startsWith(PresentationComposer.prompt)?PresentationComposer.prompt:'')+'\n\nSTUDIO RESPONSE STYLE: Make every reply easy to scan. Lead with the result, then use concise headings and short paragraphs. Use Markdown tables for comparisons, plans, schedules, specifications, or 3+ structured items when useful. Use numbered steps for procedures. When the user asks for a graph, simulation, calculator, or says show me, create a runnable interactive artifact with clear controls whenever the requested result supports it; do not only describe it. For presentations and documents, group content into clear sections and keep one idea per slide or section. Never emit escaped Markdown markers.'),studioProjectId:studioProjectId||null,feature:feature||null,surface:'studio',studio:true,studioWebSearch:useSearch,studioSearchQuery:feature?(studioResearchTopic||currentArtifact?.data?.title||latest):latest})});}catch(error){if(error.name==='AbortError')throw new Error(document.documentElement.lang==='ar'?'استغرق الطلب وقتًا أطول من المتوقع. حاول مجددًا.':'The request took too long. Please try again.');throw error;}finally{clearTimeout(deadline);}
 
  const data=await res.json().catch(()=>({}));studioLastSources=Array.isArray(data.webSources)?data.webSources:[];if(!res.ok)throw new Error(data.reply||data.error||'GoldenoAI could not reply.');return data.reply||data.error||''
 }

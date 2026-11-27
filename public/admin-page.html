@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Admin — GoldenoAI</title>
 <meta name="theme-color" content="#0a0a0a">
-<link rel="icon" href="/icon-192.png">
+<link rel="icon" href="/logo.png?v=20261003">
 <style>
   :root {
     --gold:#d4af37; --gold-light:#f4d03f; --gold-dark:#b8962e;
@@ -216,6 +216,11 @@
     margin:0 0 18px; padding:14px 16px; border-radius:14px;
     border:1px solid var(--border); background:rgba(212,175,55,0.06);
   }
+  .pause-controls { display:grid; grid-template-columns:minmax(130px,190px) minmax(240px,1fr); gap:10px; flex:1 1 520px; }
+  .pause-controls label { display:grid; gap:5px; color:var(--muted); font-size:.82rem; }
+  .pause-controls input,.pause-controls textarea { width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--text); padding:9px 10px; font:inherit; }
+  .pause-controls textarea { min-height:40px; max-height:90px; resize:vertical; }
+  @media(max-width:650px){.pause-controls{grid-template-columns:1fr}}
   .pause-bar .pause-status { color:var(--muted); font-size:0.92rem; line-height:1.4; }
   .pause-bar .pause-status b { color:var(--text); }
   .pause-bar .pause-status.on b { color:#e8b84a; }
@@ -283,14 +288,12 @@
 </style>
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js" defer></script>
-  <link rel="stylesheet" href="/polish.css?v=1">
-  <link rel="stylesheet" href="/product.css?v=20261123-2">
 </head>
-<body class="gsa-polished gsa-site-page gsa-admin">
+<body>
 <header class="topnav">
-  <a class="brand" href="/"><img src="/icon-192.png" alt="">GoldenoAI Admin</a>
+  <a class="brand" href="/"><img src="/logo.png?v=20261003" alt="">GoldenoAI Admin</a>
   <div class="topnav-actions">
-    <a class="btn ghost" href="/admin-users" style="padding:8px 12px;">Users</a> <a href="/admin-income.html">Income</a>
+    <a class="btn ghost" href="/admin-users" style="padding:8px 12px;">Users</a>
     <button type="button" class="theme-toggle btn ghost" data-theme-toggle aria-label="Toggle color theme">Light</button>
     <button class="btn ghost" id="logoutBtn" type="button" hidden>Log out</button>
   </div>
@@ -318,6 +321,10 @@
 
     <div class="pause-bar" id="pauseBar">
       <div class="pause-status off" id="pauseStatus">Site status: <b>Running</b></div>
+      <div class="pause-controls" id="pauseControls">
+        <label>Maintenance duration in minutes <input id="pauseDuration" type="number" min="1" max="10080" value="30" inputmode="numeric"></label>
+        <label>Message for users <textarea id="pauseMessage" maxlength="500" placeholder="Tell users what’s happening (optional)"></textarea></label>
+      </div>
       <button class="btn warn" type="button" id="pauseToggleBtn">Pause GoldenoAI</button>
     </div>
 
@@ -373,18 +380,28 @@
     return { res, data };
   }
 
-  let pauseState = { paused: false, pausedAt: null };
+  let pauseState = { paused: false, pausedAt: null, pauseUntil: null, pauseMessage: '' };
+
+  function pauseCountdown() {
+    const end = Date.parse(pauseState.pauseUntil || '');
+    if (!Number.isFinite(end)) return '';
+    const seconds = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+    return '<br><span class="pause-countdown">Auto resumes in ' + Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's</span>';
+  }
 
   function renderPause() {
     const statusEl = document.getElementById('pauseStatus');
     const btn = document.getElementById('pauseToggleBtn');
     if (!statusEl || !btn) return;
     const on = !!pauseState.paused;
+    const controls = document.getElementById('pauseControls');
+    if (controls) controls.style.display = on ? 'none' : 'grid';
     statusEl.className = 'pause-status ' + (on ? 'on' : 'off');
     if (on) {
       const when = pauseState.pausedAt ? (' since ' + fmtDate(pauseState.pausedAt)) : '';
-      statusEl.innerHTML = 'Site status: <b>Paused</b>' + (when ? ('<br><span style="font-size:0.85em">Paused' + when + '</span>') : '');
-      btn.textContent = 'Unpause GoldenoAI';
+      const msg = pauseState.pauseMessage ? '<br><span>' + escapeHtml(pauseState.pauseMessage) + '</span>' : '';
+      statusEl.innerHTML = 'Site status: <b>Paused</b>' + (when ? ('<br><span style="font-size:0.85em">Paused' + when + '</span>') : '') + pauseCountdown() + msg;
+      btn.textContent = 'Resume GoldenoAI';
       btn.className = 'btn ok';
     } else {
       statusEl.innerHTML = 'Site status: <b>Running</b>';
@@ -399,7 +416,9 @@
     pauseState = {
       paused: !!data.paused,
       pausedAt: data.pausedAt || null,
-      pausedBy: data.pausedBy || null
+      pausedBy: data.pausedBy || null,
+      pauseUntil: data.pauseUntil || null,
+      pauseMessage: data.pauseMessage || ''
     };
     renderPause();
   }
@@ -481,7 +500,7 @@
                 '<span class="plan-pill" title="Current plan at request">' + escapeHtml(current) + '</span>' +
                 '<span class="plan-arrow">→</span>' +
                 '<span class="plan-pill req" title="Requested plan">' + escapeHtml(requested) + '</span>' +
-                (p.amount != null ? '<span style="color:var(--muted);font-size:12px;font-weight:600;">$' + escapeHtml(String(p.amount)) + ' · ' + (p.billingPeriod === 'yearly' ? '1 year' : '1 month') + '</span>' : '') +
+                (p.amount != null ? '<span style="color:var(--muted);font-size:12px;font-weight:600;">$' + escapeHtml(String(p.amount)) + '</span>' : '') +
               '</span></dd></div>' +
               '<div><dt>Estimated location</dt><dd>' + escapeHtml(locationText(p)) + '</dd></div>' +
               '<div><dt>Request IP</dt><dd class="mono">' + ipLine + '</dd></div>' +
@@ -528,7 +547,7 @@
     }
     document.getElementById('passkey').value = '';
     showApp(true);
-    await loadPayments();
+    await Promise.all([loadPayments(), loadPause()]);
   });
 
   logoutBtn.addEventListener('click', async () => {
@@ -544,16 +563,22 @@
   document.getElementById('pauseToggleBtn').addEventListener('click', async () => {
     const btn = document.getElementById('pauseToggleBtn');
     const next = !pauseState.paused;
+    const minutes = Number(document.getElementById('pauseDuration').value);
+    const message = document.getElementById('pauseMessage').value.trim();
+    if (next && (!Number.isInteger(minutes) || minutes < 1 || minutes > 10080)) {
+      alert('Choose a duration from 1 to 10,080 minutes.');
+      return;
+    }
     const label = next
-      ? 'Pause GoldenoAI? Chat and all non-admin pages will show an updating message until you unpause.'
-      : 'Unpause GoldenoAI and restore public access?';
+      ? 'Pause GoldenoAI for ' + minutes + ' minutes? Users will see the maintenance screen and their requests will be blocked.'
+      : 'Resume GoldenoAI and restore public access?';
     if (!window.confirm(label)) return;
     btn.disabled = true;
     try {
       const { res, data } = await api('/api/admin/pause', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paused: next })
+        body: JSON.stringify({ paused: next, durationMinutes: next ? minutes : null, message: next ? message : '' })
       });
       if (!res.ok) {
         alert((data && data.error) || 'Failed to update pause state');
@@ -562,13 +587,22 @@
       pauseState = {
         paused: !!data.paused,
         pausedAt: data.pausedAt || null,
-        pausedBy: data.pausedBy || null
+        pausedBy: data.pausedBy || null,
+        pauseUntil: data.pauseUntil || null,
+        pauseMessage: data.pauseMessage || ''
       };
       renderPause();
     } finally {
       btn.disabled = false;
     }
   });
+
+  setInterval(() => {
+    if (pauseState.paused && pauseState.pauseUntil) {
+      if (Date.parse(pauseState.pauseUntil) <= Date.now()) loadPause();
+      else renderPause();
+    }
+  }, 1000);
 
   document.getElementById('filters').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-filter]');

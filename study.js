@@ -33,12 +33,16 @@ function createStudyStore(dataDir) {
         if (questions.length !== input.length) return { ok: false, error: 'Every question needs a supported type and prompt.' };
         return { ok: true, questions };
     }
-    function create({ ownerKey, chatId, questions, title }) {
+    function create({ ownerKey, chatId, questions, title, durationMinutes }) {
         const checked = validateQuestions(questions);
         if (!checked.ok) return checked;
         const token = crypto.randomBytes(24).toString('base64url');
+        const minutesByType = {true_false: 0.5, multiple_choice: 1, open_answer: 2, paragraph_answer: 5, long_answer: 12};
+        const estimatedMinutes = 3 + checked.questions.reduce((sum, question) => sum + minutesByType[question.type], 0);
+        const proposedMinutes = Number(durationMinutes);
+        const minutes = Math.max(5, Math.min(180, Math.round(Number.isFinite(proposedMinutes) && proposedMinutes > 0 ? proposedMinutes : estimatedMinutes)));
         const createdAt = new Date();
-        const exam = { token, ownerKey, chatId: String(chatId), title: String(title || 'Interactive exam').slice(0, 160), createdAt: createdAt.toISOString(), expiresAt: new Date(createdAt.getTime() + 60 * 60 * 1000).toISOString(), status: 'issued', questions: checked.questions, userAnswers: null, score: null, maxScore: checked.questions.reduce((sum, q) => sum + q.points, 0), perQuestionFeedback: null, submittedAt: null };
+        const exam = { token, ownerKey, chatId: String(chatId), title: String(title || 'Interactive exam').slice(0, 160), createdAt: createdAt.toISOString(), expiresAt: new Date(createdAt.getTime() + minutes * 60 * 1000).toISOString(), status: 'issued', questions: checked.questions, userAnswers: null, score: null, maxScore: checked.questions.reduce((sum, q) => sum + q.points, 0), perQuestionFeedback: null, submittedAt: null };
         const all = read(); all[token] = exam; write(all); return { ok: true, exam };
     }
     function get(token) { return read()[String(token)] || null; }

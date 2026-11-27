@@ -1,5 +1,5 @@
 /**
- * GoldenoAI plans, usage caps, and OMT payment requests.
+ * GoldenSpaceAI plans, usage caps, and OMT payment requests.
  * Persistence: Postgres (DATABASE_URL) is primary so data survives Render redeploys;
  * JSON under DATA_DIR is a local mirror / offline fallback. On boot, load PG first;
  * if PG is empty and JSON has data, migrate JSON → Postgres.
@@ -10,7 +10,7 @@
  * - Fast: Fast / normal mode only (gpt-5-nano)
  * - ThinkShare: Thinking alone (Plus) or Thinking + Expert 4 shared (Pro/Max)
  * - Expert16: Expert 16 alone (Max only)
- * Retained $ on paid plans is margin (not usable as API budget). Chat and Studio model budgets are tracked separately.
+ * Retained $ on paid plans is margin (not usable as API budget).
  * Paid allotments are per 30-day period from admin approve (no auto-renew).
  * Free Fast is $0.02/day UTC midnight reset. Images count toward the same Fast bucket.
  * Talk minutes (Live / TTS voice time) are separate hard-stops: Free 1 min/UTC week;
@@ -43,13 +43,13 @@ const {
 
 const OMT_DESTINATION = '81056987';
 const PAID_PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
-const YEARLY_PERIOD_MS = 365 * 24 * 60 * 60 * 1000;
-const YEARLY_PRICES = { plus: 59, pro: 115, max: 169 };
+const CREDIT_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Plan defs — priceUsd is what the user pays via OMT (wallet-to-wallet).
  * fastUsd / thinkShareUsd / expert16Usd are included model-cost budgets (USD).
  * retainedUsd is platform margin (not usable). Mode flags gate Thinking / Expert.
+ * chatUsd / studioUsd optionally split the same model budget by product surface.
  * talkMinutes is Live/TTS voice time (hard-stop; users see % only).
  * Free Fast is a small daily allowance; paid buckets are per 30-day period.
  */
@@ -79,6 +79,7 @@ const PLAN_DEFS = {
         id: 'plus',
         label: 'Plus',
         priceUsd: 5,
+        // Plus gets $2.90 total model capacity, split evenly between Chat and Studio.
         fastUsd: 1.45,
         thinkShareUsd: 1.45,
         expert16Usd: 0,
@@ -103,6 +104,7 @@ const PLAN_DEFS = {
         fastUsd: 3.80,
         thinkShareUsd: 3,
         expert16Usd: 0,
+        // $6.80 total model allowance, split evenly between Chat and Studio.
         chatUsd: 3.40,
         studioUsd: 3.40,
         retainedUsd: 3,
@@ -124,6 +126,7 @@ const PLAN_DEFS = {
         fastUsd: 5.60,
         thinkShareUsd: 3,
         expert16Usd: 3,
+        // $11.60 total model allowance, split evenly between Chat and Studio.
         chatUsd: 5.80,
         studioUsd: 5.80,
         retainedUsd: 3,
@@ -141,8 +144,6 @@ const PLAN_DEFS = {
 };
 
 const PLAN_RANK = { free: 0, plus: 1, pro: 2, max: 3 };
-const OFFICE_DOCUMENT_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
-const OFFICE_DOCUMENT_CAPS = { free: 2, plus: 5, pro: 10, max: 0 }; // zero means unlimited
 
 function roundUsd(n) {
     const x = Number(n);
@@ -394,26 +395,15 @@ function emptyStore() {
         usage: {},
         payments: [],
         credits: {},
-        feedback: [],
         geoCache: {},
         settings: {
             paused: false,
             pausedAt: null,
-            pausedBy: null
+            pausedBy: null,
+            pauseUntil: null,
+            pauseMessage: ''
         }
     };
-}
-
-function normalizeSurface(surface) {
-    return String(surface || '').toLowerCase() === 'studio' ? 'studio' : 'chat';
-}
-function surfaceCap(def, surface) {
-    const key = normalizeSurface(surface) + 'Usd';
-    return def && def[key] != null ? roundUsd(def[key]) : null;
-}
-function surfaceSpend(u, surface) {
-    if (!u || typeof u !== 'object') return 0;
-    return roundUsd(Number(u[normalizeSurface(surface) + 'SpendUsd']) || 0);
 }
 
 function poolForKind(kind) {
@@ -421,6 +411,21 @@ function poolForKind(kind) {
     if (kind === 'thinking' || kind === 'expert4' || kind === 'thinkShare' || kind === 'other') return 'thinkShare';
     if (kind === 'expert16') return 'expert16';
     return null;
+}
+
+function normalizeSurface(surface) {
+    return String(surface || '').toLowerCase() === 'studio' ? 'studio' : 'chat';
+}
+
+function surfaceCap(def, surface) {
+    const key = normalizeSurface(surface) + 'Usd';
+    return def && def[key] != null ? roundUsd(def[key]) : null;
+}
+
+function surfaceSpend(u, surface) {
+    if (!u || typeof u !== 'object') return 0;
+    const key = normalizeSurface(surface) + 'SpendUsd';
+    return roundUsd(Number(u[key]) || 0);
 }
 
 
@@ -481,7 +486,9 @@ function createPlansStore(dataDir, options = {}) {
         return {
             paused: !!s.paused,
             pausedAt: s.pausedAt ? String(s.pausedAt) : null,
-            pausedBy: s.pausedBy ? String(s.pausedBy) : null
+            pausedBy: s.pausedBy ? String(s.pausedBy) : null,
+            pauseUntil: s.pauseUntil ? String(s.pauseUntil) : null,
+            pauseMessage: s.pauseMessage ? String(s.pauseMessage).slice(0, 500) : ''
         };
     }
 
@@ -493,7 +500,6 @@ function createPlansStore(dataDir, options = {}) {
             usage: src.usage && typeof src.usage === 'object' ? src.usage : {},
             payments: Array.isArray(src.payments) ? src.payments : [],
             credits: src.credits && typeof src.credits === 'object' ? src.credits : {},
-            feedback: Array.isArray(src.feedback) ? src.feedback : [],
             geoCache: src.geoCache && typeof src.geoCache === 'object' ? src.geoCache : {},
             settings: normalizeSettings(src.settings)
         };
@@ -506,7 +512,6 @@ function createPlansStore(dataDir, options = {}) {
             Object.keys(store.usage || {}).length > 0 ||
             Object.keys(store.phoneIndex || {}).length > 0 ||
             (Array.isArray(store.payments) && store.payments.length > 0) ||
-            (Array.isArray(store.feedback) && store.feedback.length > 0) ||
             !!settings.paused ||
             !!settings.pausedAt;
     }
@@ -731,36 +736,23 @@ function createPlansStore(dataDir, options = {}) {
     function expireIfNeeded(deviceId) {
         const store = read();
         const sub = store.subscriptions[deviceId];
-        if (!sub) return;
-        const now = Date.now();
-        const queued = Array.isArray(sub.queuedSubscriptions) ? sub.queuedSubscriptions.slice() : [];
-        const currentActive = sub.plan && sub.plan !== 'free' && Number.isFinite(Date.parse(sub.endsAt || '')) && now < Date.parse(sub.endsAt);
-        if (currentActive) return;
-        if (sub.plan && sub.plan !== 'free' && Date.parse(sub.endsAt || 0) > 0) {
-            const phone = normalizePhone(sub.phone);
-            if (phone && store.phoneIndex[phone] === deviceId) delete store.phoneIndex[phone];
-        } else if ((!sub.plan || sub.plan === 'free') && queued.length === 0) {
-            return;
+        if (!sub || !sub.plan || sub.plan === 'free') return;
+        const ends = Date.parse(sub.endsAt || 0);
+        if (!Number.isFinite(ends) || Date.now() < ends) return;
+        const phone = normalizePhone(sub.phone);
+        if (phone && store.phoneIndex[phone] === deviceId) {
+            delete store.phoneIndex[phone];
         }
-        const nextIndex = queued.findIndex(item => {
-            const end = Date.parse(item && item.endsAt || '');
-            return item && PLAN_DEFS[item.plan] && item.plan !== 'free' && Number.isFinite(end) && end > now && (Date.parse(item.startsAt || '') || 0) <= now;
-        });
-        if (nextIndex >= 0) {
-            const next = queued.splice(nextIndex, 1)[0];
-            const phone = normalizePhone(next.phone);
-            store.subscriptions[deviceId] = Object.assign({}, next, {
-                queuedSubscriptions: queued,
-                activatedAt: new Date().toISOString()
-            });
-            if (phone) store.phoneIndex[phone] = deviceId;
-        } else {
-            store.subscriptions[deviceId] = {
-                plan: 'free', phone: null, startsAt: null, endsAt: null,
-                paymentRequestId: null, caps: null, stackMode: null,
-                queuedSubscriptions: queued, expiredAt: new Date().toISOString()
-            };
-        }
+        store.subscriptions[deviceId] = {
+            plan: 'free',
+            phone: null,
+            startsAt: null,
+            endsAt: null,
+            paymentRequestId: null,
+            caps: null,
+            stackMode: null,
+            expiredAt: new Date().toISOString()
+        };
         save();
     }
 
@@ -820,17 +812,11 @@ function createPlansStore(dataDir, options = {}) {
             // Admin / analytics: daily + lifetime (not reset by plan period)
             spendDay: d,
             todaySpendUsd: 0,
-            todayProviderReportedSpendUsd: 0,
-            todayTokenRatedSpendUsd: 0,
-            todayEstimatedSpendUsd: 0,
             todayTokens: 0,
             todayGrokSpendUsd: 0,
             todayOpenaiSpendUsd: 0,
             todayDeepseekSpendUsd: 0,
             totalSpendUsd: 0,
-            totalProviderReportedSpendUsd: 0,
-            totalTokenRatedSpendUsd: 0,
-            totalEstimatedSpendUsd: 0,
             totalTokens: 0,
             totalGrokSpendUsd: 0,
             totalOpenaiSpendUsd: 0,
@@ -846,7 +832,6 @@ function createPlansStore(dataDir, options = {}) {
             imagineSearchesToday: 0,
             imagineImagesToday: 0,
             imagineVideosToday: 0,
-            officeDocumentExports: [],
             talkSecondsUsed: 0,
             talkPeriodKey: null,
             todayTalkSeconds: 0,
@@ -861,13 +846,7 @@ function createPlansStore(dataDir, options = {}) {
             u.totalSpendUsd = roundUsd((Number(u.fastSpendUsd) || 0) + thinkShareUsed(u) + expert16Used(u));
         }
         if (u.totalTokens == null) u.totalTokens = 0;
-        if (u.totalProviderReportedSpendUsd == null) u.totalProviderReportedSpendUsd = 0;
-        if (u.totalTokenRatedSpendUsd == null) u.totalTokenRatedSpendUsd = 0;
-        if (u.totalEstimatedSpendUsd == null) u.totalEstimatedSpendUsd = Number(u.totalSpendUsd) || 0;
         if (u.todaySpendUsd == null) u.todaySpendUsd = 0;
-        if (u.todayProviderReportedSpendUsd == null) u.todayProviderReportedSpendUsd = 0;
-        if (u.todayTokenRatedSpendUsd == null) u.todayTokenRatedSpendUsd = 0;
-        if (u.todayEstimatedSpendUsd == null) u.todayEstimatedSpendUsd = u.todaySpendUsd;
         if (u.todayTokens == null) u.todayTokens = 0;
         if (u.todayGrokSpendUsd == null) u.todayGrokSpendUsd = 0;
         if (u.todayOpenaiSpendUsd == null) u.todayOpenaiSpendUsd = 0;
@@ -885,9 +864,6 @@ function createPlansStore(dataDir, options = {}) {
         if (u.spendDay !== day) {
             u.spendDay = day;
             u.todaySpendUsd = 0;
-            u.todayProviderReportedSpendUsd = 0;
-            u.todayTokenRatedSpendUsd = 0;
-            u.todayEstimatedSpendUsd = 0;
             u.todayTokens = 0;
             u.todayGrokSpendUsd = 0;
             u.todayOpenaiSpendUsd = 0;
@@ -919,17 +895,11 @@ function createPlansStore(dataDir, options = {}) {
                 ...imagineAdminUsage,
                 todayTokens: 0,
                 todaySpendUsd: 0,
-                todayProviderReportedSpendUsd: 0,
-                todayTokenRatedSpendUsd: 0,
-                todayEstimatedSpendUsd: 0,
                 todayGrokSpendUsd: 0,
                 todayOpenaiSpendUsd: 0,
                 todayDeepseekSpendUsd: 0,
                 totalTokens: 0,
                 totalSpendUsd: 0,
-                totalProviderReportedSpendUsd: 0,
-                totalTokenRatedSpendUsd: 0,
-                totalEstimatedSpendUsd: 0,
                 totalGrokSpendUsd: 0,
                 totalOpenaiSpendUsd: 0,
                 totalDeepseekSpendUsd: 0,
@@ -964,9 +934,6 @@ function createPlansStore(dataDir, options = {}) {
             ...imagineAdminUsage,
             todayTokens: todayActive ? (Number(u.todayTokens) || 0) : 0,
             todaySpendUsd: todayActive ? roundUsd(Number(u.todaySpendUsd) || 0) : 0,
-            todayProviderReportedSpendUsd: todayActive ? roundUsd(Number(u.todayProviderReportedSpendUsd) || 0) : 0,
-            todayTokenRatedSpendUsd: todayActive ? roundUsd(Number(u.todayTokenRatedSpendUsd) || 0) : 0,
-            todayEstimatedSpendUsd: todayActive ? roundUsd(Number(u.todayEstimatedSpendUsd) || 0) : 0,
             todayGrokSpendUsd: todayActive ? roundUsd(Number(u.todayGrokSpendUsd) || 0) : 0,
             todayOpenaiSpendUsd: todayActive ? roundUsd(Number(u.todayOpenaiSpendUsd) || 0) : 0,
             todayDeepseekSpendUsd: todayActive ? roundUsd(Number(u.todayDeepseekSpendUsd) || 0) : 0,
@@ -976,9 +943,6 @@ function createPlansStore(dataDir, options = {}) {
                     ? Number(u.totalSpendUsd) || 0
                     : (Number(u.fastSpendUsd) || 0) + thinkShareUsed(u) + expert16Used(u)
             ),
-            totalProviderReportedSpendUsd: roundUsd(Number(u.totalProviderReportedSpendUsd) || 0),
-            totalTokenRatedSpendUsd: roundUsd(Number(u.totalTokenRatedSpendUsd) || 0),
-            totalEstimatedSpendUsd: roundUsd(Number(u.totalEstimatedSpendUsd) || 0),
             totalGrokSpendUsd: roundUsd(Number(u.totalGrokSpendUsd) || 0),
             totalOpenaiSpendUsd: roundUsd(Number(u.totalOpenaiSpendUsd) || 0),
             totalDeepseekSpendUsd: roundUsd(Number(u.totalDeepseekSpendUsd) || 0),
@@ -1005,7 +969,6 @@ function createPlansStore(dataDir, options = {}) {
             save();
             return u;
         }
-        if (!Array.isArray(u.officeDocumentExports)) u.officeDocumentExports = [];
         // Migrate legacy-only rows
         if (u.fastSpendUsd == null) u.fastSpendUsd = 0;
         if (u.thinkShareSpendUsd == null) {
@@ -1048,9 +1011,7 @@ function createPlansStore(dataDir, options = {}) {
             }
         }
 
-        const subscriptionStart = Date.parse(effective.startsAt || '');
-        const cycleIndex = Number.isFinite(subscriptionStart) ? Math.max(0, Math.floor((Date.now() - subscriptionStart) / PAID_PERIOD_MS)) : 0;
-        const periodKey = Number.isFinite(subscriptionStart) ? new Date(subscriptionStart + cycleIndex * PAID_PERIOD_MS).toISOString() : null;
+        const periodKey = effective.startsAt || null;
         if ((u.periodStartsAt || null) !== periodKey) {
             u.periodStartsAt = periodKey;
             u.fastSpendUsd = 0;
@@ -1102,7 +1063,7 @@ function createPlansStore(dataDir, options = {}) {
         };
     }
 
-    function remainingFor(deviceId, pool) {
+    function remainingFor(deviceId, pool, surface) {
         const { fastCap, thinkShareCap, expert16Cap } = budgetCapsFor(deviceId);
         const u = ensureUsage(deviceId);
         if (pool === 'fast') {
@@ -1113,6 +1074,13 @@ function createPlansStore(dataDir, options = {}) {
         }
         // thinkShare (and legacy "other")
         return roundUsd(Math.max(0, thinkShareCap - thinkShareUsed(u)));
+    }
+
+    function remainingSurface(deviceId, surface) {
+        const effective = getEffectivePlan(deviceId);
+        const cap = surfaceCap(effective.def, surface);
+        if (cap == null) return null;
+        return roundUsd(Math.max(0, cap - surfaceSpend(ensureUsage(deviceId), surface)));
     }
 
     /**
@@ -1135,7 +1103,6 @@ function createPlansStore(dataDir, options = {}) {
             paymentRequestId: null,
             caps: null,
             stackMode: null,
-            queuedSubscriptions: Array.isArray(sub.queuedSubscriptions) ? sub.queuedSubscriptions.slice() : [],
             demotedAt: new Date().toISOString(),
             demoteReason: String(reason || 'budget_exhausted').slice(0, 200)
         };
@@ -1145,6 +1112,8 @@ function createPlansStore(dataDir, options = {}) {
         u.fastSpendUsd = 0;
         u.thinkShareSpendUsd = 0;
         u.expert16SpendUsd = 0;
+        u.chatSpendUsd = 0;
+        u.studioSpendUsd = 0;
         u.otherSpendUsd = 0;
         u.day = utcDayKey();
         u.fast = 0;
@@ -1367,44 +1336,6 @@ function createPlansStore(dataDir, options = {}) {
         return { searchesUsed: u.imagineSearchesToday, imagesUsed: u.imagineImagesToday, videosUsed: u.imagineVideosToday };
     }
 
-    function getOfficeDocumentAllowance(deviceId) {
-        const effective = getEffectivePlan(deviceId || '');
-        const cap = Number(OFFICE_DOCUMENT_CAPS[effective.plan]);
-        if (!deviceId) return { ok: true, used: 0, limit: cap, unlimited: cap === 0, remaining: cap === 0 ? null : cap, resetsAt: null };
-        const u = ensureUsage(deviceId);
-        const now = Date.now();
-        const cutoff = now - OFFICE_DOCUMENT_WINDOW_MS;
-        const source = Array.isArray(u.officeDocumentExports) ? u.officeDocumentExports : [];
-        const recent = source.filter((value) => {
-            const time = typeof value === 'number' ? value : Date.parse(value);
-            return Number.isFinite(time) && time > cutoff && time <= now;
-        });
-        if (recent.length !== source.length) {
-            u.officeDocumentExports = recent;
-            flushSync();
-        }
-        const used = recent.length;
-        const unlimited = cap === 0;
-        return {
-            ok: unlimited || used < cap,
-            used,
-            limit: cap,
-            unlimited,
-            remaining: unlimited ? null : Math.max(0, cap - used),
-            resetsAt: recent.length ? new Date((typeof recent[0] === 'number' ? recent[0] : Date.parse(recent[0])) + OFFICE_DOCUMENT_WINDOW_MS).toISOString() : null
-        };
-    }
-
-    function recordOfficeDocumentExport(deviceId) {
-        if (!deviceId) return { ok: false, used: 0, limit: 2, unlimited: false, remaining: 2, resetsAt: null };
-        const current = getOfficeDocumentAllowance(deviceId);
-        if (!current.ok) return current;
-        const u = ensureUsage(deviceId);
-        u.officeDocumentExports.push(Date.now());
-        flushSync();
-        return getOfficeDocumentAllowance(deviceId);
-    }
-
     function checkImageAllowed(deviceId) {
         if (!deviceId) {
             return {
@@ -1572,11 +1503,22 @@ function createPlansStore(dataDir, options = {}) {
             }
         }
 
-        const surfaceLeft = surfaceCap(effective.def, surface) == null ? null : roundUsd(Math.max(0, surfaceCap(effective.def, surface) - surfaceSpend(ensureUsage(deviceId), surface)));
+        const surfaceLeft = remainingSurface(deviceId, surface);
         if (surfaceLeft != null && surfaceLeft <= 1e-9) {
-            return { ok: false, error: { status: 429, code: 'surface_limit_reached', reply: 'Your ' + (surface === 'studio' ? 'Studio' : 'Chat') + ' allowance is used for this period. ' + (surface === 'studio' ? 'Use Chat for remaining model capacity.' : 'Use Studio for remaining model capacity.'), upgradeUrl: '/upgrade', limit: { surface, percent: 100, percentLeft: 0, unit: 'percent', plan: effective.plan, resets: 'period' } }, kind, pool, surface };
+            return {
+                ok: false,
+                error: {
+                    status: 429,
+                    code: 'surface_limit_reached',
+                    reply: 'Your ' + (surface === 'studio' ? 'Studio' : 'Chat') + ' allowance is used for this period. ' +
+                        (surface === 'studio' ? 'Use Chat for remaining model capacity.' : 'Use Studio for remaining model capacity.'),
+                    upgradeUrl: '/upgrade',
+                    limit: { surface, percent: 100, percentLeft: 0, unit: 'percent', plan: effective.plan, resets: 'period' }
+                },
+                kind, pool, surface
+            };
         }
-        const left = remainingFor(deviceId, pool);
+        const left = remainingFor(deviceId, pool, surface);
         if (left <= 1e-9) {
             // Hard-stop this bucket; demote only when all usable buckets are done
             if (effective.plan !== 'free') {
@@ -1617,18 +1559,12 @@ function createPlansStore(dataDir, options = {}) {
             if (kind === 'thinking') u.thinking = (Number(u.thinking) || 0) + 1;
             else if (kind === 'expert4') u.expert4 = (Number(u.expert4) || 0) + 1;
         }
-        u[surface + 'SpendUsd'] = roundUsd((Number(u[surface + 'SpendUsd']) || 0) + cost);
+        const surfaceKey = surface + 'SpendUsd';
+        u[surfaceKey] = roundUsd((Number(u[surfaceKey]) || 0) + cost);
         u.otherSpendUsd = roundUsd(thinkShareUsed(u) + expert16Used(u));
         u.todaySpendUsd = roundUsd((Number(u.todaySpendUsd) || 0) + cost);
-        u.totalSpendUsd = roundUsd((Number(u.totalSpendUsd) || 0) + cost);
-        const costSource = String((spend && spend.costSource) || 'token_rate');
-        const sourceBucket = costSource === 'provider_reported' ? 'ProviderReported'
-            : (costSource === 'estimated_text' ? 'Estimated' : 'TokenRated');
-        const todaySourceKey = 'today' + sourceBucket + 'SpendUsd';
-        const totalSourceKey = 'total' + sourceBucket + 'SpendUsd';
-        u[todaySourceKey] = roundUsd((Number(u[todaySourceKey]) || 0) + cost);
-        u[totalSourceKey] = roundUsd((Number(u[totalSourceKey]) || 0) + cost);
         u.todayTokens = (Number(u.todayTokens) || 0) + tokens;
+        u.totalSpendUsd = roundUsd((Number(u.totalSpendUsd) || 0) + cost);
         u.totalTokens = (Number(u.totalTokens) || 0) + tokens;
         const provider = normalizeProvider(
             spend && spend.provider,
@@ -1648,8 +1584,8 @@ function createPlansStore(dataDir, options = {}) {
             at: new Date().toISOString(),
             kind,
             pool,
+            surface,
             costUsd: cost,
-            costSource,
             model: spend && spend.model ? String(spend.model) : null,
             provider: provider !== 'unknown' ? provider : null,
             promptTokens: spend && spend.promptTokens != null ? Number(spend.promptTokens) : null,
@@ -1693,7 +1629,6 @@ function createPlansStore(dataDir, options = {}) {
         const otherUsed = roundUsd(thinkUsed + e16Used);
         const otherCap = roundUsd(thinkShareCap + expert16Cap);
         const imagineDef = PLAN_DEFS[effective.plan] || PLAN_DEFS.free;
-        const officeDocuments = deviceId ? getOfficeDocumentAllowance(deviceId) : { used: 0, limit: Number(OFFICE_DOCUMENT_CAPS[effective.plan]) || 2, unlimited: effective.plan === 'max' };
         const baseDef = getPlanDef(effective.plan);
         const stacked = effective.plan !== 'free' && (
             roundUsd(effective.caps.fastUsd) !== roundUsd(baseDef.fastUsd) ||
@@ -1713,8 +1648,6 @@ function createPlansStore(dataDir, options = {}) {
             imagineSearchesPerDay: Number(imagineDef.imagineSearchesPerDay) || 0,
             imagineImagesPerDay: Number(imagineDef.imagineImagesPerDay) || 0,
             imagineVideosPerDay: Number(imagineDef.imagineVideosPerDay) || 0,
-            officeDocumentsPer3Days: officeDocuments.limit,
-            officeDocumentsUsed: officeDocuments.used,
             talkMinutes: Number(effective.def.talkMinutes) || 0,
             talkPeriod: effective.def.talkPeriod || (effective.plan === 'free' ? 'weekly' : 'period'),
             modes,
@@ -1761,6 +1694,12 @@ function createPlansStore(dataDir, options = {}) {
                 expert16SpendUsd: e16Used,
                 expert16CapUsd: expert16Cap,
                 expert16LeftUsd: roundUsd(Math.max(0, expert16Cap - e16Used)),
+                chatSpendUsd: surfaceSpend(u, 'chat'),
+                chatCapUsd: surfaceCap(effective.def, 'chat'),
+                chatLeftUsd: surfaceCap(effective.def, 'chat') == null ? null : roundUsd(Math.max(0, surfaceCap(effective.def, 'chat') - surfaceSpend(u, 'chat'))),
+                studioSpendUsd: surfaceSpend(u, 'studio'),
+                studioCapUsd: surfaceCap(effective.def, 'studio'),
+                studioLeftUsd: surfaceCap(effective.def, 'studio') == null ? null : roundUsd(Math.max(0, surfaceCap(effective.def, 'studio') - surfaceSpend(u, 'studio'))),
                 // Back-compat combined "other"
                 otherSpendUsd: otherUsed,
                 otherCapUsd: otherCap,
@@ -1770,8 +1709,6 @@ function createPlansStore(dataDir, options = {}) {
                 imagineSearchesToday: Number(u.imagineSearchesToday) || 0,
                 imagineImagesToday: Number(u.imagineImagesToday) || 0,
                 imagineVideosToday: Number(u.imagineVideosToday) || 0,
-                officeDocumentsUsed: officeDocuments.used,
-                officeDocumentsLimit: officeDocuments.limit,
                 imagesLeft: Math.max(0, imagesCap - imagesUsed),
                 talkSecondsUsed: talkUsed,
                 talkCapSeconds: talkCapSec,
@@ -1804,6 +1741,8 @@ function createPlansStore(dataDir, options = {}) {
                 fastUsd: p.fastUsd,
                 thinkShareUsd: p.thinkShareUsd,
                 expert16Usd: p.expert16Usd,
+                chatUsd: p.chatUsd == null ? null : p.chatUsd,
+                studioUsd: p.studioUsd == null ? null : p.studioUsd,
                 retainedUsd: p.retainedUsd || 0,
                 imagesPerDay: p.imagesPerDay || 0,
                 imagineSearchesPerDay: p.imagineSearchesPerDay || 0,
@@ -1910,13 +1849,6 @@ function createPlansStore(dataDir, options = {}) {
         imagineQuota('imagineImages', 'Imagine images', u.imagineImagesToday || 0, imagineImageCap, 'Daily Pexels image-result allowance (UTC).');
         imagineQuota('imagineVideos', 'Imagine videos', u.imagineVideosToday || 0, imagineVideoCap, 'Daily Pexels video-result allowance (UTC).');
 
-        const documentQuota = quotaRow('officeDocuments', 'Word & PowerPoint', '3 days', status.officeDocumentsUsed || 0, status.officeDocumentsPer3Days || 0, 'Created files in a rolling 3-day window.');
-        const documentLimit = Number(status.officeDocumentsPer3Days) || 0;
-        documentQuota.displayMeta = documentLimit === 0
-            ? 'Unlimited'
-            : (Number(status.officeDocumentsUsed || 0) + ' of ' + documentLimit + ' used · ' + Math.max(0, documentLimit - Number(status.officeDocumentsUsed || 0)) + ' left in 3 days');
-        quotas.push(documentQuota);
-
         if ((u.imagesCap || 0) > 0) {
             quotas.push(quotaRow(
                 'images',
@@ -1924,7 +1856,7 @@ function createPlansStore(dataDir, options = {}) {
                 'daily',
                 u.imagesToday || 0,
                 u.imagesCap || 0,
-                'Daily image count (UTC). Document uploads remain unlimited.'
+                'Daily image count (UTC). Documents/files are unlimited.'
             ));
         }
 
@@ -2074,129 +2006,12 @@ function createPlansStore(dataDir, options = {}) {
         return { ok: true, attached, migratedSub, ownerKey: ak };
     }
 
-    function recordFeatureUsage(ownerKey, feature) {
-        if (!ownerKey || !['images', 'documents', 'code', 'studioGames', 'studioFiles'].includes(feature)) return;
-        const u = ensureUsage(ownerKey);
-        const day = utcDayKey();
-        if (!u.featureUsage || u.featureUsage.day !== day) u.featureUsage = { day, images: 0, videos: 0, documents: 0, code: 0, studioGames: 0, studioFiles: 0 };
-        u.featureUsage[feature] = (Number(u.featureUsage[feature]) || 0) + 1;
-        if (!u.featureTotals) u.featureTotals = {};
-        u.featureTotals[feature] = (Number(u.featureTotals[feature]) || 0) + 1;
-        save();
-        flushSync();
-    }
-
-    function getFeatureUsage(ownerKey) {
-        const u = ensureUsage(ownerKey);
-        const today = u.featureUsage && u.featureUsage.day === utcDayKey() ? u.featureUsage : {};
-        const office = getOfficeDocumentAllowance(ownerKey);
-        const def = getEffectivePlan(ownerKey).def;
-        return {
-            day: utcDayKey(), resetTimezone: 'UTC',
-            images: { today: Number(today.images) || 0, total: Number(u.featureTotals && u.featureTotals.images) || 0 },
-            videos: { today: Number(today.videos) || 0, total: Number(u.featureTotals && u.featureTotals.videos) || 0 },
-            documents: { today: Number(today.documents) || 0, total: Number(u.featureTotals && u.featureTotals.documents) || 0, exportsUsed: office.used, exportLimit: office.limit, unlimitedExports: office.unlimited, resetsAt: office.resetsAt },
-            code: { today: Number(today.code) || 0, total: Number(u.featureTotals && u.featureTotals.code) || 0, limit: null },
-            studioGames: { today: Number(today.studioGames) || 0, limit: 2, guestOnly: true },
-            studioFiles: { today: Number(today.studioFiles) || 0, limit: 2, guestOnly: true },
-            pexels: { searches: Number(u.imagineSearchesToday) || 0, searchLimit: Number(def.imagineSearchesPerDay) || Number((PLAN_DEFS[getEffectivePlan(ownerKey).plan] || {}).imagineSearchesPerDay) || 0, images: Number(u.imagineImagesToday) || 0, videos: Number(u.imagineVideosToday) || 0 },
-            note: 'Feature activity is tracked separately. AI requests use the shared model allowance.'
-        };
-    }
-
-    // Consume non-expiring/top-up feature credits (1 credit = $0.01). Monthly/plan
-    // balances are represented in the same USD ledger and are always consumed first.
-    function ensureStudioWallet(ownerKey) {
-        const store=read(), effective=getEffectivePlan(ownerKey);
-        const grants={free:[5,2],plus:[50,50],pro:[150,150],max:[250,250]};
-        const period=effective.plan==='free' ? utcWeekKey() : effective.startsAt || '';
-        const c=store.credits[ownerKey] || {};
-        if(!c.signupMediaBonusGranted){ c.mediaUsd=roundUsd((Number(c.mediaUsd)||0)+0.08); c.signupMediaBonusGranted=true; store.credits[ownerKey]=c; save(); }
-        if(c.studioPeriod !== period || c.studioPlan !== effective.plan){
-            const [ai,media]=grants[effective.plan] || [0,0];
-            c.monthlyStudioAi=ai; c.monthlyMedia=media;
-            c.studioPeriod=period; c.studioPlan=effective.plan;
-            store.credits[ownerKey]=c; save();
-        }
-        return c;
-    }
-    function consumeCredits(ownerKey,bucket,costUsd){
-        const amount=Math.ceil((Number(costUsd)||0)*100-0.000001);
-        if(!ownerKey||amount<=0)return {ok:true,chargedUsd:0,remainingUsd:0};
-        const c=ensureStudioWallet(ownerKey),key=bucket==='mediaUsd'?'mediaUsd':bucket==='studioUsd'?'studioUsd':bucket==='documentsUsd'?'documentsUsd':'chatUsd';
-        const monthlyKey=key==='mediaUsd'?'monthlyMedia':key==='studioUsd'||key==='documentsUsd'?'monthlyStudioAi':null;
-        const monthly=monthlyKey?Math.max(0,Number(c[monthlyKey])||0):0,topup=Math.max(0,Math.round((Number(c[key])||0)*100));
-        if(monthly+topup<amount)return {ok:false,chargedUsd:0,remainingUsd:(monthly+topup)/100,shortfallUsd:(amount-monthly-topup)/100};
-        const fromMonthly=Math.min(monthly,amount); if(monthlyKey)c[monthlyKey]=monthly-fromMonthly;
-        c[key]=roundUsd((topup-(amount-fromMonthly))/100);read().credits[ownerKey]=c;save();flushSync();
-        return {ok:true,chargedUsd:amount/100,remainingUsd:(monthly+topup-amount)/100,fromMonthly,fromTopup:amount-fromMonthly};
-    }
-    function refundCredits(ownerKey,bucket,amountUsd,receipt){
-        const amount=Math.round((Number(amountUsd)||0)*100);if(!ownerKey||amount<=0)return null;
-        const c=ensureStudioWallet(ownerKey),key=bucket==='mediaUsd'?'mediaUsd':bucket==='studioUsd'?'studioUsd':bucket==='documentsUsd'?'documentsUsd':'chatUsd';
-        const monthlyKey=key==='mediaUsd'?'monthlyMedia':key==='studioUsd'||key==='documentsUsd'?'monthlyStudioAi':null;
-        const monthly=receipt&&monthlyKey?Math.min(amount,Number(receipt.fromMonthly)||0):0;
-        if(monthlyKey)c[monthlyKey]=(Number(c[monthlyKey])||0)+monthly;
-        c[key]=roundUsd((Number(c[key])||0)+(amount-monthly)/100);read().credits[ownerKey]=c;save();flushSync();return c;
-    }
-    function getCredits(ownerKey){
-        const c=ensureStudioWallet(ownerKey);
-        return {totalUsd:roundUsd(c.totalUsd),rateUsd:0.01, monthly:{studioAi:Number(c.monthlyStudioAi)||0,media:Number(c.monthlyMedia)||0},remaining:{
-            chatUsd:roundUsd(c.chatUsd),studioUsd:roundUsd(c.studioUsd),mediaUsd:roundUsd(c.mediaUsd),documentsUsd:roundUsd(c.documentsUsd)
-        },available:{studioAi:(Number(c.monthlyStudioAi)||0)+Math.round((Number(c.studioUsd)||0)*100),media:(Number(c.monthlyMedia)||0)+Math.round((Number(c.mediaUsd)||0)*100)}};
-    }
-
-    function recordMessageFeedback({ ownerKey, surface, messageId, rating, excerpt } = {}) {
-        const owner = String(ownerKey || '').slice(0, 160);
-        const message = String(messageId || '').slice(0, 220);
-        const vote = String(rating || '').toLowerCase();
-        if (!owner || !message || !['like', 'dislike'].includes(vote)) return { ok: false, error: 'Invalid feedback.' };
-        const store = read();
-        if (!Array.isArray(store.feedback)) store.feedback = [];
-        const area = String(surface || 'chat').toLowerCase() === 'studio' ? 'studio' : 'chat';
-        const existing = store.feedback.find(item => item.ownerKey === owner && item.surface === area && item.messageId === message);
-        const row = existing || { id: 'fb_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'), ownerKey: owner, surface: area, messageId: message, createdAt: new Date().toISOString() };
-        row.rating = vote;
-        row.excerpt = String(excerpt || '').replace(/\s+/g, ' ').trim().slice(0, 500);
-        row.updatedAt = new Date().toISOString();
-        if (!existing) store.feedback.unshift(row);
-        if (store.feedback.length > 5000) store.feedback.length = 5000;
-        save(); flushSync();
-        return { ok: true, feedback: { id: row.id, rating: row.rating, surface: row.surface, updatedAt: row.updatedAt } };
-    }
-    function getFeedbackStats(ownerKey) {
-        const rows = (read().feedback || []).filter(item => item.ownerKey === ownerKey);
-        return {
-            likes: rows.filter(item => item.rating === 'like').length,
-            dislikes: rows.filter(item => item.rating === 'dislike').length,
-            total: rows.length
-        };
-    }
-
-        function createCreditRequest({ deviceId, phone, email, userId, ip, amount } = {}) {
-        const value = Math.round(Number(amount) * 100) / 100;
-        if (!Number.isFinite(value) || value < 2 || value > 200) return { ok: false, error: 'Credit amount must be between $2 and $200.' };
-        const normalized = normalizePhone(phone);
-        if (!isValidOmtPhone(normalized)) return { ok: false, error: 'Enter a valid OMT Pay wallet number.' };
-        const uid = userId != null ? String(userId) : '';
-        const emailNorm = normalizeEmail(email);
-        if (!uid || !emailNorm) return { ok: false, error: 'Log in with an account email before buying credits.' };
-        const store = read();
-        const ownerKey = accountOwnerKey(uid);
-        const payment = { id: 'credit_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'), kind: 'credits', amount: value, creditAmount: value, plan: 'credits', phone: normalized, deviceId: deviceId || null, userId: uid, email: emailNorm, status: 'waiting', createdAt: new Date().toISOString(), decidedAt: null, ip: typeof ip === 'string' ? ip.trim().slice(0, 64) : null, ownerKey };
-        store.payments.unshift(payment); save(); flushSync();
-        const each = roundUsd(value / 4);
-        return { ok: true, payment, split: { chatUsd: each, studioUsd: each, mediaUsd: each, documentsUsd: each } };
-    }
-
-    function createPaymentRequest({ deviceId, plan, billingPeriod, phone, email, userId, ip, currentPlan } = {}) {
+    function createPaymentRequest({ deviceId, plan, phone, email, userId, ip, currentPlan } = {}) {
         const planId = String(plan || '').toLowerCase();
         const def = PLAN_DEFS[planId];
         if (!def || planId === 'free') {
             return { ok: false, error: 'Choose Plus, Pro, or Max.' };
         }
-        const billing = billingPeriod === 'yearly' ? 'yearly' : 'monthly';
-        const amount = billing === 'yearly' ? YEARLY_PRICES[planId] : def.priceUsd;
         const normalized = normalizePhone(phone);
         if (!isValidOmtPhone(normalized)) {
             return { ok: false, error: 'Enter a valid OMT Pay wallet number.' };
@@ -2218,7 +2033,7 @@ function createPlansStore(dataDir, options = {}) {
         const store = read();
         // Block duplicate waiting requests for same account (or guest device)+plan
         const existingWaiting = store.payments.find(p => {
-            if (p.status !== 'waiting' || p.plan !== planId || (p.billingPeriod || 'monthly') !== billing) return false;
+            if (p.status !== 'waiting' || p.plan !== planId) return false;
             if (uid) {
                 return String(p.userId || '') === uid ||
                     (emailNorm && p.email === emailNorm) ||
@@ -2258,8 +2073,7 @@ function createPlansStore(dataDir, options = {}) {
             id: 'pay_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'),
             phone: normalized,
             plan: planId,
-            amount,
-            billingPeriod: billing,
+            amount: def.priceUsd,
             deviceId: deviceId || null,
             userId: uid || null,
             email: emailNorm,
@@ -2276,6 +2090,89 @@ function createPlansStore(dataDir, options = {}) {
         return { ok: true, payment };
     }
 
+    // Credits are an add-on only: they never change plan access or unlock modes.
+    function getCredits(ownerKey) {
+        const store = read();
+        const c = store.credits[ownerKey] || {};
+        return { totalUsd: roundUsd(c.totalUsd), remaining: {
+            chatUsd: roundUsd(c.chatUsd), studioUsd: roundUsd(c.studioUsd),
+            mediaUsd: roundUsd(c.mediaUsd), documentsUsd: roundUsd(c.documentsUsd),
+            aiCredits: Math.max(0, Math.floor(Number(c.aiCredits) || 0)),
+            mediaCredits: Math.max(0, Math.floor(Number(c.mediaCredits) || 0)),
+            creditWeek: c.creditWeek || null,
+            signupMediaBonus: !!c.signupMediaBonus
+        }};
+    }
+
+    // One credit is one cent. Free accounts receive 5 AI credits and 2 media
+    // credits per UTC week, plus a one-time 8-credit media signup bonus.
+    function creditWeekKey() {
+        const d = new Date();
+        const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+        const monday = new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * 86400000);
+        return monday.toISOString().slice(0, 10);
+    }
+    function ensureCreditState(ownerKey, plan) {
+        if (!ownerKey) return null;
+        const store = read();
+        const currentPlan = String(plan || getEffectivePlan(ownerKey).plan || 'free').toLowerCase();
+        const week = creditWeekKey();
+        const c = store.credits[ownerKey] || {};
+        if (!c.creditWeek) {
+            c.creditWeek = week;
+            c.aiCredits = currentPlan === 'free' ? 5 : Number(c.aiCredits) || 0;
+            c.mediaCredits = currentPlan === 'free' ? 10 : Number(c.mediaCredits) || 0;
+            c.signupMediaBonus = currentPlan === 'free';
+        } else if (c.creditWeek !== week) {
+            c.creditWeek = week;
+            if (currentPlan === 'free') {
+                c.aiCredits = 5;
+                c.mediaCredits = 2;
+            }
+        }
+        store.credits[ownerKey] = c;
+        save();
+        return c;
+    }
+    function checkCreditAllowed(ownerKey, kind) {
+        const effective = getEffectivePlan(ownerKey);
+        const c = ensureCreditState(ownerKey, effective.plan);
+        if (!c || effective.plan !== 'free') return { ok: true, remaining: c ? (kind === 'media' ? Number(c.mediaCredits) || 0 : Number(c.aiCredits) || 0) : null };
+        const field = kind === 'media' ? 'mediaCredits' : 'aiCredits';
+        const remaining = Math.max(0, Math.floor(Number(c[field]) || 0));
+        if (remaining <= 0) return { ok: false, remaining: 0, error: { status: 429, code: kind === 'media' ? 'media_credits_exhausted' : 'ai_credits_exhausted', reply: 'Your free ' + kind + ' credits are used for this week. They reset every Monday UTC.', upgradeUrl: '/upgrade' } };
+        return { ok: true, remaining };
+    }
+    function consumeCredit(ownerKey, kind, units = 1) {
+        if (!ownerKey) return null;
+        const effective = getEffectivePlan(ownerKey);
+        const c = ensureCreditState(ownerKey, effective.plan);
+        if (!c) return null;
+        const field = kind === 'media' ? 'mediaCredits' : 'aiCredits';
+        const n = Math.max(1, Math.floor(Number(units) || 1));
+        const before = Math.max(0, Math.floor(Number(c[field]) || 0));
+        if (before < n) return { ok: false, remaining: before };
+        c[field] = before - n;
+        save(); flushSync();
+        return { ok: true, remaining: c[field] };
+    }
+
+    function createCreditRequest({ deviceId, phone, email, userId, ip, amount } = {}) {
+        const value = Math.round(Number(amount) * 100) / 100;
+        if (!Number.isFinite(value) || value < 2 || value > 200) return { ok: false, error: 'Credit amount must be between $2 and $200.' };
+        const normalized = normalizePhone(phone);
+        if (!isValidOmtPhone(normalized)) return { ok: false, error: 'Enter a valid OMT Pay wallet number.' };
+        const uid = userId != null ? String(userId) : '';
+        const emailNorm = normalizeEmail(email);
+        if (!uid || !emailNorm) return { ok: false, error: 'Log in with an account email before buying credits.' };
+        const store = read();
+        const ownerKey = accountOwnerKey(uid);
+        const payment = { id: 'credit_' + Date.now().toString(36) + '_' + crypto.randomBytes(3).toString('hex'), kind: 'credits', amount: value, creditAmount: value, plan: 'credits', phone: normalized, deviceId: deviceId || null, userId: uid, email: emailNorm, status: 'waiting', createdAt: new Date().toISOString(), decidedAt: null, ip: typeof ip === 'string' ? ip.trim().slice(0, 64) : null, ownerKey };
+        store.payments.unshift(payment); save(); flushSync();
+        const each = roundUsd(value / 4);
+        return { ok: true, payment, split: { chatUsd: each, studioUsd: each, mediaUsd: each, documentsUsd: each } };
+    }
+
 
     function maskPhone(phone) {
         const p = normalizePhone(phone);
@@ -2290,7 +2187,6 @@ function createPlansStore(dataDir, options = {}) {
             plan: p.plan,
             label: (PLAN_DEFS[p.plan] || {}).label || p.plan,
             amount: p.amount,
-            billingPeriod: p.billingPeriod || 'monthly',
             status: p.status, // waiting | approved | declined
             createdAt: p.createdAt || null,
             decidedAt: p.decidedAt || null,
@@ -2433,7 +2329,6 @@ function createPlansStore(dataDir, options = {}) {
             livePlan: (live && live.plan) || 'free',
             effectivePlan: p.effectivePlan || (live && live.plan) || p.plan,
             amount: p.amount,
-            billingPeriod: p.billingPeriod || 'monthly',
             status: p.status,
             createdAt: p.createdAt || null,
             decidedAt: p.decidedAt || null,
@@ -2473,7 +2368,6 @@ function createPlansStore(dataDir, options = {}) {
         if (payment.status === 'approved') {
             return { ok: true, payment, already: true };
         }
-        if (payment.status !== 'waiting') return { ok: false, error: 'Only waiting payment requests can be approved.' };
 
         const phone = normalizePhone(payment.phone);
         const ownerKey = paymentOwnerKey(payment);
@@ -2490,12 +2384,13 @@ function createPlansStore(dataDir, options = {}) {
             current.studioUsd = roundUsd((current.studioUsd || 0) + each);
             current.mediaUsd = roundUsd((current.mediaUsd || 0) + each);
             current.documentsUsd = roundUsd((current.documentsUsd || 0) + each);
+            current.aiCredits = Math.max(0, Math.floor(Number(current.aiCredits) || 0)) + Math.floor(value * 50);
+            current.mediaCredits = Math.max(0, Math.floor(Number(current.mediaCredits) || 0)) + Math.floor(value * 50);
             store.credits[ownerKey] = current;
             payment.status = 'approved'; payment.decidedAt = new Date().toISOString();
             save(); flushSync();
             return { ok: true, payment, credits: current };
         }
-
         const planId = payment.plan;
         const def = getPlanDef(planId);
         if (!def || planId === 'free') {
@@ -2526,65 +2421,46 @@ function createPlansStore(dataDir, options = {}) {
             };
         }
 
-        const isSameActivePlan = stack.mode === 'same_stack' && currentSub &&
-            currentSub.plan === planId && Date.parse(currentSub.endsAt || 0) > Date.now();
-        const periodMs = payment.billingPeriod === 'yearly' ? YEARLY_PERIOD_MS : PAID_PERIOD_MS;
-        let startsAt;
-        let endsAt;
-        let effectiveStackMode = stack.mode;
-        if (isSameActivePlan) {
-            // Add the purchase's base allowance immediately; keep current dates and spend intact.
-            const activeCaps = cloneCaps(stack.capsAfter);
-            const queue = Array.isArray(currentSub.queuedSubscriptions) ? currentSub.queuedSubscriptions.slice() : [];
-            const latestQueuedEnd = queue.reduce((latest, item) => Math.max(latest, Date.parse(item && item.endsAt || '') || 0), 0);
-            const currentEnd = Date.parse(currentSub.endsAt || '');
-            const queuedStartMs = Math.max(currentEnd, latestQueuedEnd);
-            startsAt = new Date(queuedStartMs);
-            endsAt = new Date(queuedStartMs + periodMs);
-            queue.push({
-                plan: planId, phone, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
-                paymentRequestId: payment.id, caps: capsFromPlanId(planId),
-                stackMode: 'grant_full', billingPeriod: payment.billingPeriod === 'yearly' ? 'yearly' : 'monthly'
-            });
-            store.subscriptions[ownerKey] = Object.assign({}, currentSub, {
-                caps: activeCaps,
-                queuedSubscriptions: queue,
-                stackMode: 'same_stack_queued'
-            });
-            effectiveStackMode = 'same_stack_queued';
-        } else {
-            startsAt = new Date();
-            endsAt = new Date(startsAt.getTime() + periodMs);
-            store.subscriptions[ownerKey] = Object.assign({
-                plan: stack.plan, phone, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
-                paymentRequestId: payment.id, caps: cloneCaps(stack.capsAfter), stackMode: stack.mode,
-                stackedFrom: stack.fromPlan, stackedTo: stack.toPlan
-            }, { queuedSubscriptions: currentSub && Array.isArray(currentSub.queuedSubscriptions) ? currentSub.queuedSubscriptions : [] });
-            // Reset the allowance counters only for a genuinely new active term.
-            const u = store.usage[ownerKey] || emptyUsageRow(utcDayKey(), startsAt.toISOString());
-            u.periodStartsAt = startsAt.toISOString();
-            u.day = utcDayKey();
-            u.fastSpendUsd = 0;
-            u.thinkShareSpendUsd = 0;
-            u.expert16SpendUsd = 0;
-            u.otherSpendUsd = 0;
-            u.fast = 0;
-            u.thinking = 0;
-            u.expert4 = 0;
-            u.expert16 = 0;
-            rollImageDay(u, utcDayKey());
-            u.talkPeriodKey = null;
-            rollTalkPeriod(u, stack.plan, startsAt.toISOString());
-            u.fastHalved = false;
-            store.usage[ownerKey] = u;
-        }
+        const startsAt = new Date();
+        const endsAt = new Date(startsAt.getTime() + PAID_PERIOD_MS);
+        store.subscriptions[ownerKey] = {
+            plan: stack.plan,
+            phone,
+            startsAt: startsAt.toISOString(),
+            endsAt: endsAt.toISOString(),
+            paymentRequestId: payment.id,
+            caps: cloneCaps(stack.capsAfter),
+            stackMode: stack.mode,
+            stackedFrom: stack.fromPlan,
+            stackedTo: stack.toPlan
+        };
         store.phoneIndex[phone] = ownerKey;
+
+        // Reset period $ spend for this account/device owner (stacking adds caps; spend starts fresh for the new period window)
+        const u = store.usage[ownerKey] || emptyUsageRow(utcDayKey(), startsAt.toISOString());
+        u.periodStartsAt = startsAt.toISOString();
+        u.day = utcDayKey();
+        u.fastSpendUsd = 0;
+        u.thinkShareSpendUsd = 0;
+        u.expert16SpendUsd = 0;
+        u.otherSpendUsd = 0;
+        u.fast = 0;
+        u.thinking = 0;
+        u.expert4 = 0;
+        u.expert16 = 0;
+        // Daily image cap is UTC-day based — do not reset mid-day on approve
+        rollImageDay(u, utcDayKey());
+        // Talk minutes reset with the new paid period
+        u.talkPeriodKey = null;
+        rollTalkPeriod(u, stack.plan, startsAt.toISOString());
+        u.fastHalved = false;
+        store.usage[ownerKey] = u;
 
         payment.status = 'approved';
         payment.decidedAt = new Date().toISOString();
         payment.startsAt = startsAt.toISOString();
         payment.endsAt = endsAt.toISOString();
-        payment.stackMode = effectiveStackMode;
+        payment.stackMode = stack.mode;
         payment.stackedFrom = stack.fromPlan;
         payment.stackedTo = stack.toPlan;
         payment.capsBefore = cloneCaps(stack.capsBefore);
@@ -2598,7 +2474,7 @@ function createPlansStore(dataDir, options = {}) {
             ok: true,
             payment,
             subscription: store.subscriptions[ownerKey],
-            stacking: Object.assign({}, stack, { mode: effectiveStackMode, scheduledStartsAt: startsAt.toISOString(), scheduledEndsAt: endsAt.toISOString() })
+            stacking: stack
         };
     }
 
@@ -2609,7 +2485,6 @@ function createPlansStore(dataDir, options = {}) {
         if (payment.status === 'declined') {
             return { ok: true, payment, already: true };
         }
-        if (payment.kind === 'credits' && payment.status !== 'waiting') return { ok: false, error: 'Approved credits require a separate refund adjustment.' };
 
         const reason = String((opts && opts.reason) || '').trim();
         if (!reason) {
@@ -2648,10 +2523,19 @@ function createPlansStore(dataDir, options = {}) {
     function getPauseState() {
         const store = read();
         const settings = normalizeSettings(store.settings);
+        const untilMs = settings.pauseUntil ? Date.parse(settings.pauseUntil) : NaN;
+        if (settings.paused && Number.isFinite(untilMs) && untilMs <= Date.now()) {
+            store.settings = Object.assign({}, settings, { paused: false, pausedAt: null, pausedBy: null, pauseUntil: null, pauseMessage: '' });
+            save();
+            flushSync();
+            return { paused: false, pausedAt: null, pausedBy: null, pauseUntil: null, pauseMessage: '' };
+        }
         return {
             paused: !!settings.paused,
             pausedAt: settings.pausedAt,
-            pausedBy: settings.pausedBy
+            pausedBy: settings.pausedBy,
+            pauseUntil: settings.pauseUntil,
+            pauseMessage: settings.pauseMessage
         };
     }
 
@@ -2663,10 +2547,17 @@ function createPlansStore(dataDir, options = {}) {
         const store = read();
         const next = !!paused;
         const by = opts && opts.by ? String(opts.by).slice(0, 200) : null;
+        const durationMinutes = Number(opts && opts.durationMinutes);
+        const pauseUntil = next && Number.isFinite(durationMinutes) && durationMinutes > 0
+            ? new Date(Date.now() + Math.min(durationMinutes, 10080) * 60 * 1000).toISOString()
+            : null;
+        const pauseMessage = next ? String(opts && opts.message || '').trim().slice(0, 500) : '';
         store.settings = normalizeSettings(store.settings);
         store.settings.paused = next;
         store.settings.pausedAt = next ? new Date().toISOString() : null;
         store.settings.pausedBy = next ? by : null;
+        store.settings.pauseUntil = pauseUntil;
+        store.settings.pauseMessage = pauseMessage;
         save();
         flushSync();
         return getPauseState();
@@ -2719,9 +2610,6 @@ function createPlansStore(dataDir, options = {}) {
                 : null;
 
             const usage = adminUsageSnapshot(ownerKey);
-            const featureUsage = ownerKey ? getFeatureUsage(ownerKey) : null;
-            const creditWallet = ownerKey ? getCredits(ownerKey) : null;
-            const feedbackStats = ownerKey ? getFeedbackStats(ownerKey) : { likes: 0, dislikes: 0, total: 0 };
             return {
                 id: uid || null,
                 email: emailNorm || null,
@@ -2741,17 +2629,11 @@ function createPlansStore(dataDir, options = {}) {
                 lastPaymentAt: (pay && pay.createdAt) || null,
                 todayTokens: usage.todayTokens,
                 todaySpendUsd: usage.todaySpendUsd,
-                todayProviderReportedSpendUsd: usage.todayProviderReportedSpendUsd,
-                todayTokenRatedSpendUsd: usage.todayTokenRatedSpendUsd,
-                todayEstimatedSpendUsd: usage.todayEstimatedSpendUsd,
                 todayGrokSpendUsd: usage.todayGrokSpendUsd,
                 todayOpenaiSpendUsd: usage.todayOpenaiSpendUsd,
                 todayDeepseekSpendUsd: usage.todayDeepseekSpendUsd,
                 totalTokens: usage.totalTokens,
                 totalSpendUsd: usage.totalSpendUsd,
-                totalProviderReportedSpendUsd: usage.totalProviderReportedSpendUsd,
-                totalTokenRatedSpendUsd: usage.totalTokenRatedSpendUsd,
-                totalEstimatedSpendUsd: usage.totalEstimatedSpendUsd,
                 totalGrokSpendUsd: usage.totalGrokSpendUsd,
                 totalOpenaiSpendUsd: usage.totalOpenaiSpendUsd,
                 totalDeepseekSpendUsd: usage.totalDeepseekSpendUsd,
@@ -2775,20 +2657,7 @@ function createPlansStore(dataDir, options = {}) {
                 talkSecondsUsed: usage.talkSecondsUsed || 0,
                 talkCapSeconds: usage.talkCapSeconds || 0,
                 talkMinutesCap: usage.talkMinutesCap || 0,
-                talkPeriod: usage.talkPeriod || 'weekly',
-                featureUsage: featureUsage,
-                videoGenerationsToday: featureUsage ? featureUsage.videos.today : 0,
-                videoGenerationsTotal: featureUsage ? featureUsage.videos.total : 0,
-                generatedImagesToday: featureUsage ? featureUsage.images.today : 0,
-                generatedImagesTotal: featureUsage ? featureUsage.images.total : 0,
-                documentsToday: featureUsage ? featureUsage.documents.today : 0,
-                documentsTotal: featureUsage ? featureUsage.documents.total : 0,
-                codeToday: featureUsage ? featureUsage.code.today : 0,
-                codeTotal: featureUsage ? featureUsage.code.total : 0,
-                availableStudioAiCredits: creditWallet ? creditWallet.available.studioAi : 0,
-                availableMediaCredits: creditWallet ? creditWallet.available.media : 0,
-                feedbackLikes: feedbackStats.likes,
-                feedbackDislikes: feedbackStats.dislikes
+                talkPeriod: usage.talkPeriod || 'weekly'
             };
         }
 
@@ -2860,8 +2729,6 @@ function createPlansStore(dataDir, options = {}) {
         recordImage,
         checkImagineAllowed,
         recordImagine,
-        getOfficeDocumentAllowance,
-        recordOfficeDocumentExport,
         checkTalkAllowed,
         recordTalk,
         recordSpend,
@@ -2891,12 +2758,8 @@ function createPlansStore(dataDir, options = {}) {
         getMyPlan,
         getPayment,
         getCredits,
-        consumeCredits,
-        refundCredits,
-        recordMessageFeedback,
-        getFeedbackStats,
-        getFeatureUsage,
-        recordFeatureUsage,
+        checkCreditAllowed,
+        consumeCredit,
         createCreditRequest,
         approvePayment,
         declinePayment,
@@ -2970,4 +2833,3 @@ module.exports = {
     MODEL_PRICING,
     DEFAULT_PRICING
 };
-

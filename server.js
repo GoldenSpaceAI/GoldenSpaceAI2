@@ -4,6 +4,7 @@ const OpenAI = require('openai');
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
+const crypto = require('crypto');
 const {
     createPlansStore,
     adminTokenFromPasskey,
@@ -71,12 +72,53 @@ const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || '';
 let auth = null;
 
 // Canonical-domain redirect: preserve old links while moving visitors to GoldenoAI.
+// A short-lived signed handoff preserves existing sessions when a user arrives from
+// the old .space domain. Cookies cannot be shared directly between two domains.
+const DOMAIN_MIGRATION_TTL_MS = 5 * 60 * 1000;
+function safeDomainMigrationPath(value) {
+    const pathValue = String(value || '/');
+    return pathValue.startsWith('/') && !pathValue.startsWith('//') ? pathValue : '/';
+}
+function createDomainMigrationToken(user, nextPath) {
+    const secret = String(process.env.SESSION_SECRET || '');
+    if (!secret || !user || !user.id) return '';
+    const payload = Buffer.from(JSON.stringify({
+        uid: String(user.id), email: user.email || null, name: user.name || null,
+        next: safeDomainMigrationPath(nextPath), exp: Date.now() + DOMAIN_MIGRATION_TTL_MS
+    })).toString('base64url');
+    const sig = crypto.createHmac('sha256', secret).update('domain-migration:' + payload).digest('base64url');
+    return payload + '.' + sig;
+}
+function verifyDomainMigrationToken(token) {
+    const secret = String(process.env.SESSION_SECRET || '');
+    const pair = String(token || '').split('.');
+    if (!secret || pair.length !== 2 || !pair[0] || !pair[1]) return null;
+    const expected = crypto.createHmac('sha256', secret).update('domain-migration:' + pair[0]).digest('base64url');
+    const given = Buffer.from(pair[1]);
+    const wanted = Buffer.from(expected);
+    if (given.length !== wanted.length || !crypto.timingSafeEqual(given, wanted)) return null;
+    try {
+        const data = JSON.parse(Buffer.from(pair[0], 'base64url').toString('utf8'));
+        if (!data || !data.uid || !Number.isFinite(Number(data.exp)) || Number(data.exp) < Date.now()) return null;
+        return { id: String(data.uid), email: data.email || null, name: data.name || null, next: safeDomainMigrationPath(data.next) };
+    } catch (_) { return null; }
+}
 app.use((req, res, next) => {
     const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim().split(':')[0].toLowerCase();
     if (host === 'goldenspaceai.space' || host === 'www.goldenspaceai.space') {
-        return res.redirect(308, 'https://goldenoai.com' + (req.originalUrl || req.url || '/'));
+        let user = null;
+        try { user = auth && typeof auth.readUserFromReq === 'function' ? auth.readUserFromReq(req) : null; } catch (_) {}
+        const token = createDomainMigrationToken(user, req.originalUrl || req.url || '/');
+        if (token) return res.redirect(302, 'https://www.goldenoai.com/auth-domain-migrate?t=' + encodeURIComponent(token));
+        return res.redirect(308, 'https://www.goldenoai.com' + safeDomainMigrationPath(req.originalUrl || req.url || '/'));
     }
     return next();
+});
+app.get('/auth-domain-migrate', (req, res) => {
+    const migration = verifyDomainMigrationToken(req.query && req.query.t);
+    if (!migration || !auth) return res.redirect(303, '/login?msg=' + encodeURIComponent('Please sign in to restore your chats.'));
+    auth.setSessionCookie(res, migration, req);
+    return res.redirect(303, migration.next || '/');
 });
 
 app.get('/robots.txt', (req, res) => {

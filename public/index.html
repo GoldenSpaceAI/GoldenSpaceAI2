@@ -5020,6 +5020,16 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             return id || ('c_' + Date.now().toString(36));
         }
         let ephemeralClientId = null;
+        function adoptMigratedClientId() {
+            try {
+                const url = new URL(window.location.href);
+                const id = String(url.searchParams.get('migrate_device') || '');
+                if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) return;
+                localStorage.setItem('goldenspaceai2_client_id', id);
+                url.searchParams.delete('migrate_device');
+                window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+            } catch (_) {}
+        }
         function ensureClientId() {
             try {
                 clientId = localStorage.getItem('goldenspaceai2_client_id');
@@ -5656,6 +5666,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light');
         }
         async function init() {
+            adoptMigratedClientId();
             ensureClientId();
             initTheme();
             await refreshAuthStatus();

@@ -1130,10 +1130,8 @@ function isQuizGenerationPrompt(body) {
 function isOfficeDocumentPrompt(body) {
     const text = latestUserPromptText(body);
     if (text.startsWith('You are the planning intelligence inside GoldenoAI Studio.')) return false;
-    // Study explanations, essay coaching, and compare/contrast answers stay in Chat.
-    // Require an explicit export/file format so ordinary writing never becomes a document job.
-    const explicitFile = /\b(?:word\s+(?:document|file)|docx|pdf|powerpoint|pptx|slide\s+deck|presentation\s+file|downloadable\s+(?:document|file)|export\s+(?:this|it)\s+as)\b/i.test(text);
-    return explicitFile && /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you|export)\b/i.test(text);
+    return /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you)\b/i.test(text)
+        && /\b(?:presentation|powerpoint|pptx|slides?|word|docx|document|report|handout|essay)\b/i.test(text) && !/\bword\s+problem\b/i.test(text);
 }
 
 function isRunnableCodePrompt(body) {
@@ -1954,7 +1952,7 @@ app.post('/api/chat/stream', async (req, res) => {
             };
             if (structuredRequest) {
                 createArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : (structuredRequest === 'code' ? 14000 : 7000);
-                if (structuredRequest === 'document' && ['deepseek', 'grok'].includes(activeConfig.provider || provider)) createArgs.response_format = { type: 'json_object' };
+                if (structuredRequest !== 'code' && ['deepseek', 'grok'].includes(activeConfig.provider || provider)) createArgs.response_format = { type: 'json_object' };
             }
             if (safeMode === 'smart') createArgs.reasoning_effort = 'high';
             return activeClient.chat.completions.create(createArgs, { signal: abortCtrl.signal });
@@ -1969,7 +1967,7 @@ app.post('/api/chat/stream', async (req, res) => {
             };
             if (structuredRequest) {
                 fallbackArgs.max_tokens = structuredRequest === 'quiz' ? 4096 : (structuredRequest === 'code' ? 14000 : 7000);
-                if (structuredRequest === 'document' && ['deepseek', 'grok'].includes(activeConfig.provider || provider)) fallbackArgs.response_format = { type: 'json_object' };
+                if (structuredRequest !== 'code' && ['deepseek', 'grok'].includes(activeConfig.provider || provider)) fallbackArgs.response_format = { type: 'json_object' };
             }
             if (safeMode === 'smart') fallbackArgs.reasoning_effort = 'high';
             const completion = await withTimeout(

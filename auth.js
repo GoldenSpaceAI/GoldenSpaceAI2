@@ -219,7 +219,6 @@ function createAuth(options = {}) {
                     );
                     ALTER TABLE chats ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'normal';
                     ALTER TABLE chats ADD COLUMN IF NOT EXISTS study_state JSONB NOT NULL DEFAULT '{}'::jsonb;
-                    );
                     CREATE TABLE IF NOT EXISTS user_projects (
                         owner_key TEXT NOT NULL,
                         project_id TEXT NOT NULL,

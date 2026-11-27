@@ -5925,9 +5925,8 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                     currentChatId = null;
                 }
                 let pulled = 0;
-                for (let i = 0; i < list.length; i++) {
-                    const meta = list[i];
-                    if (!meta || !meta.id) continue;
+                await Promise.all(list.map(async function(meta) {
+                    if (!meta || !meta.id) return;
                     const local = chats[meta.id];
                     const remoteMs = chatUpdatedMs(meta);
                     const localMs = chatUpdatedMs(local);
@@ -5936,7 +5935,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                             const full = await apiFetch(CHATS_API + '/' + encodeURIComponent(meta.id), {
                                 method: 'GET', cache: 'no-store'
                             });
-                            if (!full.ok) continue;
+                            if (!full.ok) return;
                             const chat = await full.json();
                             chats[meta.id] = {
                                 name: chat.name || 'New Chat',
@@ -5955,7 +5954,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                             pulled += 1;
                         } catch (e) {}
                     }
-                }
+                }));
                 saveChatsLocal();
                 return { ok: true, count: pulled, listed: list.length };
             } catch (e) {

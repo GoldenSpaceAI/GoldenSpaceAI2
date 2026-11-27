@@ -7430,8 +7430,8 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             }
 
             function paintStream() {
-                if (studyTurn || isQuizReply || isDocumentReply) { setThinkingStatus(thinkingId, 'generating'); return; }
-                streamTargetText = streamedText;
+                if (isQuizReply || isDocumentReply) { setThinkingStatus(thinkingId, 'generating'); return; }
+                streamTargetText = studyTurn ? streamedText.split('```', 1)[0].replace(/`{1,2}$/, '') : streamedText;
                 if (liveModeActive) {
                     updateLiveAiTranscript(streamedText);
                     feedLiveTtsFromStream(streamedText, false);
@@ -7522,7 +7522,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                             recordSearchQuery(obj.searchQuery);
                             if (chromeReady) mountActivityOnAi(true);
                         }
-                        if (obj.reasoning) {
+                        if (obj.reasoning && !studyTurn) {
                             recordReasoning(obj.reasoning);
                             if (!chromeReady) setThinkingStatus(thinkingId, 'thinking');
                             else mountActivityOnAi(true);
@@ -7542,7 +7542,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                             if (Array.isArray(obj.sites)) {
                                 for (let s = 0; s < obj.sites.length; s++) recordSite(obj.sites[s]);
                             }
-                            if (obj.reasoning) recordReasoning(obj.reasoning);
+                            if (obj.reasoning && !studyTurn) recordReasoning(obj.reasoning);
                             if (obj.contextPack) applyContextPackToChat(currentChatId, obj.contextPack);
                             doneFlag = true;
                         }
@@ -7583,7 +7583,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                         if (data && Array.isArray(data.sites)) {
                             for (let s = 0; s < data.sites.length; s++) recordSite(data.sites[s]);
                         }
-                        if (data && data.reasoning) recordReasoning(data.reasoning);
+                        if (data && data.reasoning && !studyTurn) recordReasoning(data.reasoning);
                         if (data && data.contextPack) applyContextPackToChat(currentChatId, data.contextPack);
                     } catch (fbErr) {
                         throw fbErr;
@@ -7598,7 +7598,17 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                     }
                 }
                 if (chats[currentChatId] && chats[currentChatId].mode === 'study' && String(finalText).trim()) {
-                    try { parsedStudy = await materializeStudyArtifact(finalText); if (parsedStudy) finalText = parsedStudy.text; }
+                    try {
+                        const pending = studyArtifactPayload(finalText);
+                        if (pending && contentEl) {
+                            const status = document.createElement('p');
+                            status.setAttribute('role', 'status');
+                            status.textContent = pending.data.type === 'exam' ? 'Preparing your exam…' : 'Preparing your study tool…';
+                            contentEl.after(status);
+                        }
+                        parsedStudy = await materializeStudyArtifact(finalText);
+                        if (parsedStudy) finalText = parsedStudy.text;
+                    }
                     catch (studyError) { finalText = studyError.message || 'Could not create the study tool.'; }
                 }
                 if (!String(finalText).trim()) {
@@ -8645,16 +8655,31 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             return holder ? holder.getAttribute('data-text') : '';
         }
 
-        function copyMessage(btn) {
-            const text = getBubbleText(btn);
-            if (!text) return;
-            navigator.clipboard.writeText(text).then(function() {
-                btn.style.color = '#4ade80';
-                setTimeout(function() { btn.style.color = ''; }, 1200);
+        async function copyMessage(btn) {
+            const preview = btn.closest('.message')?.querySelector('.ai-content');
+            if (!preview) return;
+            const plain = preview.innerText;
+            const rich = preview.cloneNode(true);
+            rich.querySelectorAll('button, .stream-caret').forEach(node => node.remove());
+            const rendered = preview.cloneNode(true);
+            rendered.querySelectorAll('button, .stream-caret, .katex-mathml').forEach(node => node.remove());
+            rendered.style.cssText = 'position:fixed;left:-10000px;top:0';
+            document.body.append(rendered);
+            const text = rendered.innerText || plain;
+            rendered.remove();
+            try {
+                if (!window.ClipboardItem || !navigator.clipboard.write) throw new Error('Plain clipboard only');
+                await navigator.clipboard.write([new ClipboardItem({
+                    'text/plain': new Blob([text], {type:'text/plain'}),
+                    'text/html': new Blob([rich.innerHTML], {type:'text/html'})
+                })]);
                 showToast('Copied to clipboard', 'ok', 1600);
-            }).catch(function() {
-                showToast('Copy failed', 'err');
-            });
+            } catch (_) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showToast('Copied to clipboard', 'ok', 1600);
+                } catch (_) { showToast('Copy failed', 'err'); }
+            }
         }
 
         function runCodeBlock(btn) {

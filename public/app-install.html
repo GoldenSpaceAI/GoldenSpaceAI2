@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#101114">
-  <meta name="description" content="Install GoldenSpaceAI on your device for quick access.">
+  <meta name="description" content="Install GoldenoAI on your device for quick access.">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="GoldenSpaceAI">
-  <title>Install GoldenSpaceAI</title>
+  <meta name="apple-mobile-web-app-title" content="GoldenoAI">
+  <title>Install GoldenoAI</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="icon" href="/icon-192.png">
@@ -20,12 +20,15 @@
     .actions{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 0}.button{appearance:none;border:0;border-radius:12px;padding:13px 20px;background:var(--gold);color:#17150c;font:700 15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-decoration:none;cursor:pointer}.button.secondary{background:var(--surface-2);color:#f4f4f5;border:1px solid #41434b}.button[hidden]{display:none}.footer{text-align:center}a.home{display:inline-block;color:var(--muted);margin-top:18px;text-decoration:none}a.home:hover{color:#fff}
     @media(max-width:480px){body{padding:18px}.card{padding:19px;border-radius:16px}.brand{width:64px;height:64px}}
   </style>
+  <link rel="stylesheet" href="/polish.css?v=1">
+  <link rel="stylesheet" href="/product.css?v=20261123-2">
+  <script src="/theme.js" defer></script>
 </head>
-<body>
+<body class="gsa-polished gsa-site-page gsa-install">
   <main>
     <header class="hero">
-      <img class="brand" src="/apple-touch-icon.png" alt="GoldenSpaceAI">
-      <h1>Install GoldenSpaceAI</h1>
+      <img class="brand" src="/apple-touch-icon.png" alt="GoldenoAI">
+      <h1>Install GoldenoAI</h1>
       <p class="intro">Get quick, app-like access from your phone, tablet, or computer.</p>
     </header>
     <section class="card" aria-live="polite">
@@ -35,8 +38,8 @@
       <ol class="steps" id="guideSteps"></ol>
       <p class="hint" id="guideHint"></p>
     </section>
-    <div class="actions"><button class="button" id="installButton" type="button" hidden>Install GoldenSpaceAI</button><a class="button secondary" href="/">Open GoldenSpaceAI</a></div>
-    <footer class="footer"><a class="home" href="/">Back to GoldenSpaceAI</a></footer>
+    <div class="actions"><button class="button" id="installButton" type="button" hidden>Install GoldenoAI</button><a class="button secondary" href="/">Open GoldenoAI</a></div>
+    <footer class="footer"><a class="home" href="/">Back to GoldenoAI</a></footer>
   </main>
   <script>
     (function(){
@@ -60,25 +63,25 @@
             'Open this page in Chrome on your iPhone or iPad.',
             'Tap the Share button beside the address bar.',
             'Choose “Add to Home Screen”. If it is not visible, scroll the share options.',
-            'Keep the name GoldenSpaceAI, then tap “Add”.'
+            'Keep the name GoldenoAI, then tap “Add”.'
           ],'This creates a Home Screen app shortcut; iOS does not download an APK.');
         }else{
-          show('Install from Safari on iPhone or iPad','Add GoldenSpaceAI directly to your Home Screen.',[
+          show('Install from Safari on iPhone or iPad','Add GoldenoAI directly to your Home Screen.',[
             'Tap the Share button in Safari.',
             'Scroll down and tap “Add to Home Screen”.',
             'Turn on “Open as Web App” if shown, then tap “Add”.'
           ],'If “Add to Home Screen” is missing, scroll to Edit Actions and add it.');
         }
       }else if(android){
-        show('Install on Android','Use the browser’s install option to add GoldenSpaceAI to your device.',[
-          'Tap “Install GoldenSpaceAI” if the button appears.',
+        show('Install on Android','Use the browser’s install option to add GoldenoAI to your device.',[
+          'Tap “Install GoldenoAI” if the button appears.',
           'Otherwise open the browser menu (⋮) and choose “Install app” or “Add to Home screen”.',
           'Confirm the install.'
         ],'No separate APK download is needed.');
       }else{
         show('Install on your computer','Use the browser’s built-in install option for an app window.',[
-          'Click “Install GoldenSpaceAI” if the button appears.',
-          'Otherwise open your browser menu and choose “Install page as app” or “Install GoldenSpaceAI”.'
+          'Click “Install GoldenoAI” if the button appears.',
+          'Otherwise open your browser menu and choose “Install page as app” or “Install GoldenoAI”.'
         ],'The install option depends on browser support. You can always open the website directly.');
       }
       var deferred=null;

@@ -47,8 +47,9 @@ function createStudyStore(dataDir) {
         if (exam && (exam.status === 'issued' || exam.status === 'in_progress') && Date.now() >= Date.parse(exam.expiresAt)) { exam.status = 'expired'; save(exam); }
         return exam;
     }
-    function grade(exam, answers) {
+    function grade(exam, answers, rubricGrades) {
         const userAnswers = Array.isArray(answers) ? answers : [];
+        const rubric = rubricGrades && typeof rubricGrades === 'object' ? rubricGrades : {};
         const feedback = [];
         let score = 0;
         for (const q of exam.questions) {
@@ -59,12 +60,18 @@ function createStudyStore(dataDir) {
                 const correct = q.answer && answer.toLowerCase() === q.answer.toLowerCase();
                 earned = correct ? q.points : 0; note = correct ? 'Correct.' : `Expected: ${q.answer || 'the keyed answer'}.`;
             } else {
-                const expected = String(q.answer || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3);
-                const actual = answer.toLowerCase();
-                const hits = expected.filter(w => actual.includes(w)).length;
-                const ratio = expected.length ? hits / expected.length : (answer.length >= 40 ? 1 : answer.length ? 0.5 : 0);
-                earned = Math.round(q.points * Math.min(1, ratio));
-                note = earned === q.points ? 'Strong answer.' : (earned ? 'Good start; add more specific evidence.' : 'Add a clearer explanation and supporting details.');
+                const ai = rubric[q.id];
+                if (ai && Number.isFinite(Number(ai.score))) {
+                    earned = Math.max(0, Math.min(q.points, Math.round(Number(ai.score))));
+                    note = String(ai.feedback || (earned === q.points ? 'Strong answer.' : 'Add more specific evidence.')).slice(0, 1200);
+                } else {
+                    const expected = String(q.answer || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3);
+                    const actual = answer.toLowerCase();
+                    const hits = expected.filter(w => actual.includes(w)).length;
+                    const ratio = expected.length ? hits / expected.length : (answer.length >= 40 ? 1 : answer.length ? 0.5 : 0);
+                    earned = Math.round(q.points * Math.min(1, ratio));
+                    note = earned === q.points ? 'Strong answer.' : (earned ? 'Good start; add more specific evidence.' : 'Add a clearer explanation and supporting details.');
+                }
             }
             score += earned; feedback.push({ id: q.id, score: earned, maxScore: q.points, feedback: note });
         }

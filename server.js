@@ -3025,7 +3025,7 @@ app.get('/api/auth/me', (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-    auth.clearSessionCookie(res);
+    auth.clearSessionCookie(res, req);
     res.json({ ok: true });
 });
 

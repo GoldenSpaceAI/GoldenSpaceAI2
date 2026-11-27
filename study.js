@@ -77,7 +77,13 @@ function createStudyStore(dataDir) {
         }
         exam.userAnswers = userAnswers; exam.score = score; exam.perQuestionFeedback = feedback; exam.status = 'submitted'; exam.submittedAt = new Date().toISOString(); save(exam); return exam;
     }
-    return { create, get, save, expireIfNeeded, grade, validateQuestions };
+    function latestResult(ownerKey, chatId) {
+        if (!ownerKey || !chatId) return null;
+        return Object.values(read())
+            .filter(exam => exam && exam.ownerKey === ownerKey && exam.chatId === chatId && exam.status === 'submitted')
+            .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))[0] || null;
+    }
+    return { create, get, save, expireIfNeeded, grade, validateQuestions, latestResult };
 }
 
 module.exports = { createStudyStore, QUESTION_TYPES };

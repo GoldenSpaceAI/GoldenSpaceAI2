@@ -2894,7 +2894,7 @@ app.post('/api/study/exams/:token/start', (req, res) => {
     return res.json({ exam: publicExam(exam) });
 });
 
-app.post('/api/study/exams/:token/submit', (req, res) => {
+app.post('/api/study/exams/:token/submit', async (req, res) => {
     const exam = studyStore.expireIfNeeded(studyStore.get(req.params.token));
     if (!exam) return res.status(404).json({ error: 'Exam not found.' });
     if (exam.ownerKey !== examOwner(req)) return res.status(403).json({ error: 'Not allowed.' });

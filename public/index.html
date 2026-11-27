@@ -6323,7 +6323,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                     '<button type="button" class="chat-feature-card" data-prompt="Create flashcards for this topic." onclick="studyTool(\'flashcards\')"><span class="chat-feature-icon">✦</span><span><strong>Flashcards</strong><small>Review key ideas and definitions</small></span></button>' +
                     '<button type="button" class="chat-feature-card" data-prompt="Pin the most important facts as sticky notes." onclick="studyTool(\'notes\')"><span class="chat-feature-icon">▣</span><span><strong>Sticky notes</strong><small>Keep useful facts close</small></span></button>' +
                     '<button type="button" class="chat-feature-card" data-prompt="Build an interactive graph for this topic." onclick="studyTool(\'graph\')"><span class="chat-feature-icon">⌁</span><span><strong>Interactive graph</strong><small>See concepts visually</small></span></button>' +
-                    '<button type="button" class="chat-feature-card" data-prompt="Create a one-hour interactive exam for this topic." onclick="studyTool(\'exam\')"><span class="chat-feature-icon">✓</span><span><strong>Interactive exam</strong><small>Practice with a timed test</small></span></button>' +
+                    '<button type="button" class="chat-feature-card" data-prompt="Create a timed interactive exam for this topic." onclick="studyTool(\'exam\')"><span class="chat-feature-icon">✓</span><span><strong>Interactive exam</strong><small>Practice with a timed test</small></span></button>' +
                     '</div><div class="empty-footer-row"><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Ask a study question</button><span class="empty-models">Study mode · locked</span></div></div>';
             }
             const hintText = hint;
@@ -6344,7 +6344,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 '<div class="empty-footer-row"><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Write your own message</button><span class="empty-models">Fast · Thinking · Expert</span></div><p class="empty-plan-hint" id="emptyPlanHint" data-nosnippet>' + hintText + '</p></div>';
         }
         function syncStudyUi(){const study=!!(currentChatId&&chats[currentChatId]&&chats[currentChatId].mode==='study');document.querySelectorAll('[data-study-only]').forEach(function(el){el.hidden=!study;});const sub=document.getElementById('topBarSub');if(sub){const cfg=MODELS[currentModel]||MODELS.normal;sub.textContent=(study?'Study chat · ':'')+cfg.label+(cfg.desc&&cfg.desc!==cfg.label?' · '+cfg.desc.replace(/^Expert - /,''):'');}}
-        function studyTool(tool){const prompts={flashcards:'Create flashcards for the topic I provide.',notes:'Pin the most important facts as sticky notes.',graph:'Build an interactive graph for the topic I provide.',exam:'Create a one-hour interactive exam with mixed questions for the topic I provide.'};const input=document.getElementById('messageInput');if(input){input.value=prompts[tool]||'';autoGrow(input);input.focus();}const menu=document.getElementById('plusMenu');if(menu)menu.classList.remove('show');}
+        function studyTool(tool){const prompts={flashcards:'Create flashcards for the topic I provide.',notes:'Pin the most important facts as sticky notes.',graph:'Build an interactive graph for the topic I provide.',exam:'Create a timed interactive exam with mixed questions for the topic I provide.'};const input=document.getElementById('messageInput');if(input){input.value=prompts[tool]||'';autoGrow(input);input.focus();}const menu=document.getElementById('plusMenu');if(menu)menu.classList.remove('show');}
         function studyArtifactPayload(text) {
             const source = String(text || '');
             const fences = source.matchAll(/```(?:study-json|study|json)\s*([\s\S]*?)```/gi);
@@ -6386,14 +6386,14 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 flashcards: 'I made a flashcard deck for this topic.',
                 notes: 'I pinned the most important notes for you.',
                 graph: 'I built an interactive graph you can explore below.',
-                exam: 'Your one-hour interactive exam is ready.'
+                exam: 'Your timed interactive exam is ready.'
             }[data.type] || 'Your study tool is ready.');
             if (data.type === 'exam') {
                 const questions = normalizeStudyExamQuestions(data);
                 if (!questions.length) throw new Error('The exam contained no valid questions. Ask me to generate it again.');
                 const res = await apiFetch('/api/study/exams', {
                     method: 'POST',
-                    body: JSON.stringify({ chatId: currentChatId, title: data.title || 'Interactive exam', questions: questions })
+                    body: JSON.stringify({ chatId: currentChatId, title: data.title || 'Interactive exam', questions: questions, durationMinutes: data.durationMinutes })
                 });
                 const body = await res.json();
                 if (!res.ok || !body.exam) throw new Error(body.error || 'Could not create the interactive exam.');
@@ -6493,7 +6493,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             if (artifact.type === 'exam') {
                 const exam = artifact.exam || {};
                 const expires = escapeAttr(exam.expiresAt || '');
-                return '<section class="study-widget study-exam"' + base + '><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div><strong>Interactive exam</strong><div style="font-size:13px;color:var(--text-muted);margin-top:3px">' + escapeHtmlRaw(exam.title || 'One-hour exam') + ' · Opens in a separate page</div></div><span class="study-exam-timer" data-exam-token="' + escapeAttr(exam.token || '') + '" data-expires="' + expires + '">1:00:00</span></div><a class="study-exam-open" href="' + escapeAttr(artifact.url || ('/exam/' + (exam.token || ''))) + '" target="_blank" rel="noopener">Open exam ↗</a></section>';
+                return '<section class="study-widget study-exam"' + base + '><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div><strong>Interactive exam</strong><div style="font-size:13px;color:var(--text-muted);margin-top:3px">' + escapeHtmlRaw(exam.title || 'Timed exam') + ' · ' + (Math.round((Date.parse(exam.expiresAt)-Date.parse(exam.createdAt))/60000) || 60) + ' min · Timer starts when created</div></div><span class="study-exam-timer" data-exam-token="' + escapeAttr(exam.token || '') + '" data-expires="' + expires + '">Checking time…</span></div><a class="study-exam-open" href="' + escapeAttr(artifact.url || ('/exam/' + (exam.token || ''))) + '" target="_blank" rel="noopener">Open exam ↗</a></section>';
             }
             if (artifact.type === 'flashcards') {
                 const cards = artifact.cards || [], active = Math.max(0, Math.min(cards.length - 1, Number(artifact.active || 0))), card = cards[active] || {};

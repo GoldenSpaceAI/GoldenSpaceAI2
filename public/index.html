@@ -6879,6 +6879,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         const LIVE_VOICE_INSTRUCTIONS = 'LIVE VOICE MODE: Keep every reply short and speakable — 1 to 3 sentences, under ~60 words. Lead with the answer in the first sentence. No markdown, bullets, code, or headings. Conversational only.';
         function liveAwareInstructions() {
             let s = combinedInstructions();
+            if (!liveModeActive) s = (s ? s + '\n\n' : '') + 'RESPONSE PRESENTATION: Organize answers for scanning. Lead with the answer, then use concise headings and short paragraphs. Use Markdown tables for comparisons, plans, schedules, or 3+ structured items when helpful. Use numbered steps for procedures. When the user asks for a graph, simulation, calculator, or says show me, create a runnable interactive artifact or structured data the interface can render instead of only describing it. Keep Markdown real and readable; never escape bold markers.';
             if (liveModeActive) s = (s ? s + '\n\n' : '') + LIVE_VOICE_INSTRUCTIONS;
             return s;
         }

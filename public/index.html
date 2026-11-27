@@ -6456,7 +6456,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 const exp = String(expression || '').toLowerCase();
                 if (exp.includes('cos')) y = Math.cos(x * frequency) * amplitude;
                 else if (exp.includes('x^2') || exp.includes('quadratic')) y = (x * x / 5) * amplitude;
-                else if (exp.includes('linear') || /^\\s*[0-9a-z*+\\-. ]*x\\s*$/i.test(expression || '')) y = x * amplitude / 2;
+                else if (exp.includes('linear') || /^\s*[0-9a-z*+. -]*x\s*$/i.test(expression || '')) y = x * amplitude / 2;
                 else y = Math.sin(x * frequency) * amplitude;
                 points.push((px + 20).toFixed(1) + ',' + (130 - y * 26).toFixed(1));
             }

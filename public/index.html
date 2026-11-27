@@ -454,23 +454,6 @@
         .msg-btn.active-speaking { color: var(--gold); }
         .msg-btn.stop-btn { display: none; }
         .msg-btn.stop-btn.show { display: inline-flex; align-items: center; justify-content: center; }
-        .study-mode-row { width:min(520px,92vw); display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; border:1px solid rgba(212,175,55,.3); border-radius:16px; background:linear-gradient(135deg,rgba(212,175,55,.12),rgba(212,175,55,.035)); text-align:left; }
-        .study-mode-row strong { display:block; color:var(--text); font-size:14px; }
-        .study-mode-row span { display:block; color:var(--text-muted); font-size:12px; margin-top:3px; }
-        .study-mode-row button { border:0; border-radius:10px; padding:9px 14px; background:var(--gold); color:#1b160b; font-weight:800; cursor:pointer; white-space:nowrap; }
-        .study-ideas { width:min(520px,92vw); display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:4px; }
-        .study-idea { border:1px solid var(--border); background:rgba(255,255,255,.04); border-radius:13px; padding:13px; text-align:left; color:var(--text); cursor:pointer; font:inherit; }
-        .study-idea:hover { border-color:rgba(212,175,55,.55); background:rgba(212,175,55,.1); }
-        .study-idea strong { display:block; color:var(--gold); margin-bottom:4px; }
-        .study-confirm { position:fixed; inset:0; z-index:90; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(10,8,3,.52); backdrop-filter:blur(5px); }
-        .study-confirm.open { display:flex; }
-        .study-confirm-card { width:min(430px,100%); border:1px solid rgba(212,175,55,.35); border-radius:20px; padding:24px; background:var(--surface-1); box-shadow:0 24px 80px rgba(0,0,0,.28); }
-        .study-confirm-card h2 { margin:0 0 8px; color:var(--text); }
-        .study-confirm-card p { margin:0; color:var(--text-muted); line-height:1.55; }
-        .study-confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
-        .study-confirm-actions button { border:1px solid var(--border); border-radius:10px; padding:10px 15px; background:transparent; color:var(--text); cursor:pointer; font-weight:700; }
-        .study-confirm-actions .primary { background:var(--gold); border-color:var(--gold); color:#1b160b; }
-        @media(max-width:600px){.study-ideas{grid-template-columns:1fr}.study-mode-row{align-items:flex-start;flex-direction:column}.study-mode-row button{width:100%;}}
 
         .empty-state {
             height: 100%;
@@ -4621,12 +4604,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                                 <button type="button" class="plus-menu-item" onclick="openPhotos()"><span class="attach-menu-icon">▧</span><span><strong>Photos</strong><small>Choose images from your device</small></span></button>
                                 <button type="button" class="plus-menu-item" onclick="openCamera()"><span class="attach-menu-icon">◉</span><span><strong>Camera</strong><small>Take a photo now</small></span></button>
                                 <button type="button" class="plus-menu-item" onclick="openFileAttach()"><span class="attach-menu-icon">▤</span><span><strong>Documents</strong><small>PDF, Word, slides, or text</small></span></button>
-                                                            <div class="study-menu-divider" data-study-only></div>
-                                <button type="button" class="plus-menu-item study-tool-item" data-study-only onclick="studyTool('flashcards')"><span class="attach-menu-icon">✦</span><span><strong>Flashcards</strong><small>Review key ideas</small></span></button>
-                                <button type="button" class="plus-menu-item study-tool-item" data-study-only onclick="studyTool('notes')"><span class="attach-menu-icon">▣</span><span><strong>Sticky notes</strong><small>Pin important facts</small></span></button>
-                                <button type="button" class="plus-menu-item study-tool-item" data-study-only onclick="studyTool('graph')"><span class="attach-menu-icon">⌁</span><span><strong>Graph</strong><small>Explore a visual model</small></span></button>
-                                <button type="button" class="plus-menu-item study-tool-item" data-study-only onclick="studyTool('exam')"><span class="attach-menu-icon">✓</span><span><strong>Interactive exam</strong><small>Start a one-hour test</small></span></button>
-</div>
+                            </div>
 
                             <button class="input-btn mic-dictate" id="micBtn" type="button" onclick="toggleVoiceInput()" aria-label="Dictate" title="Dictate" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg><span class="mic-dictate-label">Dictate</span></button>
                         </div>
@@ -4797,8 +4775,8 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         </div>
     </div>
 
-    <div class="study-confirm" id="studyConfirm" role="dialog" aria-modal="true" aria-labelledby="studyConfirmTitle">
-        <div class="study-confirm-card"><h2 id="studyConfirmTitle">Turn this chat into Study?</h2><p>Study mode adds focused learning tools, flashcards, graphs, notes, and interactive exams. This choice permanently locks this chat to Study mode, so it cannot be switched back later.</p><div class="study-confirm-actions"><button type="button" onclick="closeStudyConfirm()">Cancel</button><button type="button" class="primary" onclick="confirmStudyMode()">Continue to Study</button></div></div>
+    <div id="studyConfirm" hidden style="position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,8,3,.52);backdrop-filter:blur(5px)" role="dialog" aria-modal="true" aria-labelledby="studyConfirmTitle">
+        <div style="width:min(430px,100%);border:1px solid rgba(212,175,55,.35);border-radius:20px;padding:24px;background:var(--surface-1);box-shadow:0 24px 80px rgba(0,0,0,.28)"><h2 id="studyConfirmTitle" style="margin:0 0 8px;color:var(--text)">Turn this chat into Study?</h2><p style="margin:0;color:var(--text-muted);line-height:1.55">Study mode adds focused learning tools, flashcards, graphs, notes, and interactive exams. This empty chat will stay in Study mode.</p><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px"><button type="button" onclick="closeStudyConfirm()" style="border:1px solid var(--border);border-radius:10px;padding:10px 15px;background:transparent;color:var(--text);cursor:pointer;font-weight:700">Cancel</button><button type="button" onclick="confirmStudyMode()" style="border:0;border-radius:10px;padding:10px 15px;background:var(--gold);color:#1b160b;cursor:pointer;font-weight:800">Continue</button></div></div>
     </div>
     <script>
         const API_URL = '/api/chat';
@@ -6191,72 +6169,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             syncChatToServer(id);
         }
 
-
-function currentStudyChat() { return currentChatId && chats[currentChatId] && chats[currentChatId].mode === 'study' ? chats[currentChatId] : null; }
-        function syncStudyUi() {
-            const chat = currentChatId && chats[currentChatId];
-            const study = !!(chat && chat.mode === 'study');
-            document.body.classList.toggle('study-chat', study);
-            const button = document.getElementById('studyLockBtn');
-            if (button) { button.hidden = !chat || (chat.mode !== 'normal' || (chat.messages || []).length > 0); button.classList.toggle('active', study); button.textContent = study ? 'Study mode' : 'Study'; }
-            document.querySelectorAll('[data-study-only]').forEach(function(el) { el.hidden = !study; });
-        }
-        async function enableStudyMode() {
-            const chat = currentChatId && chats[currentChatId];
-            if (!chat || chat.mode !== 'normal' || (chat.messages || []).length) return;
-            try {
-                const res = await apiFetch(CHATS_API + '/' + encodeURIComponent(currentChatId) + '/study-mode', { method: 'PUT', body: '{}' });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Could not enable Study mode.');
-                chats[currentChatId].mode = 'study'; chats[currentChatId].studyState = data.chat.studyState || {};
-                saveChats(); syncStudyUi(); loadChat(); showToast('Study mode is locked for this chat.', 'ok');
-            } catch (e) { showToast(e.message || 'Could not enable Study mode.', 'err'); }
-        }
-        function studyTool(tool) {
-            const chat = currentStudyChat();
-            if (!chat) { showToast('Start a new chat and enable Study mode first.', 'err'); return; }
-            const prompts = { flashcards: 'Create a focused flashcard deck for the topic I provide.', notes: 'Create three concise sticky notes for the topic I provide.', graph: 'Build an interactive graph or visual explanation for the topic I provide.', exam: 'Create a one-hour interactive exam with mixed question types for the topic I provide.' };
-            const input = document.getElementById('messageInput'); if (input) { input.value = prompts[tool] || ''; autoGrow(input); input.focus(); }
-            const menu = document.getElementById('plusMenu'); if (menu) menu.classList.remove('show');
-        }
-        async function createStudyExamForChat(topic) {
-            const chat = currentStudyChat(); if (!chat) return;
-            const base = String(topic || 'the selected topic').slice(0, 160);
-            const questions = [
-                { id:'q1', type:'multiple_choice', prompt:'Which statement best describes ' + base + '?', options:['A core idea','An unrelated detail','A random guess'], answer:'A core idea', points:2 },
-                { id:'q2', type:'true_false', prompt:base + ' can be explained using evidence and examples.', options:['true','false'], answer:'true', points:1 },
-                { id:'q3', type:'open_answer', prompt:'Name one important term or idea from ' + base + ' and explain it.', answer:'', points:2 },
-                { id:'q4', type:'paragraph_answer', prompt:'Explain how the main ideas in ' + base + ' connect.', answer:'', points:3 },
-                { id:'q5', type:'long_answer', prompt:'Give a detailed answer about why ' + base + ' matters.', answer:'', points:4 }
-            ];
-            try {
-                const res = await apiFetch('/api/study/exams', { method:'POST', body:JSON.stringify({ chatId:currentChatId, title:'Interactive exam · ' + base, questions }) });
-                const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Could not create exam.');
-                chat.messages.push({ role:'ai', model:currentModel, content:'Your interactive exam is ready. Open it in a separate page and submit once before the one-hour timer ends.', studyArtifact:{ type:'exam', token:data.exam.token, title:data.exam.title, expiresAt:data.exam.expiresAt, url:data.url }, timestamp:new Date().toISOString() });
-                chat.updatedAt = new Date().toISOString(); saveChats(); loadChat();
-            } catch (e) { showToast(e.message || 'Could not create exam.', 'err'); }
-        }
-        function addStudyArtifact(artifact) {
-            const chat = currentStudyChat(); if (!chat || !artifact) return;
-            chat.messages.push({ role:'ai', model:currentModel, content:artifact.type === 'flashcards' ? 'Here is a study deck you can review.' : 'Here is a study tool for this chat.', studyArtifact:artifact, timestamp:new Date().toISOString() });
-            chat.updatedAt = new Date().toISOString(); saveChats(); loadChat();
-        }
-        function renderStudyArtifact(artifact) {
-            if (!artifact || !artifact.type) return '';
-            if (artifact.type === 'exam') return '<div class="study-artifact study-exam"><h4>' + escapeHtmlRaw(artifact.title || 'Interactive exam') + '</h4><p>One hour · mixed questions · submit once</p><a class="upgrade-cta" target="_blank" rel="noopener" href="/exam/' + encodeURIComponent(artifact.token) + '">Open exam</a><span class="exam-countdown" data-expires="' + escapeAttr(artifact.expiresAt || '') + '"></span></div>';
-            if (artifact.type === 'flashcards') { const cards=Array.isArray(artifact.cards)?artifact.cards:[]; return '<div class="study-artifact study-flashcards"><h4>Flashcards</h4><div class="study-card-face" data-card-index="0" onclick="flipStudyCard(this)">' + escapeHtmlRaw(cards[0]?.front || 'Add cards to review') + '</div><div class="study-card-controls"><button onclick="studyCardPrev(this)">‹</button><span class="study-card-count">1 / ' + Math.max(1,cards.length) + '</span><button onclick="studyCardNext(this)">›</button><button onclick="toggleMastered(this)">Mark mastered</button></div></div>'; }
-            if (artifact.type === 'notes') return '<div class="study-artifact"><h4>Sticky notes</h4>' + (Array.isArray(artifact.notes)?artifact.notes:[]).map(n=>'<div class="study-note">' + escapeHtmlRaw(n.text || n) + '</div>').join('') + '</div>';
-            if (artifact.type === 'graph') return '<div class="study-artifact study-graph"><h4>' + escapeHtmlRaw(artifact.title || 'Interactive graph') + '</h4><canvas width="640" height="220" data-graph="' + escapeAttr(JSON.stringify(artifact)) + '"></canvas><label>Amplitude <input type="range" min="1" max="80" value="30" oninput="drawStudyGraph(this)"></label></div>';
-            return '';
-        }
-        function flipStudyCard(el){ if(!el) return; el.dataset.flipped=el.dataset.flipped==='1'?'0':'1'; const root=el.closest('.study-flashcards'); const cards=root&&root._cards; const i=Number(el.dataset.cardIndex)||0; if(cards&&cards[i]) el.textContent=el.dataset.flipped==='1'?cards[i].back:cards[i].front; }
-        function moveStudyCard(btn,delta){const root=btn.closest('.study-flashcards');const face=root&&root.querySelector('.study-card-face');const cards=root&&root._cards;if(!face||!cards||!cards.length)return;let i=(Number(face.dataset.cardIndex)||0)+delta;if(i<0)i=cards.length-1;if(i>=cards.length)i=0;face.dataset.cardIndex=i;face.dataset.flipped='0';face.textContent=cards[i].front;const c=root.querySelector('.study-card-count');if(c)c.textContent=(i+1)+' / '+cards.length;}
-        function studyCardPrev(btn){moveStudyCard(btn,-1)} function studyCardNext(btn){moveStudyCard(btn,1)} function toggleMastered(btn){btn.textContent=btn.textContent==='Mastered'?'Mark mastered':'Mastered';btn.classList.toggle('active')}
-        function drawStudyGraph(input){const canvas=input.closest('.study-graph')?.querySelector('canvas');if(!canvas)return;const ctx=canvas.getContext('2d'),a=Number(input.value)||30;ctx.clearRect(0,0,canvas.width,canvas.height);ctx.strokeStyle='#c18a19';ctx.lineWidth=3;ctx.beginPath();for(let x=0;x<canvas.width;x++){const y=110-Math.sin(x/35)*a;if(x)ctx.lineTo(x,y);else ctx.moveTo(x,y)}ctx.stroke();}
-        function updateExamCountdowns(){document.querySelectorAll('.exam-countdown[data-expires]').forEach(function(el){const left=Math.max(0,Date.parse(el.dataset.expires)-Date.now());el.textContent=left?' · '+Math.floor(left/60000)+'m left':' · Expired';});}
-        setInterval(updateExamCountdowns,1000);
-
-                function deleteChat(id) {
+        function deleteChat(id) {
             if(!confirm('Delete this chat? This cannot be undone.')) return;
             delete chats[id];
             saveChatsLocal();
@@ -6375,24 +6288,13 @@ function currentStudyChat() { return currentChatId && chats[currentChatId] && ch
                 try { input.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
             }
         }
-
-function renderEmptyStateHtml() {
-            const study = !!(currentChatId && chats[currentChatId] && chats[currentChatId].mode === 'study');
-            if (study) {
-                const ideas = [
-                    ['Flashcards', 'Turn a topic into a review deck', 'flashcards'],
-                    ['Sticky notes', 'Pin the key ideas here', 'notes'],
-                    ['Interactive graph', 'Explore a formula or concept', 'graph'],
-                    ['One-hour exam', 'Test your understanding', 'exam']
-                ].map(function(item) { return '<button type="button" class="study-idea" onclick="studyIdea(\'' + item[2] + '\')"><strong>' + item[0] + '</strong><span>' + item[1] + '</span></button>'; }).join('');
-                return '<div class="empty-state study-empty"><div class="empty-title">Your Study chat</div><div class="empty-value">Learn step by step, then practice with tools that stay inside this chat.</div><div class="study-ideas">' + ideas + '</div><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Ask about a topic</button><div class="empty-meta"><span>Flashcards</span><span class="empty-dot">·</span><span>Graphs</span><span class="empty-dot">·</span><span>Exams</span></div></div>';
-            }
+        function renderEmptyStateHtml() {
             const hint = emptyPlanHintHtml(cachedPlan);
             const starters = [
-                { label: 'Build a wave simulator', prompt: 'Build an interactive physics wave simulator and explain how to use it.' },
-                { label: 'Quiz me on a topic', prompt: 'Quiz me on a school topic with 5 interactive questions and corrections.' },
-                { label: 'Create a mini-game', prompt: 'Create a playable mini-game in Studio with a polished design.' },
-                { label: 'Make a PDF outline', prompt: 'Generate a professional presentation outline and PDF about ' }
+                { label: 'Build a physics wave simulator', prompt: 'Build an interactive physics wave simulator with controls for frequency, amplitude, and wavelength.' },
+                { label: 'Quiz me on a school topic', prompt: 'Quiz me on a school topic with five interactive questions and explain each answer.' },
+                { label: 'Create a playable mini-game in Studio', prompt: 'Create a playable mini-game in Studio with controls, scoring, and a polished design.' },
+                { label: 'Presentation outline & PDF', prompt: 'Generate a presentation outline and PDF about a topic I choose.' }
             ];
             const chips = starters.map(function(s) {
                 return '<button type="button" class="empty-chip" data-prompt="' +
@@ -6400,22 +6302,23 @@ function renderEmptyStateHtml() {
                     '" onclick="useEmptyStarter(this)">' + s.label + '</button>';
             }).join('');
             return '<div class="empty-state">' +
-                '<img class="empty-logo" src="/logo.png?v=20261003" width="200" height="240" alt="" />' +
-                '<div class="empty-title">How can I help?</div>' +
-                '<div class="empty-value">Chat for quick answers. Open Studio for presentations, PDFs, games, code, and editable previews.</div>' +
-                '<div class="study-mode-row"><div><strong>Study mode</strong><span>Turn this empty chat into a focused learning workspace.</span></div><button type="button" onclick="openStudyConfirm()">Study</button></div>' +
-                '<div class="empty-chips" role="list">' + chips + '</div>' +
-                '<details class="empty-guide"><summary>New here? See what you can do</summary><div class="empty-guide-body"><div><strong>Chat</strong>Ask questions, upload files, or use Thinking for deeper answers.</div><div><strong>Studio</strong>Create and edit presentations, PDFs, code, and games.</div><div><strong>Imagine</strong>Generate images or search for useful media.</div><div><strong>Projects</strong>Keep related chats and instructions together.</div></div></details>' +
-                '<button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Or type your own message</button>' +
-                '<div class="empty-meta"><span>Fast</span><span class="empty-dot" aria-hidden="true">·</span><span>Thinking</span><span class="empty-dot" aria-hidden="true">·</span><span>Expert</span></div>' +
-                '<p class="empty-plan-hint" id="emptyPlanHint">' + hint + '</p>' +
+                '<div class="empty-hero"><img class="empty-logo" src="/icon-192.png" width="84" height="84" alt="" /><div class="empty-hero-copy"><span class="empty-eyebrow">GOLDENOAI CHAT</span><div class="empty-title">What can we work on?</div><div class="empty-value">Ask, learn, analyze, or create. Use Chat for everyday work and move into Studio when you need an editable result.</div></div></div>' +
+                '<div class="study-entry" style="width:min(520px,92vw);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid rgba(212,175,55,.28);border-radius:16px;background:rgba(212,175,55,.06);text-align:left"><div><strong style="display:block;color:var(--text);font-size:14px">Study mode</strong><span style="display:block;color:var(--text-muted);font-size:12px;margin-top:3px">Turn this empty chat into a focused learning workspace.</span></div><button type="button" onclick="openStudyConfirm()" style="border:0;border-radius:10px;padding:9px 14px;background:var(--gold);color:#1b160b;font-weight:800;cursor:pointer;white-space:nowrap">Study</button></div>' +
+                '<div class="chat-feature-grid" role="list">' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Explain this topic clearly, then quiz me with five interactive questions." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">◎</span><span><strong>Learn & quiz</strong><small>Clear explanations and interactive practice</small></span></button>' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Help me research this topic. Compare reliable sources and summarize the key findings." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">⌕</span><span><strong>Research</strong><small>Search, compare, and organize information</small></span></button>' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Help me write and improve this. Ask for the text or file you need." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">✎</span><span><strong>Write & improve</strong><small>Draft, rewrite, translate, and analyze files</small></span></button>' +
+                  '<a class="chat-feature-card studio-card" href="/studio"><span class="chat-feature-icon">✦</span><span><strong>Open Studio</strong><small>Presentations, PDFs, images, video, and games</small></span><b>Open</b></a>' +
+                '</div>' +
+                '<div class="empty-chips-label">Try a prompt</div><div class="empty-chips" role="list">' + chips + '</div>' +
+                '<div class="empty-footer-row"><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Write your own message</button><span class="empty-models">Fast · Thinking · Expert</span></div>' +
+                '<p class="empty-plan-hint" id="emptyPlanHint" data-nosnippet>' + hint + '</p>' +
                 '</div>';
         }
-        function openStudyConfirm() { const modal=document.getElementById('studyConfirm'); if(modal) modal.classList.add('open'); }
-        function closeStudyConfirm() { const modal=document.getElementById('studyConfirm'); if(modal) modal.classList.remove('open'); }
-        async function confirmStudyMode() { closeStudyConfirm(); await enableStudyMode(); }
-        function studyIdea(tool) { studyTool(tool); }
-                function useEmptyStarter(btn) {
+        function openStudyConfirm(){const el=document.getElementById('studyConfirm');if(el){el.hidden=false;el.style.display='flex';}}
+        function closeStudyConfirm(){const el=document.getElementById('studyConfirm');if(el){el.hidden=true;el.style.display='none';}}
+        async function confirmStudyMode(){closeStudyConfirm();if(!currentChatId||!chats[currentChatId]||chats[currentChatId].messages.length)return;try{const res=await apiFetch(CHATS_API+'/'+encodeURIComponent(currentChatId)+'/study-mode',{method:'PUT',body:'{}'});const data=await res.json();if(!res.ok)throw new Error(data.error||'Could not enable Study mode.');chats[currentChatId].mode='study';chats[currentChatId].studyState=data.chat.studyState||{};saveChats();loadChat();showToast('Study mode is locked for this chat.','ok');}catch(e){showToast(e.message||'Could not enable Study mode.','err');}}
+        function useEmptyStarter(btn) {
             const prompt = (btn && btn.getAttribute('data-prompt')) || '';
             const input = document.getElementById('messageInput');
             if (!input) return;
@@ -6432,7 +6335,6 @@ function renderEmptyStateHtml() {
             const container = document.getElementById('messagesContainer');
             container.innerHTML = '';
             loadChatSystemPromptUI();
-            syncStudyUi();
             updateTopTitle();
             if(!currentChatId || !chats[currentChatId]) return;
             const messages = chats[currentChatId].messages || [];
@@ -8261,7 +8163,7 @@ function renderEmptyStateHtml() {
                         '</div></div>';
                     div.innerHTML = inner;
                 } else {
-                inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>' + (msg.studyArtifact ? renderStudyArtifact(msg.studyArtifact) : '');
+                inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>';
                 if (msg.quiz) inner += renderQuizHtml(msg.quiz, typeof index === 'number' ? index : -1);
                 if (msg.documentArtifact) inner += renderDocumentArtifactHtml(msg.documentArtifact, typeof index === 'number' ? index : -1);
                 if (msg.visualizations) inner += renderInteractiveVisualizationHtml(msg.visualizations, typeof index === 'number' ? index : -1);
@@ -8279,10 +8181,6 @@ function renderEmptyStateHtml() {
                 div.innerHTML = inner;
                 const contentEl = div.querySelector('.ai-content');
                 if (contentEl) renderMathIn(contentEl);
-                const deck = div.querySelector('.study-flashcards');
-                if (deck && msg.studyArtifact && Array.isArray(msg.studyArtifact.cards)) deck._cards = msg.studyArtifact.cards;
-                const graph = div.querySelector('.study-graph canvas');
-                if (graph) { const slider = div.querySelector('.study-graph input[type="range"]'); if (slider) drawStudyGraph(slider); }
                 }
             } else {
                 inner += '<div class="message-bubble">';

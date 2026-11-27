@@ -4365,7 +4365,7 @@ async function startServer() {
         const _as = auth.authStatus();
         console.log(`👤 Auth: db=${_as.database ? '✅' : '❌'} session=${_as.sessionSecret ? '✅' : '❌'} google=${_as.googleOAuth ? '✅' : '❌'} emailOtp=${_as.emailOtp ? '✅' : '❌'}`);
         console.log(`⏱️ Timeout: ${UPSTREAM_TIMEOUT_MS}ms`);
-        console.log(`🛡️ Rate limit: ${RATE_LIMIT}/min per IP on /api/chat*`);
+        console.log(`🛡️ AI generation limit: ${AI_RATE_LIMIT_SIGNED_IN}/min signed-in, ${AI_RATE_LIMIT_GUEST}/min guests`);
         console.log(`📱 PWA Support: ✅ Ready`);
         console.log('═══════════════════════════════');
     });

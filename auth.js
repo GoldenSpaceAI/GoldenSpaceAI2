@@ -324,17 +324,24 @@ function createAuth(options = {}) {
             exp
         }, secret);
         const secure = (req && (req.secure || String(req.headers['x-forwarded-proto'] || '').includes('https'))) || process.env.NODE_ENV === 'production';
+        const host = String(req && (req.headers['x-forwarded-host'] || req.headers.host) || '').split(',')[0].trim().split(':')[0].toLowerCase();
+        // Login may begin on the apex and return on www (or the reverse).
+        // Share only across GoldenoAI's own two hostnames, never broadly.
+        const domain = (host === 'goldenoai.com' || host === 'www.goldenoai.com') ? '.goldenoai.com' : undefined;
         res.cookie(SESSION_COOKIE, token, {
             httpOnly: true,
             secure: !!secure,
             sameSite: 'lax',
             path: '/',
+            ...(domain ? { domain } : {}),
             maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000
         });
     }
 
-    function clearSessionCookie(res) {
-        res.clearCookie(SESSION_COOKIE, { path: '/', httpOnly: true, sameSite: 'lax' });
+    function clearSessionCookie(res, req) {
+        const host = String(req && (req.headers['x-forwarded-host'] || req.headers.host) || '').split(',')[0].trim().split(':')[0].toLowerCase();
+        const domain = (host === 'goldenoai.com' || host === 'www.goldenoai.com') ? '.goldenoai.com' : undefined;
+        res.clearCookie(SESSION_COOKIE, { path: '/', httpOnly: true, sameSite: 'lax', ...(domain ? { domain } : {}) });
     }
 
     /**

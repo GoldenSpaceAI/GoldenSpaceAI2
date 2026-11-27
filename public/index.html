@@ -6480,7 +6480,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             if (artifact.type === 'exam') {
                 const exam = artifact.exam || {};
                 const expires = escapeAttr(exam.expiresAt || '');
-                return '<section class="study-widget study-exam"' + base + '><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div><strong>Interactive exam</strong><div style="font-size:13px;color:var(--text-muted);margin-top:3px">' + escapeHtmlRaw(exam.title || 'One-hour exam') + ' · Opens in a separate page</div></div><span class="study-exam-timer" data-expires="' + expires + '">1:00:00</span></div><a class="study-exam-open" href="' + escapeAttr(artifact.url || ('/exam/' + (exam.token || ''))) + '" target="_blank" rel="noopener">Open exam ↗</a></section>';
+                return '<section class="study-widget study-exam"' + base + '><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><div><strong>Interactive exam</strong><div style="font-size:13px;color:var(--text-muted);margin-top:3px">' + escapeHtmlRaw(exam.title || 'One-hour exam') + ' · Opens in a separate page</div></div><span class="study-exam-timer" data-exam-token="' + escapeAttr(exam.token || '') + '" data-expires="' + expires + '">1:00:00</span></div><a class="study-exam-open" href="' + escapeAttr(artifact.url || ('/exam/' + (exam.token || ''))) + '" target="_blank" rel="noopener">Open exam ↗</a></section>';
             }
             if (artifact.type === 'flashcards') {
                 const cards = artifact.cards || [], active = Math.max(0, Math.min(cards.length - 1, Number(artifact.active || 0))), card = cards[active] || {};
@@ -6505,6 +6505,46 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             });
         }
         setInterval(refreshStudyExamTimers, 1000);
+
+        const gradedStudyExams = new Map();
+        let checkingStudyExams = false;
+        async function refreshStudyExamGrades() {
+            if (document.hidden || checkingStudyExams) return;
+            const cards = document.querySelectorAll('.study-exam-timer[data-exam-token]');
+            if (!cards.length) return;
+            checkingStudyExams = true;
+            try {
+                await Promise.all(Array.from(cards, async function(card) {
+                    const token = card.dataset.examToken;
+                    if (!/^[A-Za-z0-9_-]{32}$/.test(token)) return;
+                    try {
+                        let exam = gradedStudyExams.get(token);
+                        if (!exam) {
+                            const response = await apiFetch('/api/study/exams/' + token, {cache:'no-store', signal:AbortSignal.timeout(8000)});
+                            if (!response.ok) return;
+                            exam = (await response.json()).exam;
+                            if (exam?.status !== 'submitted') return;
+                            gradedStudyExams.set(token, exam);
+                        }
+                        card.removeAttribute('data-expires');
+                        card.textContent = 'Grade: ' + exam.score + ' / ' + exam.maxScore;
+                        const link = card.closest('.study-exam')?.querySelector('.study-exam-open');
+                        if (link) link.textContent = 'Review results ↗';
+                        else {
+                            const review = document.createElement('a');
+                            review.className = 'study-exam-open';
+                            review.href = '/exam/' + token;
+                            review.target = '_blank';
+                            review.rel = 'noopener';
+                            review.textContent = 'Review results ↗';
+                            card.closest('.study-exam')?.append(review);
+                        }
+                    } catch (_) {}
+                }));
+            } finally { checkingStudyExams = false; }
+        }
+        window.addEventListener('focus', refreshStudyExamGrades);
+        setInterval(refreshStudyExamGrades, 12000);
         function openStudyConfirm(){const el=document.getElementById('studyConfirm');if(el){el.hidden=false;el.style.display='flex';}}
         function closeStudyConfirm(){const el=document.getElementById('studyConfirm');if(el){el.hidden=true;el.style.display='none';}}
         async function confirmStudyMode(){closeStudyConfirm();if(!currentChatId||!chats[currentChatId]||chats[currentChatId].messages.length)return;try{const res=await apiFetch(CHATS_API+'/'+encodeURIComponent(currentChatId)+'/study-mode',{method:'PUT',body:'{}'});const data=await res.json();if(!res.ok)throw new Error(data.error||'Could not enable Study mode.');chats[currentChatId].mode='study';chats[currentChatId].studyState=data.chat.studyState||{};saveChats();loadChat();showToast('Study mode is locked for this chat.','ok');}catch(e){showToast(e.message||'Could not enable Study mode.','err');}}

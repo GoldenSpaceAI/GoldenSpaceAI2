@@ -197,33 +197,41 @@ app.get('/api/maintenance/status', (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ==================== DIY RATE LIMIT (/api/chat*) ====================
+// ==================== AI generation rate limit ====================
+// Chat history, autosave, titles, and loading must never consume AI-message quota.
 const rateBuckets = new Map();
-const RATE_LIMIT = 30;
+const AI_RATE_LIMIT_SIGNED_IN = 60;
+const AI_RATE_LIMIT_GUEST = 20;
 const RATE_WINDOW_MS = 60 * 1000;
 
 function chatRateLimit(req, res, next) {
-    if (!req.path.startsWith('/api/chat')) return next();
+    const isGeneration = req.method === 'POST' && (req.path === '/api/chat' || req.path === '/api/chat/stream');
+    if (!isGeneration) return next();
+
     const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+    let userId = '';
+    try {
+        const user = auth && typeof auth.readUserFromReq === 'function' ? auth.readUserFromReq(req) : null;
+        userId = user && user.id ? String(user.id) : '';
+    } catch (_) {}
+    const key = userId ? 'user:' + userId : 'guest:' + ip;
+    const limit = userId ? AI_RATE_LIMIT_SIGNED_IN : AI_RATE_LIMIT_GUEST;
     const now = Date.now();
-    let bucket = rateBuckets.get(ip);
-    if (!bucket || now - bucket.start >= RATE_WINDOW_MS) {
-        bucket = { start: now, count: 0 };
-        rateBuckets.set(ip, bucket);
-    }
+    let bucket = rateBuckets.get(key);
+    if (!bucket || now - bucket.start >= RATE_WINDOW_MS) bucket = { start: now, count: 0 };
     bucket.count += 1;
-    if (bucket.count > RATE_LIMIT) {
-        return res.status(429).json({ reply: '⏳ Too many requests. Please wait a minute.', model: 'Error' });
+    rateBuckets.set(key, bucket);
+    if (bucket.count > limit) {
+        return res.status(429).json({ reply: '⏳ Too many AI messages at once. Please wait a moment and try again.', model: 'Error' });
     }
     next();
 }
 app.use(chatRateLimit);
 
-// Periodic cleanup of rate buckets
 setInterval(() => {
     const now = Date.now();
-    for (const [ip, bucket] of rateBuckets) {
-        if (now - bucket.start >= RATE_WINDOW_MS * 2) rateBuckets.delete(ip);
+    for (const [key, bucket] of rateBuckets) {
+        if (now - bucket.start >= RATE_WINDOW_MS * 2) rateBuckets.delete(key);
     }
 }, 120000).unref?.();
 

@@ -7,12 +7,19 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="GoldenSpaceAI">
-    <meta name="description" content="GoldenSpaceAI - AI Chat Assistant powered by Grok">
-    <title>GoldenSpaceAI</title>
+    <meta name="apple-mobile-web-app-title" content="GoldenoAI">
+    <meta name="description" content="GoldenoAI brings chat, studying, creativity, and coding together. Explore ideas, practice with interactive quizzes, create presentations and images, and build playable games.">
+    <title>GoldenoAI — Chat, Study, Create &amp; Build with AI</title>
+    <link rel="canonical" href="https://www.goldenoai.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GoldenoAI">
+    <meta property="og:title" content="GoldenoAI — Chat, Study, Create &amp; Build with AI">
+    <meta property="og:description" content="One place to chat, learn, create presentations and images, and build playable games with AI.">
+    <meta property="og:url" content="https://www.goldenoai.com/">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"GoldenoAI","url":"https://www.goldenoai.com/"}</script>
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="/logo.png?v=20261003">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
@@ -441,6 +448,9 @@
             justify-content: center;
         }
         .msg-btn:active { color: var(--gold); background: #1a1a1a; }
+        .msg-btn.feedback-btn { font-size:15px; opacity:.72; transition:background .16s,color .16s,opacity .16s,transform .16s; }
+        .msg-btn.feedback-btn:hover { opacity:1; transform:translateY(-1px); }
+        .msg-btn.feedback-btn.active { color:var(--gold); background:color-mix(in srgb,var(--gold) 13%,transparent); opacity:1; }
         .msg-btn.active-speaking { color: var(--gold); }
         .msg-btn.stop-btn { display: none; }
         .msg-btn.stop-btn.show { display: inline-flex; align-items: center; justify-content: center; }
@@ -1879,6 +1889,19 @@
         }
         .plus-menu-item:last-child { border-bottom: none; }
         .plus-menu-item:active { background: var(--gold-dark); color: var(--black); }
+        .plus-menu { min-width: 282px; gap: 4px; padding: 9px; border: 1px solid rgba(212,175,55,.25); border-radius: 16px; background: var(--panel, #171717); }
+        .plus-menu-heading { display:flex;justify-content:space-between;gap:12px;padding:8px 9px;color:var(--gold);font-size:12px;font-weight:700;letter-spacing:.02em }
+        .plus-menu-heading span {color:#9f9a8c;font-weight:500}
+        .plus-menu .plus-menu-item {width:100%;border:0;border-radius:11px;background:transparent;text-align:left;color:inherit;align-items:center;padding:10px;gap:11px}
+        .plus-menu .plus-menu-item:hover,.plus-menu .plus-menu-item:focus-visible {background:rgba(212,175,55,.13);outline:none}
+        .plus-menu-item strong,.plus-menu-item small {display:block}
+        .plus-menu-item strong {font-size:13px;color:var(--gold)}
+        .plus-menu-item small {font-size:11px;color:#aaa59a;margin-top:2px}
+        .attach-menu-icon {display:grid;place-items:center;width:33px;height:33px;flex:none;border:1px solid rgba(212,175,55,.27);border-radius:10px;color:var(--gold);font-size:18px}
+        .attachment-preview-chip {display:flex;align-items:center;gap:7px;padding:5px 7px;border:1px solid rgba(212,175,55,.27);border-radius:10px;background:rgba(212,175,55,.08);max-width:210px;font-size:11px}
+        .attachment-preview-chip img {width:26px;height:26px;object-fit:cover;border-radius:6px}
+        .attachment-preview-chip span:nth-child(2) {overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .attachment-preview-chip button {border:0;background:transparent;color:var(--gold);font-size:19px;cursor:pointer}
 
         .overlay {
             position: fixed;
@@ -4154,10 +4177,9 @@
         }
 
     
-        .imagine-nav-link,.studio-nav-link{margin:10px 12px 8px;min-height:42px;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid rgba(212,175,55,.3);border-radius:12px;background:linear-gradient(100deg,rgba(212,175,55,.13),rgba(212,175,55,.035));color:var(--gold,#d4af37);text-decoration:none;font-size:14px;font-weight:700;letter-spacing:.01em}
-        .studio-nav-link{margin-top:8px;border-color:rgba(255,255,255,.16);background:linear-gradient(100deg,rgba(255,255,255,.08),rgba(212,175,55,.06))}
-        .imagine-nav-link:hover,.studio-nav-link:hover{border-color:rgba(212,175,55,.62);background:rgba(212,175,55,.16)}
-        .imagine-nav-link>span:first-child,.studio-nav-link>span:first-child{font-size:18px}
+        .imagine-nav-link{margin:10px 12px 8px;min-height:42px;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid rgba(212,175,55,.3);border-radius:12px;background:linear-gradient(100deg,rgba(212,175,55,.13),rgba(212,175,55,.035));color:var(--gold,#d4af37);text-decoration:none;font-size:14px;font-weight:700;letter-spacing:.01em}
+        .imagine-nav-link:hover{border-color:rgba(212,175,55,.62);background:rgba(212,175,55,.16)}
+        .imagine-nav-link>span:first-child{font-size:18px}
         .imagine-nav-badge{margin-left:auto;font-size:9px;letter-spacing:.12em;padding:4px 7px;border-radius:99px;background:rgba(212,175,55,.14);color:var(--text-muted,#a69e8b)}
 
     .project-design-preview{display:flex;align-items:center;gap:13px;padding:16px;margin-bottom:18px;border:1px solid color-mix(in srgb,var(--project-color,#d4af37) 50%,transparent);border-radius:14px;background:linear-gradient(120deg,color-mix(in srgb,var(--project-color,#d4af37) 26%,transparent),transparent 78%);transition:background .2s,border-color .2s}.project-design-preview>span{display:grid;place-items:center;width:46px;height:46px;border-radius:13px;background:color-mix(in srgb,var(--project-color,#d4af37) 25%,transparent);font-size:25px}.project-design-preview small{display:block;color:var(--text-muted,#aaa);font-size:9px;font-weight:800;letter-spacing:.14em}.project-design-preview strong{display:block;margin-top:4px;font-size:16px}.project-choice-grid{display:flex;flex-wrap:wrap;gap:9px;margin:8px 0 15px}.project-color-choice{width:30px;height:30px;border:3px solid transparent;border-radius:50%;background:var(--swatch);cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);transition:transform .15s,border-color .15s}.project-color-choice:hover{transform:scale(1.12)}.project-color-choice[aria-checked=true]{border-color:var(--text,#fff);outline:2px solid var(--swatch);outline-offset:2px}.project-icon-choice{width:38px;height:38px;border:1px solid var(--border,#393939);border-radius:11px;background:transparent;font-size:20px;cursor:pointer;transition:transform .15s,background .15s,border-color .15s}.project-icon-choice:hover{transform:translateY(-2px)}.project-icon-choice[aria-checked=true]{border-color:var(--project-color,#d4af37);background:color-mix(in srgb,var(--project-color,#d4af37) 22%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,var(--project-color,#d4af37) 18%,transparent)}.project-row.project-nav{border-left:3px solid var(--project-color,#d4af37);padding-left:7px}.project-row.project-nav.active{background:color-mix(in srgb,var(--project-color,#d4af37) 16%,transparent);color:var(--project-color,#d4af37)}.project-row-icon{display:grid;place-items:center;width:25px;height:25px;flex:none;border-radius:8px;background:color-mix(in srgb,var(--project-color,#d4af37) 22%,transparent);color:var(--project-color,#d4af37);font-size:15px;opacity:1}.projects-section{padding:10px 10px 6px;border-top:1px solid var(--border,#2c2c2c);margin-top:10px}.projects-section-head{display:flex;align-items:center;justify-content:space-between;padding:2px 8px 8px;color:var(--text-muted,#999);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}.projects-section-head button{width:28px;height:28px;border:1px solid var(--border,#353535);border-radius:8px;background:transparent;color:var(--text,#eee);font-size:20px;line-height:1;cursor:pointer}.projects-section-head button:hover{background:var(--gold-soft,rgba(212,175,55,.12))}.project-row{width:100%;display:flex;align-items:center;gap:9px;min-height:36px;padding:7px 9px;border:0;border-radius:9px;background:transparent;color:var(--text,#eee);text-align:left;font-size:13px;cursor:pointer}.project-row:hover,.project-row.active{background:var(--gold-soft,rgba(212,175,55,.12))}.project-row.active{color:var(--gold,#d4af37);font-weight:650}.project-row-icon{width:17px;text-align:center;opacity:.8}.project-row-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.project-count{color:var(--text-muted,#888);font-size:11px}.project-row-edit{margin-left:auto;opacity:.45;border:0;background:transparent;color:inherit;cursor:pointer;font-size:16px}.project-row:hover .project-row-edit{opacity:1}.project-dialog{position:fixed;z-index:400;inset:0;display:grid;place-items:center;padding:20px}.project-dialog[hidden]{display:none}.project-dialog-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(4px)}.project-dialog-card{position:relative;z-index:1;width:min(480px,100%);padding:26px;border:1px solid var(--border,#393939);border-radius:18px;background:var(--black-light,#181818);color:var(--text,#f4f4f4);box-shadow:0 28px 90px rgba(0,0,0,.5)}.project-dialog-card h2{margin:0 30px 22px 0;font-size:21px;letter-spacing:-.02em}.project-dialog-close{position:absolute;right:16px;top:14px;width:32px;height:32px;border:0;border-radius:9px;background:transparent;color:var(--text-muted,#aaa);font-size:24px;cursor:pointer}.project-dialog-card label{display:block;margin:14px 0 7px;font-size:12px;font-weight:650;color:var(--text-muted,#aaa)}.project-dialog-card label span{font-weight:400}.project-dialog-card input,.project-dialog-card textarea,.project-dialog-card select{box-sizing:border-box;width:100%;border:1px solid var(--border,#393939);border-radius:10px;background:var(--black-lighter,#1f1f1f);color:var(--text,#f4f4f4);padding:11px 12px;font:inherit;font-size:14px}.project-dialog-card input::placeholder,.project-dialog-card textarea::placeholder{color:var(--text-muted,#9a9a9a);opacity:1}.project-dialog-card textarea{resize:vertical;line-height:1.5}.project-dialog-actions{display:flex;align-items:center;gap:8px;margin-top:22px}.project-dialog-actions span{flex:1}.project-dialog-actions button{border:1px solid var(--border,#393939);border-radius:9px;padding:9px 13px;background:transparent;color:var(--text,#eee);font:inherit;font-size:13px;font-weight:650;cursor:pointer}.project-dialog-actions .project-save-btn{border-color:var(--gold,#d4af37);background:var(--gold,#d4af37);color:#141414}.project-dialog-actions .project-delete-btn{margin-right:auto;color:#ee7777;border-color:rgba(238,119,119,.35)}@media(max-width:600px){.project-dialog{padding:14px}.project-dialog-card{max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:22px 18px;border-radius:15px}}.notification-trigger{position:relative;min-width:34px;font-size:18px}
@@ -4193,19 +4215,222 @@
             -webkit-overflow-scrolling: auto;
         }
 
+        /* A calmer, more compact chat start screen and composer. */
+        .empty-state {
+            min-height: 0;
+            padding: clamp(12px, 3vh, 28px) 18px;
+            gap: 10px;
+        }
+        .empty-state .empty-logo {
+            width: min(132px, 30vw);
+            max-height: 132px;
+            margin: 0;
+        }
+        .empty-state .empty-title {
+            font-size: clamp(23px, 3vw, 28px);
+            line-height: 1.15;
+        }
+        .empty-state .empty-value {
+            max-width: 480px;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+        .empty-state .empty-chips {
+            max-width: 520px;
+            gap: 7px;
+            margin: 2px 0;
+        }
+        .empty-state .empty-chip {
+            padding: 7px 12px;
+            font-size: 12px;
+        }
+        .empty-state .empty-start,
+        .empty-state .empty-meta,
+        .empty-state .empty-plan-hint {
+            display: none;
+        }
+        .device-notification-prompt {
+            padding: 14px 16px;
+        }
+        .device-notification-prompt p {
+            margin: 5px 0 10px;
+            font-size: 12.5px;
+        }
+        .device-notification-prompt-actions button {
+            padding: 8px 11px;
+            font-size: 12px;
+        }
+        @media (max-width: 600px) {
+            .empty-state .empty-logo {
+                width: min(104px, 26vw);
+                max-height: 110px;
+            }
+            .empty-state .empty-chips {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: min(420px, 100%);
+            }
+            .empty-state .empty-chip {
+                width: 100%;
+                min-height: 38px;
+                padding: 7px 10px;
+                font-size: 11.5px;
+            }
+            .composer-tools.mobile-only {
+                width: auto;
+                align-self: flex-start;
+                flex-wrap: nowrap;
+                margin: 0 0 4px 8px;
+            }
+            .composer-tools .model-selector {
+                flex: 0 0 auto;
+                min-width: 0;
+            }
+            .composer-tools .model-btn {
+                width: auto;
+                min-height: 32px;
+                justify-content: center;
+                padding: 6px 11px;
+            }
+            .input-btn.mic-dictate .mic-dictate-label {
+                display: none;
+            }
+            .input-btn.mic-dictate {
+                width: 38px;
+                min-width: 38px;
+                padding: 0;
+            }
+        }
+
+
+/* Interactive quiz cards */
+.quiz-card{margin:20px 0 8px;padding:20px;border:1px solid rgba(212,175,55,.24);border-radius:18px;background:linear-gradient(145deg,rgba(212,175,55,.09),transparent 52%),var(--panel,#141414);box-shadow:0 14px 38px rgba(0,0,0,.14)}
+.quiz-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}.quiz-title{font-weight:750;font-size:15px;letter-spacing:.01em}.quiz-progress{color:var(--muted,#9c9c9c);font-size:12px}.quiz-question{font-size:17px;line-height:1.55;font-weight:650;margin:0 0 14px}.quiz-options{display:grid;gap:9px}.quiz-option{display:flex;align-items:flex-start;gap:11px;width:100%;padding:12px 14px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(255,255,255,.035);color:inherit;text-align:left;line-height:1.45;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}.quiz-option:hover:not(:disabled){border-color:rgba(212,175,55,.62);background:rgba(212,175,55,.08);transform:translateY(-1px)}.quiz-option:focus-visible,.quiz-next:focus-visible{outline:2px solid #d4af37;outline-offset:2px}.quiz-option:disabled{cursor:default;opacity:1}.quiz-option.is-correct{border-color:#2da77b;background:rgba(45,167,123,.12)}.quiz-option.is-wrong{border-color:#d16b64;background:rgba(209,107,100,.12)}.quiz-letter{display:grid;place-items:center;flex:0 0 24px;height:24px;border:1px solid currentColor;border-radius:50%;font-size:11px;font-weight:750;color:#d4af37}.quiz-feedback{margin-top:13px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.045);font-size:13px;line-height:1.55;color:var(--text,#eee)}.quiz-feedback strong{display:block;margin-bottom:3px}.quiz-next{margin-top:12px;border:0;border-radius:11px;padding:11px 16px;background:linear-gradient(140deg,#f4d03f,#c49b28);color:#171209;font-weight:750;cursor:pointer}.quiz-results{text-align:center;padding:8px 0 3px}.quiz-score{font-size:26px;font-weight:800;margin:8px 0}.quiz-review{margin-top:16px;text-align:left;display:grid;gap:10px}.quiz-review-item{padding:12px 14px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.03);font-size:13px;line-height:1.5}.quiz-review-item strong{display:block;margin-bottom:5px}.quiz-review-item p{margin:3px 0;color:var(--muted,#aaa)}html.light .quiz-card{box-shadow:0 12px 30px rgba(45,35,10,.07)}html.light .quiz-option,html.light .quiz-review-item{border-color:rgba(40,35,20,.12);background:rgba(50,40,15,.025)}html.light .quiz-feedback{background:rgba(50,40,15,.045)}
+html:not(.light) .quiz-card{color:#f4f0e7}html.light .quiz-card{color:#201b12;background:linear-gradient(145deg,rgba(212,175,55,.12),transparent 55%),#fffefa;border-color:rgba(125,94,26,.25)}html.light .quiz-question,html.light .quiz-title,html.light .quiz-score{color:#201b12}html.light .quiz-option{color:#201b12;border-color:rgba(40,35,20,.14);background:rgba(50,40,15,.025)}html.light .quiz-option.is-correct{color:#165c43}html.light .quiz-option.is-wrong{color:#8b302b}html.light .quiz-feedback{color:#201b12;background:rgba(50,40,15,.045)}html.light .quiz-review-item{color:#201b12}@media(max-width:600px){.quiz-card{padding:15px;margin-top:16px}.quiz-question{font-size:16px}.quiz-option{padding:11px 12px}}
+
+.document-artifact{display:flex;align-items:center;gap:14px;margin:18px 0 8px;padding:16px;border:1px solid rgba(212,175,55,.25);border-radius:16px;background:linear-gradient(125deg,rgba(212,175,55,.11),rgba(212,175,55,.025) 48%,rgba(80,106,125,.08));box-shadow:0 12px 34px rgba(0,0,0,.13)}.document-artifact-mark{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(140deg,#f4d03f,#c49b28);color:#171209;font-size:22px}.document-artifact-copy{display:grid;gap:5px;flex:1;min-width:0}.document-artifact-copy strong{font-size:14px;overflow-wrap:anywhere}.document-artifact-copy span{color:var(--muted,#aaa);font-size:12px}.document-theme-picker{display:flex;align-items:center;gap:8px;color:var(--muted,#aaa);font-size:11px;font-weight:700}.document-theme-picker select{max-width:170px;min-height:36px;padding:0 28px 0 10px;border:1px solid rgba(212,175,55,.3);border-radius:9px;background:rgba(20,20,20,.65);color:inherit;font:inherit;cursor:pointer}.document-theme-picker select:focus-visible{outline:2px solid #d4af37;outline-offset:2px}html.light .document-theme-picker select{background:#fffefa;color:#201b12;border-color:rgba(125,94,26,.25)}.document-artifact-actions{display:flex;gap:8px;flex-wrap:wrap}.document-download{border:1px solid rgba(212,175,55,.42);border-radius:10px;padding:10px 13px;background:rgba(212,175,55,.12);color:inherit;font-weight:700;font-size:12px;cursor:pointer}.document-download:hover:not(:disabled){background:rgba(212,175,55,.2)}.document-download:disabled{opacity:.6;cursor:wait}html.light .document-artifact{box-shadow:0 10px 25px rgba(45,35,10,.06)}
+@media(max-width:620px){.document-artifact{align-items:flex-start;flex-wrap:wrap;padding:13px}.document-artifact-copy{padding-top:3px}.document-artifact-actions{width:100%;padding-left:56px}.document-download{flex:1}}
+
+        .product-tour-overlay{position:fixed;inset:0;z-index:2500;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.72);backdrop-filter:blur(8px)}
+        .product-tour-overlay.open{display:flex}
+        .product-tour-card{width:min(100%,720px);max-height:min(88vh,760px);overflow:auto;border:1px solid var(--gold-line);border-radius:24px;background:var(--black-light);color:var(--text);box-shadow:0 28px 90px rgba(0,0,0,.45);padding:clamp(20px,4vw,36px);position:relative}
+        html.light .product-tour-card{background:#fff;color:#242321;border-color:rgba(184,134,11,.34)}
+        .product-tour-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+        .product-tour-brand{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+        .product-tour-count{font-size:13px;color:var(--text-muted)}
+        html.light .product-tour-count{color:#777}
+        .product-tour-progress{height:4px;border-radius:99px;background:var(--border);overflow:hidden;margin-bottom:28px}
+        .product-tour-progress span{display:block;height:100%;border-radius:inherit;background:var(--gold);transition:width .2s ease}
+        .product-tour-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:16px;background:var(--gold-soft);color:var(--gold-light);font-size:25px;margin-bottom:18px}
+        html.light .product-tour-icon{color:#9a7200}
+        .product-tour-card h2{font-size:clamp(24px,4vw,34px);line-height:1.15;margin:0 0 12px;letter-spacing:-.03em}
+        .product-tour-copy{font-size:16px;line-height:1.65;color:var(--text-muted);margin:0}
+        html.light .product-tour-copy{color:#5e5b53}
+        .product-tour-example{margin-top:20px;padding:16px 18px;border:1px solid var(--gold-line);border-radius:15px;background:var(--gold-soft);font-size:14px;line-height:1.55}
+        .product-tour-example strong{display:block;color:var(--gold-light);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+        html.light .product-tour-example strong{color:#846200}
+        .product-tour-actions{display:flex;align-items:center;gap:10px;margin-top:28px}
+        .product-tour-actions .spacer{flex:1}
+        .product-tour-btn{border:1px solid var(--border);border-radius:12px;padding:11px 17px;background:transparent;color:var(--text);font:inherit;font-weight:700;cursor:pointer}
+        html.light .product-tour-btn{color:#242321}
+        .product-tour-btn.primary{background:var(--gold);color:#17140b;border-color:var(--gold)}
+        .product-tour-btn:disabled{opacity:.4;cursor:default}
+        .product-tour-skip{border:0;background:transparent;color:var(--text-muted);font:inherit;padding:10px 4px;cursor:pointer}
+        .product-tour-close{position:absolute;right:18px;top:18px;width:38px;height:38px;border:0;border-radius:11px;background:transparent;color:var(--text-muted);font-size:25px;cursor:pointer}
+        .product-tour-close:hover{background:var(--gold-soft);color:var(--text)}
+        .product-tour-card a{color:var(--gold-light);font-weight:700}
+        html.light .product-tour-card a{color:#846200}
+        @media(max-width:520px){.product-tour-overlay{padding:10px}.product-tour-card{border-radius:19px;padding:22px 18px}.product-tour-actions{gap:6px}.product-tour-skip{font-size:13px}.product-tour-btn{padding:10px 13px}.product-tour-progress{margin-bottom:22px}}
+
+        .interactive-visuals{display:grid;gap:16px;margin:18px 0}
+        .visualization-card{border:1px solid var(--gold-line);border-radius:17px;padding:17px;background:linear-gradient(145deg,rgba(212,175,55,.08),transparent 55%),var(--black-light,#141414);color:var(--text,#f4f4f4)}
+        html.light .visualization-card{background:#fffefa;color:#201b12}
+        .visualization-title{font-size:16px;font-weight:750;margin:0 0 5px}
+        .visualization-description{font-size:13px;color:var(--text-muted,#9a9a9a);line-height:1.5;margin:0 0 14px}
+        .wave-svg,.graph-svg{display:block;width:100%;height:auto;overflow:visible;border-radius:12px;background:rgba(128,128,128,.055)}
+        .visual-grid{stroke:rgba(145,145,145,.2);stroke-width:1}
+        .visual-axis{stroke:rgba(145,145,145,.55);stroke-width:1.2}
+        .wave-path,.graph-path{fill:none;stroke:#d4af37;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+        .graph-path{stroke:#44c8b8}
+        .visual-label{fill:currentColor;font-size:12px;opacity:.72}
+        .wave-readouts{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+        .wave-readout{padding:7px 10px;border:1px solid var(--border,#333);border-radius:10px;font-size:12px}
+        .wave-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px}
+        .wave-control{display:grid;gap:6px;font-size:12px}
+        .wave-control span{display:flex;justify-content:space-between;gap:6px}
+        .wave-control input{width:100%;accent-color:#d4af37}
+        .wave-play{margin-top:12px;border:1px solid var(--gold-line);border-radius:10px;padding:8px 12px;background:var(--gold-soft);color:inherit;font:inherit;font-weight:700;cursor:pointer}
+        @media(max-width:620px){.wave-controls{grid-template-columns:1fr}.visualization-card{padding:13px}}
+
+/* GoldenoAI home refinement */
+.empty-logo{border-radius:18px!important;padding:10px;background:color-mix(in srgb,var(--bg) 84%,#fff);box-shadow:0 16px 42px rgba(93,69,16,.10),0 0 0 1px rgba(160,121,32,.10)}
+.chat-item-actions{opacity:0;transform:translateX(4px);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+.chat-item:hover .chat-item-actions,.chat-item:focus-within .chat-item-actions{opacity:1;transform:none;pointer-events:auto}
+@media(hover:none){.chat-item-actions{opacity:1;transform:none;pointer-events:auto}}
+.chat-item-btn:focus-visible,.header-install:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.header-install[hidden]{display:none!important}.header-install{white-space:nowrap;font-weight:700}
+.sidebar-footer{gap:15px;padding-top:16px}.plan-status-card,.account-strip{border-color:color-mix(in srgb,var(--gold) 19%,var(--border))}
+.project-item,.project-row{border-radius:12px}.projects-section{padding-block:8px}
+.composer-live-link{display:inline-flex;align-items:center;justify-content:center;align-self:center;min-height:38px;padding:0 10px;border:1px solid var(--border);border-radius:11px;color:var(--text-muted);font-size:12px;font-weight:750;text-decoration:none;transition:color .16s,border-color .16s}
+.composer-live-link:hover{color:var(--gold);border-color:var(--gold)}
+.send-btn:disabled{opacity:.48;filter:saturate(.35);cursor:default;box-shadow:none;transform:none}.send-btn{transition:background .18s,opacity .18s,filter .18s,transform .18s}
+@media(prefers-reduced-motion:reduce){.chat-item-actions,.composer-live-link,.send-btn{transition:none}}
 </style>
+  <link rel="stylesheet" href="/polish.css?v=1">
+  <link rel="stylesheet" href="/product.css?v=20261123-2">
+<style id="live-professional-polish">
+.live-page{background:radial-gradient(900px 520px at 50% 8%,rgba(212,175,55,.09),transparent 62%),var(--bg,#0a0a0a)}
+.live-page-top{padding:20px clamp(22px,5vw,64px);border-bottom:1px solid rgba(255,255,255,.08)}
+.live-page-brand{gap:14px}
+.live-brand-mark{filter:drop-shadow(0 8px 18px rgba(212,175,55,.15))}
+.live-page-brand .live-title{font-size:18px;letter-spacing:-.02em}
+.live-page-brand .live-subtitle{font-size:12px;opacity:.68}
+.live-fast-badge{border:1px solid rgba(212,175,55,.45);background:rgba(212,175,55,.1);padding:6px 10px;border-radius:999px;font-size:11px;letter-spacing:.05em}
+.live-page-exit{border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 14px;font-size:12px}
+.live-page-center{padding-top:clamp(34px,7vh,80px);gap:15px}
+.live-orb-wrap{transform:scale(1.08);margin-bottom:8px}
+.live-status{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.live-hint{max-width:470px;font-size:13px;line-height:1.6;opacity:.7}
+.live-session-meta{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:8px;color:var(--muted,#888);font-size:11px}
+.live-session-meta span{border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:6px 10px;background:rgba(255,255,255,.035)}
+.live-transcript{width:min(760px,calc(100% - 40px));margin:28px auto 0;border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:18px;background:rgba(255,255,255,.025);box-shadow:0 18px 60px rgba(0,0,0,.2)}
+.live-transcript:empty{min-height:92px;display:flex;align-items:center;justify-content:center}
+.live-transcript:empty::before{content:'Your conversation will appear here';color:var(--muted,#888);font-size:13px}
+.live-bubble{max-width:min(620px,88%);padding:12px 15px;border-radius:16px;line-height:1.5;font-size:14px;margin:9px 0}
+.live-bubble.user{background:rgba(212,175,55,.14);border:1px solid rgba(212,175,55,.26)}
+.live-bubble.ai{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09)}
+.live-page-bottom{padding:20px 22px 28px}
+.live-actions{gap:10px}
+.live-btn{min-height:44px;border-radius:12px;padding:0 18px;font-weight:700}
+.live-btn.secondary{border:1px solid rgba(255,255,255,.14)}
+html.light .live-page{background:radial-gradient(900px 520px at 50% 8%,rgba(212,175,55,.14),transparent 62%),var(--bg)}
+html.light .live-session-meta span{border-color:rgba(0,0,0,.1);background:rgba(0,0,0,.025)}
+html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,255,.62)}
+@media(max-width:600px){.live-page-top{padding:16px}.live-page-center{padding-top:38px}.live-transcript{width:calc(100% - 24px);margin-top:20px}.live-page-bottom{padding-left:12px;padding-right:12px}.live-actions{width:100%}.live-btn{flex:1}}
+</style>
+<script src="/language.js?v=20261120" defer></script>
 </head>
-<body>
+<body class="gsa-polished gsa-chat">
+    <script>
+      (function removeStrayNewlineToken(){
+        var node=document.body.firstChild;
+        while(node&&node.nodeType===3){
+          var next=node.nextSibling;
+          if(String(node.nodeValue||'').trim()==='\\n') node.remove();
+          node=next;
+        }
+      })();
+    </script>
     <div class="app-container">
         <div class="top-bar">
             <button class="hamburger" onclick="toggleChatsPanel()" aria-label="Menu">&#9776;</button>
-            <img class="brand-mark" src="/logo.png?v=20261003" width="36" height="42" alt="">
+            <img class="brand-mark" src="/icon-192.png" width="36" height="42" alt="">
             <div class="top-bar-title-wrap">
-                <span class="top-bar-title" id="topBarTitle" contenteditable="false" spellcheck="false" title="Tap to rename chat" role="textbox" aria-label="Chat title">GoldenSpaceAI</span>
+                <span class="top-bar-title" id="topBarTitle" contenteditable="false" spellcheck="false" title="Tap to rename chat" role="textbox" aria-label="Chat title">GoldenoAI</span>
                 <span class="top-bar-sub" id="topBarSub">AI assistant</span>
             </div>
             <div class="top-bar-actions">
-                <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button>
+                <button class="icon-btn" onclick="exportCurrentChat()" title="Export chat" aria-label="Export">Export</button><button type="button" class="icon-btn header-install" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
                 <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Theme">Theme</button>
             </div>
         </div>
@@ -4238,7 +4463,7 @@
                     <label>Choose an icon</label>
                     <div class="project-choice-grid project-icon-choices" id="projectIconChoices" role="radiogroup" aria-label="Project icon"></div>
                     <label for="projectInstructionsInput">Project instructions <span>optional</span></label>
-                    <textarea id="projectInstructionsInput" maxlength="8000" rows="5" placeholder="Tell GoldenSpaceAI what to remember and how to help in this project."></textarea>
+                    <textarea id="projectInstructionsInput" maxlength="8000" rows="5" placeholder="Tell GoldenoAI what to remember and how to help in this project."></textarea>
                 </div>
                 <div id="projectMoveFields" hidden>
                     <label for="projectMoveSelect">Move chat to</label>
@@ -4266,8 +4491,7 @@
                     <input class="chat-search" id="chatSearch" type="search" placeholder="Search chats..." oninput="renderChatsList()" aria-label="Search chats">
                 </div>
                 <div class="chats-scroll-content">
-                <a class="studio-nav-link" href="/studio" aria-label="Open Studio"><span aria-hidden="true">✧</span><span>Studio</span><span class="imagine-nav-badge">CREATE</span></a>
-                <a class="imagine-nav-link" href="/imagine" aria-label="Open Imagine"><span aria-hidden="true">✦</span><span>Imagine</span><span class="imagine-nav-badge">MEDIA</span></a>
+                <a class="imagine-nav-link" href="/studio" aria-label="Open Studio"><span aria-hidden="true">✦</span><span>Studio</span><span class="imagine-nav-badge">CREATE</span></a>
                 <div class="projects-section">
                     <div class="projects-section-head"><span>Projects</span><button type="button" onclick="openProjectEditor()" aria-label="Create project" title="Create project">+</button></div>
                     <button type="button" class="project-row project-all active" id="allChatsProjectBtn" onclick="selectProject(null)"><span>All chats</span><span id="allChatsCount" class="project-count"></span></button>
@@ -4276,7 +4500,7 @@
                 <div class="chats-list" id="chatsList"></div>
                 </div>
                 <div class="chats-panel-footer">
-                    <div class="plan-strip" id="planStrip" aria-label="Plan usage">
+                    <div class="plan-strip" id="planStrip" aria-label="Plan usage" data-nosnippet>
                         <div class="plan-status-card" id="planStatusCard">
                             <div class="plan-status-head">
                                 <span class="plan-status-name" id="planStripName">Plan</span>
@@ -4317,7 +4541,7 @@
                             </div>
                         </div>
                     </div>
-                    <button type="button" class="install-app-footer-btn" id="installAppBtn" aria-label="Install app" hidden>Install App</button>
+                    
                     <nav class="footer-legal" aria-label="Legal">
                         <a href="/terms">Terms</a>
                         <a href="/privacy">Privacy</a>
@@ -4331,16 +4555,7 @@
                 <button type="button" class="jump-latest" id="jumpLatestBtn" onclick="jumpToLatest()" aria-label="Jump to latest">↓ Latest</button>
 
                 <div class="composer-shell">
-                    <div class="attach-previews" id="attachPreviews">
-                        <div class="image-preview-card" id="imagePreview">
-                            <img id="imagePreviewImg" alt="Attached">
-                            <button type="button" class="preview-remove" onclick="clearAttachedImage()" aria-label="Remove image">&times;</button>
-                        </div>
-                        <div class="file-preview-chip" id="filePreview">
-                            <span id="filePreviewName"></span>
-                            <button type="button" onclick="clearAttachedFile()" aria-label="Remove file">&times;</button>
-                        </div>
-                    </div>
+                    <div class="attach-previews" id="attachPreviews" aria-live="polite"></div>
                     <div class="composer-tools mobile-only">
                         <div class="model-selector" id="modelSelectorMobile">
                             <button type="button" class="model-btn" id="modelBtnMobile" onclick="toggleModelMenu('mobile')" aria-label="Choose mode" aria-haspopup="listbox" aria-expanded="false" aria-controls="modelMenuMobile">
@@ -4379,23 +4594,24 @@
                         </div>
 
                         <div class="input-actions">
-                            <input type="file" id="photosInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+                            <input type="file" id="photosInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(event)">
                             <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
-                            <input type="file" id="fileInput" accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx,text/plain,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" style="display:none" onchange="handleFileUpload(event)">
+                            <input type="file" id="fileInput" multiple accept=".txt,.md,.pdf,.doc,.docx,.ppt,.pptx,text/plain,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" style="display:none" onchange="handleFileUpload(event)">
                             
                             <button class="input-btn" id="plusBtn" onclick="togglePlusMenu()" aria-label="Attach" title="Attach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
                             <div class="plus-menu" id="plusMenu">
-                                <div class="plus-menu-item" onclick="openPhotos()">Photos</div>
-                                <div class="plus-menu-item" onclick="openCamera()">Camera</div>
-                                <div class="plus-menu-item" onclick="openFileAttach()">File (Word / PPT / PDF / txt)</div>
+                                <div class="plus-menu-heading">Add to your message <span>Up to 3 files</span></div>
+                                <button type="button" class="plus-menu-item" onclick="openPhotos()"><span class="attach-menu-icon">▧</span><span><strong>Photos</strong><small>Choose images from your device</small></span></button>
+                                <button type="button" class="plus-menu-item" onclick="openCamera()"><span class="attach-menu-icon">◉</span><span><strong>Camera</strong><small>Take a photo now</small></span></button>
+                                <button type="button" class="plus-menu-item" onclick="openFileAttach()"><span class="attach-menu-icon">▤</span><span><strong>Documents</strong><small>PDF, Word, slides, or text</small></span></button>
                             </div>
 
                             <button class="input-btn mic-dictate" id="micBtn" type="button" onclick="toggleVoiceInput()" aria-label="Dictate" title="Dictate" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4M8 21h8"/></svg><span class="mic-dictate-label">Dictate</span></button>
                         </div>
                         
-                        <textarea class="message-input" id="messageInput" placeholder="Message GoldenSpaceAI…" rows="1" onkeydown="handleKeyPress(event)" oninput="autoGrow(this)"></textarea>
+                        <textarea class="message-input" id="messageInput" placeholder="Message GoldenoAI…" rows="1" onkeydown="handleKeyPress(event)" oninput="autoGrow(this)"></textarea>
                         
-                        <button class="send-btn" onclick="onSendOrStop()" id="sendBtn" aria-label="Send" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.6l17.5-7.4c.8-.3.8-1.4 0-1.8L3.4 3.9c-.7-.3-1.4.3-1.2 1l1.7 6.5c.1.3.3.5.6.6l8.1.7-8.1.7c-.3.1-.5.3-.6.6L2.2 19.6c-.2.7.5 1.3 1.2 1z"/></svg></button>
+                        <a class="composer-live-link" href="/live" aria-label="Open Live voice chat">Live</a><button class="send-btn" onclick="onSendOrStop()" id="sendBtn" aria-label="Send" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.6l17.5-7.4c.8-.3.8-1.4 0-1.8L3.4 3.9c-.7-.3-1.4.3-1.2 1l1.7 6.5c.1.3.3.5.6.6l8.1.7-8.1.7c-.3.1-.5.3-.6.6L2.2 19.6c-.2.7.5 1.3 1.2 1z"/></svg></button>
                     </div>
                 </div>
             </div>
@@ -4422,7 +4638,7 @@
                     </div>
                     <div class="settings-card" aria-label="Email announcements">
                         <h3>Email announcements</h3>
-                        <label class="email-pref-row"><input type="checkbox" id="emailAnnouncementsToggle" onchange="saveEmailAnnouncements(this.checked)"> <span>Send me occasional GoldenSpaceAI account announcements by email.</span></label>
+                        <label class="email-pref-row"><input type="checkbox" id="emailAnnouncementsToggle" onchange="saveEmailAnnouncements(this.checked)"> <span>Send me occasional GoldenoAI account announcements by email.</span></label>
                         <p class="settings-instr-hint" id="emailAnnouncementsNote">Optional. In-app notifications remain enabled.</p>
                     </div>
                     <div class="settings-card" aria-label="Voice output">
@@ -4473,12 +4689,30 @@
                         <div id="settingsRequests"></div>
                     </div>
                     <div class="settings-actions">
+                        <button type="button" onclick="openProductTutorial(true)">Take the product tour again</button>
                         <a class="primary" href="/upgrade">Upgrade / renew</a>
                         <a href="/my-plan">Full plan &amp; request status</a>
                         <button type="button" class="danger" id="settingsLogoutBtn" onclick="logoutAccount()">Log out</button>
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="product-tour-overlay" id="productTourOverlay" role="dialog" aria-modal="true" aria-labelledby="productTourTitle" aria-describedby="productTourCopy">
+            <section class="product-tour-card">
+                <button type="button" class="product-tour-close" aria-label="Close tutorial" onclick="finishProductTutorial()">×</button>
+                <div class="product-tour-top"><span class="product-tour-brand">GoldenoAI · Quick tour</span><span class="product-tour-count" id="productTourCount"></span></div>
+                <div class="product-tour-progress" aria-hidden="true"><span id="productTourProgress"></span></div>
+                <div class="product-tour-icon" id="productTourIcon" aria-hidden="true"></div>
+                <h2 id="productTourTitle"></h2>
+                <p class="product-tour-copy" id="productTourCopy"></p>
+                <div class="product-tour-example" id="productTourExample"></div>
+                <div class="product-tour-actions">
+                    <button type="button" class="product-tour-skip" onclick="finishProductTutorial()">Skip tour</button>
+                    <span class="spacer"></span>
+                    <button type="button" class="product-tour-btn" id="productTourBack" onclick="stepProductTutorial(-1)">Back</button>
+                    <button type="button" class="product-tour-btn primary" id="productTourNext" onclick="stepProductTutorial(1)">Next</button>
+                </div>
+            </section>
         </div>
         <div class="toast-host" id="toastHost" aria-live="polite"></div>
         <div class="overlay" id="overlay" onclick="toggleChatsPanel()"></div>
@@ -4498,7 +4732,7 @@
         <div class="live-page" id="livePage" role="dialog" aria-modal="true" aria-label="Live voice chat" hidden>
             <div class="live-page-top">
                 <div class="live-page-brand">
-                    <img class="live-brand-mark" src="/logo.png?v=20261003" width="30" height="36" alt="">
+                    <img class="live-brand-mark" src="/icon-192.png" width="30" height="36" alt="">
                     <div class="live-brand-copy">
                         <span class="live-title">Live Voice</span>
                         <span class="live-subtitle">Hands-free · short Fast replies</span>
@@ -4520,6 +4754,7 @@
                     <span class="live-phase-pill" data-phase="speaking">Speak</span>
                 </div>
                 <p class="live-hint" id="liveHint">Speak naturally. Pause to send. Replies stay short for voice — text and audio follow together.</p>
+                <div class="live-session-meta" id="liveSessionMeta" aria-live="polite"><span id="liveSessionState">Auto-listening</span><span id="liveSessionTime">00:00</span><span>Tap mute to pause</span></div>
             </div>
             <div class="live-transcript" id="liveTranscript" aria-live="polite"></div>
             <div class="live-page-bottom">
@@ -4568,6 +4803,8 @@
         let liveTtsOffset = 0;
         let liveTtsChain = Promise.resolve();
         let liveTtsGeneration = 0;
+        let liveSessionStartedAt = 0;
+        let liveSessionTimer = null;
         let liveTtsPrefetches = []; // in-flight / ready TTS blobs for seamless sentence handoff
         const LIVE_SILENCE_MS = 650;
         const TTS_PLAYBACK_SPEED = 1.25;
@@ -4587,6 +4824,7 @@
         const TTS_VOICE_KEY = 'goldenspaceai2_tts_voice';
         const TTS_AUTOREAD_KEY = 'goldenspaceai2_tts_autoread';
         let selectedImage = null;
+        let composerAttachments = [];
         let selectedFileText = null;
         let selectedFileName = null;
         let selectedFilePreferMode = 'fast';
@@ -4639,7 +4877,7 @@
         }
         function planPeriodNote(data) {
             if (!data) return '';
-            if (data.plan === 'free') return 'Free Fast + images reset at UTC midnight. Talk (Live/speak-aloud) resets each UTC week. Documents unlimited.';
+            if (data.plan === 'free') return 'Free Fast + images reset at UTC midnight. Talk (Live/speak-aloud) resets each UTC week. Word and PowerPoint: 2 files per rolling 3 days.';
             if (data.endsAt) return 'Period ends ' + new Date(data.endsAt).toLocaleDateString() + '. Modes do not borrow. Images reset daily (UTC). Talk is per paid period.';
             return 'Paid mode allowances reset each paid period; images reset daily (UTC); Talk is per paid period.';
         }
@@ -4937,7 +5175,7 @@
             }
             rows.forEach(item => {
                 const card = document.createElement('article'); card.className = 'notification-item' + (item.readAt ? '' : ' unread');
-                const title = document.createElement('strong'); title.textContent = item.title || 'GoldenSpaceAI update';
+                const title = document.createElement('strong'); title.textContent = item.title || 'GoldenoAI update';
                 const message = document.createElement('p'); message.textContent = item.message || '';
                 card.appendChild(title); card.appendChild(message);
                 if (item.createdAt) { const time = document.createElement('time'); time.dateTime = item.createdAt; time.textContent = new Date(item.createdAt).toLocaleString(); card.appendChild(time); }
@@ -5227,6 +5465,70 @@
                 box.innerHTML = '';
             }
         }
+        const productTourSlides = [
+            { icon:'✦', title:'Start with a clear request', copy:'Use the chat like a helpful study partner. Write what you need in your own words, add the subject or level, and ask follow-up questions whenever you want more detail.', example:'Try: “Explain photosynthesis for a 9th-grade student, then give me a short summary.”' },
+            { icon:'▧', title:'Add images and files', copy:'Use the photo button to attach an image, or the file button for supported documents. Then ask the AI to describe a picture, explain a diagram, summarize a PDF, or help with your notes. Video files are not accepted in chat; use Imagine to find videos.', example:'Try: “Explain the labels in this image and tell me what each part does.”' },
+            { icon:'▤', title:'Make presentations, Word files, and quizzes', copy:'Ask in chat for a downloadable PowerPoint or Word document and describe the topic, audience, length, and style you want. To study interactively, ask for a quiz; answer each question and the AI will correct you.', example:'Try: “Create a 6-slide PowerPoint about Malala Yousafzai with a clean, colorful design.”  ·  “Quiz me on cell biology with 5 questions, one at a time.”' },
+            { icon:'◉', title:'Find images and videos in Imagine', copy:'Open Imagine from the chat bar, describe the subject and style, and choose Images or Videos. Open a result to view it, or download the items you want.', example:'Try: “Find cinematic videos of Beirut at sunset” or “Find watercolor illustrations of the solar system.”' , link:'/imagine', linkText:'Open Imagine' },
+            { icon:'▣', title:'Keep work together in Projects', copy:'Open Projects in the chat sidebar and create a project. Give it a name, choose a color, and add instructions such as your class, preferred language, or writing style. Chats in that project can use those instructions as ongoing context.', example:'Example instructions: “I’m studying Grade 10 biology. Explain new terms simply and include a short recap.”' },
+            { icon:'◷', title:'Check usage and request a plan', copy:'Open the Settings gear to see your plan and remaining usage. Use Upgrade / renew to choose a plan and submit a plan request; follow its status under Plan requests or Full plan & request status. Plan access is applied after review.', example:'Your usage page shows your chat, Imagine, talk, and document limits for your account.', link:'/upgrade', linkText:'View plans' }
+        ];
+        let productTourIndex = 0;
+        let productTourSessionSeen = false;
+        function productTourKey() {
+            const user = authState && authState.user;
+            const identity = user && (user.id || user.email);
+            return identity ? 'gsa_tutorial_v1_' + String(identity).toLowerCase().replace(/[^a-z0-9_-]/g, '_') : null;
+        }
+        function renderProductTutorial() {
+            const s = productTourSlides[productTourIndex];
+            if (!s) return;
+            document.getElementById('productTourIcon').textContent = s.icon;
+            document.getElementById('productTourTitle').textContent = s.title;
+            document.getElementById('productTourCopy').textContent = s.copy;
+            const ex = document.getElementById('productTourExample');
+            ex.innerHTML = '<strong>Example</strong>' + s.example + (s.link ? '<div style="margin-top:10px"><a href="' + s.link + '" onclick="finishProductTutorial()">' + s.linkText + ' →</a></div>' : '');
+            document.getElementById('productTourCount').textContent = (productTourIndex + 1) + ' of ' + productTourSlides.length;
+            document.getElementById('productTourProgress').style.width = (((productTourIndex + 1) / productTourSlides.length) * 100) + '%';
+            document.getElementById('productTourBack').disabled = productTourIndex === 0;
+            document.getElementById('productTourNext').textContent = productTourIndex === productTourSlides.length - 1 ? 'Finish' : 'Next';
+        }
+        function openProductTutorial(force) {
+            const overlay = document.getElementById('productTourOverlay');
+            if (!overlay) return;
+            const key = productTourKey();
+            if (!force && (!key || productTourSessionSeen)) return;
+            if (!force && key) {
+                try { if (localStorage.getItem(key)) return; } catch (e) {}
+            }
+            productTourIndex = 0;
+            productTourSessionSeen = true;
+            renderProductTutorial();
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('productTourNext').focus();
+        }
+        function finishProductTutorial() {
+            const key = productTourKey();
+            if (key) { try { localStorage.setItem(key, '1'); } catch (e) {} }
+            productTourSessionSeen = true;
+            const overlay = document.getElementById('productTourOverlay');
+            if (overlay) overlay.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        function stepProductTutorial(direction) {
+            productTourIndex = Math.max(0, Math.min(productTourSlides.length - 1, productTourIndex + Number(direction || 0)));
+            renderProductTutorial();
+            if (productTourIndex === productTourSlides.length - 1) document.getElementById('productTourNext').focus();
+        }
+        function maybeOpenProductTutorial() {
+            if (!authState || !authState.user) return;
+            openProductTutorial(false);
+        }
+        document.addEventListener('keydown', function(event) {
+            const overlay = document.getElementById('productTourOverlay');
+            if (event.key === 'Escape' && overlay && overlay.classList.contains('open')) finishProductTutorial();
+        });
         async function refreshAuthStatus() {
             try {
                 const res = await apiFetch('/api/auth/status', { method: 'GET', cache: 'no-store' });
@@ -5243,6 +5545,7 @@
                 authState = { user: null, guest: true, googleOAuth: false, emailOtp: false, ready: false, liveLoginBlockedBy: [] };
             }
             renderAuthCard();
+            maybeOpenProductTutorial();
         }
         function startGoogleLogin() {
             window.location.href = '/login';
@@ -5260,9 +5563,14 @@
             clearGuestChatSession();
             chats = {};
             currentChatId = null;
+            // Hide account projects and chats after sign-out; the saved account data remains in the cloud.
+            projects = [];
+            activeProjectId = null;
+            try { localStorage.removeItem('goldenspaceai2_active_project'); } catch (e) {}
+            renderProjectsList();
             createNewChat();
             renderChatsList();
-            showToast('Logged out — guest chats are temporary (not saved)', 'ok', 2800);
+            showToast('Signed out. Your saved chats are hidden until you sign back in.', 'ok', 3200);
         }
         async function handleAuthQueryFlags() {
             try {
@@ -5896,7 +6204,7 @@
             if (currentChatId && chats[currentChatId] && chats[currentChatId].name && chats[currentChatId].name !== 'New Chat') {
                 el.textContent = chats[currentChatId].name;
             } else {
-                el.textContent = 'GoldenSpaceAI';
+                el.textContent = 'GoldenoAI';
             }
             const sub = document.getElementById('topBarSub');
             if (sub) {
@@ -5977,10 +6285,10 @@
         function renderEmptyStateHtml() {
             const hint = emptyPlanHintHtml(cachedPlan);
             const starters = [
-                { label: 'Build a wave simulator', prompt: 'Build an interactive physics wave simulator and explain how to use it.' },
-                { label: 'Quiz me on a topic', prompt: 'Quiz me on a school topic with 5 interactive questions and corrections.' },
-                { label: 'Create a mini-game', prompt: 'Create a playable mini-game in Studio with a polished design.' },
-                { label: 'Make a PDF outline', prompt: 'Generate a professional presentation outline and PDF about ' }
+                { label: 'Build a physics wave simulator', prompt: 'Build an interactive physics wave simulator with controls for frequency, amplitude, and wavelength.' },
+                { label: 'Quiz me on a school topic', prompt: 'Quiz me on a school topic with five interactive questions and explain each answer.' },
+                { label: 'Create a playable mini-game in Studio', prompt: 'Create a playable mini-game in Studio with controls, scoring, and a polished design.' },
+                { label: 'Presentation outline & PDF', prompt: 'Generate a presentation outline and PDF about a topic I choose.' }
             ];
             const chips = starters.map(function(s) {
                 return '<button type="button" class="empty-chip" data-prompt="' +
@@ -5988,14 +6296,16 @@
                     '" onclick="useEmptyStarter(this)">' + s.label + '</button>';
             }).join('');
             return '<div class="empty-state">' +
-                '<img class="empty-logo" src="/logo.png?v=20261003" width="200" height="240" alt="" />' +
-                '<div class="empty-title">How can I help?</div>' +
-                '<div class="empty-value">Chat for quick answers. Open Studio for presentations, PDFs, games, code, and editable previews.</div>' +
-                '<div class="empty-chips" role="list">' + chips + '</div>' +
-                '<details class="empty-guide"><summary>New here? See what you can do</summary><div class="empty-guide-body"><div><strong>Chat</strong>Ask questions, upload files, or use Thinking for deeper answers.</div><div><strong>Studio</strong>Create and edit presentations, PDFs, code, and games.</div><div><strong>Imagine</strong>Generate images or search for useful media.</div><div><strong>Projects</strong>Keep related chats and instructions together.</div></div></details>' +
-                '<button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Or type your own message</button>' +
-                '<div class="empty-meta"><span>Fast</span><span class="empty-dot" aria-hidden="true">·</span><span>Thinking</span><span class="empty-dot" aria-hidden="true">·</span><span>Expert</span></div>' +
-                '<p class="empty-plan-hint" id="emptyPlanHint">' + hint + '</p>' +
+                '<div class="empty-hero"><img class="empty-logo" src="/icon-192.png" width="84" height="84" alt="" /><div class="empty-hero-copy"><span class="empty-eyebrow">GOLDENOAI CHAT</span><div class="empty-title">What can we work on?</div><div class="empty-value">Ask, learn, analyze, or create. Use Chat for everyday work and move into Studio when you need an editable result.</div></div></div>' +
+                '<div class="chat-feature-grid" role="list">' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Explain this topic clearly, then quiz me with five interactive questions." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">◎</span><span><strong>Learn & quiz</strong><small>Clear explanations and interactive practice</small></span></button>' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Help me research this topic. Compare reliable sources and summarize the key findings." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">⌕</span><span><strong>Research</strong><small>Search, compare, and organize information</small></span></button>' +
+                  '<button type="button" class="chat-feature-card" data-prompt="Help me write and improve this. Ask for the text or file you need." onclick="useEmptyStarter(this)"><span class="chat-feature-icon">✎</span><span><strong>Write & improve</strong><small>Draft, rewrite, translate, and analyze files</small></span></button>' +
+                  '<a class="chat-feature-card studio-card" href="/studio"><span class="chat-feature-icon">✦</span><span><strong>Open Studio</strong><small>Presentations, PDFs, images, video, and games</small></span><b>Open</b></a>' +
+                '</div>' +
+                '<div class="empty-chips-label">Try a prompt</div><div class="empty-chips" role="list">' + chips + '</div>' +
+                '<div class="empty-footer-row"><button type="button" class="empty-start" onclick="focusComposerFromEmpty()">Write your own message</button><span class="empty-models">Fast · Thinking · Expert</span></div>' +
+                '<p class="empty-plan-hint" id="emptyPlanHint" data-nosnippet>' + hint + '</p>' +
                 '</div>';
         }
         function useEmptyStarter(btn) {
@@ -6274,32 +6584,46 @@
 
         function syncAttachPreviews() {
             const row = document.getElementById('attachPreviews');
-            const imgCard = document.getElementById('imagePreview');
-            const fileChip = document.getElementById('filePreview');
-            const hasImg = !!(imgCard && imgCard.classList.contains('show'));
-            const hasFile = !!(fileChip && fileChip.classList.contains('show'));
-            if (row) row.classList.toggle('show', hasImg || hasFile);
+            if (row) {
+                row.innerHTML = composerAttachments.map((item, i) =>
+                    '<div class="attachment-preview-chip">' +
+                    (item.kind === 'image' ? '<img src="' + item.data + '" alt="">' : '<span class="attachment-document-icon">▤</span>') +
+                    '<span>' + escapeHtmlRaw(item.name || 'Photo') + '</span>' +
+                    '<button type="button" aria-label="Remove attachment" onclick="removeComposerAttachment(' + i + ')">×</button></div>'
+                ).join('');
+                row.classList.toggle('show', composerAttachments.length > 0);
+            }
+            const plus = document.getElementById('plusBtn');
+            if (plus) plus.classList.toggle('image-attached', composerAttachments.length > 0);
             if (typeof syncSendLiveButton === 'function') syncSendLiveButton();
         }
 
+        function removeComposerAttachment(index) {
+            composerAttachments.splice(index, 1);
+            selectedImage = composerAttachments.filter(a => a.kind === 'image').slice(-1)[0]?.data || null;
+            const lastFile = composerAttachments.filter(a => a.kind === 'file').slice(-1)[0];
+            selectedFileText = lastFile?.text || null;
+            selectedFileName = lastFile?.name || null;
+            selectedFilePreferMode = lastFile?.preferMode || 'fast';
+            selectedFileNote = lastFile?.note || null;
+            syncAttachPreviews();
+        }
+
         function setAttachedImage(dataUrl) {
+            if (composerAttachments.length >= 3) { showToast('Maximum 3 uploads per message.', 'warn'); return; }
+            composerAttachments.push({kind:'image', name:'Photo ' + (composerAttachments.filter(a => a.kind === 'image').length + 1), data:dataUrl});
             selectedImage = dataUrl;
-            document.getElementById('plusBtn').classList.add('image-attached');
-            const wrap = document.getElementById('imagePreview');
-            const img = document.getElementById('imagePreviewImg');
-            if (img) img.src = dataUrl;
-            if (wrap) wrap.classList.add('show');
             syncAttachPreviews();
         }
 
         function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if(!file) return;
-            if(!file.type.startsWith('image/')) { showToast('Please select an image.', 'err'); return; }
-            compressImage(file, function(compressedBase64) {
-                setAttachedImage(compressedBase64);
-            });
+            const files = Array.from(event.target.files || []);
             event.target.value = '';
+            files.slice(0, Math.max(0, 3 - composerAttachments.length)).forEach(file => {
+                if (!file.type.startsWith('image/')) { showToast('Please select an image.', 'err'); return; }
+                compressImage(file, setAttachedImage);
+            });
+            if (files.length > 3 - composerAttachments.length) showToast('Maximum 3 uploads per message.', 'warn');
         }
 
         function handleComposerPaste(e) {
@@ -6322,13 +6646,13 @@
                 const img = new Image();
                 img.onload = function() {
                     let w = img.width, h = img.height;
-                    const MAX = 1920;
+                    const MAX = 1600;
                     if (w > MAX) { h = (h * MAX) / w; w = MAX; }
                     if (h > MAX) { w = (w * MAX) / h; h = MAX; }
                     const canvas = document.createElement('canvas');
                     canvas.width = w; canvas.height = h;
                     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                    callback(canvas.toDataURL('image/jpeg', 0.7));
+                    callback(canvas.toDataURL('image/jpeg', 0.72));
                 };
                 img.src = e.target.result;
             };
@@ -6336,27 +6660,19 @@
         }
 
         function clearAttachedImage() {
+            composerAttachments = composerAttachments.filter(a => a.kind !== 'image');
             selectedImage = null;
-            const wrap = document.getElementById('imagePreview');
-            const img = document.getElementById('imagePreviewImg');
-            const plus = document.getElementById('plusBtn');
-            if (wrap) wrap.classList.remove('show');
-            if (img) img.src = '';
-            if (plus && !selectedFileText) plus.classList.remove('image-attached');
             syncAttachPreviews();
         }
 
         function applyFileAttachment(result) {
-            selectedFileText = result.text || '';
-            selectedFileName = result.name || 'file';
-            selectedFilePreferMode = result.preferMode || 'fast';
-            selectedFileNote = result.note || null;
-            const wrap = document.getElementById('filePreview');
-            const label = document.getElementById('filePreviewName');
-            const noteBit = result.ok ? '' : ' (limited)';
-            if (label) label.textContent = '📎 ' + selectedFileName + noteBit;
-            if (wrap) wrap.classList.add('show');
-            document.getElementById('plusBtn').classList.add('image-attached');
+            if (composerAttachments.length >= 3) { showToast('Maximum 3 uploads per message.', 'warn'); return; }
+            const item = {kind:'file', name:result.name || 'file', text:result.text || '', preferMode:result.preferMode || 'fast', note:result.note || null};
+            composerAttachments.push(item);
+            selectedFileText = item.text;
+            selectedFileName = item.name;
+            selectedFilePreferMode = item.preferMode;
+            selectedFileNote = item.note;
             syncAttachPreviews();
         }
 
@@ -6371,7 +6687,6 @@
                 try { await loadPlanStatus(); } catch (e) {}
             }
             if (isFreePlan()) {
-                clearAttachedFile();
                 showToast('This file needs <strong>Thinking</strong>, which is not on Free. <a href="/upgrade">Upgrade</a> to unlock — no Thinking used.', 'err', 7000);
                 return false;
             }
@@ -6386,9 +6701,15 @@
         }
 
         async function handleFileUpload(event) {
-            const file = event.target.files[0];
+            const files = Array.from(event.target.files || []);
             event.target.value = '';
+            if (files.length > 3 - composerAttachments.length) showToast('Maximum 3 uploads per message.', 'warn');
+            for (const file of files.slice(0, Math.max(0, 3 - composerAttachments.length))) await processSelectedDocument(file);
+        }
+
+        async function processSelectedDocument(file) {
             if (!file) return;
+            if (composerAttachments.length >= 3) { showToast('Maximum 3 uploads per message.', 'warn'); return; }
             const name = file.name || 'file';
             const lower = name.toLowerCase();
             const okExt = /\.(txt|md|markdown|pdf|docx|doc|pptx|ppt)$/i.test(lower)
@@ -6459,18 +6780,11 @@
         }
 
         function clearAttachedFile() {
+            composerAttachments = composerAttachments.filter(a => a.kind !== 'file');
             selectedFileText = null;
             selectedFileName = null;
             selectedFilePreferMode = 'fast';
             selectedFileNote = null;
-            const wrap = document.getElementById('filePreview');
-            const label = document.getElementById('filePreviewName');
-            if (wrap) wrap.classList.remove('show');
-            if (label) label.textContent = '';
-            if (!selectedImage) {
-                const plus = document.getElementById('plusBtn');
-                if (plus) plus.classList.remove('image-attached');
-            }
             syncAttachPreviews();
         }
 
@@ -6487,7 +6801,7 @@
         function composerHasContent() {
             const input = document.getElementById('messageInput');
             const hasText = !!(input && String(input.value || '').trim());
-            const hasAttach = !!(selectedImage || selectedFileText);
+            const hasAttach = composerAttachments.length > 0;
             return hasText || hasAttach;
         }
 
@@ -6506,14 +6820,14 @@
             }
             btn.classList.remove('stop-mode', 'active-live');
             const speechOk = !!recognition;
-            if (!composerHasContent() && speechOk) {
+            if (false && !composerHasContent() && speechOk) {
                 btn.disabled = false;
                 btn.classList.add('live-chat-btn');
                 btn.innerHTML = LIVE_BTN_HTML;
                 btn.setAttribute('aria-label', 'Live chat');
                 btn.title = 'Live chat — speak with AI (Fast)';
             } else {
-                btn.disabled = false;
+                btn.disabled = !composerHasContent();
                 btn.classList.remove('live-chat-btn');
                 btn.innerHTML = SEND_BTN_SVG;
                 btn.setAttribute('aria-label', 'Send');
@@ -6576,11 +6890,27 @@
                 chatId: currentChatId,
                 rollingSummary: c.rollingSummary || '',
                 summaryMessageCount: Number(c.summaryMessageCount) || 0,
-                customInstructions: liveAwareInstructions(),
+                customInstructions: liveAwareInstructions() + (function() {
+                    const messages = (extra && extra.messages) ? extra.messages : c.messages;
+                    const latestUser = messages.slice().reverse().find(function(m) { return m && m.role === 'user'; });
+                    if (!latestUser) return '';
+                    const quizIntent = isQuizGenerationRequest(latestUser.content);
+                    const formats = requestedDocumentFormats(latestUser.content);
+                    const specific = quizIntent
+                        ? '\n\n' + interactiveQuizInstruction(requestedQuizQuestionCount(latestUser.content))
+                        : (formats ? '\n\n' + documentGenerationInstruction(formats) : '');
+                    return specific + '\n\n' + interactiveVisualizationInstruction();
+                })(),
                 mode: MODELS[currentModel].apiMode,
                 agents: MODELS[currentModel].agents || 4,
                 webSearch: webSearchEnabled,
-                image: (extra && extra.image !== undefined) ? extra.image : undefined
+                image: (extra && extra.image !== undefined) ? extra.image : undefined,
+                quizQuestionCount: (function() {
+                    const messages = (extra && extra.messages) ? extra.messages : c.messages;
+                    const latestUser = messages.slice().reverse().find(function(m) { return m && m.role === 'user'; });
+                    return latestUser && isQuizGenerationRequest(latestUser.content)
+                        ? requestedQuizQuestionCount(latestUser.content) : undefined;
+                })()
             };
             if (liveModeActive) body.live = true;
             return body;
@@ -6691,7 +7021,7 @@
                     updateModelUI();
                 }
             }
-            if (selectedFileText && opts.text === undefined) {
+            if (composerAttachments.some(a => a.kind === 'file') && opts.text === undefined) {
                 if (selectedFilePreferMode === 'thinking' && currentModel !== 'smart') {
                     if (isFreePlan()) {
                         showToast('This file needs <strong>Thinking</strong>. <a href="/upgrade">Upgrade</a> to continue — no Thinking used.', 'err', 7000);
@@ -6718,10 +7048,15 @@
             if (opts.text === undefined) input.blur();
 
             if (!opts.skipUserAppend) {
+                const currentAttachments = opts.text === undefined ? composerAttachments.slice(0,3) : [];
+                const allImages = currentAttachments.filter(a => a.kind === 'image').map(a => a.data);
+                const allFiles = currentAttachments.filter(a => a.kind === 'file').map(a => ({name:a.name,text:a.text.slice(0,120000),note:a.note}));
                 const userMsg = {
                     role: 'user',
                     content: text || '',
                     image: imgToSend,
+                    images: allImages,
+                    attachedFiles: allFiles,
                     model: currentModel,
                     timestamp: new Date().toISOString()
                 };
@@ -6735,6 +7070,8 @@
                     timestamp: userMsg.timestamp
                 };
                 if (attachedFileMeta) msgToStore.attachedFile = attachedFileMeta;
+                msgToStore.images = allImages.filter(v => v.length <= 5 * 1024 * 1024);
+                msgToStore.attachedFiles = allFiles;
                 if (imgToSend && imgToSend.length <= 5 * 1024 * 1024) msgToStore.image = imgToSend;
                 if (imgToSend && imgToSend.length > 5 * 1024 * 1024) msgToStore.imageTooBig = true;
                 chats[currentChatId].messages.push(msgToStore);
@@ -6743,8 +7080,13 @@
                 if (opts.text === undefined) {
                     input.value = '';
                     input.style.height = 'auto';
-                    clearAttachedImage();
-                    clearAttachedFile();
+                    composerAttachments = [];
+                    selectedImage = null;
+                    selectedFileText = null;
+                    selectedFileName = null;
+                    selectedFilePreferMode = 'fast';
+                    selectedFileNote = null;
+                    syncAttachPreviews();
                 }
                 // Name from typed text / filename — not the full extract
                 const nameSeed = text || (attachedFileMeta && attachedFileMeta.name) || '';
@@ -6759,6 +7101,11 @@
         }
 
         async function requestAiReply(imgToSend) {
+            const lastUserForQuiz = (chats[currentChatId] && chats[currentChatId].messages || []).slice().reverse().find(function(m) { return m && m.role === 'user'; });
+            const isQuizReply = !!(lastUserForQuiz && isQuizGenerationRequest(lastUserForQuiz.content));
+            const quizQuestionCount = isQuizReply ? requestedQuizQuestionCount(lastUserForQuiz.content) : 0;
+            const documentFormats = lastUserForQuiz ? requestedDocumentFormats(lastUserForQuiz.content) : null;
+            const isDocumentReply = !!documentFormats;
             const thinkingId = showThinkingIndicator(initialThinkingStatus());
             streamAbort = new AbortController();
             let streamedText = '';
@@ -6878,6 +7225,7 @@
             }
 
             function paintStream() {
+                if (isQuizReply || isDocumentReply) { setThinkingStatus(thinkingId, 'generating'); return; }
                 streamTargetText = streamedText;
                 if (liveModeActive) {
                     updateLiveAiTranscript(streamedText);
@@ -6999,6 +7347,17 @@
                 if (errMsg && !streamedText) throw new Error(errMsg);
                 // Prefer server soft-cleaned `full` when present (KaTeX dash normalize); else stream.
                 let finalText = softCleanLatexClient(finalFull || streamedText || '');
+                let parsedQuiz = null;
+                let parsedArtifact = null;
+                let parsedVisualization = null;
+                if (isDocumentReply && String(finalText).trim()) {
+                    parsedArtifact = parseDocumentArtifact(finalText, documentFormats);
+                    finalText = parsedArtifact ? 'Your designed file is ready. Use the download button below to save it.' : 'I could not prepare the downloadable document this time. Please try asking for the PowerPoint or Word document again.';
+                }
+                if (isQuizReply && String(finalText).trim()) {
+                    parsedQuiz = parseInteractiveQuiz(finalText, quizQuestionCount);
+                    finalText = parsedQuiz ? 'I made your ' + quizQuestionCount + '-question quiz from our conversation. Choose an answer to begin.' : 'I could not format that as an interactive quiz this time. Please ask me to try again.';
+                }
                 // Only non-stream rescue when the SSE connection died without a done frame.
                 // If doneFlag is set, the server already ran empty-fallback — don't double-wait.
                 if (!String(finalText).trim() && !errMsg && !doneFlag) {
@@ -7022,6 +7381,14 @@
                         if (data && data.contextPack) applyContextPackToChat(currentChatId, data.contextPack);
                     } catch (fbErr) {
                         throw fbErr;
+                    }
+                }
+                if (!isQuizReply && !isDocumentReply && String(finalText).trim()) {
+                    parsedVisualization = parseInteractiveVisualization(finalText);
+                    if (parsedVisualization) finalText = parsedVisualization.text || 'Here is an interactive visual to explore.';
+                    else if (lastUserForQuiz && isWaveSimulationRequest(lastUserForQuiz.content)) {
+                        parsedVisualization = createWaveSimulationFallback(lastUserForQuiz.content);
+                        finalText = parsedVisualization.text;
                     }
                 }
                 if (!String(finalText).trim()) {
@@ -7051,17 +7418,21 @@
                         chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
                     }
                     chats[currentChatId].messages[chats[currentChatId].messages.length - 1].content = finalText;
+                    if (parsedQuiz) chats[currentChatId].messages[chats[currentChatId].messages.length - 1].quiz = parsedQuiz;
+                    if (parsedArtifact) chats[currentChatId].messages[chats[currentChatId].messages.length - 1].documentArtifact = parsedArtifact;
+                    if (parsedVisualization) chats[currentChatId].messages[chats[currentChatId].messages.length - 1].visualizations = parsedVisualization.visualizations;
                     persistActivityOnLastAi();
                     chats[currentChatId].updatedAt = new Date().toISOString();
                     saveChats();
-                    if (contentEl) {
+                    if (!parsedQuiz && !parsedArtifact && !parsedVisualization && contentEl) {
                         if (streamPaintRaf) { cancelAnimationFrame(streamPaintRaf); streamPaintRaf = null; }
                         contentEl.setAttribute('data-text', finalText);
                         contentEl.innerHTML = formatMarkdown(finalText);
                         renderMathIn(contentEl);
                     }
                     // Collapse activity panel for preview (still openable)
-                    mountActivityOnAi(false, true);
+                    if (!parsedQuiz && !parsedArtifact && !parsedVisualization) mountActivityOnAi(false, true);
+                    else loadChat();
                 }
                 removeThinkingIndicator(thinkingId);
                 markLastAiActions();
@@ -7299,6 +7670,454 @@
             div.addEventListener('pointercancel', clear);
         }
 
+        function isQuizGenerationRequest(text) {
+            const value = String(text || '').trim();
+            return /\b(?:quiz me|test me|test my knowledge|practice (?:quiz|test)|ask me (?:some )?questions|(?:quiz|test)\s+(?:me\s+)?(?:on|about|from|using)|(?:give|make|create|generate|build|prepare|start|write|do)\b[^.!?]{0,80}\b(?:quizzes?|tests?)\b|(?:i|we)\s+(?:want|need)\b[^.!?]{0,45}\b(?:quizzes?|tests?)\b|\b(?:quizzes?|tests?)\s+(?:about|on|from|for)\b)\b/i.test(value);
+        }
+
+        function requestedQuizQuestionCount(text) {
+            const value = String(text || '').toLowerCase();
+            let match = value.match(/\b(\d{1,3})\s*(?:questions?|qs?)\b/) ||
+                value.match(/\b(\d{1,3})[-\s]?question\s+(?:quiz|test)\b/) ||
+                value.match(/\b(?:quiz|test)\b[^.!?\d]{0,32}(\d{1,3})\b/);
+            if (match) {
+                const n = Number(match[1]);
+                return Number.isFinite(n) && n > 0 ? Math.min(100, n) : 5;
+            }
+            const wordNumbers = {zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90, hundred:100};
+            const words = value.match(/\b((?:(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|and)[ -]?){1,5})\s+questions?\b/);
+            if (!words) return 5;
+            let total = 0;
+            words[1].replace(/-/g, ' ').split(/\s+/).filter(Boolean).forEach(function(word) {
+                if (word === 'and') return;
+                if (word === 'hundred') { total = (total || 1) * 100; return; }
+                const n = wordNumbers[word] || 0;
+                if (n >= 20 && n < 100) total = Math.floor(total / 100) * 100 + n;
+                else total += n;
+            });
+            return total > 0 ? Math.min(100, total) : 5;
+        }
+
+        function requestedDocumentFormats(text) {
+            const value = String(text || '');
+            const intent = /\b(?:make|create|generate|build|prepare|design|write|turn|convert|need|want|give me|can you)\b/i.test(value);
+            if (!intent) return null;
+            const wantsSlides = /\b(?:presentation|powerpoint|pptx|slides?)\b/i.test(value);
+            const wantsWord = /\b(?:word|docx|document|report|handout|essay)\b/i.test(value) && !/\bword\s+problem\b/i.test(value);
+            if (!wantsSlides && !wantsWord) return null;
+            if (wantsSlides && wantsWord) return ['pptx', 'docx'];
+            return [wantsSlides ? 'pptx' : 'docx'];
+        }
+
+        function documentGenerationInstruction(formats) {
+            const formatsText = formats.join(' and ');
+            return 'The user asked for a polished downloadable ' + formatsText + ' deliverable. Create substantial, presentation-ready content with strong hierarchy and specific visual direction. Return ONLY valid JSON with this shape: {"title":"...","subtitle":"...","slides":[{"layout":"title|content|stat|quote|compare|closing","eyebrow":"short section label","title":"...","subtitle":"...","bullets":["..."],"body":"...","stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"brief visual treatment"}]}. Create 6 to 12 slides with concise, useful content; mix layouts where appropriate; use meaningful facts and avoid filler. Include enough structure that each slide has a visual focal point. For BOTH PowerPoint and Word, always use the top-level slides array; each item is a slide or a Word section. Do not use sections/pages as the array key. Do not return Markdown fences or text outside JSON.';
+        }
+
+        function parseDocumentArtifact(text, formats) {
+            try {
+                let raw = String(text || '').trim().replace(/^\x60{3}(?:json)?\s*/i, '').replace(/\s*\x60{3}$/i, '').trim();
+                const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
+                if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
+                const data = JSON.parse(raw);
+                if (!data || typeof data !== 'object') return null;
+                const source = [data.slides, data.sections, data.pages, data.chapters, data.content]
+                    .find(function(value) { return Array.isArray(value); });
+                if (!source || source.length < 1 || source.length > 30) return null;
+                const list = function(v) {
+                    if (Array.isArray(v)) return v.map(function(x) { return typeof x === 'string' ? x.trim() : String(x || '').trim(); }).filter(Boolean).slice(0, 8);
+                    if (typeof v === 'string' && v.trim()) return v.split(/\n+/).map(function(x) { return x.replace(/^[-*•#\s]+/, '').trim(); }).filter(Boolean).slice(0, 8);
+                    return [];
+                };
+                const slides = source.map(function(item, index) {
+                    const slide = typeof item === 'string' ? { body: item } : (item || {});
+                    const bodyValue = slide.body || slide.text || slide.content || slide.description || slide.paragraph || '';
+                    const body = Array.isArray(bodyValue) ? bodyValue.join('\n') : String(bodyValue || '').trim();
+                    const title = String(slide.title || slide.heading || slide.name || slide.section || slide.subtitle || '').trim()
+                        || (body ? body.split(/\n|[.!?]\s/)[0].slice(0, 120) : 'Section ' + (index + 1));
+                    if (!title) return null;
+                    return {
+                        layout: String(slide.layout || 'content').toLowerCase(),
+                        eyebrow: String(slide.eyebrow || slide.label || '').slice(0, 90),
+                        title: title.slice(0, 220),
+                        subtitle: String(slide.subtitle || '').slice(0, 400),
+                        body: body.slice(0, 5000),
+                        bullets: list(slide.bullets || slide.keyPoints || slide.points),
+                        stat: String(slide.stat || '').slice(0, 180),
+                        leftTitle: String(slide.leftTitle || '').slice(0, 160),
+                        leftBullets: list(slide.leftBullets),
+                        rightTitle: String(slide.rightTitle || '').slice(0, 160),
+                        rightBullets: list(slide.rightBullets),
+                        quote: String(slide.quote || '').slice(0, 700),
+                        attribution: String(slide.attribution || '').slice(0, 160),
+                        visual: String(slide.visual || slide.visualDirection || '').slice(0, 300)
+                    };
+                });
+                if (slides.some(function(slide) { return !slide; })) return null;
+                while (slides.length < 3) {
+                    const previous = slides[slides.length - 1];
+                    slides.push({
+                        layout: slides.length === 2 ? 'closing' : 'content',
+                        eyebrow: slides.length === 2 ? 'SUMMARY' : 'KEY POINTS',
+                        title: slides.length === 2 ? 'Key takeaways' : 'Key insights',
+                        body: slides.length === 2 ? 'A concise recap of the ideas covered in this document.' : previous.body,
+                        bullets: previous.bullets.slice()
+                    });
+                }
+                return { title: String(data.title || 'GoldenoAI Presentation').slice(0, 180), subtitle: String(data.subtitle || '').slice(0, 400), formats: formats.slice(), theme: 'midnight', slides: slides };
+            } catch (e) { return null; }
+        }
+
+        const DOCUMENT_THEMES = [
+            { id: 'midnight', label: 'Midnight Gold' },
+            { id: 'editorial', label: 'Editorial Cream' },
+            { id: 'ocean', label: 'Ocean Modern' },
+            { id: 'minimal', label: 'Clean Minimal' }
+        ];
+
+        function renderDocumentArtifactHtml(artifact, messageIndex) {
+            const formats = Array.isArray(artifact.formats) ? artifact.formats : ['pptx'];
+            const count = Array.isArray(artifact.slides) ? artifact.slides.length : 0;
+            const selectedTheme = artifact.theme || 'midnight';
+            let html = '<section class="document-artifact" aria-label="Generated document"><div class="document-artifact-mark" aria-hidden="true">✦</div><div class="document-artifact-copy"><strong>' + escapeHtmlRaw(artifact.title || 'Your presentation') + '</strong><span>' + count + ' designed slides · ' + (formats.length > 1 ? 'PowerPoint + Word' : formats[0] === 'docx' ? 'Word document' : 'PowerPoint') + '</span></div><label class="document-theme-picker"><span>Design</span><select aria-label="Choose a document design" onchange="setGeneratedArtifactTheme(this,' + messageIndex + ')">' + DOCUMENT_THEMES.map(function(theme) { return '<option value="' + theme.id + '"' + (theme.id === selectedTheme ? ' selected' : '') + '>' + theme.label + '</option>'; }).join('') + '</select></label><div class="document-artifact-actions">';
+            formats.forEach(function(format) {
+                html += '<button type="button" class="document-download" onclick="downloadGeneratedArtifact(this,' + messageIndex + ',\'' + format + '\')">Download ' + (format === 'pptx' ? 'PowerPoint' : 'Word') + '</button>';
+            });
+            return html + '</div></section>';
+        }
+
+        window.setGeneratedArtifactTheme = function(select, messageIndex) {
+            const message = chats[currentChatId] && chats[currentChatId].messages[messageIndex];
+            if (!message || !message.documentArtifact) return;
+            const valid = DOCUMENT_THEMES.some(function(theme) { return theme.id === select.value; });
+            if (!valid) return;
+            message.documentArtifact.theme = select.value;
+            saveChats();
+        };
+
+        window.downloadGeneratedArtifact = async function(button, messageIndex, format) {
+            const msg = chats[currentChatId] && chats[currentChatId].messages[messageIndex];
+            if (!msg || !msg.documentArtifact || button.disabled) return;
+            const original = button.textContent;
+            button.disabled = true;
+            button.textContent = 'Preparing…';
+            try {
+                const res = await apiFetch('/api/documents/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ format: format, artifact: msg.documentArtifact })
+                });
+                if (!res.ok) {
+                    let detail = 'Could not build that file.';
+                    try { const data = await res.json(); detail = data.error || detail; } catch (e) {}
+                    throw new Error(detail);
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = (String(msg.documentArtifact.title || 'GoldenoAI').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '') || 'GoldenoAI') + (format === 'pptx' ? '.pptx' : '.docx');
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(function() { URL.revokeObjectURL(url); }, 30000);
+                try { if (typeof loadPlanStatus === 'function') await loadPlanStatus(); } catch (_) {}
+            } catch (error) {
+                showToast(escapeHtmlRaw(error.message || 'Could not download the file.'), 'err', 5000);
+            } finally {
+                button.disabled = false;
+                button.textContent = original;
+            }
+        };
+
+
+        function isWaveSimulationRequest(text) {
+            const value = String(text || '');
+            return /\b(?:wave|waves|wavelength)\b[^.!?]{0,70}\b(?:sim|simulation|simulator|graph|visualization|animation)\b|\b(?:sim|simulation|simulator|simulate|graph|visualize)\b[^.!?]{0,70}\b(?:wave|waves|wavelength)\b/i.test(value);
+        }
+
+        function createWaveSimulationFallback(text) {
+            const value = String(text || '');
+            function readValue(label, fallback) {
+                const match = value.match(new RegExp('\\b' + label + '\\s*(?:of|=|:)?\\s*(\\d+(?:\\.\\d+)?)', 'i'));
+                return match ? Number(match[1]) : fallback;
+            }
+            return {
+                text: 'Here is an interactive wave simulator. Adjust frequency, amplitude, and wavelength, or play the wave to see how each value changes it.',
+                visualizations: [{
+                    type: 'wave',
+                    title: 'Interactive wave simulator',
+                    description: 'Wave speed = frequency × wavelength. Use the controls to explore the relationship.',
+                    amplitude: readValue('amplitude', 2),
+                    frequency: readValue('frequency', 1),
+                    wavelength: readValue('wavelength', 4),
+                    amplitudeUnit: 'cm',
+                    frequencyUnit: 'Hz',
+                    wavelengthUnit: 'm',
+                    time: 0
+                }]
+            };
+        }
+
+        function interactiveVisualizationInstruction() {
+            return 'For education, math, or science, decide whether an interactive visual would make this answer clearer. If the user explicitly asks for a graph/simulation, return exactly one JSON object {"type":"interactive_visualization","text":"short helpful explanation","visualizations":[...]}. For a wave simulation use type "wave" with title, description, numeric amplitude, frequency, wavelength, and units. For a function/data graph use type "graph" with xLabel, yLabel, and 20–60 numeric points [{x,y}]. Do not return HTML, SVG markup, JavaScript, code, or markdown fences. You may also add a visual proactively when it clearly helps. If no visual helps, answer normally in text. Quiz and downloadable document requests keep their existing JSON formats.';
+        }
+
+        function parseInteractiveVisualization(text) {
+            try {
+                let raw = String(text || '').trim().replace(/^\x60{3}(?:json)?\s*/i, '').replace(/\s*\x60{3}$/i, '').trim();
+                const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
+                if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
+                const data = JSON.parse(raw);
+                if (!data || data.type !== 'interactive_visualization' || !Array.isArray(data.visualizations)) return null;
+                const visuals = data.visualizations.map(function(v) {
+                    if (!v || (v.type !== 'wave' && v.type !== 'graph')) return null;
+                    const clean = {
+                        type: v.type,
+                        title: String(v.title || (v.type === 'wave' ? 'Wave simulation' : 'Interactive graph')).slice(0, 160),
+                        description: String(v.description || '').slice(0, 500)
+                    };
+                    if (v.type === 'wave') {
+                        clean.amplitude = Math.max(0.1, Math.min(5, Number(v.amplitude) || 2));
+                        clean.frequency = Math.max(0.1, Math.min(5, Number(v.frequency) || 1));
+                        clean.wavelength = Math.max(0.2, Math.min(10, Number(v.wavelength) || 4));
+                        clean.amplitudeUnit = String(v.amplitudeUnit || 'cm').slice(0, 16);
+                        clean.frequencyUnit = String(v.frequencyUnit || 'Hz').slice(0, 16);
+                        clean.wavelengthUnit = String(v.wavelengthUnit || 'm').slice(0, 16);
+                        clean.time = 0;
+                    } else {
+                        clean.xLabel = String(v.xLabel || 'x').slice(0, 40);
+                        clean.yLabel = String(v.yLabel || 'y').slice(0, 40);
+                        clean.points = (Array.isArray(v.points) ? v.points : []).slice(0, 100).map(function(p) {
+                            return { x: Number(p && p.x), y: Number(p && p.y) };
+                        }).filter(function(p) { return Number.isFinite(p.x) && Number.isFinite(p.y); });
+                        if (clean.points.length < 2) return null;
+                    }
+                    return clean;
+                }).filter(Boolean);
+                if (!visuals.length) return null;
+                return { text: String(data.text || 'Here is an interactive visual to explore.'), visualizations: visuals };
+            } catch (_) { return null; }
+        }
+
+        function interactiveQuizInstruction(count) {
+            const total = Math.max(1, Math.min(100, Number(count) || 5));
+            return 'When the latest user message asks for a quiz, create an interactive multiple-choice quiz using the conversation and any attached study material as the source. The requested quiz length is exactly ' + total + ' questions. Return ONLY valid JSON with this shape: {"title":"short topic title","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction and why"}]}. Include exactly ' + total + ' useful questions, 4 concise options per question, one correctIndex from 0 to 3, and a clear explanation for each answer. Do not use Markdown fences or any text outside the JSON.';
+        }
+
+        function parseInteractiveQuiz(text, expectedCount) {
+            try {
+                let raw = String(text || '').trim().replace(/^\x60{3}(?:json)?\s*/i, '').replace(/\s*\x60{3}$/i, '').trim();
+                const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
+                if (first >= 0 && last > first) raw = raw.slice(first, last + 1);
+                const data = JSON.parse(raw);
+                const requiredCount = Math.max(1, Math.min(100, Number(expectedCount) || 5));
+                if (!data || !Array.isArray(data.questions) || data.questions.length !== requiredCount) return null;
+                const questions = data.questions.map(function(q) {
+                    if (!q || !Array.isArray(q.options) || q.options.length < 2 || q.options.length > 5) return null;
+                    const correctIndex = Number(q.correctIndex);
+                    const question = String(q.question || q.prompt || '').trim();
+                    const options = q.options.map(function(v) { return String(v || '').trim(); });
+                    if (!question || options.some(function(v) { return !v; }) || !Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length) return null;
+                    return { question: question, options: options, correctIndex: correctIndex, explanation: String(q.explanation || '').trim() };
+                });
+                if (questions.some(function(q) { return !q; })) return null;
+                return { title: String(data.title || 'Knowledge check').trim(), questions: questions, currentIndex: 0, answers: new Array(questions.length).fill(null) };
+            } catch (e) { return null; }
+        }
+
+        function waveSpeedUnit(sim) {
+            const waveUnit = String(sim.wavelengthUnit || 'm');
+            const freqUnit = String(sim.frequencyUnit || 'Hz');
+            return waveUnit + (freqUnit.toLowerCase() === 'hz' ? '/s' : '·' + freqUnit);
+        }
+        function wavePath(sim) {
+            const amp = Math.max(0.1, Math.min(5, Number(sim.amplitude) || 2));
+            const freq = Math.max(0.1, Math.min(5, Number(sim.frequency) || 1));
+            const lambda = Math.max(0.2, Math.min(10, Number(sim.wavelength) || 4));
+            const time = Number(sim.time) || 0;
+            const centerY = 106, scale = (amp / 5) * 76, left = 42, width = 680;
+            let d = '';
+            for (let i = 0; i <= 160; i++) {
+                const fraction = i / 160;
+                const distance = fraction * 10;
+                const x = left + fraction * width;
+                const y = centerY - scale * Math.sin(2 * Math.PI * (distance / lambda - freq * time));
+                d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+            }
+            return d.trim();
+        }
+        function renderInteractiveVisualizationHtml(visuals, messageIndex) {
+            if (!Array.isArray(visuals) || !visuals.length) return '';
+            const cards = visuals.map(function(sim, visualIndex) {
+                const title = escapeHtmlRaw(sim.title || 'Interactive visual');
+                const desc = sim.description ? '<p class="visualization-description">' + escapeHtmlRaw(sim.description) + '</p>' : '';
+                if (sim.type === 'wave') {
+                    const a = Number(sim.amplitude) || 2, f = Number(sim.frequency) || 1, l = Number(sim.wavelength) || 4;
+                    return '<section class="visualization-card wave-simulation" data-message-index="' + messageIndex + '" data-visual-index="' + visualIndex + '">' +
+                        '<h3 class="visualization-title">' + title + '</h3>' + desc +
+                        '<svg class="wave-svg" viewBox="0 0 760 220" role="img" aria-label="Animated wave graph">' +
+                        '<path class="visual-grid" d="M42 30H722 M42 68H722 M42 106H722 M42 144H722 M42 182H722"></path>' +
+                        '<path class="visual-axis" d="M42 106H722 M42 24V188"></path>' +
+                        '<text class="visual-label" x="370" y="207">Distance (' + escapeHtmlRaw(sim.wavelengthUnit || 'm') + ')</text>' +
+                        '<text class="visual-label" x="8" y="20">Amplitude (' + escapeHtmlRaw(sim.amplitudeUnit || 'cm') + ')</text>' +
+                        '<path class="wave-path" d="' + wavePath(sim) + '"></path></svg>' +
+                        '<div class="wave-readouts"><span class="wave-readout">Frequency <b class="wave-frequency-value">' + f.toFixed(1) + ' ' + escapeHtmlRaw(sim.frequencyUnit || 'Hz') + '</b></span>' +
+                        '<span class="wave-readout">Amplitude <b class="wave-amplitude-value">' + a.toFixed(1) + ' ' + escapeHtmlRaw(sim.amplitudeUnit || 'cm') + '</b></span>' +
+                        '<span class="wave-readout">Wavelength <b class="wave-wavelength-value">' + l.toFixed(1) + ' ' + escapeHtmlRaw(sim.wavelengthUnit || 'm') + '</b></span>' +
+                        '<span class="wave-readout">Wave speed <b class="wave-speed-value">' + (f*l).toFixed(2) + ' ' + escapeHtmlRaw(waveSpeedUnit(sim)) + '</b></span></div>' +
+                        '<div class="wave-controls">' +
+                        '<label class="wave-control"><span>Frequency <b>' + f.toFixed(1) + '</b></span><input type="range" min="0.1" max="5" step="0.1" value="' + f + '" aria-label="Control frequency" oninput="handleWaveControl(this,\'frequency\')"></label>' +
+                        '<label class="wave-control"><span>Amplitude <b>' + a.toFixed(1) + '</b></span><input type="range" min="0.1" max="5" step="0.1" value="' + a + '" aria-label="Control amplitude" oninput="handleWaveControl(this,\'amplitude\')"></label>' +
+                        '<label class="wave-control"><span>Wavelength <b>' + l.toFixed(1) + '</b></span><input type="range" min="0.2" max="10" step="0.1" value="' + l + '" aria-label="Control wavelength" oninput="handleWaveControl(this,\'wavelength\')"></label>' +
+                        '</div><button type="button" class="wave-play" onclick="toggleWavePlayback(this)">▶ Play wave</button></section>';
+                }
+                const pts = sim.points || [];
+                const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+                let minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs), minY=Math.min.apply(null,ys), maxY=Math.max.apply(null,ys);
+                if (minX===maxX) { minX-=1; maxX+=1; } if (minY===maxY) { minY-=1; maxY+=1; }
+                const padY=(maxY-minY)*.08, left=55, top=24, width=670, height=165;
+                const path=pts.map((p,i)=>((i?'L':'M')+(left+(p.x-minX)/(maxX-minX)*width).toFixed(1)+' '+(top+height-(p.y-minY+padY)/(maxY-minY+2*padY)*height).toFixed(1))).join(' ');
+                return '<section class="visualization-card"><h3 class="visualization-title">'+title+'</h3>'+desc+
+                    '<svg class="graph-svg" viewBox="0 0 760 230" role="img" aria-label="'+escapeAttr(sim.title||'Graph')+'">'+
+                    '<path class="visual-grid" d="M55 24H725 M55 65H725 M55 106H725 M55 147H725 M55 189H725"></path><path class="visual-axis" d="M55 24V189H725"></path>'+
+                    '<path class="graph-path" d="'+path+'"></path><text class="visual-label" x="360" y="220">'+escapeHtmlRaw(sim.xLabel||'x')+'</text><text class="visual-label" transform="translate(15 125) rotate(-90)">'+escapeHtmlRaw(sim.yLabel||'y')+'</text></svg></section>';
+            }).join('');
+            return '<div class="interactive-visuals">' + cards + '</div>';
+        }
+        const activeWaveTimers = {};
+        function getWaveState(card) {
+            const messageIndex = Number(card && card.getAttribute('data-message-index'));
+            const visualIndex = Number(card && card.getAttribute('data-visual-index'));
+            const message = chats[currentChatId] && chats[currentChatId].messages[messageIndex];
+            const sim = message && message.visualizations && message.visualizations[visualIndex];
+            return { sim: sim, key: String(currentChatId) + ':' + messageIndex + ':' + visualIndex };
+        }
+        window.handleWaveControl = function(input, property) {
+            const card = input.closest('.wave-simulation'), state = getWaveState(card);
+            if (!state.sim || !['frequency','amplitude','wavelength'].includes(property)) return;
+            state.sim[property] = Number(input.value);
+            const label = input.closest('.wave-control').querySelector('span b');
+            if (label) label.textContent = Number(input.value).toFixed(1);
+            card.querySelector('.wave-frequency-value').textContent = state.sim.frequency.toFixed(1) + ' ' + state.sim.frequencyUnit;
+            card.querySelector('.wave-amplitude-value').textContent = state.sim.amplitude.toFixed(1) + ' ' + state.sim.amplitudeUnit;
+            card.querySelector('.wave-wavelength-value').textContent = state.sim.wavelength.toFixed(1) + ' ' + state.sim.wavelengthUnit;
+            card.querySelector('.wave-speed-value').textContent = (state.sim.frequency * state.sim.wavelength).toFixed(2) + ' ' + waveSpeedUnit(state.sim);
+            card.querySelector('.wave-path').setAttribute('d', wavePath(state.sim));
+            saveChats();
+        };
+        window.toggleWavePlayback = function(button) {
+            const card = button.closest('.wave-simulation'), state = getWaveState(card);
+            if (!state.sim) return;
+            if (activeWaveTimers[state.key]) {
+                clearInterval(activeWaveTimers[state.key]);
+                delete activeWaveTimers[state.key];
+                button.textContent = '▶ Play wave';
+                return;
+            }
+            button.textContent = '❚❚ Pause wave';
+            activeWaveTimers[state.key] = setInterval(function() {
+                const latest = chats[currentChatId] && chats[currentChatId].messages[Number(card.getAttribute('data-message-index'))];
+                const sim = latest && latest.visualizations && latest.visualizations[Number(card.getAttribute('data-visual-index'))];
+                if (!sim || !card.isConnected) {
+                    clearInterval(activeWaveTimers[state.key]); delete activeWaveTimers[state.key]; return;
+                }
+                sim.time = (Number(sim.time) || 0) + 0.06;
+                card.querySelector('.wave-path').setAttribute('d', wavePath(sim));
+            }, 60);
+        };
+        function stopWaveAnimations() {
+            Object.keys(activeWaveTimers).forEach(function(key) { clearInterval(activeWaveTimers[key]); delete activeWaveTimers[key]; });
+        }
+
+        function renderQuizHtml(quiz, messageIndex) {
+            const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+            const answers = Array.isArray(quiz.answers) ? quiz.answers : [];
+            const idx = Math.max(0, Math.min(Number(quiz.currentIndex) || 0, questions.length));
+            let html = '<section class="quiz-card" aria-label="Interactive quiz">';
+            if (idx >= questions.length) {
+                const score = questions.reduce(function(total, q, i) { return total + (Number(answers[i]) === Number(q.correctIndex) ? 1 : 0); }, 0);
+                html += '<div class="quiz-results"><div class="quiz-title">' + escapeHtmlRaw(quiz.title || 'Quiz complete') + '</div><div class="quiz-score">' + score + ' / ' + questions.length + '</div><div class="quiz-progress">Quiz complete · Review your answers</div></div><div class="quiz-review">';
+                questions.forEach(function(q, i) {
+                    const picked = Number(answers[i]);
+                    const right = picked === Number(q.correctIndex);
+                    html += '<div class="quiz-review-item"><strong>' + (right ? '✓ ' : '• ') + escapeHtmlRaw(q.question) + '</strong><p>Your answer: ' + escapeHtmlRaw(q.options[picked] || 'Not answered') + '</p><p>Correct answer: ' + escapeHtmlRaw(q.options[q.correctIndex]) + '</p>' + (q.explanation ? '<p>' + escapeHtmlRaw(q.explanation) + '</p>' : '') + '</div>';
+                });
+                html += '</div></section>';
+                return html;
+            }
+            const q = questions[idx];
+            const selected = answers[idx] === null || answers[idx] === undefined ? null : Number(answers[idx]);
+            html += '<div class="quiz-head"><span class="quiz-title">' + escapeHtmlRaw(quiz.title || 'Quick quiz') + '</span><span class="quiz-progress">Question ' + (idx + 1) + ' of ' + questions.length + '</span></div>';
+            html += '<h3 class="quiz-question">' + escapeHtmlRaw(q.question) + '</h3><div class="quiz-options">';
+            q.options.forEach(function(option, oi) {
+                const correct = oi === Number(q.correctIndex);
+                const wrongPick = selected === oi && !correct;
+                const cls = correct && selected !== null ? ' is-correct' : (wrongPick ? ' is-wrong' : '');
+                html += '<button type="button" class="quiz-option' + cls + '" ' + (selected !== null ? 'disabled' : '') + ' onclick="handleQuizAnswer(this,' + messageIndex + ',' + oi + ')"><span class="quiz-letter">' + String.fromCharCode(65 + oi) + '</span><span>' + escapeHtmlRaw(option) + '</span></button>';
+            });
+            html += '</div>';
+            if (selected !== null) {
+                const correct = selected === Number(q.correctIndex);
+                html += '<div class="quiz-feedback" role="status"><strong>' + (correct ? 'Correct!' : 'Not quite.') + '</strong>' + (correct ? '' : 'Correct answer: ' + escapeHtmlRaw(q.options[q.correctIndex]) + '. ') + escapeHtmlRaw(q.explanation || '') + '</div><button type="button" class="quiz-next" onclick="handleQuizNext(this,' + messageIndex + ')">' + (idx === questions.length - 1 ? 'See results' : 'Next question') + ' →</button>';
+            }
+            html += '</section>';
+            return html;
+        }
+
+        window.handleQuizAnswer = function(button, messageIndex, optionIndex) {
+            const msg = chats[currentChatId] && chats[currentChatId].messages[messageIndex];
+            if (!msg || !msg.quiz) return;
+            const quiz = msg.quiz, idx = Number(quiz.currentIndex) || 0;
+            if (quiz.answers[idx] !== null && quiz.answers[idx] !== undefined) return;
+            quiz.answers[idx] = Number(optionIndex);
+            saveChats();
+            const card = button.closest('.quiz-card');
+            if (card) card.outerHTML = renderQuizHtml(quiz, messageIndex);
+        };
+
+        window.handleQuizNext = function(button, messageIndex) {
+            const msg = chats[currentChatId] && chats[currentChatId].messages[messageIndex];
+            if (!msg || !msg.quiz) return;
+            msg.quiz.currentIndex = Math.min(msg.quiz.questions.length, (Number(msg.quiz.currentIndex) || 0) + 1);
+            saveChats();
+            const card = button.closest('.quiz-card');
+            if (card) card.outerHTML = renderQuizHtml(msg.quiz, messageIndex);
+        };
+
+        async function submitMessageFeedback(button, rating, index) {
+            const chat = currentChatId && chats[currentChatId];
+            const msg = chat && Array.isArray(chat.messages) ? chat.messages[index] : null;
+            if (!msg || msg.role !== 'ai') return;
+            const prior = msg.feedback || '';
+            button.disabled = true;
+            try {
+                const response = await fetch('/api/feedback', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'X-Client-Id': ensureClientId() },
+                    body: JSON.stringify({
+                        surface: 'chat',
+                        messageId: (currentChatId || 'chat') + ':' + index + ':' + String(msg.timestamp || ''),
+                        rating,
+                        excerpt: String(msg.content || '').slice(0, 500)
+                    })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) throw new Error(data.error || 'Feedback could not be saved.');
+                msg.feedback = rating;
+                saveChats();
+                const actions = button.closest('.message-actions');
+                if (actions) actions.querySelectorAll('.feedback-btn').forEach(item => item.classList.toggle('active', item.dataset.rating === rating));
+                button.title = rating === 'like' ? 'Liked' : 'Disliked';
+            } catch (error) {
+                msg.feedback = prior;
+                alert(error.message || 'Feedback could not be saved.');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
         function renderMessage(msg, index, returnEl) {
             const container = document.getElementById('messagesContainer');
             const empty = container.querySelector('.empty-state');
@@ -7333,6 +8152,9 @@
                     div.innerHTML = inner;
                 } else {
                 inner += '<div class="ai-content" data-text="' + escapeAttr(rawText) + '">' + formatMarkdown(rawText) + '</div>';
+                if (msg.quiz) inner += renderQuizHtml(msg.quiz, typeof index === 'number' ? index : -1);
+                if (msg.documentArtifact) inner += renderDocumentArtifactHtml(msg.documentArtifact, typeof index === 'number' ? index : -1);
+                if (msg.visualizations) inner += renderInteractiveVisualizationHtml(msg.visualizations, typeof index === 'number' ? index : -1);
                 const tAi = formatMsgTime(msg.timestamp);
                 inner += (tAi ? '<div class="msg-time">' + escapeHtmlRaw(tAi) + '</div>' : '') +
                     '<div class="message-actions">' +
@@ -7340,6 +8162,8 @@
                     '<button class="msg-btn" title="Share" onclick="shareMessage(this)">' + ICO.share + '</button>' +
                     '<button class="msg-btn" title="Listen" aria-label="Listen" onclick="speakMessage(this)">' + ICO.speak + '</button>' +
                     '<button class="msg-btn stop-btn" title="Stop" onclick="stopSpeaking()">' + ICO.stop + '</button>' +
+                    '<button class="msg-btn feedback-btn' + (msg.feedback === 'like' ? ' active' : '') + '" data-rating="like" title="' + (msg.feedback === 'like' ? 'Liked' : 'Like response') + '" aria-label="Like response" onclick="submitMessageFeedback(this,\'like\',' + (typeof index === 'number' ? index : -1) + ')">👍</button>' +
+                    '<button class="msg-btn feedback-btn' + (msg.feedback === 'dislike' ? ' active' : '') + '" data-rating="dislike" title="' + (msg.feedback === 'dislike' ? 'Disliked' : 'Dislike response') + '" aria-label="Dislike response" onclick="submitMessageFeedback(this,\'dislike\',' + (typeof index === 'number' ? index : -1) + ')">👎</button>' +
                     '<button class="msg-btn regen-btn wide" title="Regenerate" onclick="regenerateLast()">' + ICO.regen + '</button>' +
                     '</div></div>';
                 div.innerHTML = inner;
@@ -7348,10 +8172,14 @@
                 }
             } else {
                 inner += '<div class="message-bubble">';
-                if (msg.image) {
+                if (Array.isArray(msg.images) && msg.images.length) {
+                    msg.images.forEach(src => { inner += '<img src="' + src + '" class="message-image" alt="Uploaded" loading="lazy">'; });
+                } else if (msg.image) {
                     inner += '<img src="' + msg.image + '" class="message-image" alt="Uploaded" loading="lazy">';
                 }
-                if (msg.attachedFile && msg.attachedFile.name) {
+                if (Array.isArray(msg.attachedFiles) && msg.attachedFiles.length) {
+                    msg.attachedFiles.forEach(file => { inner += '<div class="message-file-chip" title="' + escapeAttr(file.name) + '">▤ ' + escapeHtmlRaw(file.name) + '</div>'; });
+                } else if (msg.attachedFile && msg.attachedFile.name) {
                     const fname = String(msg.attachedFile.name);
                     inner += '<div class="message-file-chip" title="' + escapeAttr(fname) + '">📎 ' + escapeHtmlRaw(fname) + '</div>';
                 }
@@ -7658,6 +8486,16 @@
         }
 
 
+        function updateLiveSessionMeta() {
+            const time = document.getElementById('liveSessionTime');
+            const state = document.getElementById('liveSessionState');
+            if (time && liveSessionStartedAt) {
+                const seconds = Math.max(0, Math.floor((Date.now() - liveSessionStartedAt) / 1000));
+                time.textContent = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
+            }
+            if (state) state.textContent = liveMuted ? 'Paused' : (liveMicOpen ? 'Auto-listening' : (liveSending || isSending ? 'Preparing reply' : 'Ready for you'));
+        }
+
         function showLivePage(show) {
             const el = document.getElementById('livePage');
             if (!el) return;
@@ -7772,6 +8610,7 @@
                 p.classList.toggle('on', on);
                 p.classList.toggle('listen', on && phase === 'listening');
             }
+            updateLiveSessionMeta();
             if (!status) return;
             const map = {
                 ready: liveMuted ? 'Muted — tap Unmute when ready' : 'Ready',
@@ -7824,6 +8663,9 @@
                 try { cancelVoiceInput(); } catch (e) {}
             }
             liveModeActive = true;
+            liveSessionStartedAt = Date.now();
+            clearInterval(liveSessionTimer);
+            liveSessionTimer = setInterval(updateLiveSessionMeta, 1000);
             liveMicOpen = false;
             liveSending = false;
             liveMuted = false;
@@ -7878,6 +8720,9 @@
                 liveSpeakWait = null;
             }
             liveModeActive = false;
+            clearInterval(liveSessionTimer);
+            liveSessionTimer = null;
+            liveSessionStartedAt = 0;
             document.body.classList.remove('live-chat-on');
             showLivePage(false);
             setLivePhase('ready');
@@ -9038,13 +9883,14 @@
 
             function inlineFormat(str) {
                 str = escapeHtmlRaw(str);
+                str = str.replace(/\[\[([^\]]+)\]\]\((https?:\/\/[^\s)]+)\)(?:\[\[\1\]\]\(\2\))*/g, '[$1]($2)');
                 str = str.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
                 str = str.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
                 str = str.replace(/__(.+?)__/g, '<strong>$1</strong>');
                 str = str.replace(/(^|[^\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1<em>$2</em>');
-                str = str.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+                str = str.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, function(_, prefix, url) {
                     if (url.indexOf('href=') !== -1) return url;
-                    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+                    return prefix + '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
                 });
                 return str;
             }

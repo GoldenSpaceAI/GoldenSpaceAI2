@@ -109,6 +109,14 @@ app.use((req, res, next) => {
         let user = null;
         try { user = auth && typeof auth.readUserFromReq === 'function' ? auth.readUserFromReq(req) : null; } catch (_) {}
         const token = createDomainMigrationToken(user, req.originalUrl || req.url || '/');
+        // The explicit restore link briefly runs on the old origin so its browser-only
+        // device id can move across with the signed account handoff.
+        if (String(req.query && req.query.restore || '') === '1') {
+            const destination = token
+                ? 'https://www.goldenoai.com/auth-domain-migrate?t=' + encodeURIComponent(token)
+                : 'https://www.goldenoai.com/';
+            return res.type('html').send('<!doctype html><meta charset="utf-8"><title>Restoring GoldenoAI</title><script>(function(){try{var d=localStorage.getItem("goldenspaceai2_client_id")||"";if(/^[a-zA-Z0-9_-]{1,128}$/.test(d))location.replace(' + JSON.stringify(destination) + '+(location.href.indexOf("?")>=0?"&":"?")+"migrate_device="+encodeURIComponent(d));else location.replace(' + JSON.stringify(destination) + ')}catch(e){location.replace(' + JSON.stringify(destination) + ')}})();</script>');
+        }
         if (token) return res.redirect(302, 'https://www.goldenoai.com/auth-domain-migrate?t=' + encodeURIComponent(token));
         return res.redirect(308, 'https://www.goldenoai.com' + safeDomainMigrationPath(req.originalUrl || req.url || '/'));
     }
@@ -118,7 +126,10 @@ app.get('/auth-domain-migrate', (req, res) => {
     const migration = verifyDomainMigrationToken(req.query && req.query.t);
     if (!migration || !auth) return res.redirect(303, '/login?msg=' + encodeURIComponent('Please sign in to restore your chats.'));
     auth.setSessionCookie(res, migration, req);
-    return res.redirect(303, migration.next || '/');
+    const device = String(req.query && req.query.migrate_device || '');
+    const hasDevice = /^[a-zA-Z0-9_-]{1,128}$/.test(device);
+    const next = migration.next || '/';
+    return res.redirect(303, next + (hasDevice ? (next.includes('?') ? '&' : '?') + 'migrate_device=' + encodeURIComponent(device) : ''));
 });
 
 app.get('/robots.txt', (req, res) => {

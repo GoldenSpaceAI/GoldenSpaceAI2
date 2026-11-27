@@ -2779,14 +2779,28 @@ app.put('/api/chats/:id/study-mode', async (req, res) => {
     const ownerKey = resolveChatOwnerKey(req, res);
     if (!ownerKey) return;
     try {
-        const current = await auth.getChat(ownerKey, req.params.id);
-        if (!current) return res.status(404).json({ error: 'Chat not found.' });
+        let current = await auth.getChat(ownerKey, req.params.id);
+        // A newly-created chat can still be in the browser's sync queue. Recover it
+        // from the JSON fallback, or create the empty shell safely before locking it.
+        if (!current) {
+            const store = readStore();
+            current = store[ownerKey]?.[req.params.id] || null;
+        }
+        if (!current) {
+            const now = new Date().toISOString();
+            current = { id: req.params.id, name: 'New Chat', messages: [], createdAt: now, updatedAt: now, named: false, customInstructions: '', systemPrompt: '', rollingSummary: '', summaryMessageCount: 0, projectId: null, mode: 'normal', studyState: {} };
+        }
         if (current.mode === 'study') return res.json({ ok: true, chat: current });
         if (current.mode && current.mode !== 'normal') return res.status(409).json({ error: 'This chat cannot change mode.' });
         if (Array.isArray(current.messages) && current.messages.length) return res.status(409).json({ error: 'Study mode can only be enabled on an empty chat.' });
         const chat = { ...current, mode: 'study', studyState: current.studyState || { flashcards: {}, notes: [] } };
         const ok = await auth.upsertChat(ownerKey, req.params.id, chat);
-        if (!ok) return res.status(503).json({ error: 'Chat storage is unavailable.' });
+        if (!ok) {
+            const store = readStore();
+            if (!store[ownerKey]) store[ownerKey] = {};
+            store[ownerKey][req.params.id] = chat;
+            writeStore(store);
+        }
         return res.json({ ok: true, chat });
     } catch (error) { console.error('study mode:', error.message); return res.status(500).json({ error: 'Could not enable Study mode.' }); }
 });

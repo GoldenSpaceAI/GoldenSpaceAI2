@@ -22,6 +22,7 @@ const { extractUploadedFile, MAX_FILE_BYTES } = require('./fileExtract');
 const { createOfficeDocument } = require('./documentExport');
 const { mountPublications } = require('./studioPublications');
 const { createAuth } = require('./auth');
+const { createStudyStore } = require('./study');
 const contextPack = require('./contextPack');
 const {
     RECENT_WINDOW,
@@ -63,6 +64,7 @@ const plansStore = createPlansStore(DATA_DIR, {
     // Lazy: auth is assigned below; pool appears once DATABASE_URL is set.
     getPool: () => (auth && typeof auth.getPool === 'function' ? auth.getPool() : null)
 });
+const studyStore = createStudyStore(DATA_DIR);
 const ADMIN_PASSKEY = process.env.ADMIN_PASSKEY || '';
 
 // Auth + Postgres chat store (email OTP / Google). Live login needs keys — see AUTH_ENV.md.
@@ -1218,6 +1220,8 @@ async function resolveContextPack(req) {
         expandUserContent: expandUserContentForModel
     });
 
+    const studyMode = body.chatMode === 'study' || (storedChat && storedChat.mode === 'study');
+    if (studyMode) packed.messages.unshift({ role: 'system', content: 'Study mode is locked for this chat. Teach clearly and interactively: explain concepts in small steps, check understanding with one useful question, and when helpful propose a flashcard deck, sticky note, graph, or interactive exam. Keep normal answers readable and do not claim an artifact was created unless it was actually created. When you can provide a structured artifact, append a fenced block labelled study-json containing one valid JSON object with type flashcards, notes, graph, or exam; keep the visible explanation first.' });
     return {
         conversationMessages: packed.messages,
         meta: packed.meta,
@@ -2489,7 +2493,9 @@ async function migrateJsonChatsToPostgres(ownerKey) {
                 systemPrompt: chat.systemPrompt || '',
                 rollingSummary: chat.rollingSummary || '',
                 summaryMessageCount: Number(chat.summaryMessageCount) || 0,
-                projectId: chat.projectId || null
+                projectId: chat.projectId || null,
+                mode: chat.mode === 'study' ? 'study' : 'normal',
+                studyState: chat.studyState && typeof chat.studyState === 'object' ? chat.studyState : {}
             });
             if (ok) migrated += 1;
         } catch (e) {
@@ -2700,7 +2706,9 @@ app.post('/api/chats', async (req, res) => {
         systemPrompt: body.systemPrompt || '',
         rollingSummary: body.rollingSummary || '',
         summaryMessageCount: Number(body.summaryMessageCount) || 0,
-        projectId: body.projectId || null
+        projectId: body.projectId || null,
+        mode: body.mode === 'study' ? 'study' : 'normal',
+        studyState: body.studyState && typeof body.studyState === 'object' ? body.studyState : {}
     };
     try {
         const ok = await auth.upsertChat(ownerKey, id, chat);
@@ -2745,7 +2753,9 @@ app.put('/api/chats/:id', async (req, res) => {
         summaryMessageCount: body.summaryMessageCount !== undefined
             ? Math.max(0, Number(body.summaryMessageCount) || 0)
             : (Number(existing.summaryMessageCount) || 0),
-        projectId: body.projectId !== undefined ? (body.projectId || null) : (existing.projectId || null)
+        projectId: body.projectId !== undefined ? (body.projectId || null) : (existing.projectId || null),
+        mode: existing.mode === 'study' || body.mode === 'study' ? 'study' : 'normal',
+        studyState: body.studyState !== undefined ? (body.studyState && typeof body.studyState === 'object' ? body.studyState : {}) : (existing.studyState && typeof existing.studyState === 'object' ? existing.studyState : {})
     };
     try {
         const ok = await auth.upsertChat(ownerKey, req.params.id, chat);
@@ -2762,6 +2772,92 @@ app.put('/api/chats/:id', async (req, res) => {
         return res.status(500).json({ error: 'Failed to save' });
     }
     res.json({ id: req.params.id, ...chat });
+});
+
+// Study mode is a one-way lock. The server, not only the UI, enforces it.
+app.put('/api/chats/:id/study-mode', async (req, res) => {
+    const ownerKey = resolveChatOwnerKey(req, res);
+    if (!ownerKey) return;
+    try {
+        const current = await auth.getChat(ownerKey, req.params.id);
+        if (!current) return res.status(404).json({ error: 'Chat not found.' });
+        if (current.mode === 'study') return res.json({ ok: true, chat: current });
+        if (current.mode && current.mode !== 'normal') return res.status(409).json({ error: 'This chat cannot change mode.' });
+        if (Array.isArray(current.messages) && current.messages.length) return res.status(409).json({ error: 'Study mode can only be enabled on an empty chat.' });
+        const chat = { ...current, mode: 'study', studyState: current.studyState || { flashcards: {}, notes: [] } };
+        const ok = await auth.upsertChat(ownerKey, req.params.id, chat);
+        if (!ok) return res.status(503).json({ error: 'Chat storage is unavailable.' });
+        return res.json({ ok: true, chat });
+    } catch (error) { console.error('study mode:', error.message); return res.status(500).json({ error: 'Could not enable Study mode.' }); }
+});
+
+function examOwner(req) {
+    const user = auth.readUserFromReq(req);
+    return user && user.id ? 'u_' + user.id : null;
+}
+
+app.post('/api/study/exams', async (req, res) => {
+    const ownerKey = examOwner(req);
+    if (!ownerKey) return res.status(401).json({ error: 'Sign in to create an exam.' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const chatId = String(body.chatId || '').trim();
+    if (!chatId) return res.status(400).json({ error: 'chatId is required.' });
+    const chat = await auth.getChat(ownerKey, chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found.' });
+    if (chat.mode !== 'study') return res.status(409).json({ error: 'Interactive exams are available in locked Study chats.' });
+    const result = studyStore.create({ ownerKey, chatId, questions: body.questions, title: body.title });
+    if (!result.ok) return res.status(400).json({ error: result.error });
+    return res.status(201).json({ ok: true, exam: { ...result.exam, answer: undefined }, url: '/exam/' + encodeURIComponent(result.exam.token) });
+});
+
+function publicExam(exam) {
+    if (!exam) return null;
+    return { token: exam.token, title: exam.title, chatId: exam.chatId, createdAt: exam.createdAt, expiresAt: exam.expiresAt, status: exam.status, questions: exam.questions.map(q => ({ id: q.id, type: q.type, prompt: q.prompt, options: q.options, points: q.points })), score: exam.score, maxScore: exam.maxScore, userAnswers: exam.userAnswers, perQuestionFeedback: exam.perQuestionFeedback, submittedAt: exam.submittedAt };
+}
+
+app.get('/api/study/exams/:token', (req, res) => {
+    const exam = studyStore.expireIfNeeded(studyStore.get(req.params.token));
+    if (!exam) return res.status(404).json({ error: 'Exam not found.' });
+    const ownerKey = examOwner(req);
+    if (!ownerKey || ownerKey !== exam.ownerKey) return res.status(403).json({ error: 'Sign in with the account that created this exam.' });
+    return res.json({ exam: publicExam(exam) });
+});
+
+app.post('/api/study/exams/:token/start', (req, res) => {
+    const exam = studyStore.expireIfNeeded(studyStore.get(req.params.token));
+    if (!exam) return res.status(404).json({ error: 'Exam not found.' });
+    if (exam.ownerKey !== examOwner(req)) return res.status(403).json({ error: 'Not allowed.' });
+    if (exam.status === 'issued') { exam.status = 'in_progress'; studyStore.save(exam); }
+    return res.json({ exam: publicExam(exam) });
+});
+
+app.post('/api/study/exams/:token/submit', (req, res) => {
+    const exam = studyStore.expireIfNeeded(studyStore.get(req.params.token));
+    if (!exam) return res.status(404).json({ error: 'Exam not found.' });
+    if (exam.ownerKey !== examOwner(req)) return res.status(403).json({ error: 'Not allowed.' });
+    if (exam.status === 'submitted') return res.json({ exam: publicExam(exam), locked: true });
+    if (exam.status === 'expired') return res.status(410).json({ error: 'This exam has expired.', exam: publicExam(exam) });
+    const graded = studyStore.grade(exam, req.body && req.body.answers);
+    // Keep the result in the parent chat as a system artifact for later turns.
+    auth.getChat(exam.ownerKey, exam.chatId).then(chat => {
+        if (!chat) return;
+        const messages = Array.isArray(chat.messages) ? chat.messages.slice() : [];
+        messages.push({ role: 'system', type: 'exam_summary', examToken: exam.token, content: `Exam submitted: ${graded.score}/${graded.maxScore}`, examSummary: { score: graded.score, maxScore: graded.maxScore, questions: graded.questions, userAnswers: graded.userAnswers, perQuestionFeedback: graded.perQuestionFeedback }, timestamp: new Date().toISOString() });
+        auth.upsertChat(exam.ownerKey, exam.chatId, { ...chat, messages, updatedAt: new Date().toISOString() }).catch(() => {});
+    }).catch(() => {});
+    return res.json({ exam: publicExam(graded), locked: true });
+});
+
+app.get('/exam/:token', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Interactive Exam · GoldenoAI</title><style>body{margin:0;background:#f7f4ec;color:#242018;font-family:system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:820px;margin:40px auto;padding:24px}.card{background:#fff;border:1px solid #e3d9c4;border-radius:20px;padding:26px;box-shadow:0 12px 40px #6b4b1214}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;border-bottom:1px solid #eee4d1;padding-bottom:18px}.timer{font-weight:800;color:#8a5e10}.question{padding:20px 0;border-bottom:1px solid #eee4d1}.question label{display:block;margin:8px 0}.question textarea,.question input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #d9d0bd;border-radius:10px;font:inherit}.btn{margin-top:22px;background:#9a6910;color:#fff;border:0;border-radius:10px;padding:13px 18px;font-weight:700;cursor:pointer}.muted{color:#756f63}.feedback{padding:10px 0}.score{font-size:22px;font-weight:800}</style></head><body><main class="wrap"><div id="app" class="card">Loading exam…</div></main><script>
+const token=${JSON.stringify(String(req.params.token))};let exam=null,timer=null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function load(){const r=await fetch('/api/study/exams/'+encodeURIComponent(token));const d=await r.json();if(!r.ok)throw Error(d.error||'Could not load exam');exam=d.exam;render();if(exam.status==='issued') await fetch('/api/study/exams/'+encodeURIComponent(token)+'/start',{method:'POST'});if(exam.status!=='submitted'&&exam.status!=='expired')timer=setInterval(renderTimer,1000)}
+function renderTimer(){if(!exam)return;const left=Math.max(0,Date.parse(exam.expiresAt)-Date.now());const el=document.querySelector('#timer');if(el)el.textContent=left?'Time left: '+Math.floor(left/3600000)+':'+String(Math.floor(left/60000)%60).padStart(2,'0')+':'+String(Math.floor(left/1000)%60).padStart(2,'0'):'Expired';if(!left){clearInterval(timer);exam.status='expired';render()}}
+function render(){const a=document.querySelector('#app');if(exam.status==='submitted'){a.innerHTML='<div class="top"><h1>'+esc(exam.title)+'</h1><span class="score">'+exam.score+'/'+exam.maxScore+'</span></div><p class="muted">Submitted and locked. This exam cannot be retaken.</p>'+((exam.perQuestionFeedback||[]).map(f=>'<div class="feedback"><b>'+esc(f.id)+'</b>: '+esc(f.score)+'/'+esc(f.maxScore)+' — '+esc(f.feedback)+'</div>').join(''));return}if(exam.status==='expired'){a.innerHTML='<h1>'+esc(exam.title)+'</h1><p>This exam has expired and can no longer accept answers.</p>';return}a.innerHTML='<div class="top"><h1>'+esc(exam.title)+'</h1><span class="timer" id="timer"></span></div><p class="muted">Complete the questions and submit once. Your answers are saved only when you submit.</p><form id="examForm">'+exam.questions.map((q,i)=>'<section class="question"><b>'+ (i+1)+'. '+esc(q.prompt)+'</b>'+ (q.type==='multiple_choice'?q.options.map(o=>'<label><input type="radio" name="q'+esc(q.id)+'" value="'+esc(o)+'"> '+esc(o)+'</label>').join(''):q.type==='true_false'?'<label><input type="radio" name="q'+esc(q.id)+'" value="true"> True</label><label><input type="radio" name="q'+esc(q.id)+'" value="false"> False</label>':'<textarea name="q'+esc(q.id)+'" rows="4" placeholder="Your answer"></textarea>')+'</section>').join('')+'<button class="btn" type="submit">Submit exam</button></form>';renderTimer();document.querySelector('#examForm').onsubmit=submit}
+async function submit(e){e.preventDefault();if(!exam||exam.status==='expired')return;const answers=exam.questions.map(q=>{const el=document.querySelector('[name="q'+CSS.escape(q.id)+'"]:checked')||document.querySelector('[name="q'+CSS.escape(q.id)+'"]');return{id:q.id,answer:el?el.value:''}});const r=await fetch('/api/study/exams/'+encodeURIComponent(token)+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({answers})});const d=await r.json();if(!r.ok){alert(d.error||'Could not submit');return}exam=d.exam;clearInterval(timer);render()}
+load().catch(e=>{document.querySelector('#app').innerHTML='<h1>Exam unavailable</h1><p>'+esc(e.message)+'</p>'});</script></body></html>`);
 });
 
 app.delete('/api/chats/:id', async (req, res) => {

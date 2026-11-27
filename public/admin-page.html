@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Admin — GoldenoAI</title>
 <meta name="theme-color" content="#0a0a0a">
-<link rel="icon" href="/logo.png?v=20261003">
+<link rel="icon" href="/icon-192.png">
 <style>
   :root {
     --gold:#d4af37; --gold-light:#f4d03f; --gold-dark:#b8962e;
@@ -288,12 +288,14 @@
 </style>
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js" defer></script>
+  <link rel="stylesheet" href="/polish.css?v=1">
+  <link rel="stylesheet" href="/product.css?v=20261123-2">
 </head>
-<body>
+<body class="gsa-polished gsa-site-page gsa-admin">
 <header class="topnav">
-  <a class="brand" href="/"><img src="/logo.png?v=20261003" alt="">GoldenoAI Admin</a>
+  <a class="brand" href="/"><img src="/icon-192.png" alt="">GoldenoAI Admin</a>
   <div class="topnav-actions">
-    <a class="btn ghost" href="/admin-users" style="padding:8px 12px;">Users</a>
+    <a class="btn ghost" href="/admin-users" style="padding:8px 12px;">Users</a> <a href="/admin-income.html">Income</a>
     <button type="button" class="theme-toggle btn ghost" data-theme-toggle aria-label="Toggle color theme">Light</button>
     <button class="btn ghost" id="logoutBtn" type="button" hidden>Log out</button>
   </div>
@@ -500,7 +502,7 @@
                 '<span class="plan-pill" title="Current plan at request">' + escapeHtml(current) + '</span>' +
                 '<span class="plan-arrow">→</span>' +
                 '<span class="plan-pill req" title="Requested plan">' + escapeHtml(requested) + '</span>' +
-                (p.amount != null ? '<span style="color:var(--muted);font-size:12px;font-weight:600;">$' + escapeHtml(String(p.amount)) + '</span>' : '') +
+                (p.amount != null ? '<span style="color:var(--muted);font-size:12px;font-weight:600;">$' + escapeHtml(String(p.amount)) + ' · ' + (p.billingPeriod === 'yearly' ? '1 year' : '1 month') + '</span>' : '') +
               '</span></dd></div>' +
               '<div><dt>Estimated location</dt><dd>' + escapeHtml(locationText(p)) + '</dd></div>' +
               '<div><dt>Request IP</dt><dd class="mono">' + ipLine + '</dd></div>' +

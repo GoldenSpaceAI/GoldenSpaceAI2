@@ -6347,14 +6347,16 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         function studyTool(tool){const prompts={flashcards:'Create flashcards for the topic I provide.',notes:'Pin the most important facts as sticky notes.',graph:'Build an interactive graph for the topic I provide.',exam:'Create a one-hour interactive exam with mixed questions for the topic I provide.'};const input=document.getElementById('messageInput');if(input){input.value=prompts[tool]||'';autoGrow(input);input.focus();}const menu=document.getElementById('plusMenu');if(menu)menu.classList.remove('show');}
         function studyArtifactPayload(text) {
             const source = String(text || '');
-            const match = source.match(/\`\`\`(?:study-json|json)\\s*([\\s\\S]*?)\`\`\`/i);
-            if (!match) return null;
+            const fences = source.matchAll(/```(?:study-json|study|json)\s*([\s\S]*?)```/gi);
+            for (const match of fences) {
             try {
                 const data = JSON.parse(match[1].trim());
                 const type = String(data && data.type || '').toLowerCase();
-                if (!['flashcards','notes','graph','exam'].includes(type)) return null;
-                return { data: data, raw: match[0], visible: source.replace(match[0], '').trim() };
-            } catch (_) { return null; }
+                if (!['flashcards','notes','graph','exam'].includes(type)) continue;
+                return { data: { ...data, type }, raw: match[0], visible: source.replace(match[0], '').trim() };
+            } catch (_) {}
+            }
+            return null;
         }
         function normalizeStudyExamQuestions(data) {
             const source = Array.isArray(data.questions) ? data.questions :
@@ -6388,7 +6390,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             }[data.type] || 'Your study tool is ready.');
             if (data.type === 'exam') {
                 const questions = normalizeStudyExamQuestions(data);
-                if (!questions.length) return null;
+                if (!questions.length) throw new Error('The exam contained no valid questions. Ask me to generate it again.');
                 const res = await apiFetch('/api/study/exams', {
                     method: 'POST',
                     body: JSON.stringify({ chatId: currentChatId, title: data.title || 'Interactive exam', questions: questions })
@@ -6401,14 +6403,14 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 const cards = (Array.isArray(data.cards) ? data.cards : []).map(function(card) {
                     return { front: String(card.front || card.question || '').slice(0, 800), back: String(card.back || card.answer || '').slice(0, 1600), mastered: false };
                 }).filter(function(card) { return card.front && card.back; }).slice(0, 60);
-                if (!cards.length) return null;
+                if (!cards.length) throw new Error('The flashcard deck was empty. Ask me to generate it again.');
                 return { text: visible, artifact: { type: 'flashcards', cards: cards, active: 0, flipped: false } };
             }
             if (data.type === 'notes') {
                 const notes = (Array.isArray(data.notes) ? data.notes : []).map(function(note, index) {
                     return { id: String(note.id || ('note_' + Date.now() + '_' + index)), text: String(note.text || note.content || '').slice(0, 1200), color: String(note.color || ['gold','mint','rose','sky'][index % 4]) };
                 }).filter(function(note) { return note.text; }).slice(0, 30);
-                if (!notes.length) return null;
+                if (!notes.length) throw new Error('The notes were empty. Ask me to generate them again.');
                 return { text: visible, artifact: { type: 'notes', notes: notes } };
             }
             if (data.type === 'graph') {
@@ -6497,7 +6499,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
         function refreshStudyExamTimers() {
             document.querySelectorAll('.study-exam-timer[data-expires]').forEach(function(el) {
                 const left = Math.max(0, Date.parse(el.getAttribute('data-expires')) - Date.now());
-                if (!Number.isFinite(left) || left <= 0) { el.textContent = 'Expired'; return; }
+                if (!Number.isFinite(left) || left <= 0) { el.textContent = 'Expired'; el.closest('.study-exam')?.querySelector('.study-exam-open')?.remove(); return; }
                 const h = Math.floor(left / 3600000), m = Math.floor(left / 60000) % 60, s = Math.floor(left / 1000) % 60;
                 el.textContent = h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
             });
@@ -7095,6 +7097,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                     const messages = (extra && extra.messages) ? extra.messages : c.messages;
                     const latestUser = messages.slice().reverse().find(function(m) { return m && m.role === 'user'; });
                     if (!latestUser) return '';
+                    if (c.mode === 'study') return '';
                     const quizIntent = isQuizGenerationRequest(latestUser.content);
                     const formats = requestedDocumentFormats(latestUser.content);
                     const specific = quizIntent
@@ -7303,9 +7306,10 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
 
         async function requestAiReply(imgToSend) {
             const lastUserForQuiz = (chats[currentChatId] && chats[currentChatId].messages || []).slice().reverse().find(function(m) { return m && m.role === 'user'; });
-            const isQuizReply = !!(lastUserForQuiz && isQuizGenerationRequest(lastUserForQuiz.content));
+            const studyTurn = chats[currentChatId]?.mode === 'study';
+            const isQuizReply = !studyTurn && !!(lastUserForQuiz && isQuizGenerationRequest(lastUserForQuiz.content));
             const quizQuestionCount = isQuizReply ? requestedQuizQuestionCount(lastUserForQuiz.content) : 0;
-            const documentFormats = lastUserForQuiz ? requestedDocumentFormats(lastUserForQuiz.content) : null;
+            const documentFormats = !studyTurn && lastUserForQuiz ? requestedDocumentFormats(lastUserForQuiz.content) : null;
             const isDocumentReply = !!documentFormats;
             const thinkingId = showThinkingIndicator(initialThinkingStatus());
             streamAbort = new AbortController();
@@ -7426,7 +7430,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
             }
 
             function paintStream() {
-                if (isQuizReply || isDocumentReply) { setThinkingStatus(thinkingId, 'generating'); return; }
+                if (studyTurn || isQuizReply || isDocumentReply) { setThinkingStatus(thinkingId, 'generating'); return; }
                 streamTargetText = streamedText;
                 if (liveModeActive) {
                     updateLiveAiTranscript(streamedText);
@@ -7585,7 +7589,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                         throw fbErr;
                     }
                 }
-                if (!isQuizReply && !isDocumentReply && String(finalText).trim()) {
+                if (!studyTurn && !isQuizReply && !isDocumentReply && String(finalText).trim()) {
                     parsedVisualization = parseInteractiveVisualization(finalText);
                     if (parsedVisualization) finalText = parsedVisualization.text || 'Here is an interactive visual to explore.';
                     else if (lastUserForQuiz && isWaveSimulationRequest(lastUserForQuiz.content)) {
@@ -7595,7 +7599,7 @@ html.light .live-transcript{border-color:rgba(0,0,0,.1);background:rgba(255,255,
                 }
                 if (chats[currentChatId] && chats[currentChatId].mode === 'study' && String(finalText).trim()) {
                     try { parsedStudy = await materializeStudyArtifact(finalText); if (parsedStudy) finalText = parsedStudy.text; }
-                    catch (studyError) { showToast(studyError.message || 'Could not create the study tool.', 'err'); }
+                    catch (studyError) { finalText = studyError.message || 'Could not create the study tool.'; }
                 }
                 if (!String(finalText).trim()) {
                     finalText = friendlyError(errMsg || 'empty reply');

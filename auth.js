@@ -6,6 +6,7 @@
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const webpush = require('web-push');
+const { renderBrandedEmail } = require('./mail');
 
 const SESSION_COOKIE = 'gsa_session';
 const SESSION_DAYS = 30;
@@ -15,16 +16,6 @@ const OTP_MAX_ATTEMPTS = 5;
 function env(name) {
     const v = process.env[name];
     return v == null ? '' : String(v).trim();
-}
-
-function emailEscape(value) {
-    return String(value || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-}
-
-function brandedEmail({ eyebrow = 'GoldenSpaceAI', title, intro = '', body, actionLabel, actionUrl, footer = 'You received this email because it relates to your GoldenSpaceAI account.' }) {
-    const action = actionLabel && actionUrl
-        ? `<p style="margin:28px 0"><a href="${emailEscape(actionUrl)}" style="display:inline-block;background:#d4af37;color:#17150c;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px">${emailEscape(actionLabel)}</a></p>` : '';
-    return `<!doctype html><html><body style="margin:0;background:#f5f6f8;color:#18202b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif"><div style="padding:32px 16px"><div style="max-width:560px;margin:auto;background:#fff;border:1px solid #e3e6eb;border-radius:16px;overflow:hidden"><div style="padding:22px 28px;border-bottom:1px solid #edf0f3"><span style="font-weight:800;letter-spacing:.08em;color:#8d6f15;font-size:13px">${emailEscape(eyebrow)}</span></div><div style="padding:30px 28px"><h1 style="font-size:25px;line-height:1.2;margin:0 0 12px;color:#142235">${emailEscape(title)}</h1>${intro ? `<p style="font-size:16px;line-height:1.6;margin:0 0 22px;color:#5e6b7a">${emailEscape(intro)}</p>` : ''}${body}${action}</div><div style="padding:18px 28px;background:#fafbfc;border-top:1px solid #edf0f3;color:#7a8490;font-size:12px;line-height:1.5">${emailEscape(footer)}<br><a href="https://www.goldenspaceai.space" style="color:#806514">goldenspaceai.space</a></div></div></div></body></html>`;
 }
 
 function boolConfigured(name) {
@@ -83,7 +74,7 @@ function getPublicBaseUrl(req) {
     const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').toString().split(',')[0].trim();
     const host = (req.headers['x-forwarded-host'] || req.headers.host || '').toString().split(',')[0].trim();
     if (host) return `${proto}://${host}`;
-    return 'https://www.goldenspaceai.space';
+    return 'https://www.goldenoai.com';
 }
 
 function b64url(buf) {
@@ -235,6 +226,46 @@ function createAuth(options = {}) {
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         PRIMARY KEY (owner_key, project_id)
                     );
+                    CREATE TABLE IF NOT EXISTS studio_projects (
+                        owner_key TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        instructions TEXT NOT NULL DEFAULT '',
+                        color TEXT NOT NULL DEFAULT '#d4af37',
+                        icon TEXT NOT NULL DEFAULT '📁',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (owner_key, project_id)
+                    );
+                    CREATE TABLE IF NOT EXISTS studio_project_chats (
+                        owner_key TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        pending JSONB DEFAULT NULL,
+                        artifact JSONB DEFAULT NULL,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (owner_key, project_id),
+                        CONSTRAINT studio_project_chats_project_fk
+                            FOREIGN KEY (owner_key, project_id)
+                            REFERENCES studio_projects(owner_key, project_id) ON DELETE CASCADE
+                    );
+                    CREATE TABLE IF NOT EXISTS studio_project_threads (
+                        owner_key TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        chat_id TEXT NOT NULL,
+                        title TEXT NOT NULL DEFAULT 'New Studio chat',
+                        messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        pending JSONB DEFAULT NULL,
+                        artifact JSONB DEFAULT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (owner_key, project_id, chat_id),
+                        CONSTRAINT studio_project_threads_project_fk
+                            FOREIGN KEY (owner_key, project_id)
+                            REFERENCES studio_projects(owner_key, project_id) ON DELETE CASCADE
+                    );
+                    CREATE INDEX IF NOT EXISTS studio_project_threads_updated_idx
+                        ON studio_project_threads(owner_key, project_id, updated_at DESC);
                     CREATE TABLE IF NOT EXISTS user_memory (
                         user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
                         facts JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -497,9 +528,16 @@ function createAuth(options = {}) {
         if (!status.emailOtp) {
             return { ok: false, error: 'Email login is not configured. Set RESEND_API_KEY.' };
         }
-        const subject = 'GoldenSpaceAI login code';
-        const text = `Your GoldenSpaceAI login code is: ${code}\n\nDon't share this code with anyone. If you didn't request it, please ignore this message.\n\n— GoldenSpaceAI Team`;
-        const html = brandedEmail({ title: 'Your sign-in code', intro: 'Use this one-time code to continue signing in to GoldenSpaceAI.', body: `<div style="background:#f7f8fa;border:1px solid #e3e6eb;border-radius:12px;text-align:center;padding:20px;font-size:32px;letter-spacing:8px;font-weight:800;color:#142235">${emailEscape(code)}</div><p style="font-size:13px;line-height:1.5;color:#6b7683;margin:18px 0 0">This code expires soon. Never share it with anyone. If you did not request it, you can safely ignore this email.</p>` });
+        const subject = 'GoldenoAI login code';
+        const text = `Your GoldenoAI sign-in code is: ${code}\n\nThis code expires in 10 minutes. Never share it with anyone. If you did not request it, you can ignore this email.\n\nGoldenoAI Support`;
+        const html = renderBrandedEmail({
+            preheader: 'Your secure sign-in code is ready.',
+            title: 'Sign in to GoldenoAI',
+            paragraphs: ['Enter this code on the sign-in page to continue.', 'It expires in 10 minutes. Never share it with anyone, including GoldenoAI staff. If you did not request it, you can ignore this email.'],
+            status: { label: 'Sign-in verification', tone: 'neutral' },
+            details: [{ label: 'Your sign-in code', value: code, kind: 'code' }],
+            footer: 'This one-time code can only be used once.'
+        });
 
         const from = emailFromAddress();
         const resp = await fetch('https://api.resend.com/emails', {
@@ -519,7 +557,7 @@ function createAuth(options = {}) {
     }
 
     function emailFromAddress() {
-        return env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenSpaceAI <onboarding@resend.dev>';
+        return env('EMAIL_FROM') || env('MAGIC_LINK_FROM') || env('SMTP_FROM') || 'GoldenoAI <onboarding@resend.dev>';
     }
 
     /**
@@ -534,14 +572,24 @@ function createAuth(options = {}) {
         if (!norm || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm)) {
             return { ok: false, skipped: true, error: 'No email' };
         }
-        const whenUtc = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
-        const subject = 'New login to your GoldenSpaceAI account';
+        const when = new Intl.DateTimeFormat('en-US', {
+            dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Beirut'
+        }).format(new Date()) + ' Beirut time';
+        const subject = 'New sign-in to your GoldenoAI account';
         const text =
-            `Someone just signed in to your GoldenSpaceAI account.\n\n` +
-            `Time: ${whenUtc}\n\n` +
-            `If this was you, you can ignore this message. If you did not sign in, consider securing your email account.\n\n` +
-            `— GoldenSpaceAI Team`;
-        const html = brandedEmail({ title: 'New sign-in detected', intro: 'Someone just signed in to your GoldenSpaceAI account.', body: `<div style="background:#f7f8fa;border:1px solid #e3e6eb;border-radius:10px;padding:14px 16px"><strong style="color:#536171">Time</strong><br>${emailEscape(whenUtc)}</div><p style="font-size:13px;line-height:1.5;color:#6b7683;margin:18px 0 0">If this was you, no action is needed. If you do not recognize it, secure your email account and contact support.</p>` });
+            `A new sign-in to your GoldenoAI account was detected.\n\n` +
+            `Time: ${when}\n\n` +
+            `If this was you, no action is needed. If you do not recognize this sign-in, secure your email account and contact support.\n\n` +
+            `GoldenoAI Support`;
+        const html = renderBrandedEmail({
+            preheader: 'A new sign-in to your account was detected.',
+            title: 'New sign-in to your account',
+            paragraphs: ['A new sign-in to your GoldenoAI account was detected.', 'If this was you, no action is needed. If you do not recognize this sign-in, secure your email account and contact support.'],
+            status: { label: 'Account security notice', tone: 'warning' },
+            details: [{ label: 'Time', value: when }],
+            action: { label: 'Open GoldenoAI', url: 'https://www.goldenoai.com/' },
+            footer: 'This security notice is sent when a new sign-in is detected.'
+        });
         const from = emailFromAddress();
         const resp = await fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -864,7 +912,7 @@ function createAuth(options = {}) {
     function configureWebPush() {
         if (!pushConfigured()) return false;
         try {
-            webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:support@goldenspaceai.space', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
+            webpush.setVapidDetails(env('VAPID_SUBJECT') || 'mailto:support@goldenoai.com', env('VAPID_PUBLIC_KEY'), env('VAPID_PRIVATE_KEY'));
             return true;
         } catch (error) {
             console.error('Web push configuration failed:', error.message);
@@ -987,11 +1035,106 @@ function createAuth(options = {}) {
         } finally { client.release(); }
     }
 
+    async function listStudioProjects(ownerKey) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return [];
+        const r = await p.query(
+            `SELECT project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"
+             FROM studio_projects WHERE owner_key = $1 ORDER BY updated_at DESC`,
+            [String(ownerKey)]
+        );
+        return r.rows.map(row => ({ id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) }));
+    }
+
+    async function createStudioProject(ownerKey, project) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Studio projects are unavailable.' };
+        const item = project || {};
+        const id = String(item.id || ('studio_project_' + crypto.randomUUID())).slice(0, 100);
+        const name = String(item.name || '').trim().slice(0, 100);
+        const instructions = String(item.instructions || '').trim().slice(0, 8000);
+        const color = projectColor(item.color);
+        const icon = projectIcon(item.icon);
+        if (!name) return { ok: false, error: 'Add a project name.' };
+        const r = await p.query(
+            `INSERT INTO studio_projects (owner_key, project_id, name, instructions, color, icon)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"`,
+            [String(ownerKey), id, name, instructions, color, icon]
+        );
+        const row = r.rows[0];
+        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
+    }
+
+    async function updateStudioProject(ownerKey, projectId, project) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Studio projects are unavailable.' };
+        const item = project || {};
+        const name = String(item.name || '').trim().slice(0, 100);
+        const instructions = String(item.instructions || '').trim().slice(0, 8000);
+        const color = projectColor(item.color);
+        const icon = projectIcon(item.icon);
+        if (!name) return { ok: false, error: 'Add a project name.' };
+        const r = await p.query(
+            `UPDATE studio_projects SET name=$3, instructions=$4, color=$5, icon=$6, updated_at=NOW()
+             WHERE owner_key=$1 AND project_id=$2
+             RETURNING project_id AS id, name, instructions, color, icon, created_at AS "createdAt", updated_at AS "updatedAt"`,
+            [String(ownerKey), String(projectId), name, instructions, color, icon]
+        );
+        if (!r.rows[0]) return { ok: false, error: 'Studio project not found.' };
+        const row = r.rows[0];
+        return { ok: true, project: { id: row.id, name: row.name, instructions: row.instructions || '', color: projectColor(row.color), icon: projectIcon(row.icon), createdAt: tsIso(row.createdAt), updatedAt: tsIso(row.updatedAt) } };
+    }
+
+    async function deleteStudioProject(ownerKey, projectId) {
+        const p = getPool();
+        if (!ownerKey || !p || !(await ensureSchema())) return { ok: false, error: 'Studio projects are unavailable.' };
+        const r = await p.query('DELETE FROM studio_projects WHERE owner_key=$1 AND project_id=$2', [String(ownerKey), String(projectId)]);
+        return { ok: true, deleted: r.rowCount > 0 };
+    }
+
+    async function listStudioProjectChats(ownerKey, projectId) {
+        const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return [];
+        const r=await p.query(`SELECT chat_id AS id,title,created_at AS "createdAt",updated_at AS "updatedAt"
+          FROM studio_project_threads WHERE owner_key=$1 AND project_id=$2 ORDER BY updated_at DESC`,[String(ownerKey),String(projectId)]);
+        return r.rows.map(x=>({id:x.id,title:x.title||'New Studio chat',createdAt:tsIso(x.createdAt),updatedAt:tsIso(x.updatedAt)}));
+    }
+    async function createStudioProjectChat(ownerKey, projectId, item) {
+        const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return {ok:false,error:'Studio chat storage is unavailable.'};
+        const project=await p.query('SELECT 1 FROM studio_projects WHERE owner_key=$1 AND project_id=$2',[String(ownerKey),String(projectId)]);
+        if(!project.rowCount) return {ok:false,error:'Studio project not found.'};
+        const count=await p.query('SELECT COUNT(*)::int AS n FROM studio_project_threads WHERE owner_key=$1 AND project_id=$2',[String(ownerKey),String(projectId)]);
+        if(Number(count.rows[0]?.n||0)>=10) return {ok:false,error:'Each Studio project can contain up to 10 chats.'};
+        const chatId=String(item?.id||('studio_chat_'+crypto.randomUUID())).slice(0,100);
+        const title=String(item?.title||'New Studio chat').trim().slice(0,100)||'New Studio chat';
+        const r=await p.query(`INSERT INTO studio_project_threads(owner_key,project_id,chat_id,title)
+          VALUES($1,$2,$3,$4) RETURNING chat_id AS id,title,created_at AS "createdAt",updated_at AS "updatedAt"`,[String(ownerKey),String(projectId),chatId,title]);
+        const x=r.rows[0]; return {ok:true,chat:{id:x.id,title:x.title,createdAt:tsIso(x.createdAt),updatedAt:tsIso(x.updatedAt)}};
+    }
+    async function getStudioProjectChat(ownerKey, projectId, chatId) {
+        const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return null;
+        if(chatId){
+          const r=await p.query(`SELECT messages,pending,artifact,updated_at AS "updatedAt" FROM studio_project_threads WHERE owner_key=$1 AND project_id=$2 AND chat_id=$3`,[String(ownerKey),String(projectId),String(chatId)]);
+          if(!r.rows[0]) return null; const x=r.rows[0]; return {messages:Array.isArray(x.messages)?x.messages:[],pending:x.pending||null,currentArtifact:x.artifact||null,updatedAt:tsIso(x.updatedAt)};
+        }
+        const legacy=await p.query(`SELECT messages,pending,artifact,updated_at AS "updatedAt" FROM studio_project_chats WHERE owner_key=$1 AND project_id=$2`,[String(ownerKey),String(projectId)]);
+        if(!legacy.rows[0]) return null; const x=legacy.rows[0]; return {messages:Array.isArray(x.messages)?x.messages:[],pending:x.pending||null,currentArtifact:x.artifact||null,updatedAt:tsIso(x.updatedAt)};
+    }
+    async function saveStudioProjectChat(ownerKey, projectId, chat, chatId) {
+        const p=getPool(); if(!ownerKey||!projectId||!p||!(await ensureSchema())) return {ok:false,error:'Studio chat storage is unavailable.'};
+        const item=chat||{}, messages=Array.isArray(item.messages)?item.messages.slice(-120):[], pending=item.pending||null, artifact=item.currentArtifact||null;
+        const requestedTitle=String(item.title||'').trim().replace(/\s+/g,' ').slice(0,100);
+        const project=await p.query('SELECT 1 FROM studio_projects WHERE owner_key=$1 AND project_id=$2',[String(ownerKey),String(projectId)]);
+        if(!project.rowCount) return {ok:false,error:'Studio project not found.'};
+        if(!chatId) { const legacy=await p.query(`INSERT INTO studio_project_chats(owner_key,project_id,messages,pending,artifact,updated_at) VALUES($1,$2,$3::jsonb,$4::jsonb,$5::jsonb,NOW()) ON CONFLICT(owner_key,project_id) DO UPDATE SET messages=EXCLUDED.messages,pending=EXCLUDED.pending,artifact=EXCLUDED.artifact,updated_at=NOW() RETURNING updated_at AS "updatedAt"`,[String(ownerKey),String(projectId),JSON.stringify(messages),JSON.stringify(pending),JSON.stringify(artifact)]); return {ok:true,updatedAt:tsIso(legacy.rows[0]?.updatedAt)}; }
+        const r=await p.query(`UPDATE studio_project_threads SET messages=$4::jsonb,pending=$5::jsonb,artifact=$6::jsonb,title=CASE WHEN $7 <> '' THEN $7 ELSE title END,updated_at=NOW() WHERE owner_key=$1 AND project_id=$2 AND chat_id=$3 RETURNING updated_at AS "updatedAt"`,[String(ownerKey),String(projectId),String(chatId),JSON.stringify(messages),JSON.stringify(pending),JSON.stringify(artifact),requestedTitle]);
+        return r.rows[0]?{ok:true,updatedAt:tsIso(r.rows[0].updatedAt)}:{ok:false,error:'Studio chat not found.'};
+    }
+
     async function createNotification(userId, item) {
         const p = getPool();
         if (!userId || !p || !(await ensureSchema())) return { ok: false, error: 'Notifications are unavailable.' };
         const v = item || {};
-        const title = String(v.title || 'GoldenSpaceAI update').trim().slice(0, 120);
+        const title = String(v.title || 'GoldenoAI update').trim().slice(0, 120);
         const message = String(v.message || '').trim().slice(0, 4000);
         const category = String(v.category || 'announcement').slice(0, 40);
         const dedupeKey = String(v.dedupeKey || crypto.randomUUID()).slice(0, 180);
@@ -1072,13 +1215,21 @@ function createAuth(options = {}) {
         `, [String(userId)]);
         const email = result.rows[0]?.email;
         if (!email) return { ok: true, skipped: true };
-        const base = String(baseUrl || 'https://www.goldenspaceai.space').replace(/\/$/, '');
+        const base = String(baseUrl || 'https://www.goldenoai.com').replace(/\/$/, '');
         const token = emailUnsubscribeToken(String(userId));
         const url = base + '/api/email/unsubscribe?uid=' + encodeURIComponent(String(userId)) + '&token=' + encodeURIComponent(token);
         const safe = text => String(text || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-        const safeTitle = String(title || 'GoldenSpaceAI usage update').slice(0, 120);
+        const safeTitle = String(title || 'GoldenoAI usage update').slice(0, 120);
         const safeMessage = String(message || '').slice(0, 4000);
-        const html = brandedEmail({ title: safeTitle, body: `<div style="font-size:15px;line-height:1.7;color:#354150">${safe(safeMessage).replace(/\r?\n/g, '<br>')}</div>`, footer: `Manage your email preference here: ${url}` });
+        const html = renderBrandedEmail({
+            preheader: safeTitle,
+            title: safeTitle,
+            paragraphs: [safeMessage],
+            status: { label: 'Account update', tone: 'neutral' },
+            action: { label: 'Open GoldenoAI', url: base + '/' },
+            footer: 'This account notice was also saved in your GoldenoAI notifications.',
+            footerLink: { label: 'Unsubscribe from announcement emails', url: url }
+        });
         const response = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: 'Bearer ' + env('RESEND_API_KEY'), 'Content-Type': 'application/json' },
@@ -1144,7 +1295,7 @@ function createAuth(options = {}) {
         `);
         const recipients = users.rows;
         const from = emailFromAddress();
-        const base = String(baseUrl || 'https://www.goldenspaceai.space').replace(/\/$/, '');
+        const base = String(baseUrl || 'https://www.goldenoai.com').replace(/\/$/, '');
         const safe = text => String(text || '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
         const safeTitle = String(title || '').slice(0, 120);
         const safeMessage = String(message || '').slice(0, 4000);
@@ -1157,7 +1308,13 @@ function createAuth(options = {}) {
                 const url = base + '/api/email/unsubscribe?uid=' + encodeURIComponent(uid) + '&token=' + encodeURIComponent(token);
                 return {
                     from, to: [user.email], subject: safeTitle,
-                    html: '<main style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#242424"><h2>' + safe(safeTitle) + '</h2><p style="line-height:1.6">' + htmlMessage + '</p><hr><p style="font-size:12px;color:#666">GoldenSpaceAI account announcement. <a href="' + url + '">Unsubscribe from announcement emails</a>.</p></main>',
+                    html: renderBrandedEmail({
+                        preheader: safeTitle,
+                        title: safeTitle,
+                        paragraphs: [safeMessage],
+                        footer: 'You are receiving this account announcement because email announcements are enabled in your preferences.',
+                        footerLink: { label: 'Unsubscribe from announcement emails', url: url }
+                    }),
                     text: safeTitle + '\n\n' + safeMessage + '\n\nUnsubscribe: ' + url,
                     headers: { 'List-Unsubscribe': '<' + url + '>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
                 };
@@ -1259,6 +1416,14 @@ function createAuth(options = {}) {
         createProject,
         updateProject,
         deleteProject,
+        listStudioProjects,
+        createStudioProject,
+        updateStudioProject,
+        deleteStudioProject,
+        listStudioProjectChats,
+        createStudioProjectChat,
+        getStudioProjectChat,
+        saveStudioProjectChat,
         savePushSubscription,
         removePushSubscription,
         sendPushToUser,

@@ -213,7 +213,12 @@ function createAuth(options = {}) {
                         rolling_summary TEXT DEFAULT '',
                         summary_message_count INT NOT NULL DEFAULT 0,
                         project_id TEXT DEFAULT NULL,
+                        mode TEXT NOT NULL DEFAULT 'normal',
+                        study_state JSONB NOT NULL DEFAULT '{}'::jsonb,
                         PRIMARY KEY (owner_key, chat_id)
+                    );
+                    ALTER TABLE chats ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'normal';
+                    ALTER TABLE chats ADD COLUMN IF NOT EXISTS study_state JSONB NOT NULL DEFAULT '{}'::jsonb;
                     );
                     CREATE TABLE IF NOT EXISTS user_projects (
                         owner_key TEXT NOT NULL,
@@ -747,7 +752,7 @@ function createAuth(options = {}) {
         if (!p || !(await ensureSchema())) return null; // signal fallback
         const r = await p.query(
             `SELECT chat_id AS id, name, created_at AS "createdAt", updated_at AS "updatedAt",
-                    named, project_id AS "projectId", jsonb_array_length(messages) AS "messageCount"
+                    named, project_id AS "projectId", mode, study_state AS "studyState", jsonb_array_length(messages) AS "messageCount"
              FROM chats WHERE owner_key = $1
              ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST`,
             [ownerKey]
@@ -759,6 +764,8 @@ function createAuth(options = {}) {
             updatedAt: tsIso(row.updatedAt),
             named: !!row.named,
             projectId: row.projectId || null,
+            mode: row.mode === 'study' ? 'study' : 'normal',
+            studyState: row.studyState && typeof row.studyState === 'object' ? row.studyState : {},
             messageCount: Number(row.messageCount) || 0
         }));
     }
@@ -769,7 +776,8 @@ function createAuth(options = {}) {
         const r = await p.query(
             `SELECT chat_id AS id, name, messages, created_at AS "createdAt", updated_at AS "updatedAt",
                     named, custom_instructions AS "customInstructions", system_prompt AS "systemPrompt",
-                    rolling_summary AS "rollingSummary", summary_message_count AS "summaryMessageCount", project_id AS "projectId"
+                    rolling_summary AS "rollingSummary", summary_message_count AS "summaryMessageCount", project_id AS "projectId",
+                    mode, study_state AS "studyState"
              FROM chats WHERE owner_key = $1 AND chat_id = $2`,
             [ownerKey, chatId]
         );
@@ -786,7 +794,9 @@ function createAuth(options = {}) {
             systemPrompt: row.systemPrompt || '',
             rollingSummary: row.rollingSummary || '',
             summaryMessageCount: Number(row.summaryMessageCount) || 0,
-            projectId: row.projectId || null
+            projectId: row.projectId || null,
+            mode: row.mode === 'study' ? 'study' : 'normal',
+            studyState: row.studyState && typeof row.studyState === 'object' ? row.studyState : {}
         };
     }
 
@@ -796,8 +806,8 @@ function createAuth(options = {}) {
         const rollingSummary = chat.rollingSummary != null ? String(chat.rollingSummary) : '';
         const summaryMessageCount = Math.max(0, Number(chat.summaryMessageCount) || 0);
         await p.query(
-            `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt, rolling_summary, summary_message_count, project_id)
-             VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11,$12)
+            `INSERT INTO chats (owner_key, chat_id, name, messages, created_at, updated_at, named, custom_instructions, system_prompt, rolling_summary, summary_message_count, project_id, mode, study_state)
+             VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb)
              ON CONFLICT (owner_key, chat_id) DO UPDATE SET
                name = EXCLUDED.name,
                messages = EXCLUDED.messages,
@@ -808,6 +818,8 @@ function createAuth(options = {}) {
                rolling_summary = EXCLUDED.rolling_summary,
                summary_message_count = EXCLUDED.summary_message_count,
                project_id = EXCLUDED.project_id,
+               mode = EXCLUDED.mode,
+               study_state = EXCLUDED.study_state,
                created_at = COALESCE(chats.created_at, EXCLUDED.created_at)`,
             [
                 ownerKey,
@@ -821,7 +833,9 @@ function createAuth(options = {}) {
                 chat.systemPrompt || '',
                 rollingSummary,
                 summaryMessageCount,
-                chat.projectId || null
+                chat.projectId || null,
+                chat.mode === 'study' ? 'study' : 'normal',
+                JSON.stringify(chat.studyState && typeof chat.studyState === 'object' ? chat.studyState : {})
             ]
         );
         return true;

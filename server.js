@@ -2882,7 +2882,7 @@ app.post('/api/study/exams', async (req, res) => {
     if (chat.mode !== 'study') return res.status(409).json({ error: 'Interactive exams are available in locked Study chats.' });
     const result = studyStore.create({ ownerKey, chatId, questions: body.questions, title: body.title });
     if (!result.ok) return res.status(400).json({ error: result.error });
-    return res.status(201).json({ ok: true, exam: { ...result.exam, answer: undefined }, url: '/exam/' + encodeURIComponent(result.exam.token) });
+    return res.status(201).json({ ok: true, exam: publicExam(result.exam), url: '/exam/' + encodeURIComponent(result.exam.token) });
 });
 
 async function gradeStudyWrittenAnswers(exam, answers) {
@@ -2955,7 +2955,11 @@ app.post('/api/study/exams/:token/submit', async (req, res) => {
     if (exam.status === 'expired') return res.status(410).json({ error: 'This exam has expired.', exam: publicExam(exam) });
     const submittedAnswers = req.body && req.body.answers;
     const rubricGrades = await gradeStudyWrittenAnswers(exam, submittedAnswers);
-    const graded = studyStore.grade(exam, submittedAnswers, rubricGrades);
+    const currentExam = studyStore.get(exam.token);
+    if (!currentExam) return res.status(404).json({ error: 'Exam not found.' });
+    if (currentExam.status === 'submitted') return res.json({ exam: publicExam(currentExam), locked: true });
+    if (currentExam.status === 'expired') return res.status(410).json({ error: 'This exam has expired.', exam: publicExam(currentExam) });
+    const graded = studyStore.grade(currentExam, submittedAnswers, rubricGrades);
     // Keep the result in the parent chat as a system artifact for later turns.
     auth.getChat(exam.ownerKey, exam.chatId).then(chat => {
         if (!chat) return;

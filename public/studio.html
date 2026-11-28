@@ -210,6 +210,15 @@ function load(){
  renderMessages();if(currentArtifact)renderArtifact(currentArtifact);if(studioProjectId)loadStudioChat()
 }
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+// Input is already HTML-escaped. Only insert the fixed formatting tags below.
+function inlineRich(text){
+ return text.replace(/\x60([^\x60\n]+)\x60|\*\*([^*\n]+)\*\*|__([^_\n]+)__|\*([^*\n]+)\*/g,
+  (_,code,bold,strong,emphasis)=>{
+   if(code!==undefined)return '<code>'+code+'</code>';
+   if(bold!==undefined||strong!==undefined)return '<strong>'+(bold??strong)+'</strong>';
+   return '<em>'+emphasis+'</em>';
+  });
+}
 function richText(value){
  const normalized=String(value||'')
   .replace(/\\([*_#`-])/g,'$1')
@@ -264,10 +273,17 @@ async function addStudioFiles(files){
  }
 }
 function cloneArtifact(a){try{return a?JSON.parse(JSON.stringify(a)):null}catch(e){return null}}function add(role,text,quick,artifact,mode){messages.push({role,text,quick:quick||[],sources:role==='assistant'?studioLastSources:[],artifact:cloneArtifact(artifact),mode:mode||null,at:new Date().toISOString()});renderMessages();save()}
+function renderStudioReply(text){
+ try{return richText(text)||esc(text)}
+ catch(error){
+  console.error('Studio reply formatting failed:',error);
+  return esc(text);
+ }
+}
 function renderMessages(){
  $('empty').style.display=messages.length?'none':'grid';
  $('messages').innerHTML=messages.map((m,i)=>{
-  const copy='<div class="message-copy">'+(m.role==='assistant'?richText(m.text):esc(m.text))+'</div>'+(m.role==='assistant'?studioSourcesHtml(m.sources):'')+(m.role==='user'&&m.attachments?.length?'<div class="studio-message-attachments">'+m.attachments.map(a=>'<span> '+(a.kind==='image'?'▧':'▤')+' '+esc(a.name)+'</span>').join('')+'</div>':'');
+  const copy='<div class="message-copy">'+(m.role==='assistant'?renderStudioReply(m.text):esc(m.text))+'</div>'+(m.role==='assistant'?studioSourcesHtml(m.sources):'')+(m.role==='user'&&m.attachments?.length?'<div class="studio-message-attachments">'+m.attachments.map(a=>'<span> '+(a.kind==='image'?'▧':'▤')+' '+esc(a.name)+'</span>').join('')+'</div>':'');
   const quick=m.quick&&m.quick.length?'<div class="quick-answers">'+m.quick.map(q=>'<button data-quick="'+esc(q)+'">'+esc(q)+'</button>').join('')+'</div>':'';
   const artifact=m.artifact?artifactCardHtml(m.artifact,i):'';
   if(m.role==='user'){const mode=m.mode?'<span class="message-mode">'+esc(toolLabels[m.mode]||m.mode)+'</span>':'';return '<article class="message user">'+mode+'<div class="message-body">'+copy+'</div></article>'};

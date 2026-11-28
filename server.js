@@ -1363,6 +1363,30 @@ async function resolveContextPack(req) {
         try {
             const history = storedChat || (ownerKey && chatId ? await auth.getChat(ownerKey, chatId) : null);
             const recent = bodyMessages.slice(-RECENT_WINDOW);
+            const savedTurns = Array.isArray(history?.messages) ? history.messages : [];
+            const knownTimes = [...new Set(savedTurns.concat(recent).flatMap(turn => {
+                if (!['user', 'ai', 'assistant'].includes(turn?.role)) return [];
+                const raw = turn.timestamp ?? turn.at;
+                const time = typeof raw === 'string' ? Date.parse(raw) : NaN;
+                return Number.isFinite(time) ? [time] : [];
+            }))].sort((a, b) => a - b);
+            const timingQuestion = /\b(?:time|timing|timestamps?|when|elapsed|minutes?|hours?|how long|how much.*stud(?:y|ied))\b|(?:الوقت|متى|مدة|دقائق|ساعات)/i
+                .test(latestUserPromptText(body));
+            const timingRules = 'Message timestamps measure when messages were sent. Report differences as elapsed chat time only. They cannot establish active study time, idle time, or work done away from the chat. Do not call the earliest visible timestamp the conversation start unless the first saved message has that timestamp.';
+            let timingContext = timingRules;
+            if (timingQuestion && knownTimes.length) {
+                const firstSaved = savedTurns.find(turn => ['user', 'ai', 'assistant'].includes(turn?.role));
+                const firstStamp = firstSaved?.timestamp ?? firstSaved?.at;
+                const start = typeof firstStamp === 'string' ? Date.parse(firstStamp) : NaN;
+                timingContext += '\nEarliest known message: ' + new Date(knownTimes[0]).toISOString() +
+                    '. First saved message timestamp: ' + (Number.isFinite(start) ? new Date(start).toISOString() : 'unknown') +
+                    '. Latest known message: ' + new Date(knownTimes.at(-1)).toISOString() +
+                    '. Elapsed between those known timestamps: ' + Math.round((knownTimes.at(-1) - knownTimes[0]) / 1000) + ' seconds.' +
+                    '\nRecent recorded timestamps (UTC): ' + knownTimes.slice(-24).map(time => new Date(time).toISOString()).join(', ');
+            }
+            packed.messages.unshift({ role: 'system', content: timingContext });
+            packed.meta.packSize = packed.messages.length;
+            packed.meta.systemBlocks += 1;
             const earlier = Array.isArray(body.earlierAttachments) ? body.earlierAttachments.slice(-12) : [];
             const newest = recent.findLast(turn => turn?.role === 'user');
             const newDocuments = newest?.attachedFiles?.length || newest?.attachedFile;

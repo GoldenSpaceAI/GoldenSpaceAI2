@@ -4458,6 +4458,19 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
 @media(max-width:640px){.messages-container{padding:20px 14px!important}.messages-container .empty-state{padding:20px 0!important;gap:18px!important}.empty-hero{gap:12px}.empty-logo{width:48px!important;height:48px!important}.chat-feature-card{padding:14px!important;gap:10px!important;min-height:130px}.chat-feature-icon{display:none!important}.message.user .message-bubble{max-width:94%!important}.study-widget{padding:16px!important}.study-tool-dock{gap:5px}.study-tool-dock>span{width:100%;margin:0 0 2px}.composer-shell{width:calc(100% - 20px)!important}.input-btn.mic-dictate .mic-dictate-label{display:none!important}}
 @media(prefers-reduced-motion:reduce){.chat-feature-card{transition:none}.chat-feature-card:hover{transform:none}}
 </style>
+<style id="goldeno-response-polish">
+.messages-container{--reply-size:15.5px}.ai-content{font-size:var(--reply-size)!important;line-height:1.78!important;letter-spacing:.002em;max-width:78ch}
+.ai-content .md-p{margin:0 0 1em!important;line-height:inherit!important}.ai-content .md-p:last-child{margin-bottom:0!important}
+.ai-content h1,.ai-content h2,.ai-content h3,.ai-content h4{color:var(--text);line-height:1.3;letter-spacing:-.02em;margin:1.45em 0 .55em;font-weight:750}
+.ai-content h1{font-size:1.55em}.ai-content h2{font-size:1.32em}.ai-content h3{font-size:1.14em}.ai-content h4{font-size:1.04em}
+.ai-content h1:first-child,.ai-content h2:first-child,.ai-content h3:first-child,.ai-content h4:first-child{margin-top:.15em}
+.ai-content .md-list{margin:.45em 0 1.05em!important;padding-inline-start:1.55em!important}.ai-content .md-list li{padding-inline-start:.18em;margin:.48em 0!important;line-height:1.68!important}.ai-content .md-list li::marker{color:var(--gold-dark)}
+.ai-content blockquote{margin:1em 0;padding:.75em 1em;border-inline-start:3px solid var(--gold);border-radius:0 12px 12px 0;background:var(--surface-2,rgba(180,150,70,.07));color:var(--text-muted);line-height:1.7}
+.ai-content .md-table-wrap{margin:1.1em 0!important;border-radius:13px;overflow:auto}.ai-content .md-table{font-size:.92em;line-height:1.55}.ai-content .md-table th{font-weight:750}
+.ai-content .md-pre{font-size:13px;line-height:1.6;padding:14px 16px;border-radius:13px}.ai-content hr{border:0;border-top:1px solid var(--border);margin:1.4em 0}.ai-content strong{font-weight:750}
+.message.ai .message-bubble{max-width:min(100%,900px)}.study-widget{margin-block:18px;padding:20px;border-radius:18px}.study-widget h2,.study-widget h3{line-height:1.35}
+@media(max-width:640px){.messages-container{--reply-size:15px}.ai-content{line-height:1.72!important}.ai-content h1{font-size:1.4em}.ai-content h2{font-size:1.23em}.ai-content .md-list{padding-inline-start:1.3em!important}.study-widget{padding:16px}}
+</style>
 </head>
 <body class="gsa-polished gsa-chat">
     <script>
@@ -7173,7 +7186,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
             if (streamAbort) { try { streamAbort.abort(); } catch (e) {} }
         }
         function combinedInstructions() {
-            let s = globalInstructions || '';
+            let s = 'RESPONSE STYLE: Write clear, well-organized answers in natural language. Lead with the direct answer, then use short paragraphs and descriptive headings only when the reply has multiple sections. Use numbered steps for sequences, concise bullets for parallel items, and tables only when comparing structured information. Keep paragraphs focused and avoid repeating the same point. Use Markdown headings, lists, bold, and code fences correctly; never show escaped Markdown characters. Keep font styling semantic; do not simulate large text with all-caps or repeated symbols. In Study mode, teach in small, ordered steps, define key terms, give a brief example when useful, and make practice questions easy to distinguish from explanations. Match the depth to the request and do not append an unnecessary follow-up question.';
             const chat = currentChatId ? chats[currentChatId] : null;
             if (chat && chat.systemPrompt) s = (s ? s + '\n\n' : '') + chat.systemPrompt;
             const project = projectForChat(chat);

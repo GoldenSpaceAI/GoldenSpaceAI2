@@ -7186,7 +7186,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
             if (streamAbort) { try { streamAbort.abort(); } catch (e) {} }
         }
         function combinedInstructions() {
-            let s = 'RESPONSE STYLE: Write clear, well-organized answers in natural language. Lead with the direct answer, then use short paragraphs and descriptive headings only when the reply has multiple sections. Use numbered steps for sequences, concise bullets for parallel items, and tables only when comparing structured information. Keep paragraphs focused and avoid repeating the same point. Use Markdown headings, lists, bold, and code fences correctly; never show escaped Markdown characters. Keep font styling semantic; do not simulate large text with all-caps or repeated symbols. In Study mode, teach in small, ordered steps, define key terms, give a brief example when useful, and make practice questions easy to distinguish from explanations. Match the depth to the request and do not append an unnecessary follow-up question.';
+            let s = 'RESPONSE STYLE: Make each reply composed and easy to scan. Start with the answer or next action. Keep related thoughts together; avoid fragments, repeated summaries, decorative headings, and long checklists for simple exchanges. Use at most one short heading when useful. Use bullets only for genuinely separate items, usually 2–5, with one complete thought each. Use bold sparingly for key terms, never entire sentences or every line. End with a clear next instruction or a useful question only when the conversation needs it. In Study mode, act like a patient tutor: explain one step at a time, respond directly to the student’s attempt, briefly say what is correct or needs fixing, then give the next task in the same compact message. Do not expose answer keys during practice unless asked. Use normal unescaped Markdown and match the reply length to the request.';
             const chat = currentChatId ? chats[currentChatId] : null;
             if (chat && chat.systemPrompt) s = (s ? s + '\n\n' : '') + chat.systemPrompt;
             const project = projectForChat(chat);
@@ -10197,7 +10197,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
         function formatMarkdown(text) {
             if (!text) return '';
             // Always soft-clean before KaTeX (en/em/minus dashes → ASCII hyphen).
-            let s = softCleanLatexClient(String(text)).replace(/\r\n/g, '\n');
+            let s = softCleanLatexClient(String(text)).replace(/\r\n/g, '\n').replace(/\\([*_#])/g, '$1');
             const slots = [];
 
             function stash(html) {

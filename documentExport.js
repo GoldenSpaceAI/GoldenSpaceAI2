@@ -217,7 +217,7 @@ function wordXml(data) {
     if (data.subtitle) parts.push(wordParagraph(data.subtitle, { color: '617184', size: 26, after: 500 }));
     parts.push(wordParagraph('A clear, structured document prepared with GoldenSpaceAI.', { color: '8491A0', size: 20 }));
     parts.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
-    data.slides.slice(1).forEach((slide, i) => {
+    data.slides.forEach((slide, i) => {
         parts.push(wordParagraph(String(i + 1).padStart(2, '0') + '  ·  ' + (slide.eyebrow || 'SECTION').toUpperCase(), { color: 'A37A11', size: 18, bold: true, after: 100 }));
         parts.push(wordParagraph(slide.title, { style: 'Heading1', color: '172232', size: 34, bold: true, after: 180 }));
         if (slide.subtitle) parts.push(wordParagraph(slide.subtitle, { color: '617184', size: 22, italic: true, after: 200 }));

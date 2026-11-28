@@ -1186,11 +1186,17 @@ function latestUserPromptText(body) {
     const latest = messages.slice().reverse().find((m) => m && m.role === 'user');
     return latest && typeof latest.content === 'string' ? latest.content : '';
 }
+function isStudioDocumentRequest(body) {
+    return body?.surface === 'studio' && body.feature === 'documents' && body.studioOutput === 'document';
+}
+
 function isQuizGenerationPrompt(body) {
+    if (isStudioDocumentRequest(body)) return false;
     if (body?.chatMode === 'study') return false;
     return /\b(?:quiz me|test me|test my knowledge|practice (?:quiz|test)|ask me (?:some )?questions|quiz\s+(?:me\s+)?(?:on|about|from|using)|(?:give|make|create|generate|build|prepare|start|write|do)\b[^.!?]{0,60}\bquizzes?\b|(?:i|we)\s+(?:want|need)\b[^.!?]{0,35}\bquizzes?\b|\bquizzes?\s+(?:about|on|from|for)\b)/i.test(latestUserPromptText(body));
 }
 function isOfficeDocumentPrompt(body) {
+    if (isStudioDocumentRequest(body)) return true;
     if (body?.chatMode === 'study') return false;
     const text = latestUserPromptText(body);
     if (text.startsWith('You are the planning intelligence inside GoldenoAI Studio.')) return false;
@@ -1330,7 +1336,7 @@ async function resolveContextPack(req) {
     if (quizIntent && !effectiveInstructions.includes('exactly 5 useful questions')) {
         effectiveInstructions += '\n\nCreate an interactive quiz from the conversation context. Return ONLY valid JSON in this exact form: {"title":"topic","questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"brief correction"}]}. Include exactly 5 questions, 4 concise answer choices each, one correctIndex from 0 to 3, and an explanation for each. No Markdown or surrounding text.';
     }
-    if (documentIntent && !effectiveInstructions.includes('"slides":')) {
+    if (documentIntent && !isStudioDocumentRequest(body) && !effectiveInstructions.includes('"slides":')) {
         effectiveInstructions += '\n\nCreate a polished downloadable Office document based on the user request. Return ONLY valid JSON shaped like {"title":"...","subtitle":"...","slides":[{"layout":"title|content|stat|quote|compare|closing","eyebrow":"...","title":"...","subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. Create 6 to 12 concise, substantial slides with varied visual layouts and no filler. For BOTH PowerPoint and Word, always use the top-level slides array; each item is a slide or a Word section. Do not use sections/pages as the array key. Do not return markdown fences or prose.';
     }
     const packed = buildPackedMessages({
@@ -1861,7 +1867,7 @@ app.post('/api/chat', async (req, res) => {
             }
         });
 
-        let reply = softCleanLatex(result.reply);
+        let reply = isStudioDocumentRequest(req.body) ? result.reply : softCleanLatex(result.reply);
         if (!String(reply).trim()) {
             return res.status(502).json({
                 reply: mapApiError({ message: 'empty reply' }, result.provider),

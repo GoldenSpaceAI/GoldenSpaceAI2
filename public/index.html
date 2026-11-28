@@ -7790,7 +7790,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                             recordSearchQuery(obj.searchQuery);
                             if (chromeReady) mountActivityOnAi(true);
                         }
-                        if (obj.reasoning && !studyTurn) {
+                        if (obj.reasoning) {
                             recordReasoning(obj.reasoning);
                             if (!chromeReady) setThinkingStatus(thinkingId, 'thinking');
                             else mountActivityOnAi(true);
@@ -7810,7 +7810,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                             if (Array.isArray(obj.sites)) {
                                 for (let s = 0; s < obj.sites.length; s++) recordSite(obj.sites[s]);
                             }
-                            if (obj.reasoning && !studyTurn) recordReasoning(obj.reasoning);
+                            if (obj.reasoning) recordReasoning(obj.reasoning);
                             if (obj.contextPack) applyContextPackToChat(currentChatId, obj.contextPack);
                             doneFlag = true;
                         }
@@ -7851,7 +7851,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                         if (data && Array.isArray(data.sites)) {
                             for (let s = 0; s < data.sites.length; s++) recordSite(data.sites[s]);
                         }
-                        if (data && data.reasoning && !studyTurn) recordReasoning(data.reasoning);
+                        if (data && data.reasoning) recordReasoning(data.reasoning);
                         if (data && data.contextPack) applyContextPackToChat(currentChatId, data.contextPack);
                     } catch (fbErr) {
                         throw fbErr;

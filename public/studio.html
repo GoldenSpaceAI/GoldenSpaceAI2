@@ -394,7 +394,7 @@ async function planStudioTask(){
 }
 function creationToolFor(text){
  const value=String(text||'');
- const wants=/\b(make|create|build|generate|prepare|design|write|turn|code|presentation|slides?|powerpoint|document|pdf|word|image|photo|video|clip|reel|animation|game|website|app)\b/i.test(value);
+ const wants=/\b(make|create|build|generate|prepare|design|write|turn|code|presentation|slides?|powerpoint|document|pdf|word|image|photo|video|clip|reel|animation|game|website|app|search|find|images|photos)\b/i.test(value);
  if(!wants)return null;
  if(/\b(presentation|slides?|powerpoint|pptx)\b/i.test(value))return 'presentation';
  if(/\b(pdf|word|docx|document|report|essay|handout)\b/i.test(value))return 'document';

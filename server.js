@@ -906,15 +906,10 @@ function extractActivityFromResponses(responseData) {
         if (typeof r.summary === 'string' && r.summary.trim() && r.summary !== 'detailed' && r.summary !== 'concise' && r.summary !== 'auto') {
             reasoning = r.summary.trim();
         }
-        if (typeof r.content === 'string' && r.content.trim()) reasoning = (reasoning ? reasoning + '\n' : '') + r.content.trim();
-    } else if (typeof r === 'string' && r.trim()) {
-        reasoning = r.trim();
     }
-    // Also scan output for reasoning text parts
     for (const item of output) {
         if (!item || item.type !== 'reasoning') continue;
-        const parts = Array.isArray(item.summary) ? item.summary
-            : (Array.isArray(item.content) ? item.content : []);
+        const parts = Array.isArray(item.summary) ? item.summary : [];
         for (const part of parts) {
             if (!part) continue;
             const t = typeof part === 'string' ? part : (part.text || part.content || '');
@@ -1054,7 +1049,7 @@ function callResponsesAPI(conversationMessages, config, useWebSearch, opts) {
                         if (et === 'response.output_text.annotation.added' || et.indexOf('annotation') !== -1) {
                             emitSite(siteFromStreamEvent(evt));
                         }
-                        if (et === 'response.reasoning_summary_text.delta' || et === 'response.reasoning.delta') {
+                        if (et === 'response.reasoning_summary_text.delta') {
                             const d = evt.delta || evt.text || '';
                             if (d) {
                                 try { onEvent({ type: 'reasoning', text: String(d) }); } catch (e) {}
@@ -2233,10 +2228,8 @@ app.post('/api/chat/stream', async (req, res) => {
                 const choice = chunk.choices?.[0];
                 const deltaObj = choice?.delta || {};
                 // Surface real reasoning fields only when the provider sends them (never invent CoT)
-                const reasoningDelta = deltaObj.reasoning_content
-                    || deltaObj.reasoning
-                    || (typeof deltaObj.reasoning_text === 'string' ? deltaObj.reasoning_text : '')
-                    || '';
+                const reasoningDelta = typeof deltaObj.reasoning_summary === 'string'
+                    ? deltaObj.reasoning_summary : '';
                 if (reasoningDelta) {
                     if (!firstDeltaLogged) { firstDeltaLogged = true; streamMark('first_delta'); }
                     sendSse({ reasoning: reasoningDelta, status: 'thinking' });

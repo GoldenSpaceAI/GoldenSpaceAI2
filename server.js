@@ -2219,6 +2219,7 @@ app.post('/api/chat/stream', async (req, res) => {
             }
 
             let full = '';
+            let emittedReasoningProgress = false;
             let emittedGenerating = false;
             let streamUsage = null;
             let firstDeltaLogged = false;
@@ -2230,6 +2231,10 @@ app.post('/api/chat/stream', async (req, res) => {
                 // Surface real reasoning fields only when the provider sends them (never invent CoT)
                 const reasoningDelta = typeof deltaObj.reasoning_summary === 'string'
                     ? deltaObj.reasoning_summary : '';
+                if (!reasoningDelta && !emittedReasoningProgress && (deltaObj.reasoning_content || deltaObj.reasoning || deltaObj.reasoning_text)) {
+                    emittedReasoningProgress = true;
+                    sendSse({ status: 'thinking' });
+                }
                 if (reasoningDelta) {
                     if (!firstDeltaLogged) { firstDeltaLogged = true; streamMark('first_delta'); }
                     sendSse({ reasoning: reasoningDelta, status: 'thinking' });

@@ -7385,23 +7385,42 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                         ? requestedQuizQuestionCount(latestUser.content) : undefined;
                 })()
             };
-            if (!isLoggedIn() && !extra?.messages) {
-                // Guest chats live in this browser, so send a bounded set from this thread only.
-                const earlier = c.messages.slice(0, -HISTORY_WINDOW);
+            const latestUser = body.messages.findLastIndex(turn => turn?.role === 'user');
+            if (isLoggedIn()) {
+                body.messages = body.messages.map((turn, index) => {
+                    if (index === latestUser || turn?.role !== 'user') return turn;
+                    const { attachedFile, attachedFiles, image, images, ...message } = turn;
+                    return message;
+                });
+            } else {
+                // Guest history is local. Rank excerpts in the browser and send only the best matches.
+                const query = String(body.messages[latestUser]?.content || '').toLowerCase();
+                const terms = [...new Set(query.match(/[\p{L}\p{N}]{3,}/gu) || [])]
+                    .filter(term => !/^(the|and|what|which|about|this|that|with|from|please|file|document|attached)$/.test(term)).slice(0, 24);
                 const candidates = [];
-                let includedImage = false;
-                for (let i = earlier.length - 1; i >= 0 && candidates.length < 12; i--) {
-                    const turn = earlier[i];
-                    if (turn.role !== 'user') continue;
+                for (const turn of c.messages.slice().reverse()) {
+                    if (turn?.role !== 'user') continue;
                     const files = turn.attachedFiles?.length ? turn.attachedFiles : [turn.attachedFile];
-                    const attachedFiles = files.filter(file => typeof file?.text === 'string' && file.text.trim())
-                        .slice(0, 3).map(file => ({ name: file.name, text: file.text.slice(0, 30000) }));
-                    const image = !includedImage && !turn.imageTooBig &&
-                        (turn.images || [turn.image]).find(url => typeof url === 'string' && url.length <= 5 * 1024 * 1024);
-                    if (image) includedImage = true;
-                    if (attachedFiles.length || image) candidates.push({ role: 'user', attachedFiles, image: image || undefined });
+                    for (const file of files) {
+                        if (!file?.text) continue;
+                        const name = String(file.name || 'Attachment');
+                        const nameScore = terms.filter(term => name.toLowerCase().includes(term)).length * 4;
+                        let best = { name, text: '', score: -1 };
+                        for (const text of file.text.match(/[\s\S]{1,3000}/g) || []) {
+                            const lower = text.toLowerCase();
+                            const score = nameScore + terms.filter(term => lower.includes(term)).length;
+                            if (score > best.score) best = { name, text, score };
+                        }
+                        if (best.text) candidates.push(best);
+                    }
                 }
-                if (candidates.length) body.earlierAttachments = candidates.reverse();
+                body.earlierAttachments = candidates.sort((a, b) => b.score - a.score).slice(0, 3)
+                    .map(({ name, text }) => ({ role: 'user', attachedFiles: [{ name, text }] }));
+                body.messages = body.messages.map(turn => {
+                    if (turn?.role !== 'user') return turn;
+                    const { attachedFile, attachedFiles, ...message } = turn;
+                    return message;
+                });
             }
             if (liveModeActive) body.live = true;
             return body;
@@ -7531,7 +7550,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                 attachedFileMeta = {
                     name: selectedFileName || 'file',
                     note: selectedFileNote || null,
-                    text: selectedFileText.slice(0, 120000)
+                    text: selectedFileText
                 };
             }
             if (!text && !imgToSend && !attachedFileMeta) {
@@ -7547,7 +7566,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
             if (!opts.skipUserAppend) {
                 const currentAttachments = opts.text === undefined ? composerAttachments.slice(0,3) : [];
                 const allImages = currentAttachments.filter(a => a.kind === 'image').map(a => a.data);
-                const allFiles = currentAttachments.filter(a => a.kind === 'file').map(a => ({name:a.name,text:a.text.slice(0,120000),note:a.note}));
+                const allFiles = currentAttachments.filter(a => a.kind === 'file').map(a => ({name:a.name,text:a.text,note:a.note}));
                 const userMsg = {
                     role: 'user',
                     content: text || '',
@@ -7566,7 +7585,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                     model: userMsg.model,
                     timestamp: userMsg.timestamp
                 };
-                if (attachedFileMeta) msgToStore.attachedFile = attachedFileMeta;
+                if (attachedFileMeta && !allFiles.length) msgToStore.attachedFile = attachedFileMeta;
                 msgToStore.images = allImages.filter(v => v.length <= 5 * 1024 * 1024);
                 msgToStore.attachedFiles = allFiles;
                 if (imgToSend && imgToSend.length <= 5 * 1024 * 1024) msgToStore.image = imgToSend;

@@ -219,6 +219,9 @@ function createAuth(options = {}) {
                     );
                     ALTER TABLE chats ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'normal';
                     ALTER TABLE chats ADD COLUMN IF NOT EXISTS study_state JSONB NOT NULL DEFAULT '{}'::jsonb;
+                    ALTER TABLE chats ADD COLUMN IF NOT EXISTS memory_notes JSONB NOT NULL DEFAULT '[]'::jsonb;
+                    ALTER TABLE chats ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+                    ALTER TABLE chats ADD COLUMN IF NOT EXISTS memory_revision TEXT NOT NULL DEFAULT md5(random()::text || clock_timestamp()::text);
                     CREATE TABLE IF NOT EXISTS user_projects (
                         owner_key TEXT NOT NULL,
                         project_id TEXT NOT NULL,

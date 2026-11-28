@@ -7360,6 +7360,24 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                         ? requestedQuizQuestionCount(latestUser.content) : undefined;
                 })()
             };
+            if (!isLoggedIn() && !extra?.messages) {
+                // Guest chats live in this browser, so send a bounded set from this thread only.
+                const earlier = c.messages.slice(0, -HISTORY_WINDOW);
+                const candidates = [];
+                let includedImage = false;
+                for (let i = earlier.length - 1; i >= 0 && candidates.length < 12; i--) {
+                    const turn = earlier[i];
+                    if (turn.role !== 'user') continue;
+                    const files = turn.attachedFiles?.length ? turn.attachedFiles : [turn.attachedFile];
+                    const attachedFiles = files.filter(file => typeof file?.text === 'string' && file.text.trim())
+                        .slice(0, 3).map(file => ({ name: file.name, text: file.text.slice(0, 30000) }));
+                    const image = !includedImage && !turn.imageTooBig &&
+                        (turn.images || [turn.image]).find(url => typeof url === 'string' && url.length <= 5 * 1024 * 1024);
+                    if (image) includedImage = true;
+                    if (attachedFiles.length || image) candidates.push({ role: 'user', attachedFiles, image: image || undefined });
+                }
+                if (candidates.length) body.earlierAttachments = candidates.reverse();
+            }
             if (liveModeActive) body.live = true;
             return body;
         }

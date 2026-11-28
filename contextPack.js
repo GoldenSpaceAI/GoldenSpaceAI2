@@ -251,7 +251,9 @@ function buildPackedMessages(opts) {
     const all = Array.isArray(messages) ? messages : [];
     const recentMessages = all.slice(-RECENT_WINDOW);
 
+    const timestamps = [];
     recentMessages.forEach((msg) => {
+        const before = conversationMessages.length;
         if (!msg || !msg.role) return;
         if (msg.role === 'user') {
             const content = [];
@@ -281,7 +283,23 @@ function buildPackedMessages(opts) {
                 });
             }
         }
+        if (conversationMessages.length > before) {
+            const raw = msg.timestamp ?? msg.at;
+            const value = typeof raw === 'string' ? Date.parse(raw) : NaN;
+            const role = msg.role === 'user' ? 'user' : 'assistant';
+            timestamps.push(role + ': ' + (Number.isFinite(value) ? new Date(value).toISOString() : 'unknown'));
+        }
     });
+
+    if (timestamps.some(entry => !entry.endsWith(': unknown'))) {
+        conversationMessages.unshift({
+            role: 'system',
+            content: 'Current time (UTC): ' + new Date().toISOString() +
+                '. Recent message times, oldest to newest, in UTC (user and assistant turns only):\n' +
+                timestamps.join('\n') +
+                '\nUse these times when relevant, including to interpret relative dates in earlier messages. Do not guess missing timestamps or assume the user’s time zone.'
+        });
+    }
 
     if (image && !all.some((m) => m && m.image === image)) {
         const lastMsg = conversationMessages[conversationMessages.length - 1];

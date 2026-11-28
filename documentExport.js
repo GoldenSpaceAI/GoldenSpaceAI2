@@ -200,15 +200,19 @@ function powerpointXml(data, assets) {
     return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
+// Word sizes are expressed in half-points. Keep body text at 14 pt.
+const WORD_BODY_SIZE = 28;
+const WORD_MIN_SIZE = 24;
+
 function wordParagraph(text, opts) {
     opts = opts || {};
     const style = opts.style ? '<w:pStyle w:val="' + opts.style + '"/>' : '';
     const color = hex(opts.color, '263347');
-    const size = Math.max(18, Math.min(64, Number(opts.size) || 22));
+    const size = Math.max(WORD_MIN_SIZE, Math.min(64, Number(opts.size) || WORD_BODY_SIZE));
     const bold = opts.bold ? '<w:b/>' : '';
     const italic = opts.italic ? '<w:i/>' : '';
-    const pPr = style + (opts.shading ? '<w:shd w:fill="' + hex(opts.shading) + '" w:val="clear"/>' : '') + (opts.indent ? '<w:ind w:left="420" w:hanging="200"/>' : '') + (opts.after ? '<w:spacing w:after="' + opts.after + '"/>' : '');
-    return '<w:p><w:pPr>' + pPr + '</w:pPr><w:r><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:color w:val="' + color + '"/><w:sz w:val="' + size + '"/>' + bold + italic + '</w:rPr><w:t xml:space="preserve">' + esc(text) + '</w:t></w:r></w:p>';
+    const pPr = style + (opts.shading ? '<w:shd w:fill="' + hex(opts.shading) + '" w:val="clear"/>' : '') + (opts.indent ? '<w:ind w:left="420" w:hanging="200"/>' : '') + (opts.after ? '<w:spacing w:after="' + opts.after + '" w:line="300" w:lineRule="auto"/>' : '');
+    return '<w:p><w:pPr>' + pPr + '</w:pPr><w:r><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:color w:val="' + color + '"/><w:sz w:val="' + size + '"/><w:szCs w:val="' + size + '"/>' + bold + italic + '</w:rPr><w:t xml:space="preserve">' + esc(text) + '</w:t></w:r></w:p>';
 }
 function wordXml(data) {
     const parts = [];
@@ -220,17 +224,17 @@ function wordXml(data) {
     data.slides.forEach((slide, i) => {
         parts.push(wordParagraph(String(i + 1).padStart(2, '0') + '  ·  ' + (slide.eyebrow || 'SECTION').toUpperCase(), { color: 'A37A11', size: 18, bold: true, after: 100 }));
         parts.push(wordParagraph(slide.title, { style: 'Heading1', color: '172232', size: 34, bold: true, after: 180 }));
-        if (slide.subtitle) parts.push(wordParagraph(slide.subtitle, { color: '617184', size: 22, italic: true, after: 200 }));
-        if (slide.body) parts.push(wordParagraph(slide.body, { color: '263347', size: 22, after: 220 }));
+        if (slide.subtitle) parts.push(wordParagraph(slide.subtitle, { color: '617184', size: WORD_BODY_SIZE, italic: true, after: 200 }));
+        if (slide.body) parts.push(wordParagraph(slide.body, { color: '263347', size: WORD_BODY_SIZE, after: 220 }));
         if (slide.stat) parts.push(wordParagraph(slide.stat, { color: 'A37A11', size: 38, bold: true, shading: 'F7F1E0', after: 240 }));
         if (slide.quote) {
             parts.push(wordParagraph('“' + slide.quote + '”', { color: '33465B', size: 28, italic: true, shading: 'EEF2F6', after: 200 }));
             if (slide.attribution) parts.push(wordParagraph('— ' + slide.attribution, { color: 'A37A11', size: 20, bold: true, after: 180 }));
         }
-        slide.bullets.concat(slide.leftBullets, slide.rightBullets).forEach((bullet) => parts.push(wordParagraph('•  ' + bullet, { color: '263347', size: 22, indent: true, after: 100 })));
+        slide.bullets.concat(slide.leftBullets, slide.rightBullets).forEach((bullet) => parts.push(wordParagraph('•  ' + bullet, { color: '263347', size: WORD_BODY_SIZE, indent: true, after: 100 })));
         if (slide.leftTitle || slide.rightTitle) {
-            if (slide.leftTitle) parts.push(wordParagraph(slide.leftTitle + ': ' + slide.leftBullets.join(' · '), { color: '3D5065', size: 21, after: 130 }));
-            if (slide.rightTitle) parts.push(wordParagraph(slide.rightTitle + ': ' + slide.rightBullets.join(' · '), { color: '3D5065', size: 21, after: 130 }));
+            if (slide.leftTitle) parts.push(wordParagraph(slide.leftTitle + ': ' + slide.leftBullets.join(' · '), { color: '3D5065', size: WORD_BODY_SIZE, after: 130 }));
+            if (slide.rightTitle) parts.push(wordParagraph(slide.rightTitle + ': ' + slide.rightBullets.join(' · '), { color: '3D5065', size: WORD_BODY_SIZE, after: 130 }));
         }
         if (slide.visual) parts.push(wordParagraph('Visual direction: ' + slide.visual, { color: '748496', size: 18, italic: true, after: 260 }));
     });
@@ -240,7 +244,7 @@ function wordXml(data) {
     zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
     zip.file('word/document.xml', doc);
     zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
-    zip.file('word/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="22"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="140" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:color w:val="172232"/><w:b/><w:sz w:val="52"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="260" w:after="140"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:color w:val="172232"/><w:b/><w:sz w:val="34"/></w:rPr></w:style></w:styles>');
+    zip.file('word/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="' + WORD_BODY_SIZE + '"/><w:szCs w:val="' + WORD_BODY_SIZE + '"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="140" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:color w:val="172232"/><w:b/><w:sz w:val="52"/><w:szCs w:val="52"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="260" w:after="140"/></w:pPr><w:rPr><w:rFonts w:ascii="Aptos Display" w:hAnsi="Aptos Display"/><w:color w:val="172232"/><w:b/><w:sz w:val="34"/><w:szCs w:val="34"/></w:rPr></w:style></w:styles>');
     return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 

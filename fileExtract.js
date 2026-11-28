@@ -9,7 +9,7 @@ const mammoth = require('mammoth');
 const JSZip = require('jszip');
 const { PDFParse } = require('pdf-parse');
 
-const MAX_EXTRACT_CHARS = 120000;
+const MAX_EXTRACT_CHARS = 1000000;
 const MAX_FILE_BYTES = 12 * 1024 * 1024;
 
 const EXT_MAP = {
@@ -48,7 +48,7 @@ function classify(filename, mime) {
 function truncate(text) {
     const s = String(text || '').replace(/\u0000/g, '').trim();
     if (s.length <= MAX_EXTRACT_CHARS) return s;
-    return s.slice(0, MAX_EXTRACT_CHARS) + '\n\n[…truncated for chat context…]';
+    return s.slice(0, MAX_EXTRACT_CHARS) + '\n\n[…extraction safety limit reached…]';
 }
 
 function xmlTextNodes(xml) {

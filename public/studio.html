@@ -338,8 +338,8 @@ async function sendMessage(){
  const text=$('input').value.trim();if((!text&&!studioAttachments.length)||busy)return;const outgoing=studioAttachments.splice(0,3);studioActiveAttachments=outgoing;renderStudioAttachments();const sentMode=selectedTool;studioRequestDeadline=Date.now()+120000;studioLastSources=[];$('input').value='';autoSize();add('user',text||'Please review the attached files.',[],null,sentMode);messages[messages.length-1].attachments=outgoing.map(a=>({kind:a.kind,name:a.name}));renderMessages();busy=true;$('send').disabled=true;
  try{
   if(isPublishGameRequest(text,currentArtifact?.kind==='code')){offerGamePublishing()}
+  else if(selectedTool){pending=null;await beginTask(selectedTool,text)}
   else if(pending){await continueTask(text)}
-  else if(selectedTool){await beginTask(selectedTool,text)}
   else if((currentArtifact||latestStudioArtifact())&&looksLikeArtifactEdit(text)){currentArtifact=currentArtifact||cloneArtifact(latestStudioArtifact());await editCurrentArtifact(text)}
   else {
    const inferred=inferCreationRequest(text);
@@ -352,6 +352,7 @@ async function sendMessage(){
 async function beginTask(tool,topic){
  studioResearchTopic=topic;
  clearTool();
+ if((tool==='document'||tool==='presentation')&&/\p{L}/u.test(topic)&&!isBareOfficeRequest(topic)){thinking(true);await createDocument(tool,topic,'');return}
  if(tool==='search'){await searchImages(topic);return}
  if(tool==='video'){await createVideo(topic,'');return}
  pending={type:tool,topic,details:'',rounds:0};
@@ -359,7 +360,14 @@ async function beginTask(tool,topic){
  await planStudioTask();
  save()
 }
+function isBareOfficeRequest(topic){
+ return !String(topic).replace(/\b(?:please|can|could|you|me|a|an|the|some|make|create|generate|prepare|build|write|design|need|want|for|to|word|microsoft|docx|pptx|pdf|powerpoint|presentation|deck|slides?|document|file|report|handout|essay)\b/gi,'').replace(/[^\p{L}\p{N}]/gu,'');
+}
 async function continueTask(details){
+ if((pending.type==='document'||pending.type==='presentation')&&isBareOfficeRequest(pending.topic)&&details.trim()){
+  const task=pending;pending=null;thinking(true);
+  await createDocument(task.type,task.topic,[task.details,details].filter(Boolean).join('; '));save();return;
+ }
  pending.details=[pending.details,details].filter(Boolean).join('; ');
  pending.rounds=(pending.rounds||0)+1;
  thinking(true);
@@ -370,6 +378,9 @@ async function planStudioTask(){
  const task=pending;if(!task)return;
  const kindNames={document:'PDF or Word document',presentation:'presentation',image:'AI image',code:'runnable code project',video:'AI video'};
  const plannerPrompt='You are the planning intelligence inside GoldenoAI Studio. The project context is: "'+(studioProjectInstructions||'No category selected')+'". Adapt your examples, depth, and useful follow-up questions to that category (studying: teach and check understanding; building-game: clarify gameplay, controls, audience, and platform; other: clarify the intended outcome). The user wants to create a '+kindNames[task.type]+' about: "'+task.topic+'". Their additional answers so far are: "'+(task.details||'none yet')+'". Decide whether essential information is genuinely missing. Ask only for information that materially changes the result. Accept broad answers: "people" or "everyone" means a general-public audience. Infer sensible defaults instead of interrogating the user. Never repeat a question they already answered. For presentations, normally topic plus slide count plus a style is enough; audience can be inferred. For documents, topic plus format and approximate length is enough. For images, a clear visual request may be enough without questions. For code, a clear outcome may be enough and you can default to self-contained HTML/CSS/JavaScript. '+((task.rounds||0)>=2?'You already asked follow-up questions twice, so use reasonable defaults now and return ready. ':'')+'Return ONLY valid JSON with this exact shape: {"status":"clarify" or "ready","question":"one short natural question or empty","choices":["2 to 4 short useful answers when clarifying"],"requirements":"a concise complete brief using the user answers and reasonable defaults"}. No Markdown and no text outside JSON.';
+ if(task.type==='document'||task.type==='presentation'){
+  add('assistant','What should the '+(task.type==='presentation'?'presentation':'document')+' be about?');return;
+ }
  let decision;
  try{decision=parseJSON(await apiChat(plannerPrompt))}catch(e){if(/time|too long|unavailable|limit/i.test(e.message||''))throw e;decision={status:'ready',question:'',requirements:[task.topic,task.details].filter(Boolean).join('. ')}}
  if(String(decision.status).toLowerCase()==='clarify'&&decision.question&&(task.rounds||0)<2){
@@ -433,7 +444,7 @@ async function editCurrentArtifact(request){
   const kind=currentArtifact.kind;
   const prompt=(kind==='presentation'?PresentationComposer.prompt+' Preserve the existing visual fields, layout, colors, diagrams, images, and slide count unless the user requests a change. ':'')+'Edit this existing '+kind+' according to the user request: "'+request+'". Existing artifact JSON: '+JSON.stringify(currentArtifact.data)+'. Return ONLY strict valid JSON preserving the full original schema and unchanged design fields. Preserve all content and slides that were not requested to change. Do not use Markdown fences.';
   let reply=await apiChat(prompt,'documents'),updated;
-  try{updated=parseJSON(reply)}catch(e){reply=await apiChat((kind==='presentation'?PresentationComposer.prompt+' ':'')+'Repair the previous edit into strict JSON only, preserving all original fields. No explanation.','documents');updated=parseJSON(reply)}
+  try{updated=parseStudioDocument(reply)}catch(e){reply=await apiChat(prompt+' Return a complete JSON object with a non-empty slides array.','documents');updated=parseStudioDocument(reply)}
   if(!Array.isArray(updated.slides)||!updated.slides.length)throw new Error('I could not create a valid updated preview.');
   currentArtifact.data=kind==='presentation'?preparePresentation(Object.assign({},currentArtifact.data,updated),currentArtifact.data.title):updated;add('assistant','Done—I edited the existing '+kind+' directly. Open the updated version below.',[],currentArtifact);renderArtifact(currentArtifact);save();return;
  }
@@ -450,7 +461,7 @@ async function editCurrentArtifact(request){
  taskProgress(useSearch?'Searching sources and drafting':'Preparing the response',useSearch?'البحث في المصادر وإعداد الإجابة':'إعداد الإجابة',useSearch?'Requesting web sources, then using Fast mode to draft the result.':'Sending the request to Fast mode.',useSearch?'طلب مصادر من الويب ثم استخدام الوضع السريع لإعداد النتيجة.':'إرسال الطلب إلى الوضع السريع.');
  const remaining=studioRequestDeadline?studioRequestDeadline-Date.now():95000;if(remaining<1000)throw new Error('This request reached its time limit. Please try again.');
  const controller=new AbortController(),deadline=setTimeout(()=>controller.abort(),Math.min(95000,remaining));
- let res;try{res=await fetch('/api/chat',{method:'POST',signal:controller.signal,headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history,customInstructions:((feature==='documents'&&extra.startsWith(PresentationComposer.prompt)?PresentationComposer.prompt:'')+'\n\nSTUDIO RESPONSE STYLE: Make every reply easy to scan. Lead with the result, then use concise headings and short paragraphs. Use Markdown tables for comparisons, plans, schedules, specifications, or 3+ structured items when useful. Use numbered steps for procedures. When the user asks for a graph, simulation, calculator, or says show me, create a runnable interactive artifact with clear controls whenever the requested result supports it; do not only describe it. For presentations and documents, group content into clear sections and keep one idea per slide or section. Never emit escaped Markdown markers.'),studioProjectId:studioProjectId||null,feature:feature||null,surface:'studio',studio:true,studioWebSearch:useSearch,studioSearchQuery:feature?(studioResearchTopic||currentArtifact?.data?.title||latest):latest})});}catch(error){if(error.name==='AbortError')throw new Error(document.documentElement.lang==='ar'?'استغرق الطلب وقتًا أطول من المتوقع. حاول مجددًا.':'The request took too long. Please try again.');throw error;}finally{clearTimeout(deadline);}
+ let res;try{res=await fetch('/api/chat',{method:'POST',signal:controller.signal,headers:studioHeaders(),credentials:'same-origin',body:JSON.stringify({mode:'fast',messages:history,customInstructions:((feature==='documents'&&extra.startsWith(PresentationComposer.prompt)?PresentationComposer.prompt:'')+'\n\nSTUDIO RESPONSE STYLE: Make every reply easy to scan. Lead with the result, then use concise headings and short paragraphs. Use Markdown tables for comparisons, plans, schedules, specifications, or 3+ structured items when useful. Use numbered steps for procedures. When the user asks for a graph, simulation, calculator, or says show me, create a runnable interactive artifact with clear controls whenever the requested result supports it; do not only describe it. For presentations and documents, group content into clear sections and keep one idea per slide or section. Never emit escaped Markdown markers.'),studioProjectId:studioProjectId||null,feature:feature||null,studioOutput:feature==='documents'?'document':null,surface:'studio',studio:true,studioWebSearch:useSearch,studioSearchQuery:feature?(studioResearchTopic||currentArtifact?.data?.title||latest):latest})});}catch(error){if(error.name==='AbortError')throw new Error(document.documentElement.lang==='ar'?'استغرق الطلب وقتًا أطول من المتوقع. حاول مجددًا.':'The request took too long. Please try again.');throw error;}finally{clearTimeout(deadline);}
 
  const data=await res.json().catch(()=>({}));studioLastSources=Array.isArray(data.webSources)?data.webSources:[];if(!res.ok)throw new Error(data.reply||data.error||'GoldenoAI could not reply.');return data.reply||data.error||''
 }
@@ -470,18 +481,33 @@ function extractRunnableHtml(text){
  return '';
 }
 function parseJSON(text){let raw=String(text||'').replace(/^\s*\x60{3}(?:json)?/i,'').replace(/\x60{3}\s*$/,'').trim(),a=raw.indexOf('{'),b=raw.lastIndexOf('}');if(a<0||b<=a)throw new Error('I could not structure the preview. Ask me to try again.');return JSON.parse(raw.slice(a,b+1))}
+function parseStudioDocument(reply){
+ const data=parseJSON(reply);
+ if(!Array.isArray(data.slides)||!data.slides.some(slide=>slide&&typeof slide==='object'&&typeof slide.title==='string'&&slide.title.trim())){
+  throw new Error('The document preview was incomplete. Please try creating it again.');
+ }
+ data.slides=data.slides.filter(slide=>slide&&typeof slide==='object'&&!Array.isArray(slide));
+ return data;
+}
+function studioDocumentFormat(type,topic,details){
+ if(type==='presentation')return 'pptx';
+ for(const text of [details,topic]){
+  if(/\b(?:word|docx)\b/i.test(text))return 'docx';
+  if(/\bpdf\b/i.test(text))return 'pdf';
+ }
+ return 'docx';
+}
 async function createDocument(type,topic,details){
  const format=type==='presentation'?'presentation':'document';
  const extra=type==='presentation'?PresentationComposer.prompt+' Topic: '+topic+'. Requirements: '+details:('Create a polished '+format+' about "'+topic+'". Requirements: '+details+'. Return ONLY valid JSON in this shape: {"title":"...","subtitle":"...","theme":"midnight|editorial|ocean|minimal|heritage|science|forest|royal|sunset|monochrome|classroom|corporate|creative","designSeed":0,"slides":[{"layout":"cover|content|stat|compare|timeline|process|quote|closing","eyebrow":"...","title":"...","titleHighlight":"one short phrase already in the title","highlights":[{"text":"exact phrase already in this slide","tone":"accent|secondary"}],"subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. For a presentation, match the exact requested slide count; use a cover first and a concise closing last. Make every slide visually scannable: title no more than 8 words, body no more than 2 short sentences, 3-5 bullets with no more than 12 words each, one clear idea per slide, no dense paragraphs, no repeated facts. Act as an experienced presentation art director. Choose a topic-appropriate theme: heritage for history, science for science, forest for environment, corporate for business, editorial for humanities. Keep the palette consistent. Choose layouts by the content: comparisons need two supported viewpoints, timelines need dated milestones, statistics require real numbers, quotes require real attribution. Never invent data to fill a layout. Add titleHighlight and 2-4 highlights per slide using exact phrases from its text; accent is the primary theme color and secondary is its supporting color. Highlight meaningful keywords only. Avoid generic filler, crowded slides, and repeated decorative panels. For a document, each slides item is one page or section and should contain substantial factual writing. Use specific, accurate information, strong hierarchy, and no filler. No Markdown fences.');
  let reply=await apiChat(extra,'documents'),data;
- try{data=parseJSON(reply)}
+ try{data=parseStudioDocument(reply)}
  catch(firstError){
-  const repair=(type==='presentation'?PresentationComposer.prompt+' ':'')+'The previous document response was not valid JSON. Recreate the same requested deliverable now. Return ONLY strict valid JSON with double-quoted keys and strings in this shape: {"title":"...","subtitle":"...","slides":[{"eyebrow":"...","title":"...","body":"...","bullets":["..."],"visual":"..."}]}. Do not explain, do not use Markdown fences, and do not include text before or after the JSON.';
-  reply=await apiChat(repair,'documents');data=parseJSON(reply)
+  const repair=extra+' A prior attempt failed validation. Return one complete JSON object with a non-empty slides array. Use concise content so the entire object fits. Preserve the requested topic, file type and slide count.';
+  data=parseStudioDocument(await apiChat(repair,'documents'));
  }
- data.slides=Array.isArray(data.slides)?data.slides:[];if(!data.slides.length)throw new Error('I could not create a valid preview this time. Please press Retry.');
  if(type==='presentation'){data=preparePresentation(data,topic);await enrichPresentationImages(data);}
- currentArtifact={kind:type==='presentation'?'presentation':'document',format:/word|docx/i.test(details)?'docx':(/pdf/i.test(details)?'pdf':(type==='presentation'?'pptx':'docx')),data};
+ currentArtifact={kind:type==='presentation'?'presentation':'document',format:studioDocumentFormat(type,topic,details),data};
  add('assistant','Your '+(type==='presentation'?'presentation':'document')+' is ready. Open it below to preview, edit, or download.',[],currentArtifact);
  renderArtifact(currentArtifact);save()
 }
@@ -650,7 +676,11 @@ async function handleMessageAction(action,index,button){
  if(action==='retry'){
   const previous=messages.slice(0,index).reverse().find(item=>item.role==='user');if(!previous)return;
   messages.splice(index,1);renderMessages();save();busy=true;thinking(true);button.disabled=true;
-  try{const reply=await apiChat('Answer the user\'s most recent request again with a better, clearer, more organized response. Do not repeat greetings. Do not show escaped Markdown.');add('assistant',reply)}
+  studioRequestDeadline=Date.now()+120000;
+  try{
+   const tool=previous.mode||creationToolFor(previous.text);
+   if(tool==='document'||tool==='presentation'){pending=null;await beginTask(tool,previous.text);return}
+   const reply=await apiChat('Answer the user\'s most recent request again with a better, clearer, more organized response. Do not repeat greetings. Do not show escaped Markdown.');add('assistant',reply)}
   catch(e){add('assistant',e.message||'I could not retry that response.')}
   finally{busy=false;thinking(false)}
  }

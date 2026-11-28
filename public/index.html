@@ -7186,7 +7186,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
             if (streamAbort) { try { streamAbort.abort(); } catch (e) {} }
         }
         function combinedInstructions() {
-            let s = 'RESPONSE STYLE: Make each reply composed and easy to scan. Start with the answer or next action. Keep related thoughts together; avoid fragments, repeated summaries, decorative headings, and long checklists for simple exchanges. Use at most one short heading when useful. Use bullets only for genuinely separate items, usually 2–5, with one complete thought each. Use bold sparingly for key terms, never entire sentences or every line. End with a clear next instruction or a useful question only when the conversation needs it. In Study mode, act like a patient tutor: explain one step at a time, respond directly to the student’s attempt, briefly say what is correct or needs fixing, then give the next task in the same compact message. Do not expose answer keys during practice unless asked. Use normal unescaped Markdown and match the reply length to the request.';
+            let s = 'RESPONSE STYLE: Give short replies in plain paragraphs. Use headings or lists when the answer has distinct sections or steps. Keep inline dashes in prose and write real lists on separate lines. In tutoring, acknowledge the attempt, show any exact correction, and give one specific next action. Refer back to earlier instructions instead of repeating the whole exercise unless asked. Keep emphasis on complete phrases and use standard Markdown.';
+            if (globalInstructions) s += '\n\n' + globalInstructions;
             const chat = currentChatId ? chats[currentChatId] : null;
             if (chat && chat.systemPrompt) s = (s ? s + '\n\n' : '') + chat.systemPrompt;
             const project = projectForChat(chat);
@@ -7197,7 +7198,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
         const LIVE_VOICE_INSTRUCTIONS = 'LIVE VOICE MODE: Keep every reply short and speakable — 1 to 3 sentences, under ~60 words. Lead with the answer in the first sentence. No markdown, bullets, code, or headings. Conversational only.';
         function liveAwareInstructions() {
             let s = combinedInstructions();
-            if (!liveModeActive) s = (s ? s + '\n\n' : '') + 'RESPONSE PRESENTATION: Organize answers for scanning. Lead with the answer, then use concise headings and short paragraphs. Use Markdown tables for comparisons, plans, schedules, or 3+ structured items when helpful. Use numbered steps for procedures. When the user asks for a graph, simulation, calculator, or says show me, create a runnable interactive artifact or structured data the interface can render instead of only describing it. Keep Markdown real and readable; never escape bold markers.';
+            if (!liveModeActive) s = (s ? s + '\n\n' : '') + 'When the user asks for an interactive graph, simulation, or calculator, use a supported interactive artifact when helpful.';
             if (liveModeActive) s = (s ? s + '\n\n' : '') + LIVE_VOICE_INSTRUCTIONS;
             return s;
         }
@@ -10197,7 +10198,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
         function formatMarkdown(text) {
             if (!text) return '';
             // Always soft-clean before KaTeX (en/em/minus dashes → ASCII hyphen).
-            let s = softCleanLatexClient(String(text)).replace(/\r\n/g, '\n').replace(/\\([*_#])/g, '$1');
+            let s = String(text).replace(/\r\n?/g, '\n');
             const slots = [];
 
             function stash(html) {
@@ -10217,24 +10218,23 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
             // Protect all math delimiters before list/heading normalization (which
             // otherwise turns " - " inside expressions into bullet lines and garbles digits).
             s = s.replace(/\$\$([\s\S]+?)\$\$/g, function(_, math) {
-                return stash('<div class="katex-block">$$' + escapeHtmlRaw(math) + '$$</div>');
+                return stash('<div class="katex-block">$$' + escapeHtmlRaw(softCleanLatexClient(math)) + '$$</div>');
             });
             s = s.replace(/\\\[([\s\S]+?)\\\]/g, function(_, math) {
-                return stash('<div class="katex-block">\\[' + escapeHtmlRaw(math) + '\\]</div>');
+                return stash('<div class="katex-block">\\[' + escapeHtmlRaw(softCleanLatexClient(math)) + '\\]</div>');
             });
             s = s.replace(/\\\(([\s\S]+?)\\\)/g, function(_, math) {
-                return stash('<span class="katex-inline">\\(' + escapeHtmlRaw(math) + '\\)</span>');
+                return stash('<span class="katex-inline">\\(' + escapeHtmlRaw(softCleanLatexClient(math)) + '\\)</span>');
             });
             s = s.replace(/\$([^$\n]+?)\$/g, function(_, math) {
-                return stash('<span class="katex-inline">$' + escapeHtmlRaw(math) + '$</span>');
+                return stash('<span class="katex-inline">$' + escapeHtmlRaw(softCleanLatexClient(math)) + '$</span>');
             });
             s = s.replace(/`([^`\n]+)`/g, function(_, code) {
                 return stash('<code class="md-code">' + escapeHtmlRaw(code) + '</code>');
             });
 
-            s = s.replace(/[ \t]*#{1,6}[ \t]+/g, '\n### ');
-            s = s.replace(/([^\n])\s+(\d+)\.\s+/g, '$1\n$2. ');
-            s = s.replace(/([^\n])\s+[-*]\s+/g, '$1\n- ');
+            // Repair escaped bold in prose after code and math have been protected.
+            s = s.replace(/(?:\\\*){2}/g, '**');
             s = s.replace(/\n{3,}/g, '\n\n');
             s = s.replace(/^\n+/, '');
 

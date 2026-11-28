@@ -1206,13 +1206,13 @@ function isRunnableCodePrompt(body) {
 }
 
 // Reuse extracted attachments from older turns without replaying the full transcript.
-function recallChatAttachments(history, recent) {
+function recallChatAttachments(history, recent, fresh) {
     const latest = recent.slice().reverse().find(message => message?.role === 'user');
     const question = typeof latest?.content === 'string' ? latest.content : '';
     if (!question.trim()) return null;
     const words = value => Array.from(new Set(value.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []))
         .filter(word => !/^(?:the|and|for|this|that|what|which|how|can|you|please|from|about|was|with|are|explain|tell|more|file|document|attached|attachment|image|photo)$/.test(word));
-    const terms = words(question.slice(0, 4000));
+    const terms = words(question.slice(0, 4000)).slice(0, 24);
     const score = value => {
         const normalized = value.toLowerCase();
         return terms.reduce((total, term) => total + Number(normalized.includes(term)), 0);
@@ -1227,7 +1227,7 @@ function recallChatAttachments(history, recent) {
         .map(file => JSON.stringify([file?.name, file?.text])));
     const recentImages = new Set(recent.filter(turn => turn?.role === 'user')
         .flatMap(turn => turn.images || [turn.image]));
-    for (let i = history.length - 1; i >= 0 && files.length < 30; i--) {
+    for (let i = history.length - 1; i >= 0; i--) {
         const turn = history[i];
         if (turn?.role !== 'user') continue;
         for (const file of filesFor(turn)) {
@@ -1236,11 +1236,14 @@ function recallChatAttachments(history, recent) {
             if (recentFiles.has(key)) continue;
             recentFiles.add(key);
             const name = String(file.name || 'Attachment').slice(0, 180);
-            const chunks = file.text.slice(0, 60000).match(/[\s\S]{1,3000}/g) || [];
+            const newlyAttached = fresh && filesFor(fresh).includes(file);
+            const chunks = file.text.match(/[\s\S]{1,3000}/g) || [];
             const ranked = chunks.map((text, index) => ({ text, index, points: score(text) }))
                 .sort((a, b) => b.points - a.points || a.index - b.index);
             const points = score(name) * 4 + (ranked[0]?.points || 0);
-            if (refersToFile || points >= 2 || score(name)) files.push({ name, points, ranked });
+            if (newlyAttached || refersToFile || points >= 1) {
+                files.push({ name, points: points + (newlyAttached ? 1000 : 0), ranked: ranked.slice(0, 2) });
+            }
         }
         if (refersToImage && !image && !turn.imageTooBig) {
             const images = Array.isArray(turn.images) ? turn.images : [turn.image];
@@ -1334,8 +1337,15 @@ async function resolveContextPack(req) {
     if (documentIntent && !isStudioDocumentRequest(body) && !effectiveInstructions.includes('"slides":')) {
         effectiveInstructions += '\n\nCreate a polished downloadable Office document based on the user request. Return ONLY valid JSON shaped like {"title":"...","subtitle":"...","slides":[{"layout":"title|content|stat|quote|compare|closing","eyebrow":"...","title":"...","subtitle":"...","body":"...","bullets":["..."],"stat":"...","leftTitle":"...","leftBullets":["..."],"rightTitle":"...","rightBullets":["..."],"quote":"...","attribution":"...","visual":"..."}]}. Create 6 to 12 concise, substantial slides with varied visual layouts and no filler. For BOTH PowerPoint and Word, always use the top-level slides array; each item is a slide or a Word section. Do not use sections/pages as the array key. Do not return markdown fences or prose.';
     }
+    const studioRequest = body.studio === true || [body.surface, body.source, req.headers['x-studio-surface']]
+        .some(value => String(value || '').toLowerCase() === 'studio');
+    const promptHistory = bodyMessages.length ? bodyMessages : historyForSummary;
     const packed = buildPackedMessages({
-        messages: bodyMessages.length ? bodyMessages : historyForSummary,
+        messages: studioRequest ? promptHistory : promptHistory.map(turn => {
+            if (turn?.role !== 'user') return turn;
+            const { attachedFile, attachedFiles, ...message } = turn;
+            return message;
+        }),
         customInstructions: effectiveInstructions,
         accountMemory: user && user.id ? accountMemory : {},
         rollingSummary,
@@ -1344,17 +1354,24 @@ async function resolveContextPack(req) {
     });
 
     let memorySnapshot = null;
-    const studioRequest = body.studio === true || [body.surface, body.source, req.headers['x-studio-surface']]
-        .some(value => String(value || '').toLowerCase() === 'studio');
     if (!studioRequest && !isAutoTitleRequest(body)) {
         try {
             const history = storedChat || (ownerKey && chatId ? await auth.getChat(ownerKey, chatId) : null);
             const recent = bodyMessages.slice(-RECENT_WINDOW);
             const earlier = Array.isArray(body.earlierAttachments) ? body.earlierAttachments.slice(-12) : [];
-            const recalled = recallChatAttachments((history?.messages || []).concat(earlier), recent);
+            const newest = recent.findLast(turn => turn?.role === 'user');
+            const newDocuments = newest?.attachedFiles?.length || newest?.attachedFile;
+            const recalled = recallChatAttachments(
+                (history?.messages || []).concat(earlier, recent.map(turn => ({ ...turn, images: [], image: undefined }))),
+                recent.map(turn => turn === newest && newDocuments && !String(turn.content || '').trim()
+                    ? { ...turn, content: 'Review the attached document.' , attachedFiles: [], attachedFile: undefined }
+                    : { ...turn, attachedFiles: [], attachedFile: undefined }),
+                newest
+            );
             if (recalled) {
                 const lastUser = packed.messages.findLastIndex(message => message.role === 'user');
                 if (lastUser >= 0) packed.messages.splice(lastUser, 0, recalled);
+                else packed.messages.push(recalled);
                 packed.meta.packSize = packed.messages.length;
             }
         } catch (error) {

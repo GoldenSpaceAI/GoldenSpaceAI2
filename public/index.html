@@ -4471,6 +4471,14 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
 .message.ai .message-bubble{max-width:min(100%,900px)}.study-widget{margin-block:18px;padding:20px;border-radius:18px}.study-widget h2,.study-widget h3{line-height:1.35}
 @media(max-width:640px){.messages-container{--reply-size:15px}.ai-content{line-height:1.72!important}.ai-content h1{font-size:1.4em}.ai-content h2{font-size:1.23em}.ai-content .md-list{padding-inline-start:1.3em!important}.study-widget{padding:16px}}
 </style>
+<style>
+    .chat-area > .composer-shell {
+        position: relative;
+    }
+    .composer-shell > .jump-latest {
+        bottom: calc(100% + 8px);
+    }
+</style>
 </head>
 <body class="gsa-polished gsa-chat">
     <script>
@@ -4614,9 +4622,9 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
 
             <div class="chat-area">
                 <div class="messages-container" id="messagesContainer"></div>
-                <button type="button" class="jump-latest" id="jumpLatestBtn" onclick="jumpToLatest()" aria-label="Jump to latest">↓ Latest</button>
 
                 <div class="composer-shell">
+                    <button type="button" class="jump-latest" id="jumpLatestBtn" onclick="jumpToLatest()" aria-label="Jump to latest">↓ Latest</button>
 <nav class="study-tool-dock" data-study-only hidden aria-label="Study tools"><span>STUDY WORKSPACE</span><button type="button" onclick="studyTool('flashcards')">Flashcards</button><button type="button" onclick="studyTool('notes')">Notes</button><button type="button" onclick="studyTool('graph')">Graph</button><button type="button" onclick="studyTool('exam')">Practice exam</button></nav>
                     <div class="attach-previews" id="attachPreviews" aria-live="polite"></div>
                     <div class="composer-tools mobile-only">

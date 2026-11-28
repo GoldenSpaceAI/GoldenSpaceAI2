@@ -389,6 +389,12 @@ body.gsa-upgrade main{max-width:1140px;padding-top:48px}
 .plan-help{padding:28px 0;display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px}
 @media(max-width:700px){body.gsa-upgrade main{padding-top:30px}.section-heading{align-items:flex-start;flex-direction:column;gap:12px}.gsa-upgrade .plans{grid-template-columns:1fr}.gsa-upgrade .plan-card{padding:24px}.gsa-upgrade .plan-card .mode-row{min-height:0}.gsa-upgrade .cta-row .btn{width:100%}.credit-fields{grid-template-columns:1fr}.credit-allocation{grid-column:auto;grid-row:auto}.credit-section summary,.gsa-upgrade .credit-topup{padding:20px}.plan-help{flex-direction:column}.billing-option span{display:block;margin-left:0}}
 </style>
+<style>
+.plan-whish { margin-block:0 16px; border:1px solid var(--border); border-radius:12px; }
+.plan-whish summary { cursor:pointer; padding:10px 14px; font-weight:650; }
+.plan-whish summary span { margin-inline-start:8px; font-size:.8em; color:var(--muted); font-weight:500; }
+.plan-whish p { padding:0 14px 12px; margin:0; color:var(--muted); }
+</style>
 </head>
 <body class="gsa-polished gsa-site-page gsa-upgrade">
 <header class="topnav">
@@ -431,6 +437,10 @@ body.gsa-upgrade main{max-width:1140px;padding-top:48px}
 
   <section class="step active" id="step1">
     <div class="section-heading"><div><h2>Find your plan</h2><p>Choose the tools and capacity that fit your day.</p></div><span class="payment-badge">OMT Pay · No auto-renewal</span></div>
+    <details class="plan-whish">
+      <summary>Pay with Whish <span>Coming soon</span></summary>
+      <p>We’re still developing Whish Pay. You can use OMT Pay to upgrade today.</p>
+    </details>
     <div class="billing-switch" role="group" aria-label="Billing period"><button type="button" class="billing-option active" data-period="monthly">Monthly</button><button type="button" class="billing-option" data-period="yearly">Yearly <span>Pay once · 12 months</span></button></div>
     <div class="plans" id="plans"></div>
     <div class="cta-row">

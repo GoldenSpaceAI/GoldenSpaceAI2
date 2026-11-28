@@ -4479,6 +4479,24 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
         bottom: calc(100% + 8px);
     }
 </style>
+<style>
+.writing-entry { display:flex; justify-content:flex-end; }
+.writing-entry[hidden] { display:none; }
+.writing-button { font:inherit; font-size:.84rem; cursor:pointer; color:var(--text); background:var(--surface-1); border:1px solid var(--border, var(--gold-line)); border-radius:9px; padding:8px 12px; }
+.writing-button:hover { background:var(--gold-soft); }
+.chat-writing { box-sizing:border-box; width:min(900px, calc(100% - 24px)); height:min(760px, calc(100dvh - 24px)); max-width:none; max-height:none; padding:0; border:1px solid var(--gold-line); border-radius:20px; background:var(--surface-1); color:var(--text); box-shadow:0 20px 64px #0004; }
+.chat-writing::backdrop { background:#12100b88; }
+.writing-layout { height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+.writing-header,.writing-footer { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:14px clamp(14px,4vw,28px); }
+.writing-header { justify-content:space-between; border-bottom:1px solid var(--gold-line); }
+.writing-header h2 { font-size:1rem; margin:0; }
+.writing-footer { justify-content:flex-end; border-top:1px solid var(--gold-line); }
+.writing-primary { background:var(--gold-soft); font-weight:700; }
+.writing-button:disabled { opacity:.55; cursor:default; }
+.writing-body { min-height:0; width:100%; box-sizing:border-box; padding:clamp(18px,5vw,42px); overflow:auto; font:inherit; font-size:1rem; line-height:1.75; }
+.writing-body[hidden] { display:none; }
+textarea.writing-body { resize:none; border:0; background:transparent; color:inherit; }
+</style>
 </head>
 <body class="gsa-polished gsa-chat">
     <script>
@@ -4626,6 +4644,9 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
                 <div class="composer-shell">
                     <button type="button" class="jump-latest" id="jumpLatestBtn" onclick="jumpToLatest()" aria-label="Jump to latest">↓ Latest</button>
 <nav class="study-tool-dock" data-study-only hidden aria-label="Study tools"><span>STUDY WORKSPACE</span><button type="button" onclick="studyTool('flashcards')">Flashcards</button><button type="button" onclick="studyTool('notes')">Notes</button><button type="button" onclick="studyTool('graph')">Graph</button><button type="button" onclick="studyTool('exam')">Practice exam</button></nav>
+                    <div class="writing-entry" id="writingEntry" hidden>
+                        <button class="writing-button" type="button" id="writingExpand" aria-haspopup="dialog">↗ Expand editor</button>
+                    </div>
                     <div class="attach-previews" id="attachPreviews" aria-live="polite"></div>
                     <div class="composer-tools mobile-only">
                         <div class="model-selector" id="modelSelectorMobile">
@@ -4854,7 +4875,22 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
     <div id="studyConfirm" hidden style="position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,8,3,.52);backdrop-filter:blur(5px)" role="dialog" aria-modal="true" aria-labelledby="studyConfirmTitle">
         <div style="width:min(430px,100%);border:1px solid rgba(212,175,55,.35);border-radius:20px;padding:24px;background:var(--surface-1);box-shadow:0 24px 80px rgba(0,0,0,.28)"><h2 id="studyConfirmTitle" style="margin:0 0 8px;color:var(--text)">Turn this chat into Study?</h2><p style="margin:0;color:var(--text-muted);line-height:1.55">Study mode adds focused learning tools, flashcards, graphs, notes, and interactive exams. This empty chat will stay in Study mode.</p><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px"><button type="button" onclick="closeStudyConfirm()" style="border:1px solid var(--border);border-radius:10px;padding:10px 15px;background:transparent;color:var(--text);cursor:pointer;font-weight:700">Cancel</button><button type="button" onclick="confirmStudyMode()" style="border:0;border-radius:10px;padding:10px 15px;background:var(--gold);color:#1b160b;cursor:pointer;font-weight:800">Continue</button></div></div>
     </div>
-    <script>
+    <dialog class="chat-writing" id="chatWriting" aria-labelledby="writingTitle">
+    <div class="writing-layout">
+        <header class="writing-header">
+            <h2 id="writingTitle">Writing editor</h2>
+            <button class="writing-button" type="button" id="writingClose">Close</button>
+        </header>
+        <textarea class="writing-body" id="writingDraft" aria-label="Message draft" placeholder="Write or paste your draft here…"></textarea>
+        <div class="writing-body" id="writingPreview" tabindex="0" hidden></div>
+        <footer class="writing-footer">
+            <button class="writing-button" type="button" id="writingCopy">Copy</button>
+            <button class="writing-button writing-primary" type="button" id="writingUse" hidden>Use as draft</button>
+            <button class="writing-button writing-primary" type="button" id="writingSend">Send to chat</button>
+        </footer>
+    </div>
+</dialog>
+<script>
         const API_URL = '/api/chat';
         const STREAM_URL = '/api/chat/stream';
         const CHATS_API = '/api/chats';
@@ -7132,6 +7168,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
         }
 
         function syncSendLiveButton() {
+            syncWritingEntry();
             const btn = document.getElementById('sendBtn');
             if (!btn) return;
             if (isSending) return;
@@ -8507,6 +8544,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
                 inner += (tAi ? '<div class="msg-time">' + escapeHtmlRaw(tAi) + '</div>' : '') +
                     '<div class="message-actions">' +
                     '<button class="msg-btn" title="Copy" onclick="copyMessage(this)">' + ICO.copy + '</button>' +
+                    '<button class="msg-btn" type="button" title="Open reply in editor" aria-label="Open reply in editor" aria-haspopup="dialog" onclick="openReplyInEditor(this)">↗</button>' +
                     '<button class="msg-btn" title="Share" onclick="shareMessage(this)">' + ICO.share + '</button>' +
                     '<button class="msg-btn" title="Listen" aria-label="Listen" onclick="speakMessage(this)">' + ICO.speak + '</button>' +
                     '<button class="msg-btn stop-btn" title="Stop" onclick="stopSpeaking()">' + ICO.stop + '</button>' +
@@ -10498,6 +10536,94 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
                 reg.update();
             }).catch(function() {});
         }
+
+
+        const writingDialog = document.getElementById('chatWriting');
+        const writingDraft = document.getElementById('writingDraft');
+        const writingPreview = document.getElementById('writingPreview');
+        const writingSend = document.getElementById('writingSend');
+        const writingUse = document.getElementById('writingUse');
+
+        function syncWritingEntry() {
+            const input = document.getElementById('messageInput');
+            const style = getComputedStyle(input);
+            const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5;
+            const verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+            const hasFiveLines = input.value.split('\n').length >= 5 ||
+                input.scrollHeight - verticalPadding >= lineHeight * 4.9;
+            document.getElementById('writingEntry').hidden =
+                !input.value.trim() || (input.value.length < 300 && !hasFiveLines);
+            writingSend.disabled = isSending || !writingDraft.value.trim();
+        }
+
+        function setWritingView(reading) {
+            document.getElementById('writingTitle').textContent = reading ? 'Read reply' : 'Writing editor';
+            writingDraft.hidden = reading;
+            writingSend.hidden = reading;
+            writingPreview.hidden = !reading;
+            writingUse.hidden = !reading;
+        }
+
+        function openDraftInEditor() {
+            writingDraft.value = document.getElementById('messageInput').value;
+            setWritingView(false);
+            syncWritingEntry();
+            if (!writingDialog.open) writingDialog.showModal();
+            writingDraft.focus();
+        }
+
+        function openReplyInEditor(button) {
+            const reply = button.closest('.message')?.querySelector('.ai-content');
+            if (!reply?.textContent.trim()) return;
+            writingPreview.replaceChildren(...Array.from(reply.cloneNode(true).childNodes));
+            writingPreview.querySelectorAll('button, .stream-caret').forEach(node => node.remove());
+            const hasDraft = !!document.getElementById('messageInput').value.trim();
+            writingUse.textContent = hasDraft ? 'Append to draft' : 'Use as draft';
+            setWritingView(true);
+            writingDialog.showModal();
+            writingPreview.scrollTop = 0;
+            writingPreview.focus();
+        }
+
+        function keepWritingDraft() {
+            const input = document.getElementById('messageInput');
+            input.value = writingDraft.value;
+            autoGrow(input);
+        }
+
+        document.getElementById('writingExpand').onclick = openDraftInEditor;
+        writingDraft.addEventListener('input', syncWritingEntry);
+        function preserveDraftOnClose() {
+            if (!writingDraft.hidden) keepWritingDraft();
+        }
+
+        document.getElementById('writingClose').onclick = () => {
+            preserveDraftOnClose();
+            writingDialog.close();
+        };
+        writingDialog.addEventListener('cancel', preserveDraftOnClose);
+        writingUse.onclick = () => {
+            const input = document.getElementById('messageInput');
+            const reply = writingPreview.innerText.trim();
+            input.value = input.value.trim() ? input.value.trimEnd() + '\n\n' + reply : reply;
+            autoGrow(input);
+            openDraftInEditor();
+        };
+        document.getElementById('writingCopy').onclick = async () => {
+            try {
+                const text = writingDraft.hidden ? writingPreview.innerText : writingDraft.value;
+                await navigator.clipboard.writeText(text);
+                showToast('Copied to clipboard', 'ok', 1600);
+            } catch (_) {
+                showToast('Copy failed', 'err');
+            }
+        };
+        writingSend.onclick = () => {
+            if (isSending || !writingDraft.value.trim()) return;
+            keepWritingDraft();
+            writingDialog.close();
+            sendMessage();
+        };
 
         init();
             refreshNotifications();

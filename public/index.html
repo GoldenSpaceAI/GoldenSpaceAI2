@@ -4777,6 +4777,14 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                             <button type="button" class="settings-instr-save" id="instrSaveBtn" onclick="saveInstructionsEdit()">Save instructions</button>
                         </div>
                     </div>
+                    <section class="settings-card" id="conversationMemoryCard" aria-labelledby="conversationMemoryTitle" hidden>
+                        <h3 id="conversationMemoryTitle">Conversation memory</h3>
+                        <p class="settings-instr-hint">Saved notes are used in this chat and sync across your devices. Clearing them leaves your chat history intact.</p>
+                        <label><input type="checkbox" id="conversationMemoryEnabled" disabled> Use memory in this chat</label>
+                        <p class="settings-instr-hint" id="conversationMemoryStatus" role="status"></p>
+                        <ul id="conversationMemoryNotes" style="padding-inline-start:1.3rem;overflow-wrap:anywhere"></ul>
+                        <button type="button" class="settings-instr-save" id="conversationMemoryClear" disabled>Clear saved notes</button>
+                    </section>
                     <div class="settings-card" aria-label="Remembered about you" id="settingsMemoryCard" hidden>
                         <h3>Remembered about you</h3>
                         <p class="settings-instr-hint">Sticky facts used across chats when you are logged in (name, preferences, stable personal details). Guests have no cross-chat memory.</p>
@@ -5380,6 +5388,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
             loadGlobalInstructions();
             loadChatSystemPromptUI();
             snapshotInstructionsDraft();
+            loadConversationMemory();
             applyTheme(document.documentElement.classList.contains('light') ? 'light' : 'dark');
             syncTtsSettingsUI();
             const saveBtn = document.getElementById('instrSaveBtn');
@@ -5421,6 +5430,59 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                 loadAccountMemory();
             }
         }
+        let conversationMemoryRequest = 0;
+
+        async function loadConversationMemory(change) {
+            const card = document.getElementById('conversationMemoryCard');
+            const toggle = document.getElementById('conversationMemoryEnabled');
+            const clear = document.getElementById('conversationMemoryClear');
+            const status = document.getElementById('conversationMemoryStatus');
+            const list = document.getElementById('conversationMemoryNotes');
+            const chatId = currentChatId;
+            const request = ++conversationMemoryRequest;
+            const current = () => request === conversationMemoryRequest && chatId === currentChatId && isLoggedIn();
+            card.hidden = !isLoggedIn() || !chatId;
+            if (card.hidden) {
+                list.replaceChildren();
+                return;
+            }
+            toggle.disabled = clear.disabled = true;
+            list.replaceChildren();
+            status.textContent = change ? 'Saving…' : 'Loading saved notes…';
+            try {
+                const response = await apiFetch(CHATS_API + '/' + encodeURIComponent(chatId) + '/memory',
+                    change ? { method: 'PUT', body: JSON.stringify(change) } : { cache: 'no-store' });
+                const data = await response.json();
+                if (!current()) return;
+                if (!response.ok) throw new Error(data.error || 'Could not load conversation memory.');
+                toggle.checked = data.enabled;
+                toggle.disabled = false;
+                clear.disabled = !data.notes.length;
+                for (const note of data.notes) {
+                    const item = document.createElement('li');
+                    item.textContent = note;
+                    list.appendChild(item);
+                }
+                status.textContent = !data.enabled ? 'Memory is off for this chat.' :
+                    (data.notes.length ? '' : 'No saved notes yet.');
+            } catch (error) {
+                if (!current()) return;
+                status.textContent = error.message;
+                if (change) {
+                    toggle.disabled = false;
+                    clear.disabled = false;
+                    if ('enabled' in change) toggle.checked = !change.enabled;
+                }
+            }
+        }
+
+        document.getElementById('conversationMemoryEnabled').addEventListener('change', event => {
+            loadConversationMemory({ enabled: event.target.checked });
+        });
+        document.getElementById('conversationMemoryClear').addEventListener('click', () => {
+            if (confirm('Clear the saved notes for this chat?')) loadConversationMemory({ clear: true });
+        });
+
         function closeSettingsPanel() {
             const overlay = document.getElementById('settingsOverlay');
             if (overlay) overlay.classList.remove('open');
@@ -6293,6 +6355,8 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
             if (b2) { b2.textContent = label; b2.classList.toggle('on', webSearchEnabled); }
         }
 
+        const initialChatWrites = new Map();
+
         function createNewChat() {
             const id = 'chat_' + Date.now();
             chats[id] = { name: 'New Chat', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), projectId: activeProjectId || null, systemPrompt: '', rollingSummary: '', summaryMessageCount: 0, mode: 'normal', studyState: {} };
@@ -6301,7 +6365,10 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
             loadChat();
             renderChatsList();
             closeChatsPanel();
-            syncChatToServer(id);
+            if (isLoggedIn()) {
+                const write = syncChatToServer(id).finally(() => initialChatWrites.delete(id));
+                initialChatWrites.set(id, write);
+            }
         }
 
         function deleteChat(id) {
@@ -6699,6 +6766,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
             const container = document.getElementById('messagesContainer');
             container.innerHTML = '';
             loadChatSystemPromptUI();
+            if (document.getElementById('settingsOverlay')?.classList.contains('open')) loadConversationMemory();
             syncStudyUi();
             updateTopTitle();
             if(!currentChatId || !chats[currentChatId]) return;
@@ -7388,6 +7456,12 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
         async function sendMessage(opts) {
             opts = opts || {};
             if (isSending) return;
+            const chatIdAtSend = currentChatId;
+            const initialWrite = initialChatWrites.get(chatIdAtSend);
+            if (initialWrite) {
+                await initialWrite;
+                if (isSending || currentChatId !== chatIdAtSend || !chats[chatIdAtSend]) return;
+            }
             const input = document.getElementById('messageInput');
             let text = opts.text !== undefined ? opts.text : input.value.trim();
             let imgToSend = opts.image !== undefined ? opts.image : selectedImage;

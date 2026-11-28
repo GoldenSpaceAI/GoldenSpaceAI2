@@ -4480,11 +4480,21 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
     }
 </style>
 <style>
-.writing-entry { display:flex; justify-content:flex-end; }
-.writing-entry[hidden] { display:none; }
+.writing-entry { display:flex; justify-content:flex-end; padding-inline:4px; }
+.writing-entry .writing-launch {
+    display:inline-flex; align-items:center; gap:7px; min-height:34px;
+    padding:5px 9px; color:var(--text-muted); background:transparent;
+    border:1px solid transparent; border-radius:9px; font:inherit;
+    font-size:.8rem; font-weight:600; cursor:pointer;
+}
+.writing-launch svg { flex:none; }
+.writing-entry .writing-launch:hover,
+.writing-entry .writing-launch:focus-visible {
+    color:var(--text); background:var(--surface-1); border-color:var(--gold-line);
+}
 .writing-button { font:inherit; font-size:.84rem; cursor:pointer; color:var(--text); background:var(--surface-1); border:1px solid var(--border, var(--gold-line)); border-radius:9px; padding:8px 12px; }
 .writing-button:hover { background:var(--gold-soft); }
-.chat-writing { box-sizing:border-box; width:min(900px, calc(100% - 24px)); height:min(760px, calc(100dvh - 24px)); max-width:none; max-height:none; padding:0; border:1px solid var(--gold-line); border-radius:20px; background:var(--surface-1); color:var(--text); box-shadow:0 20px 64px #0004; }
+.chat-writing { position:fixed; inset:0; margin:auto; box-sizing:border-box; width:min(900px, calc(100% - 24px)); height:min(760px, calc(100dvh - 24px)); max-width:none; max-height:none; padding:0; border:1px solid var(--gold-line); border-radius:20px; background:var(--surface-1); color:var(--text); box-shadow:0 20px 64px #0004; }
 .chat-writing::backdrop { background:#12100b88; }
 .writing-layout { height:100%; display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
 .writing-header,.writing-footer { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:14px clamp(14px,4vw,28px); }
@@ -4644,8 +4654,11 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                 <div class="composer-shell">
                     <button type="button" class="jump-latest" id="jumpLatestBtn" onclick="jumpToLatest()" aria-label="Jump to latest">↓ Latest</button>
 <nav class="study-tool-dock" data-study-only hidden aria-label="Study tools"><span>STUDY WORKSPACE</span><button type="button" onclick="studyTool('flashcards')">Flashcards</button><button type="button" onclick="studyTool('notes')">Notes</button><button type="button" onclick="studyTool('graph')">Graph</button><button type="button" onclick="studyTool('exam')">Practice exam</button></nav>
-                    <div class="writing-entry" id="writingEntry" hidden>
-                        <button class="writing-button" type="button" id="writingExpand" aria-haspopup="dialog">↗ Expand editor</button>
+                    <div class="writing-entry" id="writingEntry">
+                        <button class="writing-launch" type="button" id="writingExpand" aria-haspopup="dialog" aria-controls="chatWriting">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6m0-6-7 7M10 20H4v-6m0 6 7-7"/></svg>
+                            <span>Expand editor</span>
+                        </button>
                     </div>
                     <div class="attach-previews" id="attachPreviews" aria-live="polite"></div>
                     <div class="composer-tools mobile-only">
@@ -7168,7 +7181,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
         }
 
         function syncSendLiveButton() {
-            syncWritingEntry();
+            syncWritingSend();
             const btn = document.getElementById('sendBtn');
             if (!btn) return;
             if (isSending) return;
@@ -10544,15 +10557,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
         const writingSend = document.getElementById('writingSend');
         const writingUse = document.getElementById('writingUse');
 
-        function syncWritingEntry() {
-            const input = document.getElementById('messageInput');
-            const style = getComputedStyle(input);
-            const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5;
-            const verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-            const hasFiveLines = input.value.split('\n').length >= 5 ||
-                input.scrollHeight - verticalPadding >= lineHeight * 4.9;
-            document.getElementById('writingEntry').hidden =
-                !input.value.trim() || (input.value.length < 300 && !hasFiveLines);
+        function syncWritingSend() {
             writingSend.disabled = isSending || !writingDraft.value.trim();
         }
 
@@ -10567,7 +10572,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
         function openDraftInEditor() {
             writingDraft.value = document.getElementById('messageInput').value;
             setWritingView(false);
-            syncWritingEntry();
+            syncWritingSend();
             if (!writingDialog.open) writingDialog.showModal();
             writingDraft.focus();
         }
@@ -10592,7 +10597,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
         }
 
         document.getElementById('writingExpand').onclick = openDraftInEditor;
-        writingDraft.addEventListener('input', syncWritingEntry);
+        writingDraft.addEventListener('input', syncWritingSend);
         function preserveDraftOnClose() {
             if (!writingDraft.hidden) keepWritingDraft();
         }

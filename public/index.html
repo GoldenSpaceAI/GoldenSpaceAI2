@@ -4507,6 +4507,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
 .writing-body[hidden] { display:none; }
 textarea.writing-body { resize:none; border:0; background:transparent; color:inherit; }
 </style>
+<style>.study-note-controls{flex-wrap:wrap}.study-notes > div:first-child{flex-wrap:wrap}.study-note-body{line-height:1.6}.study-notes strong small{color:var(--text-muted);font-weight:500}</style>
 </head>
 <body class="gsa-polished gsa-chat">
     <script>
@@ -6625,6 +6626,30 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                 loadChat();
             }
         }
+        function downloadStudyNotes(index) {
+            const notes = studyMessageAt(index)?.studyArtifact?.notes;
+            if (!notes?.length) return;
+            const content = notes.map((note, position) => (position + 1) + '. ' + note.text).join('\n\n');
+            const url = URL.createObjectURL(new Blob(['Study notes\n\n', content, '\n'], { type: 'text/plain;charset=utf-8' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'study-notes.txt';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function editStudyNote(index, position) {
+            const note = studyMessageAt(index)?.studyArtifact?.notes?.[position];
+            if (!note) return;
+            const text = window.prompt('Edit note', note.text);
+            if (!text?.trim()) return;
+            note.text = text.trim().slice(0, 1200);
+            saveStudyState();
+            loadChat();
+        }
+
         function addStudyNote(index) {
             const msg = studyMessageAt(index), artifact = msg && msg.studyArtifact;
             if (!artifact || artifact.type !== 'notes') return;
@@ -6678,12 +6703,12 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
             }
             if (artifact.type === 'notes') {
                 const notes = artifact.notes || [];
-                return '<section class="study-widget study-notes"' + base + '><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><strong>Sticky notes</strong><button type="button" class="study-mini-btn" onclick="addStudyNote(' + index + ')">+ Add note</button></div><div class="study-notes-grid">' + notes.map(function(note, position) {
+                return '<section class="study-widget study-notes"' + base + '><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><strong>Sticky notes <small>(' + notes.length + ')</small></strong><div class="study-widget-actions"><button type="button" onclick="addStudyNote(' + index + ')">+ Add note</button><button type="button" onclick="downloadStudyNotes(' + index + ')"' + (notes.length ? '' : ' disabled') + '>Download notes</button></div></div><div class="study-notes-grid">' + notes.map(function(note, position) {
                     const colors = ['gold','mint','rose','sky','lilac'];
                     const color = colors.includes(note.color) ? note.color : colors[position % colors.length];
                     return '<article class="study-note ' + color + '"><div class="study-note-body">' + escapeHtmlRaw(note.text) + '</div><div class="study-note-controls"><label>Color <select onchange="setStudyNoteColor(' + index + ',' + position + ',this.value)">' +
                         colors.map(value => '<option' + (value === color ? ' selected' : '') + '>' + value + '</option>').join('') +
-                        '</select></label><button type="button" aria-label="Delete note" onclick="removeStudyNoteAt(' + index + ',' + position + ')">×</button></div></article>';
+                        '</select></label><button type="button" onclick="editStudyNote(' + index + ',' + position + ')">Edit</button><button type="button" aria-label="Delete note" onclick="removeStudyNoteAt(' + index + ',' + position + ')">×</button></div></article>';
                 }).join('') + '</div></section>';
             }
             if (artifact.type === 'graph') {
@@ -7601,6 +7626,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                         sites: Object.keys(map).map(function(k) { return map[k]; }),
                         thinking: snap.thinking || activitySnap.thinking || reasoningBuf || '',
                         searchQuery: snap.searchQuery || activitySnap.searchQuery || '',
+                        processed: !!activitySnap.processed,
                         status: snap.status || activitySnap.status || ''
                     };
                 }
@@ -7642,7 +7668,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                 mergeActivityFromSnap();
                 const has = (activitySnap.sites && activitySnap.sites.length) ||
                     (activitySnap.thinking && activitySnap.thinking.trim()) ||
-                    activitySnap.searchQuery;
+                    activitySnap.searchQuery || activitySnap.processed;
                 let panel = aiEl.querySelector('.activity-panel');
                 if (!has) {
                     if (panel) panel.remove();
@@ -7724,7 +7750,8 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                 last.activity = {
                     sites: activitySnap.sites.slice(),
                     thinking: activitySnap.thinking || '',
-                    searchQuery: activitySnap.searchQuery || ''
+                    searchQuery: activitySnap.searchQuery || '',
+                    processed: !!activitySnap.processed
                 };
             }
 
@@ -7773,6 +7800,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                         if (obj.error) errMsg = obj.error;
                         if (obj.status) {
                             setThinkingStatus(thinkingId, obj.status);
+                            if (studyTurn && obj.status === 'thinking') activitySnap.processed = true;
                             if (chromeReady) {
                                 activitySnap.status = obj.status;
                                 mountActivityOnAi(true);
@@ -8624,7 +8652,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                 if (msg.model && !msg.isError) {
                     inner += '<div class="message-meta"><span class="message-mode-badge ' + config.badge + '">' + escapeHtmlRaw(config.desc) + '</span></div>';
                 }
-                if (!msg.isError && msg.activity && ((msg.activity.sites && msg.activity.sites.length) || (msg.activity.thinking && String(msg.activity.thinking).trim()) || msg.activity.searchQuery)) {
+                if (!msg.isError && msg.activity && ((msg.activity.sites && msg.activity.sites.length) || (msg.activity.thinking && String(msg.activity.thinking).trim()) || msg.activity.searchQuery || msg.activity.processed)) {
                     inner += buildActivityPanelHtml(msg.activity, { live: false, open: false });
                 }
                 if (msg.image) {
@@ -8757,7 +8785,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
             }
             const parts = [];
             if (n > 0) parts.push('Searched ' + n + ' site' + (n === 1 ? '' : 's'));
-            if (thinking) parts.push('Thinking');
+            if (thinking || activity?.processed) parts.push('Thinking');
             if (!parts.length) return 'Activity';
             return parts.join(' · ');
         }
@@ -8792,7 +8820,7 @@ textarea.writing-body { resize:none; border:0; background:transparent; color:inh
                 body += '<div class="activity-thinking" aria-label="Model reasoning">' + escapeHtmlRaw(shown) + '</div>';
             }
             if (!sites.length && !thinking.trim() && !query) {
-                body += '<div class="activity-query">' + (live ? 'Working…' : 'No details captured') + '</div>';
+                body += '<div class="activity-query">' + (live ? 'Working…' : 'No reasoning summary was provided for this reply.') + '</div>';
             }
             body += '</div>';
             return '<details class="activity-panel' + (live ? ' live' : '') + '"' + (open ? ' open' : '') + '>' +
